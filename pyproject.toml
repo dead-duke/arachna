@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arachna"
+version = "0.1.0"
+description = "Context collector for AI — gathers project files into token-limited chunks"
+requires-python = ">=3.11"
+
+[project.scripts]
+arachna = "arachna.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

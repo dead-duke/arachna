@@ -1,0 +1,16 @@
+{
+  "project_name": "arachna",
+  "output_dir": ".",
+  "profiles": {
+    "code": {
+      "title_template": "# {project_name} — CODE (part {part})\n\n",
+      "name_template": "chat-code",
+      "directories": ["src"],
+      "patterns": ["*.py"],
+      "exclude_patterns": ["*__pycache__*", "*.pyc", "*.egg-info*"],
+      "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv' src || ls -la src"],
+      "files": ["pyproject.toml", "README.md"],
+      "max_tokens": 16000
+    }
+  }
+}
