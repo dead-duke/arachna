@@ -17,7 +17,6 @@ def split(
         by_marker — split by custom marker string
         single — no split, truncate if exceeds limit
     """
-    # Split into atomic sections based on mode
     if mode == "by_file":
         sections = _split_to_sections(raw_content, "\n\n### ")
     elif mode == "by_paragraph":
@@ -41,7 +40,7 @@ def _split_to_sections(text: str, marker: str) -> list[str]:
             if chunk.strip():
                 result.append(chunk.strip())
         else:
-            result.append((marker + chunk).strip())
+            result.append(marker + chunk)
     return result
 
 
@@ -57,7 +56,6 @@ def _build_parts(sections: list[str], max_tokens: int) -> list[str]:
             continue
         section_tokens = count_tokens(section)
 
-        # Section alone exceeds limit — write it as its own part
         if section_tokens > max_tokens:
             if current:
                 parts.append(current.strip())
@@ -67,7 +65,6 @@ def _build_parts(sections: list[str], max_tokens: int) -> list[str]:
             parts.append(section)
             continue
 
-        # Adding this section would exceed limit — flush current, start new
         if current_tokens + section_tokens > max_tokens:
             parts.append(current.strip())
             current = section
@@ -90,6 +87,6 @@ def _handle_single(text: str, max_tokens: int) -> list[str]:
     tokens = count_tokens(text)
     if tokens > max_tokens:
         print(f"  Warning: content is {tokens} tokens, limit {max_tokens} — truncating")
-        max_chars = max_tokens * 4  # synced with tokenizer's 4 chars/token
+        max_chars = max_tokens * 4
         text = text[:max_chars] + "\n\n# ... truncated ...\n"
     return [text.strip()]
