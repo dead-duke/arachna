@@ -50,25 +50,23 @@
 
 ## v0.1.4 — Tests & Bugfixes
 
-- [x] tests/test_gatherer.py — 18 tests (gather_files + dry_run)
-- [x] tests/test_renderer.py — 10 tests (formatting + render_dry_run)
+- [x] tests/test_gatherer.py — 18 tests
+- [x] tests/test_renderer.py — 10 tests
 - [x] tests/test_gitignore.py — 6 tests
-- [x] tests/test_splitter.py — 23 tests (all modes + boundary)
-- [x] tests/test_formatter.py — 15 tests (format_file_section)
-- [x] tests/test_config.py — 5 tests (default profile)
-- [x] Binary file detection (null bytes) in formatter + gitignore
-- [x] Gitignore: skip venv/.* dirs, handle patterns from subdirectories
+- [x] tests/test_splitter.py — 23 tests
+- [x] tests/test_formatter.py — 15 tests
+- [x] tests/test_config.py — 5 tests
+- [x] Binary file detection (null bytes)
+- [x] Gitignore: skip venv/.* dirs
 - [x] gatherer.py: deduplicated with _collect_named_sections
 - [x] 102 tests, 65% coverage
 
-## v0.1.5 — Shebang Detection (current)
+## v0.1.5 — Shebang Detection
 
 - [x] formatter.py: _lang_from_shebang, _SHEBANG_MAP
 - [x] Supports: python, bash, node, ruby, perl
 - [x] Extension wins over shebang
 - [x] 5 new tests, 107 total, 66% coverage
-- [ ] Update CHANGELOG.md
-- [ ] Git tag v0.1.5
 
 ## v0.2.0 — Features
 

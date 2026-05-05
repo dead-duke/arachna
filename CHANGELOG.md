@@ -1,6 +1,22 @@
 # Changelog
 
-## v0.1.3 — Validate, gitignore, default profile, runner tests
+## v0.1.5 — Shebang Detection
+
+- formatter.py: detect language from shebang
+- Supports: python, bash, node, ruby, perl
+- Extension wins over shebang for .py .sh files
+- 5 new tests, 107 total, 66% coverage
+
+## v0.1.4 — Tests & Bugfixes
+
+- 102 tests (up from 46), 65% coverage (up from 25%)
+- gatherer.py: deduplicated with _collect_named_sections
+- renderer.py: 100% coverage
+- formatter.py: binary file detection (null bytes)
+- gitignore.py: skip venv/.gitignore and hidden dirs
+- tests: gatherer (18), renderer (10), gitignore (6), splitter (23), formatter (15), config (5)
+
+## v0.1.3 — Validate & Gitignore
 
 - validator.py: check split_mode, max_tokens, content source, split_marker
 - gitignore.py: parse .gitignore patterns for auto-exclusion
@@ -35,10 +51,3 @@
 - _FILENAME_LANG for Dockerfile, Makefile, .env, Procfile
 - shlex.split() for safe command execution
 - pip install -e . ready
-
-## v0.1.5 — Shebang Detection
-
-- formatter.py: detect language from shebang (#!... → python/bash/node)
-- Supports: python, bash, node, ruby, perl
-- Extension wins over shebang for .py .sh files
-- 5 new tests, 107 total, 66% coverage
