@@ -1,10 +1,19 @@
 """Renders dry-run output with aligned formatting."""
 
 
+def _format_pct(tokens: int, max_tokens: int) -> str:
+    """Format percentage string."""
+    if max_tokens <= 0:
+        return "0.0%"
+    pct = (tokens / max_tokens) * 100
+    if pct < 0.05:
+        return "<0.1%"
+    return f"{pct:.1f}%"
+
+
 def _format_line(tokens: int, max_tokens: int, name: str) -> str:
     """Format one line: '  5431 tokens | 34.0% | name'"""
-    pct = (tokens / max_tokens * 100) if max_tokens > 0 else 0
-    return f"  {tokens:>5} tokens | {pct:>5.1f}% | {name}"
+    return f"  {tokens:>5} tokens | {_format_pct(tokens, max_tokens):>5} | {name}"
 
 
 def render_dry_run(all_stats: list[dict]):

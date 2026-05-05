@@ -20,6 +20,14 @@
       "patterns": ["*.py"],
       "pre_commands": ["tree tests"],
       "max_tokens": 16000
+    },
+    "git": {
+      "title_template": "# {project_name} — GIT HISTORY (part {part})\n\n",
+      "name_template": "chat-git",
+      "split_mode": "by_marker",
+      "split_marker": "\n\n=== COMMIT:",
+      "command": "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n%nCHANGES:%n' --stat",
+      "max_tokens": 16000
     }
   }
 }
