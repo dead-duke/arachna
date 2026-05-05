@@ -1,13 +1,37 @@
 # Changelog
 
+## v0.1.3 — Validate, gitignore, default profile, runner tests
+
+- validator.py: check split_mode, max_tokens, content source, split_marker
+- gitignore.py: parse .gitignore patterns for auto-exclusion
+- Default profile when .arachna.json has no profiles
+- CLI: --validate flag, exit code 1 on errors
+- test_validator.py: 10 tests
+- test_runner.py: 7 tests
+- renderer: <0.1% for very small percentages
+- git profile added to .arachna.json
+
+## v0.1.2 — Dry-run, renderer, pre-commit, ruff
+
+- gatherer.dry_run: real split simulation with per-section token tracking
+- renderer: aligned output with = for sections, - for parts
+- --dry-run, --output-dir, --verbose CLI flags
+- Makefile: test, test-cov, lint, format, clean
+- pre-commit: ruff + unit tests
+- ruff config in pyproject.toml
+- requirements-dev.txt: ruff, pytest, pytest-cov, pre-commit
+
+## v0.1.1 — Tests + fixes
+
+- 29 tests: tokenizer, splitter, config, formatter
+- Fixed _split_to_sections: .strip() removed, preserves leading newlines
+- Fixed test_config: mock find_config, resolve() for macOS /var symlink
+
 ## v0.1.0 — MVP
 
-- tokenizer.py: conservative token count (4 chars ≈ 1 token), no dependencies
-- config.py: load .arachna.json, find_config() searches upwards
-- collector.py: collect files from directories, specific files, pre_commands, command mode
-- Safe command execution: shlex.split() with shell=True fallback for shell metacharacters
-- Split modes: by_file (atomic files), by_paragraph, by_marker, single
+- tokenizer, runner, formatter, splitter, gatherer, collector, config, CLI
+- 4 split modes: by_file, by_paragraph, by_marker, single
 - exclude_patterns with fnmatch + DEFAULT_EXCLUDE
-- CLI: --profile, --all, --clean, --list
-- pip install -e . with pyproject.toml
-- README with install, usage, config fields, split modes
+- _FILENAME_LANG for Dockerfile, Makefile, .env, Procfile
+- shlex.split() for safe command execution
+- pip install -e . ready
