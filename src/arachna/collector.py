@@ -26,17 +26,21 @@ def save_manifest(out_dir: Path, files: list[str]):
     (out_dir / _MANIFEST).write_text(json.dumps({"files": files, "time": time.time()}, indent=2))
 
 
-def clean_manifest(out_dir: Path, current_name_tmpl: str):
+def clean_manifest(out_dir: Path, name_tmpl: str = ""):
+    """Clean files from manifest. If name_tmpl is empty, clean all."""
     prev = load_manifest(out_dir)
     for f in prev:
-        p = out_dir / f
-        if p.exists():
-            p.unlink()
-    for old in sorted(out_dir.glob(f"{current_name_tmpl}_*.md")):
-        old.unlink()
-    plain = out_dir / f"{current_name_tmpl}.md"
-    if plain.exists():
-        plain.unlink()
+        if not name_tmpl or f.startswith(name_tmpl):
+            p = out_dir / f
+            if p.exists():
+                p.unlink()
+    # Also clean by pattern
+    if name_tmpl:
+        for old in sorted(out_dir.glob(f"{name_tmpl}_*.md")):
+            old.unlink()
+        plain = out_dir / f"{name_tmpl}.md"
+        if plain.exists():
+            plain.unlink()
 
 
 def collect(

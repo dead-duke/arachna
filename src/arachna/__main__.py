@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from .collector import _MANIFEST, clean_manifest, collect, save_manifest
+from .collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
 from .config import get_profile, load_config
 from .gatherer import dry_run
 from .renderer import render_dry_run
@@ -27,11 +27,13 @@ def main():
     group.add_argument("--clean", "-c", action="store_true", help="Remove all collected files")
     group.add_argument("--list", "-l", action="store_true", help="List available profiles")
     group.add_argument("--validate", action="store_true", help="Validate config for errors")
+    group.add_argument("--init", action="store_true", help="Create .arachna.json interactively")
     parser.add_argument(
         "--dry-run", action="store_true", help="Show what will be collected without writing"
     )
     parser.add_argument("--output-dir", "-o", help="Override output directory")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show skipped files")
+    parser.add_argument("--defaults", action="store_true", help="Use defaults with --init")
 
     args = parser.parse_args()
     config = load_config()
@@ -39,7 +41,14 @@ def main():
     output_dir = args.output_dir or config.get("output_dir", ".")
     out_path = Path(output_dir)
 
-    if args.list:
+    if args.init:
+        from .init import run_defaults, run_interactive
+
+        if args.defaults:
+            run_defaults(output_dir)
+        else:
+            run_interactive(output_dir)
+    elif args.list:
         _cmd_list(config)
     elif args.validate:
         _cmd_validate(config)
@@ -47,8 +56,10 @@ def main():
         _cmd_clean(config, out_path)
     elif args.dry_run:
         _cmd_dry_run(config, args)
+    elif args.all:
+        _cmd_all(config, args, project_name, out_path)
     else:
-        _cmd_collect(config, args, project_name, out_path)
+        _cmd_single(config, args, project_name, out_path)
 
 
 def _cmd_list(config: dict):
@@ -140,23 +151,16 @@ def _cmd_dry_run(config: dict, args):
     render_dry_run(all_stats)
 
 
-def _cmd_collect(config: dict, args, project_name: str, out_path: Path):
-    profiles_to_run = _list_profiles(config) if args.all else [args.profile]
-    if not profiles_to_run:
-        print("No profiles to collect.")
-        sys.exit(1)
-
+def _cmd_all(config: dict, args, project_name: str, out_path: Path):
+    """Collect all profiles. Clean everything first."""
     clean_manifest(out_path, "")
-
     all_created = []
-    for name in profiles_to_run:
+    for name in _list_profiles(config):
         try:
             profile = get_profile(name)
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
-            return
-
         print(f"[{name}] Collecting...")
         created = collect(profile, project_name, str(out_path), verbose=args.verbose)
         if created:
@@ -166,8 +170,35 @@ def _cmd_collect(config: dict, args, project_name: str, out_path: Path):
                 print(f"  {Path(f).name} ({lines} lines)")
         else:
             print("  No content collected.")
-
     save_manifest(out_path, all_created)
+
+
+def _cmd_single(config: dict, args, project_name: str, out_path: Path):
+    """Collect single profile. Only clean this profile, keep others."""
+    try:
+        profile = get_profile(args.profile)
+    except KeyError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+        return
+
+    name_tmpl = profile.get("name_template", f"chat-{args.profile}")
+    clean_manifest(out_path, name_tmpl)
+
+    print(f"[{args.profile}] Collecting...")
+    created = collect(profile, project_name, str(out_path), verbose=args.verbose)
+
+    prev = load_manifest(out_path)
+    updated = [f for f in prev if not f.startswith(name_tmpl)]
+    updated.extend(created)
+    save_manifest(out_path, updated)
+
+    if created:
+        for f in created:
+            lines = Path(f).read_text(encoding="utf-8").count("\n") + 1
+            print(f"  {Path(f).name} ({lines} lines)")
+    else:
+        print("  No content collected.")
 
 
 if __name__ == "__main__":
