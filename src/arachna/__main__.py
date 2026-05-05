@@ -9,6 +9,7 @@ from .collector import _MANIFEST, clean_manifest, collect, load_manifest, save_m
 from .config import get_profile, load_config
 from .gatherer import dry_run
 from .renderer import render_dry_run
+from .tokenizer import count_tokens
 from .validator import validate_profile
 
 
@@ -33,6 +34,11 @@ def main():
     )
     parser.add_argument("--output-dir", "-o", help="Override output directory")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show skipped files")
+    parser.add_argument(
+        "--compress", action="store_true", help="Compress whitespace to save tokens"
+    )
+    parser.add_argument("--incremental", action="store_true", help="Only collect changed files")
+    parser.add_argument("--format", choices=["markdown", "xml", "json"], help="Output format")
     parser.add_argument("--defaults", action="store_true", help="Use defaults with --init")
 
     args = parser.parse_args()
@@ -145,14 +151,24 @@ def _cmd_dry_run(config: dict, args):
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
+        if args.compress:
+            profile["compress"] = True
+        if args.format:
+            profile["section_format"] = args.format
         stats = dry_run(profile)
         stats["name"] = name
         all_stats.append(stats)
     render_dry_run(all_stats)
 
 
+def _print_result(f: str):
+    content = Path(f).read_text(encoding="utf-8")
+    lines = content.count("\n") + 1
+    tokens = count_tokens(content)
+    print(f"  {Path(f).name} ({lines} lines, ~{tokens} tokens)")
+
+
 def _cmd_all(config: dict, args, project_name: str, out_path: Path):
-    """Collect all profiles. Clean everything first."""
     clean_manifest(out_path, "")
     all_created = []
     for name in _list_profiles(config):
@@ -161,20 +177,28 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
+        if args.compress:
+            profile["compress"] = True
+        if args.format:
+            profile["section_format"] = args.format
         print(f"[{name}] Collecting...")
-        created = collect(profile, project_name, str(out_path), verbose=args.verbose)
+        created = collect(
+            profile,
+            project_name,
+            str(out_path),
+            verbose=args.verbose,
+            incremental=args.incremental,
+        )
         if created:
             all_created.extend(created)
             for f in created:
-                lines = Path(f).read_text(encoding="utf-8").count("\n") + 1
-                print(f"  {Path(f).name} ({lines} lines)")
+                _print_result(f)
         else:
             print("  No content collected.")
     save_manifest(out_path, all_created)
 
 
 def _cmd_single(config: dict, args, project_name: str, out_path: Path):
-    """Collect single profile. Only clean this profile, keep others."""
     try:
         profile = get_profile(args.profile)
     except KeyError as e:
@@ -182,11 +206,22 @@ def _cmd_single(config: dict, args, project_name: str, out_path: Path):
         sys.exit(1)
         return
 
+    if args.compress:
+        profile["compress"] = True
+    if args.format:
+        profile["section_format"] = args.format
+
     name_tmpl = profile.get("name_template", f"chat-{args.profile}")
     clean_manifest(out_path, name_tmpl)
 
     print(f"[{args.profile}] Collecting...")
-    created = collect(profile, project_name, str(out_path), verbose=args.verbose)
+    created = collect(
+        profile,
+        project_name,
+        str(out_path),
+        verbose=args.verbose,
+        incremental=args.incremental,
+    )
 
     prev = load_manifest(out_path)
     updated = [f for f in prev if not f.startswith(name_tmpl)]
@@ -195,8 +230,7 @@ def _cmd_single(config: dict, args, project_name: str, out_path: Path):
 
     if created:
         for f in created:
-            lines = Path(f).read_text(encoding="utf-8").count("\n") + 1
-            print(f"  {Path(f).name} ({lines} lines)")
+            _print_result(f)
     else:
         print("  No content collected.")
 

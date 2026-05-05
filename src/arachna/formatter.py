@@ -1,5 +1,6 @@
 """File formatting for markdown output."""
 
+import base64
 import fnmatch
 from pathlib import Path
 
@@ -51,13 +52,11 @@ _SHEBANG_MAP = {
 
 
 def _lang_from_shebang(first_line: str) -> str:
-    """Detect language from shebang line (#!/usr/bin/env python3 → python)."""
     if not first_line.startswith("#!"):
         return ""
     parts = first_line[2:].strip().split()
     if not parts:
         return ""
-    # Get the last part of the path or the second argument for env
     if "env" in parts[0]:
         if len(parts) > 1:
             binary = parts[1]
@@ -69,7 +68,6 @@ def _lang_from_shebang(first_line: str) -> str:
 
 
 def lang_for_path(path: Path) -> str:
-    """Detect markdown code block language for a file path."""
     name = path.name.lower()
     if name in _FILENAME_LANG:
         return _FILENAME_LANG[name]
@@ -79,32 +77,93 @@ def lang_for_path(path: Path) -> str:
     return ""
 
 
-def format_file_section(path: Path) -> str:
-    """Read a file and format it as a markdown section.
-
-    Returns empty string if file cannot be read or is binary.
-    """
+def format_file_section(
+    path: Path,
+    fmt: str = "markdown",
+    include_binary: bool = False,
+    binary_extensions: list[str] | None = None,
+    binary_max_mb: float = 1.0,
+) -> str:
+    """Read a file and format it as a section."""
     try:
         text = path.read_text(encoding="utf-8")
-    except (UnicodeDecodeError, PermissionError, OSError):
+    except UnicodeDecodeError:
+        if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
+            return _format_binary(path, fmt)
+        return ""
+    except (PermissionError, OSError):
         return ""
 
-    # Skip binary files (contain null bytes)
     if "\x00" in text:
+        if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
+            return _format_binary(path, fmt)
         return ""
 
     lang = lang_for_path(path)
-
-    # Try shebang detection if no language from extension/filename
     if not lang:
         first_line = text.split("\n")[0] if text else ""
         lang = _lang_from_shebang(first_line)
 
+    if fmt == "xml":
+        return _format_xml(path, lang, text)
+    elif fmt == "json":
+        return _format_json(path, lang, text)
+    else:
+        return _format_markdown(path, lang, text)
+
+
+def _is_binary_allowed(
+    path: Path,
+    extensions: list[str] | None,
+    max_mb: float,
+) -> bool:
+    if not path.exists():
+        return False
+    if extensions and path.suffix.lower() not in extensions:
+        return False
+    size_mb = path.stat().st_size / (1024 * 1024)
+    return size_mb <= max_mb
+
+
+def _format_binary(path: Path, fmt: str) -> str:
+    data = path.read_bytes()
+    b64 = base64.b64encode(data).decode("ascii")
+    ext = path.suffix.lstrip(".").lower()
+
+    if fmt == "xml":
+        return f'<file path="{path}" encoding="base64" extension="{ext}">\n{b64}\n</file>\n'
+    elif fmt == "json":
+        import json as _json
+
+        return (
+            _json.dumps(
+                {"path": str(path), "encoding": "base64", "content": b64}, ensure_ascii=False
+            )
+            + "\n"
+        )
+    else:
+        return f"### {path}\n\n```base64\n{b64}\n```\n"
+
+
+def _format_markdown(path: Path, lang: str, text: str) -> str:
     return f"### {path}\n\n```{lang}\n{text}\n```\n"
 
 
+def _format_xml(path: Path, lang: str, text: str) -> str:
+    lang_attr = f' language="{lang}"' if lang else ""
+    return f'<file path="{path}"{lang_attr}>\n<![CDATA[\n{text}\n]]>\n</file>\n'
+
+
+def _format_json(path: Path, lang: str, text: str) -> str:
+    import json as _json
+
+    obj = {"path": str(path), "content": text}
+    if lang:
+        obj["language"] = lang
+    return _json.dumps(obj, ensure_ascii=False) + "\n"
+
+
 def is_excluded(path: Path, exclude_patterns: list[str]) -> bool:
-    """Check if file matches any exclude pattern."""
     path_str = str(path)
     for pat in exclude_patterns:
         if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):

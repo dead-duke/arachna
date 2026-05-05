@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import Any
 
+from .cache import get_changed_files, update_cache
+from .compressor import compress
 from .formatter import format_file_section, is_excluded
 from .gitignore import load_gitignore_patterns
 from .runner import run_command
@@ -11,7 +13,6 @@ from .tokenizer import count_tokens
 
 
 def _get_exclude_patterns(profile: dict[str, Any]) -> list[str]:
-    """Build combined exclude list from profile + gitignore."""
     exclude = list(profile.get("exclude_patterns", []))
     if profile.get("use_gitignore", True):
         exclude.extend(load_gitignore_patterns(Path.cwd()))
@@ -19,15 +20,18 @@ def _get_exclude_patterns(profile: dict[str, Any]) -> list[str]:
 
 
 def _collect_named_sections(
-    profile: dict[str, Any], exclude: list[str]
-) -> list[tuple[str, str, int]]:
-    """Collect named sections from pre_commands, directories, and files.
-
-    Returns list of (name, content, tokens) tuples.
-    """
+    profile: dict[str, Any],
+    exclude: list[str],
+    incremental: bool = False,
+    cache: dict[str, float] | None = None,
+) -> tuple[list[tuple[str, str, int]], dict[str, float]]:
     named_sections = []
+    seen_files = []
+    fmt = profile.get("section_format", "markdown")
+    include_binary = profile.get("include_binary", False)
+    binary_extensions = profile.get("binary_extensions")
+    binary_max_mb = profile.get("binary_max_mb", 1.0)
 
-    # pre_commands
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
         if output.strip():
@@ -35,7 +39,6 @@ def _collect_named_sections(
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
             named_sections.append((f"pre: {label}", output, tokens))
 
-    # directories
     for directory in profile.get("directories", []):
         for pattern in profile.get("patterns", ["*"]):
             for filepath in sorted(Path(directory).rglob(pattern)):
@@ -43,66 +46,87 @@ def _collect_named_sections(
                     continue
                 if is_excluded(filepath, exclude):
                     continue
-                section = format_file_section(filepath)
-                if section:
-                    tokens = count_tokens(section)
-                    named_sections.append((str(filepath), section, tokens))
+                seen_files.append(filepath)
 
-    # specific files
+    if incremental and cache is not None:
+        changed, new, deleted = get_changed_files(seen_files, cache)
+        target_files = changed + new
+        if deleted:
+            print(f"  Deleted: {len(deleted)} file(s)")
+    else:
+        target_files = seen_files
+
+    for filepath in target_files:
+        section = format_file_section(
+            filepath,
+            fmt=fmt,
+            include_binary=include_binary,
+            binary_extensions=binary_extensions,
+            binary_max_mb=binary_max_mb,
+        )
+        if section:
+            tokens = count_tokens(section)
+            named_sections.append((str(filepath), section, tokens))
+
     for filepath_str in profile.get("files", []):
         filepath = Path(filepath_str)
         if not filepath.exists():
             continue
         if is_excluded(filepath, exclude):
             continue
-        section = format_file_section(filepath)
+        section = format_file_section(
+            filepath,
+            fmt=fmt,
+            include_binary=include_binary,
+            binary_extensions=binary_extensions,
+            binary_max_mb=binary_max_mb,
+        )
         if section:
             tokens = count_tokens(section)
             named_sections.append((str(filepath), section, tokens))
 
-    return named_sections
+    new_cache = update_cache(target_files, cache or {})
+
+    return named_sections, new_cache
 
 
 def gather_files(profile: dict[str, Any], verbose: bool = False) -> list[str]:
-    """Collect content from directories, files, and pre_commands."""
     exclude = _get_exclude_patterns(profile)
-    named_sections = _collect_named_sections(profile, exclude)
-
-    if verbose:
-        # Check for missing/skipped items that wouldn't be in named_sections
-        for filepath_str in profile.get("files", []):
-            filepath = Path(filepath_str)
-            if not filepath.exists():
-                print(f"  Not found: {filepath}")
-            elif is_excluded(filepath, exclude):
-                # Already excluded, no need to print
-                pass
-            elif not format_file_section(filepath):
-                print(f"  Skipped: {filepath}")
-
-    return [content for _, content, _ in named_sections]
+    sections, _ = _collect_named_sections(profile, exclude)
+    return [content for _, content, _ in sections]
 
 
 def gather_command(cmd: str) -> str:
-    """Run a command and return its output."""
     return run_command(cmd)
 
 
 def dry_run(profile: dict[str, Any]) -> dict:
-    """Simulate collection with actual splitting."""
     exclude = _get_exclude_patterns(profile)
     max_tokens = profile.get("max_tokens", 16000)
     name_tmpl = profile.get("name_template", "chat")
     split_mode = profile.get("split_mode", "by_file")
     split_marker = profile.get("split_marker", "\n\n")
     command = profile.get("command")
+    do_compress = profile.get("compress", False)
+    do_compress_indent = profile.get("compress_indent", False)
 
     if command:
         content = gather_command(command)
+        if do_compress:
+            content = compress(content, indent=do_compress_indent)
         tokens = count_tokens(content)
         named_sections = [("command output", content, tokens)]
     else:
-        named_sections = _collect_named_sections(profile, exclude)
+        named_sections, _ = _collect_named_sections(profile, exclude)
+        if do_compress:
+            named_sections = [
+                (
+                    name,
+                    compress(content, indent=do_compress_indent),
+                    count_tokens(compress(content, indent=do_compress_indent)),
+                )
+                for name, content, _ in named_sections
+            ]
 
     raw_content = "\n\n".join(content for _, content, _ in named_sections)
     part_contents = split(raw_content, max_tokens, split_mode, split_marker)

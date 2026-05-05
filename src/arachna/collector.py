@@ -5,7 +5,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .gatherer import gather_command, gather_files
+from .cache import load_cache, save_cache
+from .compressor import compress, estimate_savings
+from .gatherer import _collect_named_sections, _get_exclude_patterns, gather_command
 from .splitter import split
 
 _MANIFEST = ".arachna_manifest.json"
@@ -27,14 +29,12 @@ def save_manifest(out_dir: Path, files: list[str]):
 
 
 def clean_manifest(out_dir: Path, name_tmpl: str = ""):
-    """Clean files from manifest. If name_tmpl is empty, clean all."""
     prev = load_manifest(out_dir)
     for f in prev:
         if not name_tmpl or f.startswith(name_tmpl):
             p = out_dir / f
             if p.exists():
                 p.unlink()
-    # Also clean by pattern
     if name_tmpl:
         for old in sorted(out_dir.glob(f"{name_tmpl}_*.md")):
             old.unlink()
@@ -48,6 +48,7 @@ def collect(
     project_name: str,
     output_dir: str,
     verbose: bool = False,
+    incremental: bool = False,
 ) -> list[str]:
     name_tmpl = profile["name_template"]
     title_tmpl = profile["title_template"]
@@ -55,14 +56,31 @@ def collect(
     split_mode = profile.get("split_mode", "by_file")
     split_marker = profile.get("split_marker", "\n\n")
     command = profile.get("command")
+    do_compress = profile.get("compress", False)
+    do_compress_indent = profile.get("compress_indent", False)
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
     if command:
         raw_content = gather_command(command)
     else:
-        sections = gather_files(profile, verbose=verbose)
-        raw_content = "\n\n".join(sections)
+        exclude = _get_exclude_patterns(profile)
+        if incremental:
+            cache = load_cache(out_path)
+            named_sections, new_cache = _collect_named_sections(
+                profile, exclude, incremental=True, cache=cache
+            )
+            save_cache(out_path, new_cache)
+        else:
+            named_sections, _ = _collect_named_sections(profile, exclude)
+        raw_content = "\n\n".join(content for _, content, _ in named_sections)
+
+    if do_compress and raw_content.strip():
+        compressed = compress(raw_content, indent=do_compress_indent)
+        if verbose:
+            orig, comp, pct = estimate_savings(raw_content, compressed)
+            print(f"  Compressed: ~{orig} → ~{comp} tokens (-{pct:.0f}%)")
+        raw_content = compressed
 
     if not raw_content.strip():
         return []
