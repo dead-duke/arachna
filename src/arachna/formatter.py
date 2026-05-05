@@ -37,6 +37,36 @@ _FILENAME_LANG = {
     "vagrantfile": "ruby",
 }
 
+_SHEBANG_MAP = {
+    "python": "python",
+    "python3": "python",
+    "python2": "python",
+    "bash": "bash",
+    "sh": "bash",
+    "zsh": "bash",
+    "node": "javascript",
+    "ruby": "ruby",
+    "perl": "perl",
+}
+
+
+def _lang_from_shebang(first_line: str) -> str:
+    """Detect language from shebang line (#!/usr/bin/env python3 → python)."""
+    if not first_line.startswith("#!"):
+        return ""
+    parts = first_line[2:].strip().split()
+    if not parts:
+        return ""
+    # Get the last part of the path or the second argument for env
+    if "env" in parts[0]:
+        if len(parts) > 1:
+            binary = parts[1]
+        else:
+            return ""
+    else:
+        binary = parts[0].split("/")[-1]
+    return _SHEBANG_MAP.get(binary, "")
+
 
 def lang_for_path(path: Path) -> str:
     """Detect markdown code block language for a file path."""
@@ -44,7 +74,9 @@ def lang_for_path(path: Path) -> str:
     if name in _FILENAME_LANG:
         return _FILENAME_LANG[name]
     ext = path.suffix.lstrip(".").lower()
-    return _EXT_LANG.get(ext, "")
+    if ext in _EXT_LANG:
+        return _EXT_LANG[ext]
+    return ""
 
 
 def format_file_section(path: Path) -> str:
@@ -62,6 +94,12 @@ def format_file_section(path: Path) -> str:
         return ""
 
     lang = lang_for_path(path)
+
+    # Try shebang detection if no language from extension/filename
+    if not lang:
+        first_line = text.split("\n")[0] if text else ""
+        lang = _lang_from_shebang(first_line)
+
     return f"### {path}\n\n```{lang}\n{text}\n```\n"
 
 

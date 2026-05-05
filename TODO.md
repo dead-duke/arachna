@@ -48,7 +48,7 @@
 - [x] renderer: <0.1% for very small percentages
 - [x] git profile in .arachna.json
 
-## v0.1.4 — Tests & Bugfixes (pending commit)
+## v0.1.4 — Tests & Bugfixes
 
 - [x] tests/test_gatherer.py — 18 tests (gather_files + dry_run)
 - [x] tests/test_renderer.py — 10 tests (formatting + render_dry_run)
@@ -58,14 +58,23 @@
 - [x] tests/test_config.py — 5 tests (default profile)
 - [x] Binary file detection (null bytes) in formatter + gitignore
 - [x] Gitignore: skip venv/.* dirs, handle patterns from subdirectories
-- [x] 102 tests, 64% coverage
-- [ ] Test coverage ≥ 70%
+- [x] gatherer.py: deduplicated with _collect_named_sections
+- [x] 102 tests, 65% coverage
+
+## v0.1.5 — Shebang Detection (current)
+
+- [x] formatter.py: _lang_from_shebang, _SHEBANG_MAP
+- [x] Supports: python, bash, node, ruby, perl
+- [x] Extension wins over shebang
+- [x] 5 new tests, 107 total, 66% coverage
+- [ ] Update CHANGELOG.md
+- [ ] Git tag v0.1.5
 
 ## v0.2.0 — Features
 
-- [ ] --estimate: alias for --dry-run
 - [ ] Single file output mode (no _part suffix when single part)
-- [ ] Shebang detection for lang_for_path
+- [ ] Test coverage ≥ 70%
+- [ ] Integration tests for CLI (--profile, --all, --clean)
 
 ## v0.3.0 — Smart Features
 

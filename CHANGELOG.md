@@ -35,3 +35,10 @@
 - _FILENAME_LANG for Dockerfile, Makefile, .env, Procfile
 - shlex.split() for safe command execution
 - pip install -e . ready
+
+## v0.1.5 — Shebang Detection
+
+- formatter.py: detect language from shebang (#!... → python/bash/node)
+- Supports: python, bash, node, ruby, perl
+- Extension wins over shebang for .py .sh files
+- 5 new tests, 107 total, 66% coverage

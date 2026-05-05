@@ -108,3 +108,43 @@ def test_format_file_section_binary_skipped():
         f.write_bytes(b"\x00\x01\x02")
         result = format_file_section(f)
         assert result == ""
+
+
+def test_format_file_section_shebang_python():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f = Path(tmpdir) / "script"
+        f.write_text("#!/usr/bin/env python3\nprint('hello')")
+        result = format_file_section(f)
+        assert "```python" in result
+
+
+def test_format_file_section_shebang_bash():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f = Path(tmpdir) / "script"
+        f.write_text("#!/bin/bash\necho hello")
+        result = format_file_section(f)
+        assert "```bash" in result
+
+
+def test_format_file_section_shebang_node():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f = Path(tmpdir) / "script"
+        f.write_text("#!/usr/bin/env node\nconsole.log('hi')")
+        result = format_file_section(f)
+        assert "```javascript" in result
+
+
+def test_format_file_section_no_shebang():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f = Path(tmpdir) / "script"
+        f.write_text("just text")
+        result = format_file_section(f)
+        assert "```" in result
+
+
+def test_format_file_section_extension_wins_over_shebang():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        f = Path(tmpdir) / "script.py"
+        f.write_text("#!/bin/bash\necho hello")
+        result = format_file_section(f)
+        assert "```python" in result
