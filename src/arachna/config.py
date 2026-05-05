@@ -47,7 +47,7 @@ def load_config() -> dict[str, Any]:
 def _default_config() -> dict[str, Any]:
     return {
         "project_name": "Project",
-        "output_dir": ".",
+        "output_dir": "arachna_context",
         "profiles": {},
     }
 
@@ -57,7 +57,6 @@ def get_profile(name: str) -> dict[str, Any]:
     config = load_config()
     profiles = config.get("profiles", {})
 
-    # Default profile when none configured
     if not profiles:
         return _default_profile()
 
@@ -82,7 +81,6 @@ def get_profile(name: str) -> dict[str, Any]:
 
 
 def _default_profile() -> dict[str, Any]:
-    """Return a sensible default profile when none configured."""
     return {
         "name_template": "chat-default",
         "title_template": "# Project — DEFAULT (part {part})\n\n",

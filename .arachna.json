@@ -1,6 +1,6 @@
 {
   "project_name": "arachna",
-  "output_dir": ".",
+  "output_dir": "arachna_context",
   "profiles": {
     "code": {
       "title_template": "# {project_name} — CODE (part {part})\n\n",

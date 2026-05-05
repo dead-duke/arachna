@@ -66,28 +66,33 @@
 - [x] formatter.py: _lang_from_shebang, _SHEBANG_MAP
 - [x] Supports: python, bash, node, ruby, perl
 - [x] Extension wins over shebang
-- [x] 5 new tests, 107 total, 66% coverage
+- [x] 107 tests, 66% coverage
 
-## v0.2.0 — Features
+## v0.2.0 — Single file output, manifest, test reorg (current)
 
-- [ ] Single file output mode (no _part suffix when single part)
-- [ ] Test coverage ≥ 70%
-- [ ] Integration tests for CLI (--profile, --all, --clean)
+- [x] Single file output mode (chat-code.md, not chat-code_1.md)
+- [x] Manifest (.arachna_manifest.json) for cleanup between runs
+- [x] Default output_dir: arachna_context/
+- [x] Test reorganization: 25 files, one test per file
+- [x] CLI refactored into _cmd_* functions
+- [x] 129 tests, 90% coverage
+- [ ] arachna init: bootstrap .arachna.json interactively, create arachna_context/
+- [ ] Update CHANGELOG
+- [ ] Git tag v0.2.0
 
-## v0.3.0 — Smart Features
+## v0.3.0 — Features
 
 - [ ] Whitespace compression mode (--compress)
 - [ ] Incremental collection: cache mtime
 - [ ] section_format: markdown, xml, json presets
+- [ ] include_binary with base64 encoding
 
 ## v0.4.0 — Extensibility
 
-- [ ] include_binary with base64 encoding
 - [ ] Tagged sections
 - [ ] Hooks: pre_collect, post_collect, per_file
 - [ ] Plugin system
 - [ ] Shell completion (bash, zsh, fish)
-- [ ] arachna init: bootstrap .arachna.json interactively
 
 ## Backlog
 

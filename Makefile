@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-cov test-cov-html lint format clean tree info
+.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info
 
 help:
 	@echo "arachna — context collector for AI"
@@ -10,7 +10,8 @@ help:
 	@echo "  make test-cov-html - run tests with coverage (HTML)"
 	@echo "  make lint          - ruff check"
 	@echo "  make format        - ruff format"
-	@echo "  make clean         - remove build artifacts and chat-*.md"
+	@echo "  make check         - lint + format + test"
+	@echo "  make clean         - remove build artifacts and context files"
 	@echo "  make tree          - show project structure"
 	@echo "  make info          - show project info"
 
@@ -38,16 +39,18 @@ lint:
 format:
 	ruff format src/ tests/
 
+check: lint format test
+	@echo "[OK] All checks passed"
+
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
-	rm -rf .pytest_cache .coverage htmlcov .ruff_cache
-	rm -f chat-*.md
+	rm -rf .pytest_cache .coverage htmlcov .ruff_cache arachna_context
 
 tree:
-	tree -I '__pycache__|*.pyc|*.egg-info|venv|.git' 2>/dev/null || ls -la
+	tree -I '__pycache__|*.pyc|*.egg-info|venv|.git|arachna_context' 2>/dev/null || ls -la
 
 info:
-	@echo "arachna v0.1.0"
+	@echo "arachna v0.2.0"
 	@echo "Python: $$(python3 --version)"
 	@echo "Path: $$(pwd)"

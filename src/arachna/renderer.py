@@ -23,7 +23,10 @@ def render_dry_run(all_stats: list[dict]):
         for part in stats["parts"]:
             for name, tokens in part["sections"]:
                 all_lines.append(_format_line(tokens, stats["max_tokens"], name))
-            output_name = f"{stats['name_tmpl']}_{part['part_num']}.md"
+            if len(stats["parts"]) == 1:
+                output_name = f"{stats['name_tmpl']}.md"
+            else:
+                output_name = f"{stats['name_tmpl']}_{part['part_num']}.md"
             all_lines.append(
                 _format_line(part["total_tokens"], stats["max_tokens"], f"→ {output_name}")
             )
@@ -47,7 +50,10 @@ def render_dry_run(all_stats: list[dict]):
         for j, part in enumerate(stats["parts"]):
             for sec_name, tokens in part["sections"]:
                 print(_format_line(tokens, max_tokens, sec_name))
-            output_name = f"{name_tmpl}_{part['part_num']}.md"
+            if len(stats["parts"]) == 1:
+                output_name = f"{name_tmpl}.md"
+            else:
+                output_name = f"{name_tmpl}_{part['part_num']}.md"
             print()
             print(_format_line(part["total_tokens"], max_tokens, f"→ {output_name}"))
             if j < len(stats["parts"]) - 1:

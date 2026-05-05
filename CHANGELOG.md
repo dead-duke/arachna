@@ -1,11 +1,20 @@
 # Changelog
 
+## v0.2.0 — Single file output, manifest, test reorg
+
+- Single file output mode (chat-code.md instead of chat-code_1.md)
+- Manifest (.arachna_manifest.json) for cleanup between runs
+- Default output_dir: arachna_context/
+- Test reorganization: 25 test files, one test per file
+- CLI refactored into _cmd_* functions
+- 129 tests, 90% coverage
+
 ## v0.1.5 — Shebang Detection
 
 - formatter.py: detect language from shebang
 - Supports: python, bash, node, ruby, perl
 - Extension wins over shebang for .py .sh files
-- 5 new tests, 107 total, 66% coverage
+- 107 tests, 66% coverage
 
 ## v0.1.4 — Tests & Bugfixes
 
