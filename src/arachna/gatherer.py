@@ -10,21 +10,32 @@ from .splitter import split
 from .tokenizer import count_tokens
 
 
-def gather_files(profile: dict[str, Any], verbose: bool = False) -> list[str]:
-    """Collect content from directories, files, and pre_commands."""
-    sections = []
+def _get_exclude_patterns(profile: dict[str, Any]) -> list[str]:
+    """Build combined exclude list from profile + gitignore."""
     exclude = list(profile.get("exclude_patterns", []))
-    root = Path.cwd()
-
-    # Add gitignore patterns
     if profile.get("use_gitignore", True):
-        exclude.extend(load_gitignore_patterns(root))
+        exclude.extend(load_gitignore_patterns(Path.cwd()))
+    return exclude
 
+
+def _collect_named_sections(
+    profile: dict[str, Any], exclude: list[str]
+) -> list[tuple[str, str, int]]:
+    """Collect named sections from pre_commands, directories, and files.
+
+    Returns list of (name, content, tokens) tuples.
+    """
+    named_sections = []
+
+    # pre_commands
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
         if output.strip():
-            sections.append(output.strip())
+            tokens = count_tokens(output)
+            label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
+            named_sections.append((f"pre: {label}", output, tokens))
 
+    # directories
     for directory in profile.get("directories", []):
         for pattern in profile.get("patterns", ["*"]):
             for filepath in sorted(Path(directory).rglob(pattern)):
@@ -34,25 +45,42 @@ def gather_files(profile: dict[str, Any], verbose: bool = False) -> list[str]:
                     continue
                 section = format_file_section(filepath)
                 if section:
-                    sections.append(section)
-                elif verbose:
-                    print(f"  Skipped: {filepath}")
+                    tokens = count_tokens(section)
+                    named_sections.append((str(filepath), section, tokens))
 
+    # specific files
     for filepath_str in profile.get("files", []):
         filepath = Path(filepath_str)
         if not filepath.exists():
-            if verbose:
-                print(f"  Not found: {filepath}")
             continue
         if is_excluded(filepath, exclude):
             continue
         section = format_file_section(filepath)
         if section:
-            sections.append(section)
-        elif verbose:
-            print(f"  Skipped: {filepath}")
+            tokens = count_tokens(section)
+            named_sections.append((str(filepath), section, tokens))
 
-    return sections
+    return named_sections
+
+
+def gather_files(profile: dict[str, Any], verbose: bool = False) -> list[str]:
+    """Collect content from directories, files, and pre_commands."""
+    exclude = _get_exclude_patterns(profile)
+    named_sections = _collect_named_sections(profile, exclude)
+
+    if verbose:
+        # Check for missing/skipped items that wouldn't be in named_sections
+        for filepath_str in profile.get("files", []):
+            filepath = Path(filepath_str)
+            if not filepath.exists():
+                print(f"  Not found: {filepath}")
+            elif is_excluded(filepath, exclude):
+                # Already excluded, no need to print
+                pass
+            elif not format_file_section(filepath):
+                print(f"  Skipped: {filepath}")
+
+    return [content for _, content, _ in named_sections]
 
 
 def gather_command(cmd: str) -> str:
@@ -62,50 +90,19 @@ def gather_command(cmd: str) -> str:
 
 def dry_run(profile: dict[str, Any]) -> dict:
     """Simulate collection with actual splitting."""
-    exclude = list(profile.get("exclude_patterns", []))
+    exclude = _get_exclude_patterns(profile)
     max_tokens = profile.get("max_tokens", 16000)
     name_tmpl = profile.get("name_template", "chat")
     split_mode = profile.get("split_mode", "by_file")
     split_marker = profile.get("split_marker", "\n\n")
     command = profile.get("command")
-    root = Path.cwd()
 
-    if profile.get("use_gitignore", True):
-        exclude.extend(load_gitignore_patterns(root))
-
-    named_sections = []
     if command:
         content = gather_command(command)
         tokens = count_tokens(content)
-        named_sections.append(("command output", content, tokens))
+        named_sections = [("command output", content, tokens)]
     else:
-        for cmd in profile.get("pre_commands", []):
-            output = run_command(cmd)
-            if output.strip():
-                tokens = count_tokens(output)
-                label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
-                named_sections.append((f"pre: {label}", output, tokens))
-        for directory in profile.get("directories", []):
-            for pattern in profile.get("patterns", ["*"]):
-                for filepath in sorted(Path(directory).rglob(pattern)):
-                    if not filepath.is_file():
-                        continue
-                    if is_excluded(filepath, exclude):
-                        continue
-                    section = format_file_section(filepath)
-                    if section:
-                        tokens = count_tokens(section)
-                        named_sections.append((str(filepath), section, tokens))
-        for filepath_str in profile.get("files", []):
-            filepath = Path(filepath_str)
-            if not filepath.exists():
-                continue
-            if is_excluded(filepath, exclude):
-                continue
-            section = format_file_section(filepath)
-            if section:
-                tokens = count_tokens(section)
-                named_sections.append((str(filepath), section, tokens))
+        named_sections = _collect_named_sections(profile, exclude)
 
     raw_content = "\n\n".join(content for _, content, _ in named_sections)
     part_contents = split(raw_content, max_tokens, split_mode, split_marker)

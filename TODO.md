@@ -48,20 +48,27 @@
 - [x] renderer: <0.1% for very small percentages
 - [x] git profile in .arachna.json
 
-## v0.2.0 — Next
+## v0.1.4 — Tests & Bugfixes (pending commit)
 
-### Tests
-- [ ] tests/test_gatherer.py — dry_run with multiple parts
-- [ ] tests/test_renderer.py — output format verification
+- [x] tests/test_gatherer.py — 18 tests (gather_files + dry_run)
+- [x] tests/test_renderer.py — 10 tests (formatting + render_dry_run)
+- [x] tests/test_gitignore.py — 6 tests
+- [x] tests/test_splitter.py — 23 tests (all modes + boundary)
+- [x] tests/test_formatter.py — 15 tests (format_file_section)
+- [x] tests/test_config.py — 5 tests (default profile)
+- [x] Binary file detection (null bytes) in formatter + gitignore
+- [x] Gitignore: skip venv/.* dirs, handle patterns from subdirectories
+- [x] 102 tests, 64% coverage
+- [ ] Test coverage ≥ 70%
 
-### Features
+## v0.2.0 — Features
+
 - [ ] --estimate: alias for --dry-run
 - [ ] Single file output mode (no _part suffix when single part)
-- [ ] Test coverage ≥ 70%
+- [ ] Shebang detection for lang_for_path
 
 ## v0.3.0 — Smart Features
 
-- [ ] Shebang detection for lang_for_path
 - [ ] Whitespace compression mode (--compress)
 - [ ] Incremental collection: cache mtime
 - [ ] section_format: markdown, xml, json presets
@@ -69,7 +76,7 @@
 ## v0.4.0 — Extensibility
 
 - [ ] include_binary with base64 encoding
-- [ ] Tagged sections: `<file path="..." language="...">...</file>`
+- [ ] Tagged sections
 - [ ] Hooks: pre_collect, post_collect, per_file
 - [ ] Plugin system
 - [ ] Shell completion (bash, zsh, fish)

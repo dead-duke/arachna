@@ -9,7 +9,7 @@
       "directories": ["src"],
       "patterns": ["*.py"],
       "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv' src"],
-      "files": ["pyproject.toml", "README.md"],
+      "files": ["pyproject.toml"],
       "max_tokens": 16000
     },
     "tests": {
@@ -19,6 +19,14 @@
       "directories": ["tests"],
       "patterns": ["*.py"],
       "pre_commands": ["tree tests"],
+      "max_tokens": 16000
+    },
+    "docs": {
+      "title_template": "# {project_name} — DOCS (part {part})\n\n",
+      "name_template": "chat-docs",
+      "split_mode": "by_file",
+      "files": ["README.md", "TODO.md", "CHANGELOG.md"],
+      "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv' -L 1"],
       "max_tokens": 16000
     },
     "git": {

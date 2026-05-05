@@ -3,7 +3,6 @@
 import fnmatch
 from pathlib import Path
 
-# Language mapping by file extension
 _EXT_LANG = {
     "py": "python",
     "json": "json",
@@ -30,7 +29,6 @@ _EXT_LANG = {
     "gitignore": "gitignore",
 }
 
-# Language mapping by filename (no extension)
 _FILENAME_LANG = {
     "dockerfile": "dockerfile",
     "makefile": "makefile",
@@ -52,11 +50,15 @@ def lang_for_path(path: Path) -> str:
 def format_file_section(path: Path) -> str:
     """Read a file and format it as a markdown section.
 
-    Returns empty string if file cannot be read.
+    Returns empty string if file cannot be read or is binary.
     """
     try:
         text = path.read_text(encoding="utf-8")
     except (UnicodeDecodeError, PermissionError, OSError):
+        return ""
+
+    # Skip binary files (contain null bytes)
+    if "\x00" in text:
         return ""
 
     lang = lang_for_path(path)

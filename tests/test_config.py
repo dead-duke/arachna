@@ -52,3 +52,21 @@ def test_get_profile_fills_defaults():
             assert len(profile["exclude_patterns"]) > 0
         finally:
             os.chdir(cwd)
+
+
+def test_default_profile_when_empty():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cfg = Path(tmpdir) / ".arachna.json"
+        cfg.write_text(json.dumps({"profiles": {}}))
+        import os
+
+        cwd = os.getcwd()
+        os.chdir(tmpdir)
+        try:
+            profile = get_profile("default")
+            assert profile["split_mode"] == "by_file"
+            assert profile["max_tokens"] == 32000
+            assert len(profile["directories"]) == 1
+            assert profile["directories"][0] == "."
+        finally:
+            os.chdir(cwd)
