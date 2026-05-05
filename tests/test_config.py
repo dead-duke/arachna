@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from arachna.config import get_profile, load_config, find_config
+from arachna.config import find_config, get_profile, load_config
 
 
 def test_load_config_no_file():
@@ -21,6 +21,7 @@ def test_find_config_in_current_dir():
         cfg = Path(tmpdir) / ".arachna.json"
         cfg.write_text(json.dumps({"project_name": "Test"}))
         import os
+
         cwd = os.getcwd()
         os.chdir(tmpdir)
         try:
@@ -38,14 +39,9 @@ def test_get_profile_defaults():
 def test_get_profile_fills_defaults():
     with tempfile.TemporaryDirectory() as tmpdir:
         cfg = Path(tmpdir) / ".arachna.json"
-        cfg.write_text(json.dumps({
-            "profiles": {
-                "test": {
-                    "directories": ["src"]
-                }
-            }
-        }))
+        cfg.write_text(json.dumps({"profiles": {"test": {"directories": ["src"]}}}))
         import os
+
         cwd = os.getcwd()
         os.chdir(tmpdir)
         try:

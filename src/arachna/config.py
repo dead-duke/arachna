@@ -4,7 +4,18 @@ import json
 from pathlib import Path
 from typing import Any
 
-DEFAULT_EXCLUDE = ["*__pycache__*", "*.pyc", "*.egg-info*", ".git", ".git/*", "venv", "venv/*", "node_modules", "node_modules/*", ".DS_Store"]
+DEFAULT_EXCLUDE = [
+    "*__pycache__*",
+    "*.pyc",
+    "*.egg-info*",
+    ".git",
+    ".git/*",
+    "venv",
+    "venv/*",
+    "node_modules",
+    "node_modules/*",
+    ".DS_Store",
+]
 
 
 def find_config() -> Path | None:
@@ -44,12 +55,12 @@ def get_profile(name: str) -> dict[str, Any]:
     config = load_config()
     profiles = config.get("profiles", {})
     if name not in profiles:
-        raise KeyError(
-            f"Profile '{name}' not found. Available: {list(profiles.keys())}"
-        )
+        raise KeyError(f"Profile '{name}' not found. Available: {list(profiles.keys())}")
     profile = profiles[name]
     profile.setdefault("name_template", f"chat-{name}")
-    profile.setdefault("title_template", f"# {config['project_name']} — {name.upper()} (part {{part}})\n\n")
+    profile.setdefault(
+        "title_template", f"# {config['project_name']} — {name.upper()} (part {{part}})\n\n"
+    )
     profile.setdefault("max_tokens", 16000)
     profile.setdefault("split_mode", "by_file")
     profile.setdefault("directories", [])

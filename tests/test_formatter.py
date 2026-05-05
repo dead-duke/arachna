@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from arachna.formatter import lang_for_path, is_excluded
+from arachna.formatter import is_excluded, lang_for_path
 
 
 def test_lang_by_extension():

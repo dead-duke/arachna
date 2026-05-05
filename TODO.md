@@ -20,37 +20,45 @@
 - [x] CHANGELOG.md
 - [x] Git tag v0.1.0
 
-## v0.2.0 — Quality & Usability
+## v0.1.1 — Dry-run & Developer Experience
 
-### Quality
-- [ ] tests/test_tokenizer.py — count_tokens edge cases (empty, CJK, emoji)
-- [ ] tests/test_splitter.py — _build_parts boundary tests (single > limit, exact fit)
-- [ ] tests/test_config.py — get_profile defaults, missing profile, merge behavior
-- [ ] tests/test_formatter.py — lang_for_path (ext, filename, shebang), is_excluded
+- [x] --dry-run: show what will be collected with real split simulation
+- [x] renderer.py: aligned output with per-section token tracking
+- [x] --output-dir <path>: override output_dir from CLI
+- [x] --verbose: show skipped files
+- [x] Makefile: test, test-cov, lint, format, clean
+- [x] pre-commit: ruff + unit tests
+- [x] requirements-dev.txt: ruff, pytest, pytest-cov, pre-commit
+- [x] Ruff config in pyproject.toml
+- [x] Git tag v0.1.1
+
+## v0.2.0 — Quality
+
+### Tests
+- [ ] tests/test_runner.py — run_command with mocked subprocess
+- [ ] tests/test_gatherer.py — dry_run with multiple parts
+- [ ] tests/test_splitter.py — split() integration tests
+- [ ] tests/test_renderer.py — output format verification
 
 ### Features
-- [ ] --dry-run: show what will be collected with token estimates, no files written
-- [ ] --output-dir <path>: override output_dir from CLI
-- [ ] --verbose: show skipped files (binary, no permission, empty)
-- [ ] --estimate: show token usage per file with visual bar, highlight files >20% of limit
-- [ ] --validate: exit code 1 on errors, contextual messages with hints
-- [ ] Shebang detection for lang_for_path (#!/usr/bin/env python3 → python)
-- [ ] Whitespace compression mode (--compress / compress: true in profile)
-- [ ] Default profile when profiles is empty: collect *.py, *.md, *.yaml, *.toml, *.json
-- [ ] .gitignore-aware collection: auto-exclude gitignored files in addition to exclude_patterns
-- [ ] Single file output mode (--single / single_file: true)
-- [ ] Docstrings for all public functions with examples
+- [ ] --validate: check config for errors, exit code 1, contextual messages
+- [ ] --estimate: alias for --dry-run
+- [ ] .gitignore-aware collection: auto-exclude gitignored patterns
+- [ ] Default profile when profiles is empty: *.py, *.md, *.yaml, *.toml, *.json
 
-## v0.3.0 — Performance & Flexibility
+## v0.3.0 — Smart Features
 
+- [ ] Shebang detection for lang_for_path
+- [ ] Whitespace compression mode (--compress)
+- [ ] Single file output mode (--single)
 - [ ] Incremental collection: cache mtime, only update changed files
 - [ ] section_format: markdown, xml, json presets
-- [ ] include_binary with base64 encoding + size limit
-- [ ] Tagged sections: `<file path="..." language="...">...</file>`
-- [ ] Custom template for file sections (header/footer per file)
 
 ## v0.4.0 — Extensibility
 
+- [ ] include_binary with base64 encoding + size limit
+- [ ] Tagged sections: `<file path="..." language="...">...</file>`
+- [ ] Custom template for file sections
 - [ ] Hooks: pre_collect, post_collect, per_file
 - [ ] Plugin system for custom collectors
 - [ ] Shell completion (bash, zsh, fish)

@@ -17,14 +17,10 @@ def run_command(cmd: str) -> str:
 
     try:
         if needs_shell:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=30
-            )
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
         else:
             args = shlex.split(cmd)
-            result = subprocess.run(
-                args, capture_output=True, text=True, timeout=30
-            )
+            result = subprocess.run(args, capture_output=True, text=True, timeout=30)
         return result.stdout
     except (subprocess.TimeoutExpired, OSError, FileNotFoundError, ValueError):
         return ""

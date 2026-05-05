@@ -3,12 +3,21 @@
 from pathlib import Path
 from typing import Any
 
-from .gatherer import gather_command, gather_files
+from .gatherer import dry_run, gather_command, gather_files
 from .splitter import split
 
 
-def collect(profile: dict[str, Any], project_name: str, output_dir: str) -> list[str]:
-    """Execute one profile and return list of created file paths."""
+def collect(
+    profile: dict[str, Any],
+    project_name: str,
+    output_dir: str,
+    dry_run_mode: bool = False,
+    verbose: bool = False,
+) -> list[str] | dict:
+    """Execute one profile and return list of created file paths.
+
+    If dry_run_mode=True, returns statistics dict instead of writing files.
+    """
     name_tmpl = profile["name_template"]
     title_tmpl = profile["title_template"]
     max_tokens = profile["max_tokens"]
@@ -16,6 +25,9 @@ def collect(profile: dict[str, Any], project_name: str, output_dir: str) -> list
     split_marker = profile.get("split_marker", "\n\n")
     command = profile.get("command")
     out_path = Path(output_dir)
+
+    if dry_run_mode:
+        return dry_run(profile)
 
     # Clean old files
     for old in sorted(out_path.glob(f"{name_tmpl}_*.md")):
@@ -25,7 +37,7 @@ def collect(profile: dict[str, Any], project_name: str, output_dir: str) -> list
     if command:
         raw_content = gather_command(command)
     else:
-        sections = gather_files(profile)
+        sections = gather_files(profile, verbose=verbose)
         raw_content = "\n\n".join(sections)
 
     if not raw_content.strip():

@@ -5,11 +5,20 @@
     "code": {
       "title_template": "# {project_name} — CODE (part {part})\n\n",
       "name_template": "chat-code",
+      "split_mode": "by_file",
       "directories": ["src"],
       "patterns": ["*.py"],
-      "exclude_patterns": ["*__pycache__*", "*.pyc", "*.egg-info*"],
-      "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv' src || ls -la src"],
+      "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv' src"],
       "files": ["pyproject.toml", "README.md"],
+      "max_tokens": 16000
+    },
+    "tests": {
+      "title_template": "# {project_name} — TESTS (part {part})\n\n",
+      "name_template": "chat-tests",
+      "split_mode": "by_file",
+      "directories": ["tests"],
+      "patterns": ["*.py"],
+      "pre_commands": ["tree tests"],
       "max_tokens": 16000
     }
   }

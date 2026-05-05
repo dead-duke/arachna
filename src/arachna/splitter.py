@@ -61,7 +61,9 @@ def _build_parts(sections: list[str], max_tokens: int) -> list[str]:
                 parts.append(current.strip())
                 current = ""
                 current_tokens = 0
-            print(f"  Warning: section too large ({section_tokens} tokens, limit {max_tokens}), writing as-is")
+            print(
+                f"  Warning: section too large ({section_tokens} tokens, limit {max_tokens}), writing as-is"
+            )
             parts.append(section)
             continue
 
