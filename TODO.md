@@ -1,22 +1,52 @@
 # TODO
 
+## v0.1.0 — MVP
+- [x] tokenizer, config, collector, gatherer, splitter, formatter, runner, CLI
+
+## v0.1.1 — Tests + fixes
+- [x] 29 tests
+
+## v0.1.2 — Dry-run & Developer Experience
+- [x] dry_run, renderer, Makefile, pre-commit
+
+## v0.1.3 — Validate & Gitignore
+- [x] validator, gitignore, default profile
+
+## v0.1.4 — Tests & Bugfixes
+- [x] 102 tests, 65% coverage
+
+## v0.1.5 — Shebang Detection
+- [x] shebang detection, 107 tests
+
+## v0.2.0 — Single file output, manifest, test reorg
+- [x] chat-code.md, manifest, arachna_context/, 129 tests, 90% coverage
+
+## v0.2.1 — arachna init
+- [x] --init interactive + --defaults auto-detect
+
+## v0.2.2 — Git split marker, per-profile manifest cleanup
+- [x] \\n=== COMMIT: marker, --profile keeps other profiles
+
 ## v0.3.0 — Compress, incremental, formats, binary
-- [x] Whitespace compression (--compress)
-- [x] Incremental collection (--incremental)
-- [x] section_format: markdown, xml, json (--format)
-- [x] include_binary with base64 encoding
-- [x] 140 tests
+- [x] compress, incremental, section_format, include_binary, 140 tests
 
 ## v0.4.0 — Shell completion + hooks
-- [x] bash and zsh completion (arachna --completion bash|zsh)
-- [x] post_commands in profile
-- [x] 144 tests, 70% coverage
+- [x] bash/zsh completion, post_commands, 144 tests, 70% coverage
+
+## v0.4.1 — Table of contents + manifest
+- [x] TOC in each part, chat-manifest.md
+
+## v0.4.2 — Audit fixes
+- [x] Removed dead code, fixed CJK tests, README token margin
+
+## v0.5.0 — Tests & safety
+- [ ] Tests for incremental mode (cache + changed/new/deleted)
+- [ ] Tests for manifest cleanup in _cmd_clean
+- [ ] Shell security warning in README
+
+## v1.0.0 — Public release
+- [ ] pip install arachna (publish to PyPI)
+- [ ] arachna install-hook (git post-commit)
 
 ## Backlog
-- [ ] Tagged sections
-- [ ] Plugin system for custom collectors
-- [ ] pip install arachna (publish to PyPI)
 - [ ] CI/CD (GitHub Actions)
-- [ ] Support pyproject.toml [tool.arachna] as config source
-- [ ] Watch mode
-- [ ] arachna init improvements

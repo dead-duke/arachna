@@ -100,6 +100,7 @@ patterns: glob patterns like ["*.py"]
 files: specific files to include
 exclude_patterns: glob patterns to skip
 pre_commands: shell commands before collection
+post_commands: shell commands after collection
 command: use command output instead of files
 max_tokens: token limit per output file
 section_format: markdown, xml, or json
@@ -115,6 +116,7 @@ Files go to arachna_context/ (configurable):
 
 arachna_context/
   .arachna_manifest.json
+  chat-manifest.md          # summary of all files
   chat-code.md
   chat-tests.md
   chat-docs.md
@@ -132,7 +134,16 @@ With --incremental, arachna skips files unchanged since last run. Uses .arachna_
 
 ## Token counting
 
-4 characters = 1 token (conservative). Works for any model: GPT, Claude, Llama, local.
+arachna uses a conservative estimate: 4 characters = 1 token.
+
+This works well across most models (LLaMA, Mistral, Qwen, GPT-4) and content types,
+especially source code. Actual token counts vary by model and language.
+
+Set max_tokens 20-30% below your model's context window.
+For a 16384 token window, use max_tokens: 12000.
+arachna splits sooner rather than later — files will always fit.
+
+No external dependencies required — works out of the box for any local model.
 
 ## Supported project types
 
