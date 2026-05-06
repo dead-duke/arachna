@@ -21,6 +21,16 @@ def _list_profiles(config: dict) -> list[str]:
 
 
 def main():
+    # Handle --completion before argparse (mutually exclusive group blocks it)
+    if "--completion" in sys.argv:
+        from .completion import main as completion_main
+
+        idx = sys.argv.index("--completion")
+        shell = sys.argv[idx + 1] if idx + 1 < len(sys.argv) else ""
+        sys.argv = ["completion", shell]
+        completion_main()
+        return
+
     parser = argparse.ArgumentParser(description="arachna — context collector for AI")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--profile", "-p", help="Profile name to collect")

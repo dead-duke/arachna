@@ -8,6 +8,7 @@ from typing import Any
 from .cache import load_cache, save_cache
 from .compressor import compress, estimate_savings
 from .gatherer import _collect_named_sections, _get_exclude_patterns, gather_command
+from .runner import run_command
 from .splitter import split
 
 _MANIFEST = ".arachna_manifest.json"
@@ -98,5 +99,11 @@ def collect(
             f.write(part_content)
 
         created.append(str(filepath))
+
+    # Run post_commands after writing files
+    for cmd in profile.get("post_commands", []):
+        output = run_command(cmd)
+        if verbose and output.strip():
+            print(f"  post: {output.strip()}")
 
     return created

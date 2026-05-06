@@ -30,3 +30,9 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
+
+## v0.4.0 — Shell completion + hooks
+
+- Bash and zsh completion (arachna --completion bash|zsh)
+- post_commands in profile: run after collection
+- 144 tests, 70% coverage
