@@ -74,28 +74,34 @@ def collect(
             save_cache(out_path, new_cache)
         else:
             named_sections, _ = _collect_named_sections(profile, exclude)
+        [name for name, _, _ in named_sections if not name.startswith("pre:")]
         raw_content = "\n\n".join(content for _, content, _ in named_sections)
 
     if do_compress and raw_content.strip():
         compressed = compress(raw_content, indent=do_compress_indent)
         if verbose:
             orig, comp, pct = estimate_savings(raw_content, compressed)
-            print(f"  Compressed: ~{orig} → ~{comp} tokens (-{pct:.0f}%)")
+            print(f"  Compressed: ~{orig} -> ~{comp} tokens (-{pct:.0f}%)")
         raw_content = compressed
 
     if not raw_content.strip():
         return []
 
     parts = split(raw_content, max_tokens, split_mode, split_marker)
+    total_parts = len(parts)
 
     created = []
     for i, part_content in enumerate(parts, 1):
         title = title_tmpl.format(project_name=project_name, part=i)
-        filename = f"{name_tmpl}.md" if len(parts) == 1 else f"{name_tmpl}_{i}.md"
+        filename = f"{name_tmpl}.md" if total_parts == 1 else f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
+
+        # Build table of contents for this part
+        toc = _build_toc(part_content, i, total_parts, name_tmpl)
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
+            f.write(toc)
             f.write(part_content)
 
         created.append(str(filepath))
@@ -107,3 +113,22 @@ def collect(
             print(f"  post: {output.strip()}")
 
     return created
+
+
+def _build_toc(content: str, part_num: int, total_parts: int, name_tmpl: str) -> str:
+    """Build table of contents listing files in this part."""
+    lines = []
+    files = []
+    for line in content.split("\n"):
+        if line.startswith("### "):
+            fname = line[4:].strip()
+            files.append(fname)
+
+    if not files:
+        return ""
+
+    lines.append(f"\nPart {part_num} of {total_parts}. Files in this part:\n")
+    for f in files:
+        lines.append(f"  {f}")
+    lines.append("")
+    return "\n".join(lines) + "\n"

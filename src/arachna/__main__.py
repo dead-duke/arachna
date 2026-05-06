@@ -21,7 +21,6 @@ def _list_profiles(config: dict) -> list[str]:
 
 
 def main():
-    # Handle --completion before argparse (mutually exclusive group blocks it)
     if "--completion" in sys.argv:
         from .completion import main as completion_main
 
@@ -124,7 +123,7 @@ def _cmd_clean(config: dict, out_path: Path):
         try:
             manifest = json.loads(mf.read_text())
             for f in manifest.get("files", []):
-                p = out_path / f
+                p = Path(f)
                 if p.exists():
                     p.unlink()
                     cleaned += 1
@@ -178,6 +177,25 @@ def _print_result(f: str):
     print(f"  {Path(f).name} ({lines} lines, ~{tokens} tokens)")
 
 
+def _write_manifest(out_path: Path, all_files: list[str], config: dict):
+    """Write chat-manifest.md with summary of all collected files."""
+    lines = [
+        f"# {config.get('project_name', 'Project')} — MANIFEST\n",
+        "\nAll collected files:\n",
+    ]
+    for f in sorted(all_files):
+        p = Path(f)
+        if p.exists():
+            content = p.read_text(encoding="utf-8")
+            tokens = count_tokens(content)
+            lines.append(f"  {f} (~{tokens} tokens)")
+    lines.append(f"\nTotal: {len(all_files)} file(s)\n")
+
+    mf = out_path / "chat-manifest.md"
+    mf.write_text("\n".join(lines))
+    print(f"  chat-manifest.md ({len(all_files)} files)")
+
+
 def _cmd_all(config: dict, args, project_name: str, out_path: Path):
     clean_manifest(out_path, "")
     all_created = []
@@ -205,6 +223,11 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
                 _print_result(f)
         else:
             print("  No content collected.")
+
+    # Write manifest
+    _write_manifest(out_path, all_created, config)
+    all_created.append("chat-manifest.md")
+
     save_manifest(out_path, all_created)
 
 
