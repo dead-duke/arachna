@@ -7,9 +7,15 @@ from typing import Any
 
 from .cache import load_cache, save_cache
 from .compressor import compress, estimate_savings
-from .gatherer import _collect_named_sections, _get_exclude_patterns, gather_command
+from .gatherer import (
+    _collect_named_sections,
+    _get_exclude_patterns,
+    gather_command,
+    set_tokenizer,
+)
 from .runner import run_command
 from .splitter import split
+from .tokenizer import count_tokens, load_tokenizer
 
 _MANIFEST = ".arachna_manifest.json"
 
@@ -62,7 +68,13 @@ def collect(
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    # XML/JSON need single newline separator, markdown uses double
+    # Load tokenizer if specified
+    tokenizer_spec = profile.get("tokenizer", "default")
+    if tokenizer_spec != "default":
+        set_tokenizer(load_tokenizer(tokenizer_spec))
+    else:
+        set_tokenizer(count_tokens)
+
     separator = "\n\n" if section_format == "markdown" else "\n"
 
     if command:

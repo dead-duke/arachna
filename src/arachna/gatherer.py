@@ -1,5 +1,6 @@
 """Content gatherer — collects files and runs commands."""
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -11,12 +12,17 @@ from .runner import run_command
 from .splitter import split
 from .tokenizer import count_tokens
 
+# Default tokenizer
+_TOKENIZE: Callable[[str], int] = count_tokens
 
-def _get_exclude_patterns(profile: dict[str, Any]) -> list[str]:
-    exclude = list(profile.get("exclude_patterns", []))
-    if profile.get("use_gitignore", True):
-        exclude.extend(load_gitignore_patterns(Path.cwd()))
-    return exclude
+
+def get_tokenizer() -> Callable[[str], int]:
+    return _TOKENIZE
+
+
+def set_tokenizer(t: Callable[[str], int]):
+    global _TOKENIZE
+    _TOKENIZE = t
 
 
 def _collect_named_sections(
@@ -36,7 +42,7 @@ def _collect_named_sections(
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
         if output.strip():
-            tokens = count_tokens(output)
+            tokens = _TOKENIZE(output)
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
             named_sections.append((f"pre: {label}", output, tokens))
 
@@ -67,7 +73,7 @@ def _collect_named_sections(
             verbose=verbose,
         )
         if section:
-            tokens = count_tokens(section)
+            tokens = _TOKENIZE(section)
             named_sections.append((str(filepath), section, tokens))
 
     for filepath_str in profile.get("files", []):
@@ -87,7 +93,7 @@ def _collect_named_sections(
             verbose=verbose,
         )
         if section:
-            tokens = count_tokens(section)
+            tokens = _TOKENIZE(section)
             named_sections.append((str(filepath), section, tokens))
 
     new_cache = update_cache(target_files, cache or {})
@@ -118,13 +124,13 @@ def dry_run(profile: dict[str, Any]) -> dict:
         content = gather_command(command)
         if do_compress:
             content = compress(content)
-        tokens = count_tokens(content)
+        tokens = _TOKENIZE(content)
         named_sections = [("command output", content, tokens)]
     else:
         named_sections, _ = _collect_named_sections(profile, exclude)
         if do_compress:
             named_sections = [
-                (name, compress(content), count_tokens(compress(content)))
+                (name, compress(content), _TOKENIZE(compress(content)))
                 for name, content, _ in named_sections
             ]
 
@@ -137,7 +143,7 @@ def dry_run(profile: dict[str, Any]) -> dict:
         for name, sec_content, tokens in named_sections:
             if sec_content.strip() in content:
                 part_sections.append((name, tokens))
-        total_tokens = count_tokens(content)
+        total_tokens = _TOKENIZE(content)
         parts.append(
             {
                 "part_num": i,
@@ -147,3 +153,10 @@ def dry_run(profile: dict[str, Any]) -> dict:
         )
 
     return {"name_tmpl": name_tmpl, "max_tokens": max_tokens, "parts": parts}
+
+
+def _get_exclude_patterns(profile: dict[str, Any]) -> list[str]:
+    exclude = list(profile.get("exclude_patterns", []))
+    if profile.get("use_gitignore", True):
+        exclude.extend(load_gitignore_patterns(Path.cwd()))
+    return exclude

@@ -41,20 +41,19 @@
 
 ## v0.5.0 — Tests, safety, audit, tokenizer prep
 - [x] Removed compress_indent (unsafe), safe compression only
-- [x] Shell security warning in README
-- [x] LICENSE file (MIT)
+- [x] Shell security warning, LICENSE, pyproject.toml classifiers
 - [x] formatter: verbose skip reasons
 - [x] splitter: separator for xml/json
 - [x] Tests: cache, completion, init, formatter, incremental, manifest
 - [x] .arachna.json: "all" profile (32768 tokens)
-- [x] pyproject.toml: classifiers, readme, license
 - [x] 175 tests, 90% coverage
 
 ## v0.6.0 — Pluggable tokenizer
-- [ ] load_tokenizer(spec) in tokenizer.py
-- [ ] tokenizer field in profile (default: "default")
-- [ ] Plumb tokenizer through collector → gatherer → splitter
-- [ ] Tests for custom tokenizer plugin
+- [x] load_tokenizer(spec) in tokenizer.py
+- [x] tokenizer field in profile (default: "default")
+- [x] Plumbed through collector → gatherer → splitter
+- [x] Tests for custom tokenizer plugin
+- [x] 179 tests, 90% coverage
 
 ## v0.7.0 — Additional tests
 - [ ] Coverage ≥ 95%

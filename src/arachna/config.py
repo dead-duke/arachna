@@ -21,7 +21,6 @@ DEFAULT_PATTERNS = ["*.py", "*.md", "*.yaml", "*.yml", "*.toml", "*.json", "*.cf
 
 
 def find_config() -> Path | None:
-    """Find .arachna.json in current or parent directories."""
     cwd = Path.cwd()
     for parent in [cwd, *cwd.parents]:
         cfg = parent / ".arachna.json"
@@ -31,7 +30,6 @@ def find_config() -> Path | None:
 
 
 def load_config() -> dict[str, Any]:
-    """Load configuration from .arachna.json."""
     cfg_path = find_config()
     if not cfg_path:
         return _default_config()
@@ -48,12 +46,12 @@ def _default_config() -> dict[str, Any]:
     return {
         "project_name": "Project",
         "output_dir": "arachna_context",
+        "tokenizer": "default",
         "profiles": {},
     }
 
 
 def get_profile(name: str) -> dict[str, Any]:
-    """Load config and return specific profile."""
     config = load_config()
     profiles = config.get("profiles", {})
 
@@ -77,6 +75,7 @@ def get_profile(name: str) -> dict[str, Any]:
     profile.setdefault("command", None)
     profile.setdefault("exclude_patterns", DEFAULT_EXCLUDE.copy())
     profile.setdefault("split_marker", "\n\n")
+    profile.setdefault("tokenizer", "default")
     return profile
 
 
@@ -91,4 +90,5 @@ def _default_profile() -> dict[str, Any]:
         "exclude_patterns": DEFAULT_EXCLUDE.copy(),
         "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv|.git' || ls -la"],
         "split_marker": "\n\n",
+        "tokenizer": "default",
     }

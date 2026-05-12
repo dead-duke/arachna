@@ -137,18 +137,50 @@ Every created file is tracked in .arachna_manifest.json. Running --all again rem
 
 With --incremental, arachna skips files unchanged since last run. Uses .arachna_cache.json.
 
-## Token counting
+## Tokenizer
 
 arachna uses a conservative estimate: 4 characters = 1 token.
+This works for any model with a 20-30% safety margin.
 
-This works well across most models (LLaMA, Mistral, Qwen, GPT-4) and content types,
-especially source code. Actual token counts vary by model and language.
+### Built-in (default)
 
-Set max_tokens 20-30% below your model's context window.
-For a 16384 token window, use max_tokens: 12000.
-arachna splits sooner rather than later — files will always fit.
+No dependencies. Always works. Set max_tokens below your model's context window:
+- 8192 window → max_tokens: 6000
+- 32768 window → max_tokens: 24000
 
-No external dependencies required — works out of the box for any local model.
+### Custom tokenizer
+
+Add to your .arachna.json:
+
+  "tokenizer": "my_module:count_tokens"
+
+Your module must export count_tokens(text) -> int. Example:
+
+  # my_tok.py
+  def count_tokens(text: str) -> int:
+      return max(1, len(text) // 4)  # your logic here
+
+### Cloud models
+
+For exact token counts with cloud APIs, install tiktoken:
+
+  pip install tiktoken
+
+  "tokenizer": "tiktoken:cl100k_base"    # GPT-4, DeepSeek
+  "tokenizer": "tiktoken:o200k_base"     # GPT-4o
+
+### Local models
+
+For exact token counts with HuggingFace tokenizers, install transformers:
+
+  pip install transformers
+
+  "tokenizer": "transformers:Qwen/Qwen2.5-7B-Instruct"
+  "tokenizer": "transformers:mistralai/Mistral-7B-Instruct-v0.3"
+  "tokenizer": "transformers:google/gemma-7b"
+
+Note: transformers is a heavy dependency (gigabytes). Use only if you need exact counts.
+For most local models, the built-in estimate with safety margin is sufficient.
 
 ## Supported project types
 
