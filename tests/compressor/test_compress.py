@@ -3,27 +3,14 @@ from arachna.compressor import compress, estimate_savings
 
 def test_collapse_blank_lines():
     text = "a\n\n\n\nb"
-    result = compress(text, indent=True)
+    result = compress(text)
     assert result == "a\n\nb"
 
 
 def test_strip_trailing_whitespace():
     text = "hello   \nworld\t\t\n"
-    result = compress(text, indent=True)
+    result = compress(text)
     assert result == "hello\nworld\n"
-
-
-def test_compress_indentation():
-    text = "        indented\n    also\n\t\ttabbed"
-    result = compress(text, indent=True)
-    assert "        " not in result
-    assert "    " not in result
-
-
-def test_no_indent_compression():
-    text = "        indented"
-    result = compress(text, indent=False)
-    assert "        " in result
 
 
 def test_empty_text():
@@ -33,6 +20,13 @@ def test_empty_text():
 def test_no_change():
     text = "hello\n\nworld"
     assert compress(text) == text
+
+
+def test_preserves_indentation():
+    text = "    indented\n        deeper"
+    result = compress(text)
+    assert "    indented" in result
+    assert "        deeper" in result
 
 
 def test_estimate_savings():

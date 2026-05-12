@@ -1,5 +1,9 @@
 .PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info
 
+# Конфигурация
+VENV := venv
+VENV_BIN := $(VENV)/bin
+
 help:
 	@echo "arachna — context collector for AI"
 	@echo ""
@@ -51,6 +55,10 @@ tree:
 	tree -I '__pycache__|*.pyc|*.egg-info|venv|.git|arachna_context' 2>/dev/null || ls -la
 
 info:
-	@echo "arachna v0.2.0"
+	@echo "arachna v0.5.0"
 	@echo "Python: $$(python3 --version)"
 	@echo "Path: $$(pwd)"
+
+activate:
+	@echo "Активация виртуального окружения:"
+	@echo "  source $(VENV)/bin/activate"

@@ -83,6 +83,7 @@ def format_file_section(
     include_binary: bool = False,
     binary_extensions: list[str] | None = None,
     binary_max_mb: float = 1.0,
+    verbose: bool = False,
 ) -> str:
     """Read a file and format it as a section."""
     try:
@@ -90,13 +91,23 @@ def format_file_section(
     except UnicodeDecodeError:
         if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
             return _format_binary(path, fmt)
+        if verbose:
+            print(f"  Skipped (binary): {path}")
         return ""
-    except (PermissionError, OSError):
+    except PermissionError:
+        if verbose:
+            print(f"  Skipped (permission): {path}")
+        return ""
+    except OSError as e:
+        if verbose:
+            print(f"  Skipped (error): {path} - {e}")
         return ""
 
     if "\x00" in text:
         if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
             return _format_binary(path, fmt)
+        if verbose:
+            print(f"  Skipped (binary): {path}")
         return ""
 
     lang = lang_for_path(path)
@@ -112,11 +123,7 @@ def format_file_section(
         return _format_markdown(path, lang, text)
 
 
-def _is_binary_allowed(
-    path: Path,
-    extensions: list[str] | None,
-    max_mb: float,
-) -> bool:
+def _is_binary_allowed(path: Path, extensions: list[str] | None, max_mb: float) -> bool:
     if not path.exists():
         return False
     if extensions and path.suffix.lower() not in extensions:
@@ -129,7 +136,6 @@ def _format_binary(path: Path, fmt: str) -> str:
     data = path.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
     ext = path.suffix.lstrip(".").lower()
-
     if fmt == "xml":
         return f'<file path="{path}" encoding="base64" extension="{ext}">\n{b64}\n</file>\n'
     elif fmt == "json":

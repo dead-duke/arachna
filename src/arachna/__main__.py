@@ -123,7 +123,7 @@ def _cmd_clean(config: dict, out_path: Path):
         try:
             manifest = json.loads(mf.read_text())
             for f in manifest.get("files", []):
-                p = Path(f)
+                p = out_path / f
                 if p.exists():
                     p.unlink()
                     cleaned += 1
@@ -178,7 +178,6 @@ def _print_result(f: str):
 
 
 def _write_manifest(out_path: Path, all_files: list[str], config: dict):
-    """Write chat-manifest.md with summary of all collected files."""
     lines = [
         f"# {config.get('project_name', 'Project')} — MANIFEST\n",
         "\nAll collected files:\n",
@@ -224,7 +223,6 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
         else:
             print("  No content collected.")
 
-    # Write manifest
     _write_manifest(out_path, all_created, config)
     all_created.append("chat-manifest.md")
 

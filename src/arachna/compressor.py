@@ -4,29 +4,18 @@ import re
 
 _RE_BLANK_LINES = re.compile(r"\n{3,}")
 _RE_TRAILING_WS = re.compile(r"[ \t]+$", re.MULTILINE)
-_RE_INDENT = re.compile(r"^([ \t]+)", re.MULTILINE)
 
 
-def compress(text: str, indent: bool = False) -> str:
+def compress(text: str) -> str:
     """Compress whitespace to save tokens.
 
     - Collapses 3+ blank lines into 2
     - Strips trailing whitespace
-    - If indent=True: compresses indentation (8 spaces → 2 spaces)
+
+    Safe for all code and markup — does not modify indentation.
     """
     text = _RE_BLANK_LINES.sub("\n\n", text)
     text = _RE_TRAILING_WS.sub("", text)
-
-    if indent:
-
-        def _compress_indent(match):
-            spaces = match.group(1)
-            if "\t" in spaces:
-                return "\t"
-            return "  "
-
-        text = _RE_INDENT.sub(_compress_indent, text)
-
     return text
 
 

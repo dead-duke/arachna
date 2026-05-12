@@ -24,6 +24,7 @@ def _collect_named_sections(
     exclude: list[str],
     incremental: bool = False,
     cache: dict[str, float] | None = None,
+    verbose: bool = False,
 ) -> tuple[list[tuple[str, str, int]], dict[str, float]]:
     named_sections = []
     seen_files = []
@@ -63,6 +64,7 @@ def _collect_named_sections(
             include_binary=include_binary,
             binary_extensions=binary_extensions,
             binary_max_mb=binary_max_mb,
+            verbose=verbose,
         )
         if section:
             tokens = count_tokens(section)
@@ -71,6 +73,8 @@ def _collect_named_sections(
     for filepath_str in profile.get("files", []):
         filepath = Path(filepath_str)
         if not filepath.exists():
+            if verbose:
+                print(f"  Not found: {filepath}")
             continue
         if is_excluded(filepath, exclude):
             continue
@@ -80,6 +84,7 @@ def _collect_named_sections(
             include_binary=include_binary,
             binary_extensions=binary_extensions,
             binary_max_mb=binary_max_mb,
+            verbose=verbose,
         )
         if section:
             tokens = count_tokens(section)
@@ -92,7 +97,7 @@ def _collect_named_sections(
 
 def gather_files(profile: dict[str, Any], verbose: bool = False) -> list[str]:
     exclude = _get_exclude_patterns(profile)
-    sections, _ = _collect_named_sections(profile, exclude)
+    sections, _ = _collect_named_sections(profile, exclude, verbose=verbose)
     return [content for _, content, _ in sections]
 
 
@@ -108,23 +113,18 @@ def dry_run(profile: dict[str, Any]) -> dict:
     split_marker = profile.get("split_marker", "\n\n")
     command = profile.get("command")
     do_compress = profile.get("compress", False)
-    do_compress_indent = profile.get("compress_indent", False)
 
     if command:
         content = gather_command(command)
         if do_compress:
-            content = compress(content, indent=do_compress_indent)
+            content = compress(content)
         tokens = count_tokens(content)
         named_sections = [("command output", content, tokens)]
     else:
         named_sections, _ = _collect_named_sections(profile, exclude)
         if do_compress:
             named_sections = [
-                (
-                    name,
-                    compress(content, indent=do_compress_indent),
-                    count_tokens(compress(content, indent=do_compress_indent)),
-                )
+                (name, compress(content), count_tokens(compress(content)))
                 for name, content, _ in named_sections
             ]
 
@@ -146,8 +146,4 @@ def dry_run(profile: dict[str, Any]) -> dict:
             }
         )
 
-    return {
-        "name_tmpl": name_tmpl,
-        "max_tokens": max_tokens,
-        "parts": parts,
-    }
+    return {"name_tmpl": name_tmpl, "max_tokens": max_tokens, "parts": parts}

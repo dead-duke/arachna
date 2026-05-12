@@ -8,15 +8,8 @@ def split(
     max_tokens: int,
     mode: str = "by_file",
     marker: str = "\n\n",
+    separator: str = "\n\n",
 ) -> list[str]:
-    """Split raw content into token-limited parts using given mode.
-
-    Modes:
-        by_file — atomic file sections (### prefix), never split inside a file
-        by_paragraph — split by double newlines
-        by_marker — split by custom marker string
-        single — no split, truncate if exceeds limit
-    """
     if mode == "by_file":
         sections = _split_to_sections(raw_content, "\n\n### ")
     elif mode == "by_paragraph":
@@ -28,11 +21,10 @@ def split(
     else:
         sections = _split_to_sections(raw_content, "\n\n### ")
 
-    return _build_parts(sections, max_tokens)
+    return _build_parts(sections, max_tokens, separator)
 
 
 def _split_to_sections(text: str, marker: str) -> list[str]:
-    """Split text by marker, restoring marker on all chunks except the first."""
     chunks = text.split(marker)
     result = []
     for i, chunk in enumerate(chunks):
@@ -44,8 +36,7 @@ def _split_to_sections(text: str, marker: str) -> list[str]:
     return result
 
 
-def _build_parts(sections: list[str], max_tokens: int) -> list[str]:
-    """Build parts from atomic sections, never splitting inside a section."""
+def _build_parts(sections: list[str], max_tokens: int, separator: str = "\n\n") -> list[str]:
     parts = []
     current = ""
     current_tokens = 0
@@ -73,7 +64,7 @@ def _build_parts(sections: list[str], max_tokens: int) -> list[str]:
             current_tokens = section_tokens
         else:
             if current:
-                current += "\n\n" + section
+                current += separator + section
             else:
                 current = section
             current_tokens += section_tokens
@@ -85,7 +76,6 @@ def _build_parts(sections: list[str], max_tokens: int) -> list[str]:
 
 
 def _handle_single(text: str, max_tokens: int) -> list[str]:
-    """Single mode — no split, truncate if needed."""
     tokens = count_tokens(text)
     if tokens > max_tokens:
         print(f"  Warning: content is {tokens} tokens, limit {max_tokens} — truncating")

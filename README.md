@@ -104,11 +104,16 @@ post_commands: shell commands after collection
 command: use command output instead of files
 max_tokens: token limit per output file
 section_format: markdown, xml, or json
-compress: enable whitespace compression (true/false)
-compress_indent: also compress indentation (true/false)
+compress: enable safe whitespace compression (blank lines, trailing spaces). Does not modify indentation.
 include_binary: include binaries as base64 (true/false)
 binary_extensions: whitelist like [".png"]
 binary_max_mb: max binary file size in MB
+
+## Security note
+
+Commands in .arachna.json (pre_commands, post_commands, command) are executed via shell.
+Only use .arachna.json from trusted sources. Running arachna with an untrusted config
+can execute arbitrary commands on your machine.
 
 ## Output
 

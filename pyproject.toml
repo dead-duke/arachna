@@ -4,9 +4,22 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "0.4.0"
+version = "0.5.0"
 description = "Context collector for AI — gathers project files into token-limited chunks"
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    "Intended Audience :: Developers",
+]
 
 [project.scripts]
 arachna = "arachna.__main__:main"

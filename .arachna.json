@@ -33,9 +33,21 @@
       "title_template": "# {project_name} — GIT HISTORY (part {part})\n\n",
       "name_template": "chat-git",
       "split_mode": "by_marker",
-      "split_marker": "\n\n=== COMMIT:",
+      "split_marker": "\n=== COMMIT:",
       "command": "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n%nCHANGES:%n' --stat",
       "max_tokens": 16000
+    },
+    "all": {
+      "title_template": "# {project_name} — FULL CONTEXT (part {part})\n\n",
+      "name_template": "chat-all",
+      "split_mode": "by_file",
+      "directories": ["src", "tests"],
+      "patterns": ["*.py", "*.md", "*.txt", "*.json", "*.toml", "*.yaml", "*.yml"],
+      "files": ["pyproject.toml", "README.md", "TODO.md", "CHANGELOG.md", "Makefile", "LICENSE"],
+      "pre_commands": [
+        "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2"
+      ],
+      "max_tokens": 32768
     }
   }
 }

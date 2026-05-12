@@ -31,7 +31,7 @@
 - [x] compress, incremental, section_format, include_binary, 140 tests
 
 ## v0.4.0 — Shell completion + hooks
-- [x] bash/zsh completion, post_commands, 144 tests, 70% coverage
+- [x] bash/zsh completion, post_commands, 144 tests
 
 ## v0.4.1 — Table of contents + manifest
 - [x] TOC in each part, chat-manifest.md
@@ -40,9 +40,13 @@
 - [x] Removed dead code, fixed CJK tests, README token margin
 
 ## v0.5.0 — Tests & safety
-- [ ] Tests for incremental mode (cache + changed/new/deleted)
-- [ ] Tests for manifest cleanup in _cmd_clean
-- [ ] Shell security warning in README
+- [x] Tests for incremental mode (cache + changed/new/deleted)
+- [x] Tests for manifest cleanup in _cmd_clean
+- [x] Tests for completion.py (bash/zsh)
+- [x] Tests for init.py (run_defaults + run_interactive)
+- [x] Tests for formatter xml/json formats + binary
+- [x] Shell security warning in README
+- [x] 176 tests, 90% coverage
 
 ## v1.0.0 — Public release
 - [ ] pip install arachna (publish to PyPI)

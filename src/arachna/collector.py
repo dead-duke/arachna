@@ -58,9 +58,12 @@ def collect(
     split_marker = profile.get("split_marker", "\n\n")
     command = profile.get("command")
     do_compress = profile.get("compress", False)
-    do_compress_indent = profile.get("compress_indent", False)
+    section_format = profile.get("section_format", "markdown")
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
+
+    # XML/JSON need single newline separator, markdown uses double
+    separator = "\n\n" if section_format == "markdown" else "\n"
 
     if command:
         raw_content = gather_command(command)
@@ -69,16 +72,15 @@ def collect(
         if incremental:
             cache = load_cache(out_path)
             named_sections, new_cache = _collect_named_sections(
-                profile, exclude, incremental=True, cache=cache
+                profile, exclude, incremental=True, cache=cache, verbose=verbose
             )
             save_cache(out_path, new_cache)
         else:
-            named_sections, _ = _collect_named_sections(profile, exclude)
-        [name for name, _, _ in named_sections if not name.startswith("pre:")]
+            named_sections, _ = _collect_named_sections(profile, exclude, verbose=verbose)
         raw_content = "\n\n".join(content for _, content, _ in named_sections)
 
     if do_compress and raw_content.strip():
-        compressed = compress(raw_content, indent=do_compress_indent)
+        compressed = compress(raw_content)
         if verbose:
             orig, comp, pct = estimate_savings(raw_content, compressed)
             print(f"  Compressed: ~{orig} -> ~{comp} tokens (-{pct:.0f}%)")
@@ -87,7 +89,7 @@ def collect(
     if not raw_content.strip():
         return []
 
-    parts = split(raw_content, max_tokens, split_mode, split_marker)
+    parts = split(raw_content, max_tokens, split_mode, split_marker, separator)
     total_parts = len(parts)
 
     created = []
@@ -96,7 +98,6 @@ def collect(
         filename = f"{name_tmpl}.md" if total_parts == 1 else f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
-        # Build table of contents for this part
         toc = _build_toc(part_content, i, total_parts, name_tmpl)
 
         with open(filepath, "w", encoding="utf-8") as f:
@@ -106,7 +107,6 @@ def collect(
 
         created.append(str(filepath))
 
-    # Run post_commands after writing files
     for cmd in profile.get("post_commands", []):
         output = run_command(cmd)
         if verbose and output.strip():
@@ -116,7 +116,6 @@ def collect(
 
 
 def _build_toc(content: str, part_num: int, total_parts: int, name_tmpl: str) -> str:
-    """Build table of contents listing files in this part."""
     lines = []
     files = []
     for line in content.split("\n"):
