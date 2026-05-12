@@ -39,14 +39,27 @@
 ## v0.4.2 — Audit fixes
 - [x] Removed dead code, fixed CJK tests, README token margin
 
-## v0.5.0 — Tests & safety
-- [x] Tests for incremental mode (cache + changed/new/deleted)
-- [x] Tests for manifest cleanup in _cmd_clean
-- [x] Tests for completion.py (bash/zsh)
-- [x] Tests for init.py (run_defaults + run_interactive)
-- [x] Tests for formatter xml/json formats + binary
+## v0.5.0 — Tests, safety, audit, tokenizer prep
+- [x] Removed compress_indent (unsafe), safe compression only
 - [x] Shell security warning in README
-- [x] 176 tests, 90% coverage
+- [x] LICENSE file (MIT)
+- [x] formatter: verbose skip reasons
+- [x] splitter: separator for xml/json
+- [x] Tests: cache, completion, init, formatter, incremental, manifest
+- [x] .arachna.json: "all" profile (32768 tokens)
+- [x] pyproject.toml: classifiers, readme, license
+- [x] 175 tests, 90% coverage
+
+## v0.6.0 — Pluggable tokenizer
+- [ ] load_tokenizer(spec) in tokenizer.py
+- [ ] tokenizer field in profile (default: "default")
+- [ ] Plumb tokenizer through collector → gatherer → splitter
+- [ ] Tests for custom tokenizer plugin
+
+## v0.7.0 — Additional tests
+- [ ] Coverage ≥ 95%
+- [ ] Integration tests for --format xml/json output
+- [ ] Edge cases: empty files, huge files, symlinks
 
 ## v1.0.0 — Public release
 - [ ] pip install arachna (publish to PyPI)
