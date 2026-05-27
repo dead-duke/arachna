@@ -1,6 +1,9 @@
 """Orchestrator — gathers content, splits by tokens, writes output files."""
 
+import contextlib
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -30,8 +33,24 @@ def load_manifest(out_dir: Path) -> list[str]:
 
 
 def save_manifest(out_dir: Path, files: list[str]):
+    """Atomically write manifest to disk."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / _MANIFEST).write_text(json.dumps({"files": files, "time": time.time()}, indent=2))
+    manifest_path = out_dir / _MANIFEST
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(out_dir), prefix=".arachna_manifest_", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump({"files": files, "time": time.time()}, f, indent=2)
+            os.replace(tmp_path, manifest_path)
+        except Exception:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_path)
+            raise
+    except OSError:
+        # Fallback: direct write
+        manifest_path.write_text(json.dumps({"files": files, "time": time.time()}, indent=2))
 
 
 def clean_manifest(out_dir: Path, name_tmpl: str = ""):
