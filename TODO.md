@@ -55,29 +55,31 @@
 
 ## v0.7.0 — Security sandbox, architecture cleanup
 - [x] runner.py: sandbox-валидация + аудит-лог
-- [x] gatherer.py: set_tokenizer/get_tokenizer deprecated, _TOKENIZE сохранён для совместимости
+- [x] runner.py: удалены интерпретаторы из _ALLOWED_COMMANDS
+- [x] splitter.py: исправлен проброс tokenizer в _build_parts
+- [x] gatherer.py: set_tokenizer/get_tokenizer deprecated
 - [x] __main__.py: рефакторинг _cmd_all/_cmd_single через _run_profile
 - [x] cache.py: атомарная запись через tempfile + os.replace
 - [x] gitignore.py: ограничение размера + EXCLUDED_DIRS
 - [x] formatter.py: проверка размера до read_text
 - [x] 179 tests, 90% coverage
 
-## v0.7.1 — Критические исправления безопасности и архитектуры
-- [ ] runner.py: удалить интерпретаторы (python, node, ruby, perl, php) из _ALLOWED_COMMANDS
-- [ ] splitter.py: исправить порядок аргументов в вызове _build_parts (tokenizer не доходит)
-- [ ] __main__.py: _run_profile не мутирует profile (копия перед _apply_args_to_profile)
+## v0.7.1 — Critical fixes
+- [ ] splitter.py: _split_to_sections разрезает файлы по внутренним markdown-заголовкам (### внутри контента)
+- [ ] __main__.py: копия profile в _run_profile перед мутацией
+- [ ] gatherer.py: dry_run теряет секции при сопоставлении по подстроке
 
-## v0.7.2 — Архитектурные фиксы
+## v0.7.2 — Architecture cleanup
+- [ ] gatherer.py: удалить глобальное _TOKENIZE, get_tokenizer, set_tokenizer
 - [ ] collector.py: убрать fallback write_text в save_manifest
 - [ ] splitter.py: вынести CHARS_PER_TOKEN, добавить флаг truncated в _handle_single
-- [ ] config.py: унифицировать EXCLUDED_DIRS с gitignore.py
-- [ ] renderer.py: вынести магические значения в константы MIN_PCT_*
-- [ ] gatherer.py: удалить глобальное _TOKENIZE, get_tokenizer, set_tokenizer
+- [ ] config.py + gitignore.py: унифицировать EXCLUDED_DIRS
+- [ ] CHANGELOG.md: убрать дезинформацию об удалении интерпретаторов из v0.7.0
 - [ ] CHANGELOG.md: убрать дублирование v0.6.0 (pluggable tokenizer) из v0.7.0
 - [ ] Makefile: info читает версию из src/arachna/__init__.py
 
-## v0.7.3 — Тестопригодность
-- [ ] tests: замена os.chdir на tmp_path/monkeypatch
+## v0.7.3 — Test stability
+- [ ] tests: замена os.chdir на tmp_path/monkeypatch (все модули)
 - [ ] tests/runner: замокать subprocess.run
 - [ ] tests/config: изоляция от родительского .arachna.json
 - [ ] tests/gatherer/test_incremental.py: переписать на интеграционный тест с collector.collect(incremental=True)
@@ -90,6 +92,7 @@
 - [ ] Coverage ≥ 95%
 
 ## Backlog
+- [ ] gatherer.py: декомпозиция _collect_named_sections (God function, 3 зоны ответственности)
 - [ ] CI/CD (GitHub Actions)
 - [ ] Интеграция в IDE (VS Code extension)
 - [ ] Web UI для визуального редактора профилей

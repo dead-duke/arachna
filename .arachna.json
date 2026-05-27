@@ -2,60 +2,17 @@
   "project_name": "arachna",
   "output_dir": "arachna_context",
   "profiles": {
-    "code": {
-      "title_template": "# {project_name} — CODE (part {part})\n\n",
-      "name_template": "chat-code",
-      "split_mode": "by_file",
-      "directories": ["src"],
-      "patterns": ["*.py"],
-      "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv' src"],
-      "files": ["pyproject.toml"],
-      "max_tokens": 16000
-    },
-    "tests": {
-      "title_template": "# {project_name} — TESTS (part {part})\n\n",
-      "name_template": "chat-tests",
-      "split_mode": "by_file",
-      "directories": ["tests"],
-      "patterns": ["*.py"],
-      "pre_commands": ["tree tests"],
-      "max_tokens": 16000
-    },
-    "docs": {
-      "title_template": "# {project_name} — DOCS (part {part})\n\n",
-      "name_template": "chat-docs",
-      "split_mode": "by_file",
-      "files": ["README.md", "TODO.md", "CHANGELOG.md"],
-      "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv' -L 1"],
-      "max_tokens": 16000
-    },
-    "git": {
-      "title_template": "# {project_name} — GIT HISTORY (part {part})\n\n",
-      "name_template": "chat-git",
-      "split_mode": "by_marker",
-      "split_marker": "\n=== COMMIT:",
-      "command": "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n%nCHANGES:%n' --stat",
-      "max_tokens": 16000
-    },
     "all": {
       "title_template": "# {project_name} — FULL CONTEXT (part {part})\n\n",
       "name_template": "chat-all",
       "split_mode": "by_file",
       "directories": ["src", "tests", "llm_docs"],
-      "patterns": ["*.py", "*.md", "*.txt", "*.json", "*.toml", "*.yaml", "*.yml"],
-      "files": ["pyproject.toml", "README.md", "TODO.md", "CHANGELOG.md", "Makefile", "LICENSE"],
+      "patterns": ["*.py", "*.md", "*.txt", "*.json", "*.toml", "*.yaml", "*.yml", "*.cfg", "*.ini"],
+      "files": ["pyproject.toml", "README.md", "TODO.md", "CHANGELOG.md", "Makefile", "LICENSE", "requirements-dev.txt"],
       "pre_commands": [
         "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2"
       ],
       "max_tokens": 32768
-    },
-    "llm_docs": {
-      "title_template": "# {project_name} — LLM DOCS (part {part})\n\n",
-      "name_template": "chat-llm-docs",
-      "split_mode": "by_file",
-      "directories": ["llm_docs"],
-      "patterns": ["*.md"],
-      "max_tokens": 16000
     }
   }
 }
