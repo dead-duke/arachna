@@ -54,7 +54,6 @@
 - [x] 179 tests, 90% coverage
 
 ## v0.7.0 — Security sandbox, architecture cleanup
-- [x] runner.py: убрать интерпретаторы из _ALLOWED_COMMANDS
 - [x] runner.py: sandbox-валидация + аудит-лог
 - [x] gatherer.py: set_tokenizer/get_tokenizer deprecated, _TOKENIZE сохранён для совместимости
 - [x] __main__.py: рефакторинг _cmd_all/_cmd_single через _run_profile
@@ -63,21 +62,25 @@
 - [x] formatter.py: проверка размера до read_text
 - [x] 179 tests, 90% coverage
 
-## v0.7.1 — Pluggable tokenizer bugfixes
-- [ ] splitter: пробросить tokenizer в _build_parts и _handle_single
-- [ ] gatherer: dry_run передаёт tokenizer в split
-- [ ] __main__: _run_profile не мутирует profile (копия перед _apply_args_to_profile)
+## v0.7.1 — Критические исправления безопасности и архитектуры
+- [ ] runner.py: удалить интерпретаторы (python, node, ruby, perl, php) из _ALLOWED_COMMANDS
+- [ ] splitter.py: исправить порядок аргументов в вызове _build_parts (tokenizer не доходит)
+- [ ] __main__.py: _run_profile не мутирует profile (копия перед _apply_args_to_profile)
 
 ## v0.7.2 — Архитектурные фиксы
-- [ ] collector: атомарная запись манифеста (убрать fallback write_text)
-- [ ] splitter: вынести CHARS_PER_TOKEN, добавить флаг truncated в _handle_single
-- [ ] config: унифицировать EXCLUDED_DIRS с gitignore.py
-- [ ] renderer: вынести магические значения в константы MIN_PCT_*
+- [ ] collector.py: убрать fallback write_text в save_manifest
+- [ ] splitter.py: вынести CHARS_PER_TOKEN, добавить флаг truncated в _handle_single
+- [ ] config.py: унифицировать EXCLUDED_DIRS с gitignore.py
+- [ ] renderer.py: вынести магические значения в константы MIN_PCT_*
+- [ ] gatherer.py: удалить глобальное _TOKENIZE, get_tokenizer, set_tokenizer
+- [ ] CHANGELOG.md: убрать дублирование v0.6.0 (pluggable tokenizer) из v0.7.0
+- [ ] Makefile: info читает версию из src/arachna/__init__.py
 
 ## v0.7.3 — Тестопригодность
 - [ ] tests: замена os.chdir на tmp_path/monkeypatch
 - [ ] tests/runner: замокать subprocess.run
 - [ ] tests/config: изоляция от родительского .arachna.json
+- [ ] tests/gatherer/test_incremental.py: переписать на интеграционный тест с collector.collect(incremental=True)
 
 ## v1.0.0 — Public release
 - [ ] pip install arachna (publish to PyPI)
