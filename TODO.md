@@ -9,7 +9,7 @@
 - Решение: убрать 5 интерпретаторов из allowlist. Оставить строго read-only утилиты: git log, tree, cat, grep, find, ls, wc, sort, uniq, head, tail, cut, tr, sed, awk, date, env, pwd, diff. Интерпретаторы — только через --allow-scripts с явным подтверждением.
 
 ### [HIGH] src/arachna/splitter.py — splitter игнорирует кастомный токенизатор (production-баг)
-- Источник: Архитектура / HIGH + Аудит H-01
+- [x] Источник: Архитектура / HIGH + Аудит H-01
 - Версия: v0.7.0
 - Суть: splitter.py импортирует count_tokens напрямую из tokenizer.py — всегда дефолтный 4 chars/token. gatherer.py использует глобальный _TOKENIZE (можно заменить через set_tokenizer). При кастомном токенизаторе сбор секций считает токены точно, а разбивка на части — грубо. Части превышают max_tokens.
 - Решение: пробросить tokenizer параметром в split(), _build_parts(), _handle_single(). Временно использовать get_tokenizer() из gatherer до полного рефакторинга _TOKENIZE.
@@ -127,12 +127,12 @@
 - [x] load_tokenizer(spec) в tokenizer.py
 - [x] tokenizer field в profile
 - [x] Plumbed через collector → gatherer
-- [ ] BUG: splitter напрямую импортирует count_tokens, игнорируя кастомный токенизатор
+- [x] BUG: splitter напрямую импортирует count_tokens, игнорируя кастомный токенизатор
 - [x] 179 tests, 90% coverage
 
 ## v0.7.0 — Архитектура, безопасность, тестопригодность (текущий)
 - [x] runner.py: убрать интерпретаторы из allowlist
-- [ ] splitter.py: пробросить токенизатор в split()
+- [x] splitter.py: пробросить токенизатор в split()
 - [ ] gatherer.py: убрать глобальный _TOKENIZE, DI
 - [ ] __main__.py: рефакторинг _cmd_all/_cmd_single
 - [ ] collector.py: атомарная запись манифеста

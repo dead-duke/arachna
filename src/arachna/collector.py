@@ -71,8 +71,10 @@ def collect(
     # Load tokenizer if specified
     tokenizer_spec = profile.get("tokenizer", "default")
     if tokenizer_spec != "default":
-        set_tokenizer(load_tokenizer(tokenizer_spec))
+        tokenizer = load_tokenizer(tokenizer_spec)
+        set_tokenizer(tokenizer)
     else:
+        tokenizer = count_tokens
         set_tokenizer(count_tokens)
 
     separator = "\n\n" if section_format == "markdown" else "\n"
@@ -101,7 +103,7 @@ def collect(
     if not raw_content.strip():
         return []
 
-    parts = split(raw_content, max_tokens, split_mode, split_marker, separator)
+    parts = split(raw_content, max_tokens, split_mode, split_marker, separator, tokenizer)
     total_parts = len(parts)
 
     created = []

@@ -1,5 +1,7 @@
 """Split content into token-limited parts."""
 
+from collections.abc import Callable
+
 from .tokenizer import count_tokens
 
 
@@ -9,7 +11,10 @@ def split(
     mode: str = "by_file",
     marker: str = "\n\n",
     separator: str = "\n\n",
+    tokenizer: Callable[[str], int] | None = None,
 ) -> list[str]:
+    tk = tokenizer if tokenizer is not None else count_tokens
+
     if mode == "by_file":
         sections = _split_to_sections(raw_content, "\n\n### ")
     elif mode == "by_paragraph":
@@ -17,11 +22,11 @@ def split(
     elif mode == "by_marker":
         sections = _split_to_sections(raw_content, marker)
     elif mode == "single":
-        return _handle_single(raw_content, max_tokens)
+        return _handle_single(raw_content, max_tokens, tk)
     else:
         sections = _split_to_sections(raw_content, "\n\n### ")
 
-    return _build_parts(sections, max_tokens, separator)
+    return _build_parts(sections, max_tokens, separator, tk)
 
 
 def _split_to_sections(text: str, marker: str) -> list[str]:
@@ -36,7 +41,14 @@ def _split_to_sections(text: str, marker: str) -> list[str]:
     return result
 
 
-def _build_parts(sections: list[str], max_tokens: int, separator: str = "\n\n") -> list[str]:
+def _build_parts(
+    sections: list[str],
+    max_tokens: int,
+    separator: str = "\n\n",
+    tokenizer: Callable[[str], int] | None = None,
+) -> list[str]:
+    tk = tokenizer if tokenizer is not None else count_tokens
+
     parts = []
     current = ""
     current_tokens = 0
@@ -45,7 +57,7 @@ def _build_parts(sections: list[str], max_tokens: int, separator: str = "\n\n") 
         section = section.strip()
         if not section:
             continue
-        section_tokens = count_tokens(section)
+        section_tokens = tk(section)
 
         if section_tokens > max_tokens:
             if current:
@@ -75,8 +87,14 @@ def _build_parts(sections: list[str], max_tokens: int, separator: str = "\n\n") 
     return parts
 
 
-def _handle_single(text: str, max_tokens: int) -> list[str]:
-    tokens = count_tokens(text)
+def _handle_single(
+    text: str,
+    max_tokens: int,
+    tokenizer: Callable[[str], int] | None = None,
+) -> list[str]:
+    tk = tokenizer if tokenizer is not None else count_tokens
+
+    tokens = tk(text)
     if tokens > max_tokens:
         print(f"  Warning: content is {tokens} tokens, limit {max_tokens} — truncating")
         max_chars = max_tokens * 4
