@@ -41,7 +41,7 @@
       "title_template": "# {project_name} — FULL CONTEXT (part {part})\n\n",
       "name_template": "chat-all",
       "split_mode": "by_file",
-      "directories": ["src", "tests"],
+      "directories": ["src", "tests", "llm_docs"],
       "patterns": ["*.py", "*.md", "*.txt", "*.json", "*.toml", "*.yaml", "*.yml"],
       "files": ["pyproject.toml", "README.md", "TODO.md", "CHANGELOG.md", "Makefile", "LICENSE"],
       "pre_commands": [

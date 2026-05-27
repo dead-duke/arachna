@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.7.0 — Security sandbox, pluggable tokenizer, architecture cleanup
+
+- CRITICAL: removed interpreters (python, node, ruby, perl, php) from _ALLOWED_COMMANDS
+- Pluggable tokenizer: load_tokenizer(spec) with module:function support
+- tokenizer field in profile configuration
+- Plumbed tokenizer through collector → gatherer pipeline
+- Sandbox validation: _validate_command with _BLOCKED_PATTERNS and _ALLOWED_COMMANDS
+- Command audit logging to .arachna_commands.log
+- Atomically written cache via tempfile + os.replace
+- Gitignore: size limits, EXCLUDED_DIRS filtering, binary detection
+- Formatter: size check before read_text, verbose skip reasons
+- Refactored _cmd_all and _cmd_single via shared _run_profile
+- Deprecated global _TOKENIZE in gatherer (set_tokenizer/get_tokenizer kept for compat)
+- 179 tests, 90% coverage
+
+## v0.6.0 — Pluggable tokenizer
+
+- load_tokenizer(spec) in tokenizer.py
+- tokenizer field in profile
+- Plumbed through collector → gatherer
+- 179 tests, 90% coverage
+
 ## v0.5.0 — Tests, safety, audit fixes
 
 - Tests for incremental mode (cache + changed/new/deleted)
@@ -38,7 +60,7 @@
 
 ## v0.2.2 — Git split marker, per-profile manifest cleanup
 
-- git split_marker: \\n=== COMMIT:
+- git split_marker: \n=== COMMIT:
 - --all: clean all files, rebuild all profiles
 - --profile: clean only this profile
 
