@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import __version__
 from .collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
 from .config import get_profile, load_config
 from .gatherer import dry_run
@@ -18,6 +19,57 @@ def _list_profiles(config: dict) -> list[str]:
     if profiles:
         return list(profiles.keys())
     return ["default"]
+
+
+def _collect_profile_names(config: dict, args) -> list[str]:
+    """Get list of profile names to process based on args."""
+    if args.all:
+        return _list_profiles(config)
+    return [args.profile]
+
+
+def _apply_args_to_profile(profile: dict, args):
+    """Apply CLI args to profile dict (compress, format)."""
+    if args.compress:
+        profile["compress"] = True
+    if args.format:
+        profile["section_format"] = args.format
+
+
+def _run_profile(name: str, config: dict, args, project_name: str, out_path: Path):
+    """Collect a single profile. Returns list of created files, or stats dict for dry-run."""
+    try:
+        profile = get_profile(name)
+    except KeyError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+        return []  # unreachable unless sys.exit is mocked in tests
+
+    _apply_args_to_profile(profile, args)
+
+    if args.dry_run:
+        stats = dry_run(profile)
+        stats["name"] = name
+        return stats
+
+    name_tmpl = profile.get("name_template", f"chat-{name}")
+    clean_manifest(out_path, name_tmpl)
+
+    created = collect(
+        profile,
+        project_name,
+        str(out_path),
+        verbose=args.verbose,
+        incremental=args.incremental,
+    )
+
+    if not args.all:
+        prev = load_manifest(out_path)
+        updated = [f for f in prev if not f.startswith(name_tmpl)]
+        updated.extend(created)
+        save_manifest(out_path, updated)
+
+    return created
 
 
 def main():
@@ -49,12 +101,17 @@ def main():
     parser.add_argument("--incremental", action="store_true", help="Only collect changed files")
     parser.add_argument("--format", choices=["markdown", "xml", "json"], help="Output format")
     parser.add_argument("--defaults", action="store_true", help="Use defaults with --init")
+    parser.add_argument("--version", action="store_true", help="Show version and exit")
 
     args = parser.parse_args()
     config = load_config()
     project_name = config.get("project_name", "Project")
     output_dir = args.output_dir or config.get("output_dir", ".")
     out_path = Path(output_dir)
+
+    if args.version:
+        print(f"arachna v{__version__}")
+        return
 
     if args.init:
         from .init import run_defaults, run_interactive
@@ -152,20 +209,10 @@ def _cmd_clean(config: dict, out_path: Path):
 
 
 def _cmd_dry_run(config: dict, args):
-    profiles_to_run = _list_profiles(config) if args.all else [args.profile]
+    profiles_to_run = _collect_profile_names(config, args)
     all_stats = []
     for name in profiles_to_run:
-        try:
-            profile = get_profile(name)
-        except KeyError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-        if args.compress:
-            profile["compress"] = True
-        if args.format:
-            profile["section_format"] = args.format
-        stats = dry_run(profile)
-        stats["name"] = name
+        stats = _run_profile(name, config, args, "", Path("."))
         all_stats.append(stats)
     render_dry_run(all_stats)
 
@@ -199,23 +246,8 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
     clean_manifest(out_path, "")
     all_created = []
     for name in _list_profiles(config):
-        try:
-            profile = get_profile(name)
-        except KeyError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-        if args.compress:
-            profile["compress"] = True
-        if args.format:
-            profile["section_format"] = args.format
         print(f"[{name}] Collecting...")
-        created = collect(
-            profile,
-            project_name,
-            str(out_path),
-            verbose=args.verbose,
-            incremental=args.incremental,
-        )
+        created = _run_profile(name, config, args, project_name, out_path)
         if created:
             all_created.extend(created)
             for f in created:
@@ -225,40 +257,13 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
 
     _write_manifest(out_path, all_created, config)
     all_created.append("chat-manifest.md")
-
     save_manifest(out_path, all_created)
 
 
 def _cmd_single(config: dict, args, project_name: str, out_path: Path):
-    try:
-        profile = get_profile(args.profile)
-    except KeyError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-        return
-
-    if args.compress:
-        profile["compress"] = True
-    if args.format:
-        profile["section_format"] = args.format
-
-    name_tmpl = profile.get("name_template", f"chat-{args.profile}")
-    clean_manifest(out_path, name_tmpl)
-
-    print(f"[{args.profile}] Collecting...")
-    created = collect(
-        profile,
-        project_name,
-        str(out_path),
-        verbose=args.verbose,
-        incremental=args.incremental,
-    )
-
-    prev = load_manifest(out_path)
-    updated = [f for f in prev if not f.startswith(name_tmpl)]
-    updated.extend(created)
-    save_manifest(out_path, updated)
-
+    name = args.profile
+    print(f"[{name}] Collecting...")
+    created = _run_profile(name, config, args, project_name, out_path)
     if created:
         for f in created:
             _print_result(f)

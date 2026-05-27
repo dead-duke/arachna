@@ -48,6 +48,14 @@
         "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2"
       ],
       "max_tokens": 32768
+    },
+    "llm_docs": {
+      "title_template": "# {project_name} — LLM DOCS (part {part})\n\n",
+      "name_template": "chat-llm-docs",
+      "split_mode": "by_file",
+      "directories": ["llm_docs"],
+      "patterns": ["*.md"],
+      "max_tokens": 16000
     }
   }
 }

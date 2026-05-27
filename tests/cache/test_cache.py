@@ -4,6 +4,14 @@ from pathlib import Path
 from arachna.cache import get_changed_files, load_cache, save_cache, update_cache
 
 
+def _make_entry(filepath: Path) -> dict:
+    """Create a cache entry for a file in the new format."""
+    return {
+        "mtime": filepath.stat().st_mtime,
+        "hash": "dummy",
+    }
+
+
 def test_load_cache_empty():
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
@@ -14,9 +22,9 @@ def test_load_cache_empty():
 def test_save_and_load_cache():
     with tempfile.TemporaryDirectory() as d:
         out = Path(d)
-        save_cache(out, {"a.py": 1.0, "b.py": 2.0})
+        save_cache(out, {"a.py": {"mtime": 1.0, "hash": "abc"}})
         cache = load_cache(out)
-        assert cache == {"a.py": 1.0, "b.py": 2.0}
+        assert cache == {"a.py": {"mtime": 1.0, "hash": "abc"}}
 
 
 def test_get_changed_files_all_new():
@@ -37,7 +45,7 @@ def test_get_changed_files_none_changed():
     with tempfile.TemporaryDirectory() as d:
         a = Path(d) / "a.py"
         a.write_text("hello")
-        cache = {str(a): a.stat().st_mtime}
+        cache = {str(a): _make_entry(a)}
 
         changed, new, deleted = get_changed_files([a], cache)
         assert len(changed) == 0
@@ -49,7 +57,7 @@ def test_get_changed_files_modified():
     with tempfile.TemporaryDirectory() as d:
         a = Path(d) / "a.py"
         a.write_text("original")
-        cache = {str(a): a.stat().st_mtime}
+        cache = {str(a): _make_entry(a)}
         # Modify the file
         a.write_text("modified")
 
@@ -63,9 +71,8 @@ def test_get_changed_files_deleted():
     with tempfile.TemporaryDirectory() as d:
         a = Path(d) / "a.py"
         a.write_text("hello")
-        mtime = a.stat().st_mtime
+        cache = {str(a): _make_entry(a)}
         a.unlink()
-        cache = {str(a): mtime}
 
         changed, new, deleted = get_changed_files([], cache)
         assert len(changed) == 0
@@ -80,7 +87,7 @@ def test_get_changed_files_mixed():
         c = Path(d) / "c.py"
         a.write_text("unchanged")
         b.write_text("original")
-        cache = {str(a): a.stat().st_mtime, str(b): b.stat().st_mtime}
+        cache = {str(a): _make_entry(a), str(b): _make_entry(b)}
         # Modify b, c is new, nothing deleted
         b.write_text("modified")
         c.write_text("new file")
@@ -100,4 +107,8 @@ def test_update_cache():
         cache = {}
         updated = update_cache([a], cache)
         assert str(a) in updated
-        assert updated[str(a)] == a.stat().st_mtime
+        entry = updated[str(a)]
+        assert "mtime" in entry
+        assert entry["mtime"] == a.stat().st_mtime
+        assert "hash" in entry
+        assert isinstance(entry["hash"], str)

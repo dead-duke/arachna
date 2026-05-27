@@ -2,6 +2,7 @@
 
 import base64
 import fnmatch
+import json
 from pathlib import Path
 
 _EXT_LANG = {
@@ -77,6 +78,26 @@ def lang_for_path(path: Path) -> str:
     return ""
 
 
+def _should_skip_binary(
+    path: Path,
+    include_binary: bool,
+    binary_extensions: list[str] | None,
+    binary_max_mb: float,
+) -> bool:
+    """Check if a binary file should be skipped before attempting read_text."""
+    if not path.exists():
+        return True
+    try:
+        size_mb = path.stat().st_size / (1024 * 1024)
+    except OSError:
+        return True
+    if size_mb > binary_max_mb:
+        return True
+    if binary_extensions is not None and path.suffix.lower() not in binary_extensions:
+        return True
+    return not include_binary
+
+
 def format_file_section(
     path: Path,
     fmt: str = "markdown",
@@ -86,6 +107,55 @@ def format_file_section(
     verbose: bool = False,
 ) -> str:
     """Read a file and format it as a section."""
+    # Check size and binary status before attempting read_text
+    try:
+        file_size = path.stat().st_size
+    except OSError as e:
+        if verbose:
+            print(f"  Skipped (error): {path} - {e}")
+        return ""
+
+    # Quick binary check via extension and size before read
+    ext = path.suffix.lower()
+    is_binary_ext = ext not in {
+        "",
+        ".py",
+        ".json",
+        ".toml",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".txt",
+        ".js",
+        ".ts",
+        ".html",
+        ".css",
+        ".sql",
+        ".rs",
+        ".go",
+        ".java",
+        ".cpp",
+        ".c",
+        ".h",
+    }
+    size_mb = file_size / (1024 * 1024)
+
+    if is_binary_ext and size_mb > binary_max_mb:
+        if verbose:
+            print(f"  Skipped (binary too large): {path}")
+        return ""
+    if is_binary_ext and not include_binary:
+        if verbose:
+            print(f"  Skipped (binary): {path}")
+        return ""
+    if is_binary_ext and binary_extensions is not None and ext not in binary_extensions:
+        if verbose:
+            print(f"  Skipped (binary not in allowlist): {path}")
+        return ""
+
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
@@ -139,10 +209,8 @@ def _format_binary(path: Path, fmt: str) -> str:
     if fmt == "xml":
         return f'<file path="{path}" encoding="base64" extension="{ext}">\n{b64}\n</file>\n'
     elif fmt == "json":
-        import json as _json
-
         return (
-            _json.dumps(
+            json.dumps(
                 {"path": str(path), "encoding": "base64", "content": b64}, ensure_ascii=False
             )
             + "\n"
@@ -161,12 +229,10 @@ def _format_xml(path: Path, lang: str, text: str) -> str:
 
 
 def _format_json(path: Path, lang: str, text: str) -> str:
-    import json as _json
-
     obj = {"path": str(path), "content": text}
     if lang:
         obj["language"] = lang
-    return _json.dumps(obj, ensure_ascii=False) + "\n"
+    return json.dumps(obj, ensure_ascii=False) + "\n"
 
 
 def is_excluded(path: Path, exclude_patterns: list[str]) -> bool:
