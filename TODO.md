@@ -16,7 +16,7 @@
 - Путь бага: config → tokenizer="tiktoken:cl100k_base" → collector.set_tokenizer() → gatherer._TOKENIZE(section) ✓ → splitter.count_tokens(section) ✗
 
 ### [HIGH] src/arachna/gatherer.py — устранить глобальное состояние _TOKENIZE
-- Источник: Архитектура / HIGH + Аудит H-02 + M-02 (из v0.5.0)
+- [x] Источник: Архитектура / HIGH + Аудит H-02 + M-02 (из v0.5.0)
 - Версия: v0.7.0
 - Суть: set_tokenizer() меняет модульную переменную _TOKENIZE — глобальный сайд-эффект. Тесты вынуждены патчить. Как библиотека — несколько вызовов с разными токенизаторами мешают друг другу. _collect_named_sections — God function на 47 строк (pre_commands + директории + files).
 - Решение: dependency injection — передавать tokenizer параметром в _collect_named_sections, gather_files, dry_run, split. _TOKENIZE оставить deprecated для обратной совместимости. Декомпозировать _collect_named_sections на _collect_pre_commands, _scan_directories, _collect_specific_files.
@@ -133,7 +133,7 @@
 ## v0.7.0 — Архитектура, безопасность, тестопригодность (текущий)
 - [x] runner.py: убрать интерпретаторы из allowlist
 - [x] splitter.py: пробросить токенизатор в split()
-- [ ] gatherer.py: убрать глобальный _TOKENIZE, DI
+- [x] gatherer.py: убрать глобальный _TOKENIZE, DI
 - [ ] __main__.py: рефакторинг _cmd_all/_cmd_single
 - [ ] collector.py: атомарная запись манифеста
 - [ ] splitter.py: CHARS_PER_TOKEN + флаг truncated

@@ -11,7 +11,6 @@ from .gatherer import (
     _collect_named_sections,
     _get_exclude_patterns,
     gather_command,
-    set_tokenizer,
 )
 from .runner import run_command
 from .splitter import split
@@ -70,12 +69,7 @@ def collect(
 
     # Load tokenizer if specified
     tokenizer_spec = profile.get("tokenizer", "default")
-    if tokenizer_spec != "default":
-        tokenizer = load_tokenizer(tokenizer_spec)
-        set_tokenizer(tokenizer)
-    else:
-        tokenizer = count_tokens
-        set_tokenizer(count_tokens)
+    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
 
     separator = "\n\n" if section_format == "markdown" else "\n"
 
@@ -86,11 +80,18 @@ def collect(
         if incremental:
             cache = load_cache(out_path)
             named_sections, new_cache = _collect_named_sections(
-                profile, exclude, incremental=True, cache=cache, verbose=verbose
+                profile,
+                exclude,
+                incremental=True,
+                cache=cache,
+                verbose=verbose,
+                tokenizer=tokenizer,
             )
             save_cache(out_path, new_cache)
         else:
-            named_sections, _ = _collect_named_sections(profile, exclude, verbose=verbose)
+            named_sections, _ = _collect_named_sections(
+                profile, exclude, verbose=verbose, tokenizer=tokenizer
+            )
         raw_content = "\n\n".join(content for _, content, _ in named_sections)
 
     if do_compress and raw_content.strip():
