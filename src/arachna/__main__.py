@@ -29,11 +29,16 @@ def _collect_profile_names(config: dict, args) -> list[str]:
 
 
 def _apply_args_to_profile(profile: dict, args):
-    """Apply CLI args to profile dict (compress, format)."""
+    """Apply CLI args to profile dict (compress, format).
+
+    Returns a modified copy — does not mutate the original.
+    """
+    profile = dict(profile)
     if args.compress:
         profile["compress"] = True
     if args.format:
         profile["section_format"] = args.format
+    return profile
 
 
 def _run_profile(name: str, config: dict, args, project_name: str, out_path: Path):
@@ -45,7 +50,7 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
         sys.exit(1)
         return []  # unreachable unless sys.exit is mocked in tests
 
-    _apply_args_to_profile(profile, args)
+    profile = _apply_args_to_profile(profile, args)
 
     if args.dry_run:
         stats = dry_run(profile)

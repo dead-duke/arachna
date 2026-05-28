@@ -22,11 +22,11 @@ def split(
     elif mode == "by_marker":
         sections = _split_to_sections(raw_content, marker)
     elif mode == "single":
-        return _handle_single(raw_content, max_tokens, tk)
+        return _handle_single(raw_content, max_tokens, tokenizer=tk)
     else:
         sections = _split_to_sections(raw_content, "\n\n### ")
 
-    return _build_parts(sections, max_tokens, separator, tk)
+    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
 
 
 def _split_to_sections(text: str, marker: str) -> list[str]:

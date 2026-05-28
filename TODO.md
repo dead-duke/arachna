@@ -65,9 +65,9 @@
 - [x] 179 tests, 90% coverage
 
 ## v0.7.1 — Critical fixes
-- [ ] splitter.py: _split_to_sections разрезает файлы по внутренним markdown-заголовкам (### внутри контента)
-- [ ] __main__.py: копия profile в _run_profile перед мутацией
-- [ ] gatherer.py: dry_run теряет секции при сопоставлении по подстроке
+- [x] runner.py: удалить интерпретаторы (python, node, ruby, perl, php) из _ALLOWED_COMMANDS
+- [x] splitter.py: исправить проброс tokenizer в _build_parts (ошибка порядка аргументов)
+- [x] __main__.py: копия profile в _apply_args_to_profile перед мутацией
 
 ## v0.7.2 — Architecture cleanup
 - [ ] gatherer.py: удалить глобальное _TOKENIZE, get_tokenizer, set_tokenizer
