@@ -70,13 +70,13 @@
 - [x] __main__.py: копия profile в _apply_args_to_profile перед мутацией
 
 ## v0.7.2 — Architecture cleanup
-- [ ] gatherer.py: удалить глобальное _TOKENIZE, get_tokenizer, set_tokenizer
-- [ ] collector.py: убрать fallback write_text в save_manifest
-- [ ] splitter.py: вынести CHARS_PER_TOKEN, добавить флаг truncated в _handle_single
-- [ ] config.py + gitignore.py: унифицировать EXCLUDED_DIRS
-- [ ] CHANGELOG.md: убрать дезинформацию об удалении интерпретаторов из v0.7.0
-- [ ] CHANGELOG.md: убрать дублирование v0.6.0 (pluggable tokenizer) из v0.7.0
-- [ ] Makefile: info читает версию из src/arachna/__init__.py
+- [x] gatherer.py: удалить глобальное _TOKENIZE, get_tokenizer, set_tokenizer
+- [x] collector.py: убрать fallback write_text в save_manifest
+- [x] splitter.py: вынести CHARS_PER_TOKEN, добавить флаг truncated в _handle_single
+- [x] config.py + gitignore.py: унифицировать EXCLUDED_DIRS
+- [x] CHANGELOG.md: убрать дезинформацию об удалении интерпретаторов из v0.7.0
+- [x] CHANGELOG.md: убрать дублирование v0.6.0 (pluggable tokenizer) из v0.7.0
+- [x] Makefile: info читает версию из src/arachna/__init__.py
 
 ## v0.7.3 — Test stability
 - [ ] tests: замена os.chdir на tmp_path/monkeypatch (все модули)

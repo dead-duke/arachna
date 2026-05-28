@@ -1,11 +1,13 @@
 # Changelog
 
-## v0.7.0 — Security sandbox, pluggable tokenizer, architecture cleanup
+## v0.7.1 — Critical fixes
 
-- CRITICAL: removed interpreters (python, node, ruby, perl, php) from _ALLOWED_COMMANDS
-- Pluggable tokenizer: load_tokenizer(spec) with module:function support
-- tokenizer field in profile configuration
-- Plumbed tokenizer through collector → gatherer pipeline
+- Removed interpreters (python, node, ruby, perl, php) from _ALLOWED_COMMANDS
+- Fixed tokenizer passthrough in _build_parts (keyword args)
+- Fixed _apply_args_to_profile mutation (returns copy)
+
+## v0.7.0 — Security sandbox, architecture cleanup
+
 - Sandbox validation: _validate_command with _BLOCKED_PATTERNS and _ALLOWED_COMMANDS
 - Command audit logging to .arachna_commands.log
 - Atomically written cache via tempfile + os.replace

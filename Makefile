@@ -55,7 +55,7 @@ tree:
 	tree -I '__pycache__|*.pyc|*.egg-info|venv|.git|arachna_context' 2>/dev/null || ls -la
 
 info:
-	@echo "arachna v0.5.0"
+	@echo "arachna v$$(python3 -c "from src.arachna import __version__; print(__version__)")"
 	@echo "Python: $$(python3 --version)"
 	@echo "Path: $$(pwd)"
 

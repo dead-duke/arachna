@@ -12,28 +12,13 @@ from .runner import run_command
 from .splitter import split
 from .tokenizer import count_tokens
 
-# Default tokenizer — deprecated, kept for backward compatibility.
-# Use tokenizer parameter in function calls instead.
-_TOKENIZE: Callable[[str], int] = count_tokens
-
-
-def get_tokenizer() -> Callable[[str], int]:
-    """Return current tokenizer. Deprecated: use explicit tokenizer parameter."""
-    return _TOKENIZE
-
-
-def set_tokenizer(t: Callable[[str], int]):
-    """Set global tokenizer. Deprecated: pass tokenizer explicitly to functions."""
-    global _TOKENIZE
-    _TOKENIZE = t
-
 
 def _collect_pre_commands(
     profile: dict[str, Any],
     tokenizer: Callable[[str], int] | None = None,
 ) -> list[tuple[str, str, int]]:
     """Run pre_commands and return (label, output, tokens) tuples."""
-    tk = tokenizer if tokenizer is not None else _TOKENIZE
+    tk = tokenizer if tokenizer is not None else count_tokens
     results = []
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
@@ -72,7 +57,7 @@ def _collect_specific_files(
     verbose: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Format specific files into (path, content, tokens) tuples."""
-    tk = tokenizer if tokenizer is not None else _TOKENIZE
+    tk = tokenizer if tokenizer is not None else count_tokens
     results = []
     for filepath_str in file_paths:
         filepath = Path(filepath_str)
@@ -106,7 +91,7 @@ def _format_scanned_files(
     verbose: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Format scanned files into (path, content, tokens) tuples."""
-    tk = tokenizer if tokenizer is not None else _TOKENIZE
+    tk = tokenizer if tokenizer is not None else count_tokens
     results = []
     for filepath in filepaths:
         section = format_file_section(
@@ -135,7 +120,7 @@ def _collect_named_sections(
 
     Returns (named_sections, updated_cache).
     """
-    tk = tokenizer if tokenizer is not None else _TOKENIZE
+    tk = tokenizer if tokenizer is not None else count_tokens
     fmt = profile.get("section_format", "markdown")
     include_binary = profile.get("include_binary", False)
     binary_extensions = profile.get("binary_extensions")
@@ -209,7 +194,7 @@ def dry_run(
     tokenizer: Callable[[str], int] | None = None,
 ) -> dict:
     """Preview collection without writing files."""
-    tk = tokenizer if tokenizer is not None else _TOKENIZE
+    tk = tokenizer if tokenizer is not None else count_tokens
 
     exclude = _get_exclude_patterns(profile)
     max_tokens = profile.get("max_tokens", 16000)

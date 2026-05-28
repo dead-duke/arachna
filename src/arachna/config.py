@@ -4,6 +4,20 @@ import json
 from pathlib import Path
 from typing import Any
 
+# Directories commonly excluded from all operations
+_COMMON_EXCLUDE_DIRS = frozenset(
+    {
+        ".git",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "__pycache__",
+        "venv",
+        "node_modules",
+    }
+)
+
 DEFAULT_EXCLUDE = [
     "*__pycache__*",
     "*.pyc",

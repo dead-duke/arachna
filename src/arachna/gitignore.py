@@ -2,19 +2,7 @@
 
 from pathlib import Path
 
-# Directories always excluded from gitignore loading
-EXCLUDED_DIRS = frozenset(
-    {
-        ".git",
-        ".tox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "__pycache__",
-        "venv",
-        "node_modules",
-    }
-)
+from .config import _COMMON_EXCLUDE_DIRS
 
 # Max .gitignore file size (100 KB)
 _MAX_GITIGNORE_SIZE = 100 * 1024
@@ -30,7 +18,7 @@ def load_gitignore_patterns(root: Path) -> list[str]:
 
         # Skip gitignore files in excluded directories
         parts = gitignore_path.parent.relative_to(root).parts
-        if any(p.startswith(".") or p in EXCLUDED_DIRS for p in parts):
+        if any(p.startswith(".") or p in _COMMON_EXCLUDE_DIRS for p in parts):
             continue
 
         # Check file size before reading

@@ -4,6 +4,9 @@ from collections.abc import Callable
 
 from .tokenizer import count_tokens
 
+# Conservative estimate: 4 characters ≈ 1 token
+CHARS_PER_TOKEN = 4
+
 
 def split(
     raw_content: str,
@@ -22,7 +25,13 @@ def split(
     elif mode == "by_marker":
         sections = _split_to_sections(raw_content, marker)
     elif mode == "single":
-        return _handle_single(raw_content, max_tokens, tokenizer=tk)
+        parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
+        if was_truncated:
+            print(
+                f"  Warning: content is {tk(raw_content)} tokens, "
+                f"limit {max_tokens} — truncating"
+            )
+        return parts
     else:
         sections = _split_to_sections(raw_content, "\n\n### ")
 
@@ -91,12 +100,16 @@ def _handle_single(
     text: str,
     max_tokens: int,
     tokenizer: Callable[[str], int] | None = None,
-) -> list[str]:
+) -> tuple[list[str], bool]:
+    """Split content into a single part, truncating if over limit.
+
+    Returns (parts, was_truncated).
+    """
     tk = tokenizer if tokenizer is not None else count_tokens
 
     tokens = tk(text)
     if tokens > max_tokens:
-        print(f"  Warning: content is {tokens} tokens, limit {max_tokens} — truncating")
-        max_chars = max_tokens * 4
+        max_chars = max_tokens * CHARS_PER_TOKEN
         text = text[:max_chars] + "\n\n# ... truncated ...\n"
-    return [text.strip()]
+        return [text.strip()], True
+    return [text.strip()], False
