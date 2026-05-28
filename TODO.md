@@ -79,10 +79,10 @@
 - [x] Makefile: info читает версию из src/arachna/__init__.py
 
 ## v0.7.3 — Test stability
-- [ ] tests: замена os.chdir на tmp_path/monkeypatch (все модули)
-- [ ] tests/runner: замокать subprocess.run
-- [ ] tests/config: изоляция от родительского .arachna.json
-- [ ] tests/gatherer/test_incremental.py: переписать на интеграционный тест с collector.collect(incremental=True)
+- [x] tests: замена os.chdir на tmp_path/monkeypatch (все модули)
+- [x] tests/runner: замокать subprocess.run
+- [x] tests/config: изоляция от родительского .arachna.json
+- [x] tests/gatherer/test_incremental.py: переписать на интеграционный тест с collector.collect(incremental=True)
 
 ## v1.0.0 — Public release
 - [ ] pip install arachna (publish to PyPI)

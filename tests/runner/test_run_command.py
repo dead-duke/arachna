@@ -1,19 +1,24 @@
 import subprocess
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from arachna.runner import run_command
 
 
 def test_simple():
-    assert run_command("echo hello").strip() == "hello"
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="hello\n", returncode=0)
+        assert run_command("echo hello").strip() == "hello"
 
 
 def test_with_args():
-    assert run_command("echo hello world").strip() == "hello world"
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="hello world\n", returncode=0)
+        assert run_command("echo hello world").strip() == "hello world"
 
 
 def test_nonexistent():
-    assert run_command("nonexistent_cmd_xyz") == ""
+    with patch("subprocess.run", side_effect=FileNotFoundError):
+        assert run_command("nonexistent_cmd_xyz") == ""
 
 
 def test_timeout():
@@ -27,9 +32,13 @@ def test_os_error():
 
 
 def test_pipe():
-    assert run_command("echo hello | cat").strip() == "hello"
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="hello\n", returncode=0)
+        assert run_command("echo hello | cat").strip() == "hello"
 
 
 def test_double_ampersand():
-    lines = run_command("echo first && echo second").strip().split("\n")
-    assert lines == ["first", "second"]
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="first\nsecond\n", returncode=0)
+        lines = run_command("echo first && echo second").strip().split("\n")
+        assert lines == ["first", "second"]
