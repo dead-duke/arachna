@@ -109,13 +109,23 @@ def _handle_single(
 ) -> tuple[list[str], bool]:
     """Split content into a single part, truncating if over limit.
 
+    Uses tokenizer for accurate truncation instead of character-based estimate.
     Returns (parts, was_truncated).
     """
     tk = tokenizer if tokenizer is not None else count_tokens
 
     tokens = tk(text)
-    if tokens > max_tokens:
-        max_chars = max_tokens * CHARS_PER_TOKEN
-        text = text[:max_chars] + "\n\n# ... truncated ...\n"
-        return [text.strip()], True
-    return [text.strip()], False
+    if tokens <= max_tokens:
+        return [text.strip()], False
+
+    # Truncate using tokenizer — iterative halving for accuracy
+    lo, hi = 0, len(text)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if tk(text[:mid]) <= max_tokens:
+            lo = mid
+        else:
+            hi = mid - 1
+
+    text = text[:lo] + "\n\n# ... truncated ...\n"
+    return [text.strip()], True

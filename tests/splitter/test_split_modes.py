@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 from arachna.splitter import split
 
 
@@ -68,3 +70,25 @@ def test_unknown_mode():
 def test_empty_content():
     parts = split("", max_tokens=100, mode="by_file")
     assert parts == []
+
+
+def test_custom_tokenizer_by_file():
+    """Custom tokenizer is called when passed to split in by_file mode."""
+    mock_tok = MagicMock(return_value=1)
+    content = "### a.py\n\n```python\nprint('hello')\n```"
+    split(content, max_tokens=10000, mode="by_file", tokenizer=mock_tok)
+    assert mock_tok.called
+
+
+def test_custom_tokenizer_single():
+    """Custom tokenizer is called when passed to split in single mode."""
+    mock_tok = MagicMock(return_value=5)
+    split("hello world", max_tokens=10000, mode="single", tokenizer=mock_tok)
+    assert mock_tok.called
+
+
+def test_custom_tokenizer_by_paragraph():
+    """Custom tokenizer is called when passed to split in by_paragraph mode."""
+    mock_tok = MagicMock(return_value=1)
+    split("para1\n\npara2", max_tokens=10000, mode="by_paragraph", tokenizer=mock_tok)
+    assert mock_tok.called

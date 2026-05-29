@@ -18,18 +18,15 @@ _COMMON_EXCLUDE_DIRS = frozenset(
     }
 )
 
+# Default exclude patterns — generated from _COMMON_EXCLUDE_DIRS plus file-specific patterns
 DEFAULT_EXCLUDE = [
     "*__pycache__*",
     "*.pyc",
     "*.egg-info*",
-    ".git",
-    ".git/*",
-    "venv",
-    "venv/*",
-    "node_modules",
-    "node_modules/*",
     ".DS_Store",
 ]
+for _d in sorted(_COMMON_EXCLUDE_DIRS):
+    DEFAULT_EXCLUDE.extend([_d, f"{_d}/*"])
 
 DEFAULT_PATTERNS = ["*.py", "*.md", "*.yaml", "*.yml", "*.toml", "*.json", "*.cfg", "*.ini"]
 

@@ -95,9 +95,9 @@
 - [x] gatherer.py: декомпозиция _collect_named_sections
 
 ## v0.8.1 — Low fixes
-- [ ] config.py: генерировать DEFAULT_EXCLUDE из _COMMON_EXCLUDE_DIRS
-- [ ] tests/splitter: тест на проброс кастомного токенизатора
-- [ ] splitter.py: токенизаторное усечение в _handle_single вместо CHARS_PER_TOKEN
+- [x] config.py: генерировать DEFAULT_EXCLUDE из _COMMON_EXCLUDE_DIRS
+- [x] tests/splitter: тест на проброс кастомного токенизатора
+- [x] splitter.py: токенизаторное усечение в _handle_single вместо CHARS_PER_TOKEN
 
 ## v0.8.2 — Doctor
 - [ ] arachna doctor: проверка конфига и корректности собираемого контекста
