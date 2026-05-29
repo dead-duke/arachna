@@ -180,6 +180,9 @@ def _cmd_validate(config: dict):
     profiles = config.get("profiles", {})
     if not profiles:
         profiles = {"default": get_profile("default")}
+    else:
+        # Apply setdefault through get_profile() for each profile
+        profiles = {name: get_profile(name) for name in profiles}
     all_errors = 0
     all_warnings = 0
     for name, prof in profiles.items():

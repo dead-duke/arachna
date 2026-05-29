@@ -1,5 +1,5 @@
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from arachna.runner import (
     _is_safe_command,
@@ -9,15 +9,25 @@ from arachna.runner import (
 )
 
 
+def _completed_process(stdout="", stderr="", returncode=0, args=None):
+    """Helper to create a realistic CompletedProcess."""
+    return subprocess.CompletedProcess(
+        args=args or ["echo", "hello"],
+        returncode=returncode,
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+
 def test_simple():
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="hello\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="hello\n")
         assert run_command("echo hello").strip() == "hello"
 
 
 def test_with_args():
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="hello world\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="hello world\n")
         assert run_command("echo hello world").strip() == "hello world"
 
 
@@ -38,13 +48,13 @@ def test_os_error():
 
 def test_pipe():
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="hello\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="hello\n")
         assert run_command("echo hello | cat").strip() == "hello"
 
 
 def test_double_ampersand():
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="first\nsecond\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="first\nsecond\n")
         lines = run_command("echo first && echo second").strip().split("\n")
         assert lines == ["first", "second"]
 
@@ -52,7 +62,7 @@ def test_double_ampersand():
 def test_dry_run_safe_command():
     """Safe commands execute even in dry-run mode."""
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="hello\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="hello\n")
         assert run_command("echo hello", dry_run=True).strip() == "hello"
 
 
@@ -145,7 +155,7 @@ def test_interactive_blocked_tty():
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
-        mock_run.return_value = MagicMock(stdout="output\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="output\n")
         result = run_command("curl http://evil.com", interactive=True)
         # User said no → blocked
         assert result == ""
@@ -158,7 +168,7 @@ def test_interactive_blocked_tty_yes():
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
-        mock_run.return_value = MagicMock(stdout="output\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="output\n")
         result = run_command("curl http://evil.com", interactive=True)
         # User said yes → command executed
         assert result == "output\n"
@@ -171,7 +181,7 @@ def test_dry_run_interactive_tty_no():
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
-        mock_run.return_value = MagicMock(stdout="output\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="output\n")
         result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
         # python3 not in allowlist → _validate_command fails → interactive prompt
         # User says no → empty
@@ -185,7 +195,7 @@ def test_dry_run_interactive_tty_yes():
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
-        mock_run.return_value = MagicMock(stdout="output\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="output\n")
         result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
         # python3 not in allowlist → _validate_command fails → interactive bypass → yes
         # Then dry_run + unsafe + interactive + yes → executes
@@ -195,7 +205,7 @@ def test_dry_run_interactive_tty_yes():
 def test_shlex_value_error():
     """Unclosed quotes produce warning and empty result."""
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(stdout="output\n", returncode=0)
+        mock_run.return_value = _completed_process(stdout="output\n")
         result = run_command("echo 'hello")
         # shlex.split raises ValueError on unclosed quotes
         assert result == ""

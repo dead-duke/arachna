@@ -4,7 +4,8 @@ from pathlib import Path
 
 from .config import _COMMON_EXCLUDE_DIRS
 
-# Max .gitignore file size (100 KB)
+# 100 KB — верхняя граница разумного .gitignore:
+# даже в монорепо с сотнями правил файл редко превышает 10-20 KB.
 _MAX_GITIGNORE_SIZE = 100 * 1024
 
 
@@ -48,10 +49,16 @@ def load_gitignore_patterns(root: Path) -> list[str]:
                 continue
 
             if line.startswith("/"):
-                rel = str(base_dir.relative_to(root)) if base_dir != root else ""
+                try:
+                    rel = str(base_dir.relative_to(root)) if base_dir != root else ""
+                except ValueError:
+                    continue  # symlink outside root, skip
                 pattern = f"{rel}/{line[1:]}" if rel else line[1:]
             else:
-                rel = str(base_dir.relative_to(root)) if base_dir != root else ""
+                try:
+                    rel = str(base_dir.relative_to(root)) if base_dir != root else ""
+                except ValueError:
+                    continue  # symlink outside root, skip
                 pattern = f"{rel}/{line}" if rel else line
 
             patterns.append(pattern)

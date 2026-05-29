@@ -9,7 +9,8 @@ from pathlib import Path
 
 _CACHE_FILE = ".arachna_cache.json"
 
-# Max file size for hashing (10 MB)
+# 10 MB — баланс между скоростью хеширования и покрытием:
+# большинство исходных файлов в проектах меньше 10 MB.
 _MAX_HASH_SIZE = 10 * 1024 * 1024
 
 
