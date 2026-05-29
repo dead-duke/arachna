@@ -143,6 +143,14 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
     return True, ""
 
 
+def _is_safe_command(cmd: str) -> bool:
+    """Check if a command is considered safe (no shell metacharacters, in allowlist)."""
+    if _SHELL_CHARS.intersection(cmd):
+        return False
+    base = _resolve_base(cmd)
+    return base in _ALLOWED_COMMANDS if base else False
+
+
 def _get_audit_log_path() -> Path | None:
     """Get path for audit log file."""
     try:
@@ -180,7 +188,12 @@ def _log_command(cmd: str, success: bool):
         pass
 
 
-def run_command(cmd: str, allow_dangerous: bool = False, interactive: bool = False) -> str:
+def run_command(
+    cmd: str,
+    allow_dangerous: bool = False,
+    interactive: bool = False,
+    dry_run: bool = False,
+) -> str:
     """Run shell command and return stdout.
 
     Uses shlex.split() for simple commands (no shell injection).
@@ -189,6 +202,10 @@ def run_command(cmd: str, allow_dangerous: bool = False, interactive: bool = Fal
     Commands are validated against safety rules before execution.
     Blocked commands trigger a prompt in interactive mode, or are silently
     rejected in non-interactive mode.
+
+    In dry_run mode, unsafe commands are shown but not executed.
+    Safe commands (in allowlist, no shell metacharacters) are still executed
+    in dry_run mode — they're considered safe for preview.
     """
     if not cmd.strip():
         return ""
@@ -208,6 +225,24 @@ def run_command(cmd: str, allow_dangerous: bool = False, interactive: bool = Fal
         else:
             _log_command(cmd, False)
             return ""
+
+    # Dry-run mode: show what would be executed, skip if unsafe
+    if dry_run:
+        if _is_safe_command(cmd):
+            # Safe commands are executed even in dry-run (e.g., echo for testing)
+            pass
+        else:
+            print(f"  [DRY-RUN] Would execute: {cmd}")
+            if interactive and sys.stdin.isatty():
+                print("\n⚠  Command requires shell or is not in allowlist:")
+                print(f"   {cmd}")
+                response = input("   Execute anyway? [y/N]: ").strip().lower()
+                if response not in ("y", "yes"):
+                    _log_command(cmd, False)
+                    return ""
+            else:
+                _log_command(cmd, False)
+                return ""
 
     needs_shell = any(c in cmd for c in _SHELL_CHARS)
 
