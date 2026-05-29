@@ -122,6 +122,12 @@
 - [x] Полный аудит перед v1.0.0
 - [x] Исправления по находкам
 
+## v0.9.3 — Final fixes
+- [ ] __main__.py: _cmd_validate использовать get_profile() вместо сырых профилей
+- [ ] cache.py, gitignore.py: комментарии к _MAX_HASH_SIZE и _MAX_GITIGNORE_SIZE
+- [ ] tests/runner: MagicMock → subprocess.CompletedProcess
+- [ ] Бамп __version__ до 0.9.3
+
 ## v1.0.0 — Public release
 - [ ] Публикация в PyPI
 

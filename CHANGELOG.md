@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.2 — Pre-release fixes
+
+- hook.py: git_dir.exists() → git_dir.is_dir()
+- doctor.py: проверка project_root.is_dir() перед load_gitignore_patterns
+- gitignore.py: обработка ValueError от relative_to для симлинков
+- __main__.py: _cmd_doctor и _cmd_install_hook без неиспользуемых параметров
+- tests/doctor: тесты на _cmd_doctor и _cmd_install_hook с проверкой sys.exit
+- __init__.py: bump __version__ to 0.9.2
+
 ## v0.9.1 — Version sync
 
 - __init__.py: bump __version__ to 0.9.1
