@@ -100,7 +100,7 @@
 - [x] splitter.py: токенизаторное усечение в _handle_single вместо CHARS_PER_TOKEN
 
 ## v0.8.2 — Doctor
-- [ ] arachna doctor: проверка конфига и корректности собираемого контекста
+- [x] arachna doctor: проверка конфига и корректности собираемого контекста
 
 ## v0.8.3 — Git hooks
 - [ ] arachna install-hook: установка post-commit хука

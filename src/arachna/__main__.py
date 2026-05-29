@@ -95,6 +95,7 @@ def main():
     group.add_argument("--list", "-l", action="store_true", help="List available profiles")
     group.add_argument("--validate", action="store_true", help="Validate config for errors")
     group.add_argument("--init", action="store_true", help="Create .arachna.json interactively")
+    group.add_argument("--doctor", action="store_true", help="Run configuration diagnostic")
     parser.add_argument(
         "--dry-run", action="store_true", help="Show what will be collected without writing"
     )
@@ -129,6 +130,8 @@ def main():
         _cmd_list(config)
     elif args.validate:
         _cmd_validate(config)
+    elif args.doctor:
+        _cmd_doctor(config)
     elif args.clean:
         _cmd_clean(config, out_path)
     elif args.dry_run:
@@ -176,6 +179,14 @@ def _cmd_validate(config: dict):
             print(f"  [{name}] ✓ valid")
     print(f"\nResult: {all_errors} error(s), {all_warnings} warning(s)")
     sys.exit(1 if all_errors > 0 else 0)
+
+
+def _cmd_doctor(config: dict):
+    from .doctor import print_doctor, run_doctor
+
+    report = run_doctor()
+    print_doctor(report)
+    sys.exit(1 if report["total_errors"] > 0 else 0)
 
 
 def _cmd_clean(config: dict, out_path: Path):
