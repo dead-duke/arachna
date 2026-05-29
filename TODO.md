@@ -103,7 +103,7 @@
 - [x] arachna doctor: проверка конфига и корректности собираемого контекста
 
 ## v0.8.3 — Git hooks
-- [ ] arachna install-hook: установка post-commit хука
+- [x] arachna install-hook: установка post-commit хука
 
 ## v0.8.4 — Merge
 - [ ] --merge для --profile: добавление вывода к существующему манифесту

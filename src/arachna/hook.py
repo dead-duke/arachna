@@ -1,0 +1,58 @@
+"""Git hook installer for arachna."""
+
+import stat
+from pathlib import Path
+
+from .config import load_config
+
+_HOOK_SCRIPT_TEMPLATE = "#!/bin/sh\n{command}\n"
+
+
+def install_hook(command: str | None = None, force: bool = False) -> tuple[bool, str]:
+    """Install post-commit hook to run arachna after each commit.
+
+    Args:
+        command: Shell command to run in the hook. If None, reads from
+                 .arachna.json hook.post-commit, falls back to "arachna --all".
+        force: Overwrite existing hook without confirmation prompt.
+
+    Returns:
+        (success, message) tuple.
+    """
+    cwd = Path.cwd()
+
+    # Check this is a git repository
+    git_dir = cwd / ".git"
+    if not git_dir.exists():
+        return False, "Not a git repository (.git not found)"
+
+    hooks_dir = git_dir / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook_path = hooks_dir / "post-commit"
+
+    # Resolve command
+    if command is None:
+        try:
+            config = load_config()
+            hook_config = config.get("hook", {})
+            command = hook_config.get("post-commit", "arachna --all")
+        except Exception:
+            command = "arachna --all"
+
+    # Check if hook already exists
+    if hook_path.exists():
+        if not force:
+            return False, (
+                f"post-commit hook already exists at {hook_path}. " "Use --force to overwrite."
+            )
+        # Force overwrite — remove existing hook
+        hook_path.unlink()
+
+    # Write hook script
+    script = _HOOK_SCRIPT_TEMPLATE.format(command=command)
+    hook_path.write_text(script)
+
+    # Make executable
+    hook_path.chmod(hook_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    return True, f"post-commit hook installed: {hook_path} (command: {command})"

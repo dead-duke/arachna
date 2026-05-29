@@ -96,6 +96,7 @@ def main():
     group.add_argument("--validate", action="store_true", help="Validate config for errors")
     group.add_argument("--init", action="store_true", help="Create .arachna.json interactively")
     group.add_argument("--doctor", action="store_true", help="Run configuration diagnostic")
+    group.add_argument("--install-hook", action="store_true", help="Install post-commit git hook")
     parser.add_argument(
         "--dry-run", action="store_true", help="Show what will be collected without writing"
     )
@@ -107,6 +108,7 @@ def main():
     parser.add_argument("--incremental", action="store_true", help="Only collect changed files")
     parser.add_argument("--format", choices=["markdown", "xml", "json"], help="Output format")
     parser.add_argument("--defaults", action="store_true", help="Use defaults with --init")
+    parser.add_argument("--force", action="store_true", help="Force overwrite with --install-hook")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
 
     args = parser.parse_args()
@@ -132,6 +134,8 @@ def main():
         _cmd_validate(config)
     elif args.doctor:
         _cmd_doctor(config)
+    elif args.install_hook:
+        _cmd_install_hook(args)
     elif args.clean:
         _cmd_clean(config, out_path)
     elif args.dry_run:
@@ -187,6 +191,14 @@ def _cmd_doctor(config: dict):
     report = run_doctor()
     print_doctor(report)
     sys.exit(1 if report["total_errors"] > 0 else 0)
+
+
+def _cmd_install_hook(args):
+    from .hook import install_hook
+
+    success, msg = install_hook(force=args.force)
+    print(msg)
+    sys.exit(0 if success else 1)
 
 
 def _cmd_clean(config: dict, out_path: Path):
