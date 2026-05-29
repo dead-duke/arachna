@@ -108,6 +108,71 @@ def _format_scanned_files(
     return results
 
 
+def _collect_directory_sections(
+    profile: dict[str, Any],
+    exclude: list[str],
+    tokenizer: Callable[[str], int],
+    incremental: bool = False,
+    cache: dict[str, float] | None = None,
+    verbose: bool = False,
+) -> tuple[list[tuple[str, str, int]], dict[str, float] | None]:
+    """Collect sections from directory scans with optional incremental logic.
+
+    Returns (sections, updated_cache).
+    """
+    fmt = profile.get("section_format", "markdown")
+    include_binary = profile.get("include_binary", False)
+    binary_extensions = profile.get("binary_extensions")
+    binary_max_mb = profile.get("binary_max_mb", 1.0)
+
+    seen_files = _scan_directories(profile, exclude)
+
+    if incremental and cache is not None:
+        changed, new, deleted = get_changed_files(seen_files, cache)
+        target_files = changed + new
+        if deleted:
+            print(f"  Deleted: {len(deleted)} file(s)")
+    else:
+        target_files = seen_files
+
+    sections = _format_scanned_files(
+        target_files,
+        tokenizer=tokenizer,
+        fmt=fmt,
+        include_binary=include_binary,
+        binary_extensions=binary_extensions,
+        binary_max_mb=binary_max_mb,
+        verbose=verbose,
+    )
+
+    new_cache = update_cache(target_files, cache or {})
+    return sections, new_cache
+
+
+def _collect_file_sections(
+    profile: dict[str, Any],
+    exclude: list[str],
+    tokenizer: Callable[[str], int],
+    verbose: bool = False,
+) -> list[tuple[str, str, int]]:
+    """Collect sections from explicitly listed files."""
+    fmt = profile.get("section_format", "markdown")
+    include_binary = profile.get("include_binary", False)
+    binary_extensions = profile.get("binary_extensions")
+    binary_max_mb = profile.get("binary_max_mb", 1.0)
+
+    return _collect_specific_files(
+        profile.get("files", []),
+        exclude,
+        tokenizer=tokenizer,
+        fmt=fmt,
+        include_binary=include_binary,
+        binary_extensions=binary_extensions,
+        binary_max_mb=binary_max_mb,
+        verbose=verbose,
+    )
+
+
 def _collect_named_sections(
     profile: dict[str, Any],
     exclude: list[str],
@@ -121,54 +186,20 @@ def _collect_named_sections(
     Returns (named_sections, updated_cache).
     """
     tk = tokenizer if tokenizer is not None else count_tokens
-    fmt = profile.get("section_format", "markdown")
-    include_binary = profile.get("include_binary", False)
-    binary_extensions = profile.get("binary_extensions")
-    binary_max_mb = profile.get("binary_max_mb", 1.0)
 
     named_sections = []
 
     # Pre-commands
     named_sections.extend(_collect_pre_commands(profile, tk))
 
-    # Directories
-    seen_files = _scan_directories(profile, exclude)
-
-    if incremental and cache is not None:
-        changed, new, deleted = get_changed_files(seen_files, cache)
-        target_files = changed + new
-        if deleted:
-            print(f"  Deleted: {len(deleted)} file(s)")
-    else:
-        target_files = seen_files
-
-    named_sections.extend(
-        _format_scanned_files(
-            target_files,
-            tokenizer=tk,
-            fmt=fmt,
-            include_binary=include_binary,
-            binary_extensions=binary_extensions,
-            binary_max_mb=binary_max_mb,
-            verbose=verbose,
-        )
+    # Directories (with incremental logic)
+    dir_sections, new_cache = _collect_directory_sections(
+        profile, exclude, tk, incremental=incremental, cache=cache, verbose=verbose
     )
+    named_sections.extend(dir_sections)
 
     # Specific files
-    named_sections.extend(
-        _collect_specific_files(
-            profile.get("files", []),
-            exclude,
-            tokenizer=tk,
-            fmt=fmt,
-            include_binary=include_binary,
-            binary_extensions=binary_extensions,
-            binary_max_mb=binary_max_mb,
-            verbose=verbose,
-        )
-    )
-
-    new_cache = update_cache(target_files, cache or {})
+    named_sections.extend(_collect_file_sections(profile, exclude, tk, verbose=verbose))
 
     return named_sections, new_cache
 

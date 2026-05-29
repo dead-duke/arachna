@@ -92,7 +92,7 @@
 - [x] runner.py: проверка пустой строки и непарных кавычек перед shlex.split
 
 ## v0.8.0 — God function
-- [ ] gatherer.py: декомпозиция _collect_named_sections
+- [x] gatherer.py: декомпозиция _collect_named_sections
 
 ## v0.8.1 — Low fixes
 - [ ] config.py: генерировать DEFAULT_EXCLUDE из _COMMON_EXCLUDE_DIRS
