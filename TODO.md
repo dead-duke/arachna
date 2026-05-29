@@ -84,15 +84,48 @@
 - [x] tests/config: изоляция от родительского .arachna.json
 - [x] tests/gatherer/test_incremental.py: переписать на интеграционный тест с collector.collect(incremental=True)
 
-## v1.0.0 — Public release
-- [ ] pip install arachna (publish to PyPI)
-- [ ] Sandbox для command (контейнер/nsjail или dry-run + подтверждение)
+## v0.7.4 — Sandbox pipe fix
+- [ ] runner.py: проверять части пайпа по отдельности в _validate_command
+
+## v0.7.5 — Truncation API + shlex
+- [ ] splitter.py: пробросить was_truncated через logger.warning в split()
+- [ ] runner.py: проверка пустой строки и непарных кавычек перед shlex.split
+
+## v0.8.0 — God function
+- [ ] gatherer.py: декомпозиция _collect_named_sections
+
+## v0.8.1 — Low fixes
+- [ ] config.py: генерировать DEFAULT_EXCLUDE из _COMMON_EXCLUDE_DIRS
+- [ ] tests/splitter: тест на проброс кастомного токенизатора
+- [ ] splitter.py: токенизаторное усечение в _handle_single вместо CHARS_PER_TOKEN
+
+## v0.8.2 — Doctor
+- [ ] arachna doctor: проверка конфига и корректности собираемого контекста
+
+## v0.8.3 — Git hooks
+- [ ] arachna install-hook: установка post-commit хука
+
+## v0.8.4 — Merge
+- [ ] --merge для --profile: добавление вывода к существующему манифесту
+
+## v0.8.5 — Sandbox
+- [ ] runner.py: dry-run + интерактивное подтверждение для недоверенных команд
+
+## v0.9.0 — Инфраструктура
+- [ ] PyPI-упаковка (pyproject.toml, twine)
 - [ ] Кроссплатформенные тесты (Windows CI)
-- [ ] arachna install-hook (git post-commit)
+
+## v0.9.1 — Coverage
 - [ ] Coverage ≥ 95%
 
+## v0.9.2 — Финальный аудит
+- [ ] Полный аудит перед v1.0.0
+- [ ] Исправления по находкам
+
+## v1.0.0 — Public release
+- [ ] Публикация в PyPI
+
 ## Backlog
-- [ ] gatherer.py: декомпозиция _collect_named_sections (God function, 3 зоны ответственности)
 - [ ] CI/CD (GitHub Actions)
 - [ ] Интеграция в IDE (VS Code extension)
 - [ ] Web UI для визуального редактора профилей
