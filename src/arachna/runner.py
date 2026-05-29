@@ -11,6 +11,9 @@ logger = logging.getLogger("arachna.runner")
 # Shell metacharacters that require shell=True
 _SHELL_CHARS = {"|", "&", ";", "<", ">", "$", "`", "(", ")", "{", "}"}
 
+# Pipe separator for splitting piped commands
+_PIPE_SEP = "|"
+
 # Safe utilities that don't download/execute external code
 _ALLOWED_COMMANDS = frozenset(
     {
@@ -88,12 +91,13 @@ _BLOCKED_PATTERNS = [
 ]
 
 
-def _resolve_command(cmd: str) -> str:
-    """Extract the base command from a shell command string."""
-    cmd = cmd.strip()
-    if _SHELL_CHARS.intersection(cmd):
-        return cmd
-    parts = shlex.split(cmd)
+def _resolve_base(cmd_part: str) -> str:
+    """Extract the base command from a single command part (no pipes)."""
+    cmd_part = cmd_part.strip()
+    try:
+        parts = shlex.split(cmd_part)
+    except ValueError:
+        return ""
     if not parts:
         return ""
     return parts[0]
@@ -103,9 +107,12 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
     """Validate a command against safety rules.
 
     Returns (is_safe, reason).
+
+    For piped commands, each pipe part is validated individually.
     """
     cmd_lower = cmd.lower().strip()
 
+    # Check blocked patterns on the full command string
     for pattern in _BLOCKED_PATTERNS:
         if pattern in cmd_lower:
             if allow_dangerous:
@@ -113,7 +120,20 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
                 return True, ""
             return False, f"blocked pattern: '{pattern}'"
 
-    base = _resolve_command(cmd)
+    # For piped commands, validate each part separately
+    if _PIPE_SEP in cmd:
+        parts = cmd.split(_PIPE_SEP)
+        for part in parts:
+            base = _resolve_base(part)
+            if base and base not in _ALLOWED_COMMANDS:
+                if allow_dangerous:
+                    logger.warning("Unknown command in pipe allowed via flag: %s", cmd)
+                    return True, ""
+                return False, f"command in pipe not in allowlist: '{base}'"
+        return True, ""
+
+    # For non-piped commands without shell metacharacters, check against allowlist
+    base = _resolve_base(cmd)
     if base and not _SHELL_CHARS.intersection(cmd) and base not in _ALLOWED_COMMANDS:
         if allow_dangerous:
             logger.warning("Unknown command allowed via flag: %s", cmd)
@@ -170,6 +190,9 @@ def run_command(cmd: str, allow_dangerous: bool = False, interactive: bool = Fal
     Blocked commands trigger a prompt in interactive mode, or are silently
     rejected in non-interactive mode.
     """
+    if not cmd.strip():
+        return ""
+
     is_safe, reason = _validate_command(cmd, allow_dangerous)
 
     if not is_safe:

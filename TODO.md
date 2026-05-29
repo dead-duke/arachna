@@ -85,7 +85,7 @@
 - [x] tests/gatherer/test_incremental.py: переписать на интеграционный тест с collector.collect(incremental=True)
 
 ## v0.7.4 — Sandbox pipe fix
-- [ ] runner.py: проверять части пайпа по отдельности в _validate_command
+- [x] runner.py: проверять части пайпа по отдельности в _validate_command
 
 ## v0.7.5 — Truncation API + shlex
 - [ ] splitter.py: пробросить was_truncated через logger.warning в split()
