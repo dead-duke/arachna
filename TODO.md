@@ -112,8 +112,8 @@
 - [x] runner.py: dry-run + интерактивное подтверждение для недоверенных команд
 
 ## v0.9.0 — Инфраструктура
-- [ ] PyPI-упаковка (pyproject.toml, twine)
-- [ ] Кроссплатформенные тесты (Windows CI)
+- [x] PyPI-упаковка (pyproject.toml, twine)
+- [x] Кроссплатформенные тесты (Windows CI)
 
 ## v0.9.1 — Coverage
 - [ ] Coverage ≥ 95%
