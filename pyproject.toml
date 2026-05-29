@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "0.9.2"
+version = "0.9.3"
 description = "Context collector for AI — gathers project files into token-limited chunks"
 readme = "README.md"
 license = {text = "MIT"}

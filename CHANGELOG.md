@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.3 — Final fixes
+
+- __main__.py: _cmd_validate использует get_profile() для консистентной валидации
+- cache.py, gitignore.py: комментарии к _MAX_HASH_SIZE и _MAX_GITIGNORE_SIZE
+- gitignore.py: обработка ValueError от relative_to на всех вызовах
+- tests/runner: subprocess.CompletedProcess вместо MagicMock
+- __init__.py: bump __version__ to 0.9.3
+
 ## v0.9.2 — Pre-release fixes
 
 - hook.py: git_dir.exists() → git_dir.is_dir()

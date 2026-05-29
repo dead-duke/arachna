@@ -128,6 +128,12 @@
 - [x] tests/runner: MagicMock → subprocess.CompletedProcess
 - [x] Бамп __version__ до 0.9.3
 
+## v0.9.4 — Final polish
+- [ ] runner.py: вынести import json на верхний уровень
+- [ ] gatherer.py: вынести общую логику сборки контента из dry_run и collect
+- [ ] Бамп __version__ до 0.9.4, синхронизировать pyproject.toml
+- [ ] CHANGELOG: добавить v0.9.3 и v0.9.4
+
 ## v1.0.0 — Public release
 - [ ] Публикация в PyPI
 
