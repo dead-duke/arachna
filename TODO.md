@@ -88,8 +88,8 @@
 - [x] runner.py: проверять части пайпа по отдельности в _validate_command
 
 ## v0.7.5 — Truncation API + shlex
-- [ ] splitter.py: пробросить was_truncated через logger.warning в split()
-- [ ] runner.py: проверка пустой строки и непарных кавычек перед shlex.split
+- [x] splitter.py: пробросить was_truncated через logger.warning в split()
+- [x] runner.py: проверка пустой строки и непарных кавычек перед shlex.split
 
 ## v0.8.0 — God function
 - [ ] gatherer.py: декомпозиция _collect_named_sections

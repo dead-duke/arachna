@@ -1,8 +1,11 @@
 """Split content into token-limited parts."""
 
+import logging
 from collections.abc import Callable
 
 from .tokenizer import count_tokens
+
+logger = logging.getLogger("arachna.splitter")
 
 # Conservative estimate: 4 characters ≈ 1 token
 CHARS_PER_TOKEN = 4
@@ -27,9 +30,10 @@ def split(
     elif mode == "single":
         parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
         if was_truncated:
-            print(
-                f"  Warning: content is {tk(raw_content)} tokens, "
-                f"limit {max_tokens} — truncating"
+            logger.warning(
+                "Content truncated: %s tokens exceeds limit of %s tokens",
+                tk(raw_content),
+                max_tokens,
             )
         return parts
     else:
@@ -73,8 +77,10 @@ def _build_parts(
                 parts.append(current.strip())
                 current = ""
                 current_tokens = 0
-            print(
-                f"  Warning: section too large ({section_tokens} tokens, limit {max_tokens}), writing as-is"
+            logger.warning(
+                "Section too large: %s tokens exceeds limit of %s tokens, writing as-is",
+                section_tokens,
+                max_tokens,
             )
             parts.append(section)
             continue

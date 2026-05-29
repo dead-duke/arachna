@@ -215,7 +215,16 @@ def run_command(cmd: str, allow_dangerous: bool = False, interactive: bool = Fal
         if needs_shell:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
         else:
-            args = shlex.split(cmd)
+            try:
+                args = shlex.split(cmd)
+            except ValueError as e:
+                logger.warning("Invalid shell syntax in command: %s — %s", cmd, e)
+                _log_command(cmd, False)
+                return ""
+            if not args:
+                logger.warning("Empty command after parsing: %s", cmd)
+                _log_command(cmd, False)
+                return ""
             result = subprocess.run(args, capture_output=True, text=True, timeout=30)
         _log_command(cmd, True)
         return result.stdout
