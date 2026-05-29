@@ -1,5 +1,8 @@
 import json
+from argparse import Namespace
+from unittest.mock import patch
 
+from arachna.__main__ import _cmd_doctor, _cmd_install_hook
 from arachna.doctor import print_doctor, run_doctor
 
 
@@ -155,3 +158,68 @@ def test_print_doctor_with_errors():
         "total_warnings": 1,
     }
     print_doctor(report)
+
+
+def test_cmd_doctor_valid(tmp_path, monkeypatch):
+    """_cmd_doctor exits 0 for valid config."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "src").mkdir()
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "profiles": {
+                    "code": {"directories": ["src"], "max_tokens": 16000, "split_mode": "by_file"}
+                }
+            }
+        )
+    )
+
+    with patch("sys.exit") as mock_exit:
+        _cmd_doctor()
+        mock_exit.assert_called_with(0)
+
+
+def test_cmd_doctor_invalid(tmp_path, monkeypatch):
+    """_cmd_doctor exits 1 for invalid config."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps({"profiles": {"bad": {"max_tokens": 0, "command": "echo hi"}}})
+    )
+
+    with patch("sys.exit") as mock_exit:
+        _cmd_doctor()
+        mock_exit.assert_called_with(1)
+
+
+def test_cmd_install_hook_success(tmp_path, monkeypatch):
+    """_cmd_install_hook exits 0 on success."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "test"}))
+
+    with patch("sys.exit") as mock_exit:
+        _cmd_install_hook(Namespace(force=False))
+        mock_exit.assert_called_with(0)
+
+
+def test_cmd_install_hook_failure(tmp_path, monkeypatch):
+    """_cmd_install_hook exits 1 on failure."""
+    monkeypatch.chdir(tmp_path)
+
+    with patch("sys.exit") as mock_exit:
+        _cmd_install_hook(Namespace(force=False))
+        mock_exit.assert_called_with(1)
+
+
+def test_cmd_install_hook_existing_refuses(tmp_path, monkeypatch):
+    """_cmd_install_hook exits 1 when hook exists and no --force."""
+    monkeypatch.chdir(tmp_path)
+    git_dir = tmp_path / ".git"
+    git_dir.mkdir()
+    (git_dir / "hooks").mkdir()
+    (git_dir / "hooks" / "post-commit").write_text("#!/bin/sh\necho old")
+    (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "test"}))
+
+    with patch("sys.exit") as mock_exit:
+        _cmd_install_hook(Namespace(force=False))
+        mock_exit.assert_called_with(1)

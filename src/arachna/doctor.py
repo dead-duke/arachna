@@ -42,12 +42,16 @@ def run_doctor(project_root: Path | None = None) -> dict:
         result["total_warnings"] += len(validation["warnings"])
 
     # Gitignore checks
-    try:
-        patterns = load_gitignore_patterns(project_root)
-        if patterns:
-            result["gitignore"].append(f"Loaded {len(patterns)} gitignore patterns")
-    except OSError as e:
-        result["gitignore"].append(f"Error loading .gitignore: {e}")
+    if project_root.is_dir():
+        try:
+            patterns = load_gitignore_patterns(project_root)
+            if patterns:
+                result["gitignore"].append(f"Loaded {len(patterns)} gitignore patterns")
+        except (OSError, ValueError) as e:
+            result["gitignore"].append(f"Error loading .gitignore: {e}")
+            result["total_warnings"] += 1
+    else:
+        result["gitignore"].append("Project root is not a directory, skipping .gitignore check")
         result["total_warnings"] += 1
 
     return result

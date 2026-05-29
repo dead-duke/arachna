@@ -23,8 +23,8 @@ def install_hook(command: str | None = None, force: bool = False) -> tuple[bool,
 
     # Check this is a git repository
     git_dir = cwd / ".git"
-    if not git_dir.exists():
-        return False, "Not a git repository (.git not found)"
+    if not git_dir.is_dir():
+        return False, "Not a git repository (.git directory not found)"
 
     hooks_dir = git_dir / "hooks"
     hooks_dir.mkdir(parents=True, exist_ok=True)
@@ -45,7 +45,6 @@ def install_hook(command: str | None = None, force: bool = False) -> tuple[bool,
             return False, (
                 f"post-commit hook already exists at {hook_path}. " "Use --force to overwrite."
             )
-        # Force overwrite — remove existing hook
         hook_path.unlink()
 
     # Write hook script

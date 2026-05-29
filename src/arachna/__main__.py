@@ -148,7 +148,7 @@ def main():
     elif args.validate:
         _cmd_validate(config)
     elif args.doctor:
-        _cmd_doctor(config)
+        _cmd_doctor()
     elif args.install_hook:
         _cmd_install_hook(args)
     elif args.clean:
@@ -200,7 +200,7 @@ def _cmd_validate(config: dict):
     sys.exit(1 if all_errors > 0 else 0)
 
 
-def _cmd_doctor(config: dict):
+def _cmd_doctor():
     from .doctor import print_doctor, run_doctor
 
     report = run_doctor()

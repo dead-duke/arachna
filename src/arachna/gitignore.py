@@ -17,7 +17,12 @@ def load_gitignore_patterns(root: Path) -> list[str]:
             continue
 
         # Skip gitignore files in excluded directories
-        parts = gitignore_path.parent.relative_to(root).parts
+        try:
+            parts = gitignore_path.parent.relative_to(root).parts
+        except ValueError:
+            # gitignore is outside root (e.g., symlinks) — skip
+            continue
+
         if any(p.startswith(".") or p in _COMMON_EXCLUDE_DIRS for p in parts):
             continue
 
@@ -46,7 +51,6 @@ def load_gitignore_patterns(root: Path) -> list[str]:
                 rel = str(base_dir.relative_to(root)) if base_dir != root else ""
                 pattern = f"{rel}/{line[1:]}" if rel else line[1:]
             else:
-                # Pattern applies from base_dir downwards
                 rel = str(base_dir.relative_to(root)) if base_dir != root else ""
                 pattern = f"{rel}/{line}" if rel else line
 
