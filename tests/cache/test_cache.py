@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 from arachna.cache import get_changed_files, load_cache, save_cache, update_cache
@@ -12,103 +11,132 @@ def _make_entry(filepath: Path) -> dict:
     }
 
 
-def test_load_cache_empty():
-    with tempfile.TemporaryDirectory() as d:
-        out = Path(d)
-        cache = load_cache(out)
-        assert cache == {}
+def test_load_cache_empty(tmp_path):
+    cache = load_cache(tmp_path)
+    assert cache == {}
 
 
-def test_save_and_load_cache():
-    with tempfile.TemporaryDirectory() as d:
-        out = Path(d)
-        save_cache(out, {"a.py": {"mtime": 1.0, "hash": "abc"}})
-        cache = load_cache(out)
-        assert cache == {"a.py": {"mtime": 1.0, "hash": "abc"}}
+def test_save_and_load_cache(tmp_path):
+    save_cache(tmp_path, {"a.py": {"mtime": 1.0, "hash": "abc"}})
+    cache = load_cache(tmp_path)
+    assert cache == {"a.py": {"mtime": 1.0, "hash": "abc"}}
 
 
-def test_get_changed_files_all_new():
-    with tempfile.TemporaryDirectory() as d:
-        a = Path(d) / "a.py"
-        b = Path(d) / "b.py"
-        a.write_text("hello")
-        b.write_text("world")
-        cache = {}
+def test_get_changed_files_all_new(tmp_path):
+    a = tmp_path / "a.py"
+    b = tmp_path / "b.py"
+    a.write_text("hello")
+    b.write_text("world")
+    cache = {}
 
-        changed, new, deleted = get_changed_files([a, b], cache)
-        assert len(changed) == 0
-        assert len(new) == 2
-        assert len(deleted) == 0
-
-
-def test_get_changed_files_none_changed():
-    with tempfile.TemporaryDirectory() as d:
-        a = Path(d) / "a.py"
-        a.write_text("hello")
-        cache = {str(a): _make_entry(a)}
-
-        changed, new, deleted = get_changed_files([a], cache)
-        assert len(changed) == 0
-        assert len(new) == 0
-        assert len(deleted) == 0
+    changed, new, deleted = get_changed_files([a, b], cache)
+    assert len(changed) == 0
+    assert len(new) == 2
+    assert len(deleted) == 0
 
 
-def test_get_changed_files_modified():
-    with tempfile.TemporaryDirectory() as d:
-        a = Path(d) / "a.py"
-        a.write_text("original")
-        cache = {str(a): _make_entry(a)}
-        # Modify the file
-        a.write_text("modified")
+def test_get_changed_files_none_changed(tmp_path):
+    a = tmp_path / "a.py"
+    a.write_text("hello")
+    cache = {str(a): _make_entry(a)}
 
-        changed, new, deleted = get_changed_files([a], cache)
-        assert len(changed) == 1
-        assert len(new) == 0
-        assert len(deleted) == 0
+    changed, new, deleted = get_changed_files([a], cache)
+    assert len(changed) == 0
+    assert len(new) == 0
+    assert len(deleted) == 0
 
 
-def test_get_changed_files_deleted():
-    with tempfile.TemporaryDirectory() as d:
-        a = Path(d) / "a.py"
-        a.write_text("hello")
-        cache = {str(a): _make_entry(a)}
-        a.unlink()
+def test_get_changed_files_modified(tmp_path):
+    a = tmp_path / "a.py"
+    a.write_text("original")
+    cache = {str(a): _make_entry(a)}
+    a.write_text("modified")
 
-        changed, new, deleted = get_changed_files([], cache)
-        assert len(changed) == 0
-        assert len(new) == 0
-        assert len(deleted) == 1
-
-
-def test_get_changed_files_mixed():
-    with tempfile.TemporaryDirectory() as d:
-        a = Path(d) / "a.py"
-        b = Path(d) / "b.py"
-        c = Path(d) / "c.py"
-        a.write_text("unchanged")
-        b.write_text("original")
-        cache = {str(a): _make_entry(a), str(b): _make_entry(b)}
-        # Modify b, c is new, nothing deleted
-        b.write_text("modified")
-        c.write_text("new file")
-
-        changed, new, deleted = get_changed_files([a, b, c], cache)
-        assert len(changed) == 1
-        assert str(b) in [str(x) for x in changed]
-        assert len(new) == 1
-        assert str(c) in [str(x) for x in new]
-        assert len(deleted) == 0
+    changed, new, deleted = get_changed_files([a], cache)
+    assert len(changed) == 1
+    assert len(new) == 0
+    assert len(deleted) == 0
 
 
-def test_update_cache():
-    with tempfile.TemporaryDirectory() as d:
-        a = Path(d) / "a.py"
-        a.write_text("hello")
-        cache = {}
-        updated = update_cache([a], cache)
-        assert str(a) in updated
-        entry = updated[str(a)]
-        assert "mtime" in entry
-        assert entry["mtime"] == a.stat().st_mtime
-        assert "hash" in entry
-        assert isinstance(entry["hash"], str)
+def test_get_changed_files_deleted(tmp_path):
+    a = tmp_path / "a.py"
+    a.write_text("hello")
+    cache = {str(a): _make_entry(a)}
+    a.unlink()
+
+    changed, new, deleted = get_changed_files([], cache)
+    assert len(changed) == 0
+    assert len(new) == 0
+    assert len(deleted) == 1
+
+
+def test_get_changed_files_mixed(tmp_path):
+    a = tmp_path / "a.py"
+    b = tmp_path / "b.py"
+    c = tmp_path / "c.py"
+    a.write_text("unchanged")
+    b.write_text("original")
+    cache = {str(a): _make_entry(a), str(b): _make_entry(b)}
+    b.write_text("modified")
+    c.write_text("new file")
+
+    changed, new, deleted = get_changed_files([a, b, c], cache)
+    assert len(changed) == 1
+    assert str(b) in [str(x) for x in changed]
+    assert len(new) == 1
+    assert str(c) in [str(x) for x in new]
+    assert len(deleted) == 0
+
+
+def test_update_cache(tmp_path):
+    a = tmp_path / "a.py"
+    a.write_text("hello")
+    cache = {}
+    updated = update_cache([a], cache)
+    assert str(a) in updated
+    entry = updated[str(a)]
+    assert "mtime" in entry
+    assert entry["mtime"] == a.stat().st_mtime
+    assert "hash" in entry
+    assert isinstance(entry["hash"], str)
+
+
+def test_update_cache_nonexistent_file(tmp_path):
+    """update_cache skips files that don't exist."""
+    a = tmp_path / "ghost.py"
+    cache = {}
+    updated = update_cache([a], cache)
+    assert str(a) not in updated
+
+
+def test_get_changed_files_large_file(tmp_path):
+    """Files with mtime change and None hash are treated as changed."""
+    a = tmp_path / "big.py"
+    a.write_text("hello")
+    cache = {str(a): {"mtime": 0.0, "hash": None}}
+    changed, new, deleted = get_changed_files([a], cache)
+    assert len(changed) == 1
+    assert len(new) == 0
+
+
+def test_get_changed_files_missing_from_disk(tmp_path):
+    """Files in filepaths list that don't exist are skipped."""
+    a = tmp_path / "ghost.py"
+    cache = {}
+    changed, new, deleted = get_changed_files([a], cache)
+    assert len(changed) == 0
+    assert len(new) == 0
+    assert len(deleted) == 0
+
+
+def test_save_cache_fallback(tmp_path, monkeypatch):
+    """save_cache falls back to direct write when tempfile fails."""
+    import arachna.cache as cache_module
+
+    def failing_mkstemp(*args, **kwargs):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(cache_module.tempfile, "mkstemp", failing_mkstemp)
+    save_cache(tmp_path, {"a.py": {"mtime": 1.0, "hash": "abc"}})
+
+    assert (tmp_path / ".arachna_cache.json").exists()
