@@ -1,8 +1,56 @@
 # Changelog
 
+## v0.9.1 — Version sync
+
+- __init__.py: bump __version__ to 0.9.1
+- pyproject.toml: bump version to 0.9.1
+
+## v0.9.0 — Infrastructure
+
+- PyPI-упаковка: authors, keywords, urls в pyproject.toml
+- Кроссплатформенные тесты (Windows CI)
+
+## v0.8.5 — Sandbox
+
+- runner.py: dry-run + интерактивное подтверждение для недоверенных команд
+- runner.py: _is_safe_command для проверки безопасности в dry-run режиме
+
+## v0.8.4 — Merge
+
+- collector.py: --merge для --profile, добавление вывода к существующему манифесту
+- collector.py: _find_next_part_num для нумерации в merge режиме
+
+## v0.8.3 — Git hooks
+
+- hook.py: arachna --install-hook, установка post-commit хука
+- hook.py: настраиваемая команда через .arachna.json hook.post-commit
+- hook.py: --force для перезаписи существующего хука
+
+## v0.8.2 — Doctor
+
+- doctor.py: arachna --doctor, проверка конфига и корректности контекста
+- doctor.py: run_doctor и print_doctor для программного использования
+
+## v0.8.1 — Low fixes
+
+- config.py: DEFAULT_EXCLUDE генерируется из _COMMON_EXCLUDE_DIRS
+- splitter.py: токенизаторное усечение через бинарный поиск вместо CHARS_PER_TOKEN
+- tests/splitter: тесты на проброс кастомного токенизатора (MagicMock)
+
+## v0.8.0 — God function
+
+- gatherer.py: декомпозиция _collect_named_sections
+- gatherer.py: _collect_directory_sections и _collect_file_sections
+
+## v0.7.5 — Truncation API + shlex
+
+- splitter.py: was_truncated через logger.warning вместо print
+- runner.py: проверка пустой строки и непарных кавычек перед shlex.split
+
 ## v0.7.4 — Sandbox pipe fix
 
 - runner.py: проверка частей пайпа по отдельности в _validate_command
+- runner.py: _resolve_base вместо _resolve_command
 
 ## v0.7.3 — Test stability
 
