@@ -58,7 +58,10 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
         return stats
 
     name_tmpl = profile.get("name_template", f"chat-{name}")
-    clean_manifest(out_path, name_tmpl)
+
+    # In merge mode, don't clean old files
+    if not args.merge:
+        clean_manifest(out_path, name_tmpl)
 
     created = collect(
         profile,
@@ -66,12 +69,21 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
         str(out_path),
         verbose=args.verbose,
         incremental=args.incremental,
+        merge=args.merge,
     )
 
     if not args.all:
         prev = load_manifest(out_path)
-        updated = [f for f in prev if not f.startswith(name_tmpl)]
-        updated.extend(created)
+        if args.merge:
+            # Keep all existing files, add new ones
+            updated = list(prev)
+            for f in created:
+                if f not in updated:
+                    updated.append(f)
+        else:
+            # Replace files for this profile
+            updated = [f for f in prev if not f.startswith(name_tmpl)]
+            updated.extend(created)
         save_manifest(out_path, updated)
 
     return created
@@ -108,6 +120,9 @@ def main():
     parser.add_argument("--incremental", action="store_true", help="Only collect changed files")
     parser.add_argument("--format", choices=["markdown", "xml", "json"], help="Output format")
     parser.add_argument("--defaults", action="store_true", help="Use defaults with --init")
+    parser.add_argument(
+        "--merge", action="store_true", help="Append to existing output instead of replacing"
+    )
     parser.add_argument("--force", action="store_true", help="Force overwrite with --install-hook")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
 

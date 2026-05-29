@@ -3,6 +3,7 @@
 import contextlib
 import json
 import os
+import re
 import tempfile
 import time
 from pathlib import Path
@@ -62,12 +63,33 @@ def clean_manifest(out_dir: Path, name_tmpl: str = ""):
             plain.unlink()
 
 
+def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
+    """Find the next available part number for merged output.
+
+    Scans existing files matching name_tmpl_*.md and returns max_num + 1.
+    Returns 1 if no existing files found.
+    """
+    max_num = 0
+    pattern = re.compile(rf"^{re.escape(name_tmpl)}_(\d+)\.md$")
+    for f in out_dir.glob(f"{name_tmpl}_*.md"):
+        m = pattern.match(f.name)
+        if m:
+            num = int(m.group(1))
+            if num > max_num:
+                max_num = num
+    # Also check for the single-file case (name_tmpl.md)
+    if (out_dir / f"{name_tmpl}.md").exists() and max_num == 0:
+        max_num = 1
+    return max_num + 1
+
+
 def collect(
     profile: dict[str, Any],
     project_name: str,
     output_dir: str,
     verbose: bool = False,
     incremental: bool = False,
+    merge: bool = False,
 ) -> list[str]:
     name_tmpl = profile["name_template"]
     title_tmpl = profile["title_template"]
@@ -120,13 +142,21 @@ def collect(
     parts = split(raw_content, max_tokens, split_mode, split_marker, separator, tokenizer)
     total_parts = len(parts)
 
+    # In merge mode, start numbering after existing files
+    start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
+
     created = []
-    for i, part_content in enumerate(parts, 1):
+    for i, part_content in enumerate(parts, start_num):
         title = title_tmpl.format(project_name=project_name, part=i)
-        filename = f"{name_tmpl}.md" if total_parts == 1 else f"{name_tmpl}_{i}.md"
+        if total_parts == 1 and not merge:
+            filename = f"{name_tmpl}.md"
+        elif total_parts == 1 and merge:
+            filename = f"{name_tmpl}_{i}.md"
+        else:
+            filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
-        toc = _build_toc(part_content, i, total_parts, name_tmpl)
+        toc = _build_toc(part_content, i, start_num + total_parts - 1, name_tmpl)
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
