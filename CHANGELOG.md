@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.4 — Final polish
+
+- runner.py: import json вынесен на верхний уровень модуля
+- gatherer.py: _assemble_content — общая функция сборки контента для collect и dry_run
+- collector.py: collect использует _assemble_content, убран дублирующийся код
+- __init__.py: bump __version__ to 0.9.4
+- pyproject.toml: bump version to 0.9.4
+
 ## v0.9.3 — Final fixes
 
 - __main__.py: _cmd_validate использует get_profile() для консистентной валидации

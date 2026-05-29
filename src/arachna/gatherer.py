@@ -204,6 +204,62 @@ def _collect_named_sections(
     return named_sections, new_cache
 
 
+def _assemble_content(
+    profile: dict[str, Any],
+    exclude: list[str],
+    tokenizer: Callable[[str], int],
+    incremental: bool = False,
+    cache: dict[str, float] | None = None,
+    verbose: bool = False,
+) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
+    """Assemble raw content from profile and split into token-limited parts.
+
+    Handles command mode, directory scans, specific files, pre_commands,
+    compression, and splitting — the shared pipeline for both collect and dry_run.
+
+    Returns (named_sections, parts, updated_cache).
+    """
+    do_compress = profile.get("compress", False)
+    split_mode = profile.get("split_mode", "by_file")
+    split_marker = profile.get("split_marker", "\n\n")
+    max_tokens = profile.get("max_tokens", 16000)
+    command = profile.get("command")
+
+    if command:
+        raw_content = gather_command(command)
+        if do_compress and raw_content.strip():
+            raw_content = compress(raw_content)
+        named_sections = [("command output", raw_content, tokenizer(raw_content))]
+        new_cache = {}
+    else:
+        named_sections, new_cache = _collect_named_sections(
+            profile,
+            exclude,
+            incremental=incremental,
+            cache=cache,
+            verbose=verbose,
+            tokenizer=tokenizer,
+        )
+        raw_content = "\n\n".join(content for _, content, _ in named_sections)
+        if do_compress and raw_content.strip():
+            orig_tokens = tokenizer(raw_content)
+            raw_content = compress(raw_content)
+            comp_tokens = tokenizer(raw_content)
+            if verbose:
+                pct = ((orig_tokens - comp_tokens) / orig_tokens * 100) if orig_tokens > 0 else 0
+                print(f"  Compressed: ~{orig_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
+            # Update named_sections with compressed content
+            updated_sections = []
+            for name, content, _ in named_sections:
+                comp_content = compress(content)
+                updated_sections.append((name, comp_content, tokenizer(comp_content)))
+            named_sections = updated_sections
+
+    parts = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
+
+    return named_sections, parts, new_cache
+
+
 def gather_files(
     profile: dict[str, Any],
     verbose: bool = False,
@@ -230,36 +286,20 @@ def dry_run(
     exclude = _get_exclude_patterns(profile)
     max_tokens = profile.get("max_tokens", 16000)
     name_tmpl = profile.get("name_template", "chat")
-    split_mode = profile.get("split_mode", "by_file")
-    split_marker = profile.get("split_marker", "\n\n")
-    command = profile.get("command")
-    do_compress = profile.get("compress", False)
 
-    if command:
-        content = gather_command(command)
-        if do_compress:
-            content = compress(content)
-        tokens = tk(content)
-        named_sections = [("command output", content, tokens)]
-    else:
-        named_sections, _ = _collect_named_sections(profile, exclude, tokenizer=tk)
-        if do_compress:
-            named_sections = [
-                (name, compress(content), tk(compress(content)))
-                for name, content, _ in named_sections
-            ]
+    named_sections, parts, _ = _assemble_content(
+        profile, exclude, tk, incremental=False, cache=None, verbose=False
+    )
 
-    raw_content = "\n\n".join(content for _, content, _ in named_sections)
-    part_contents = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tk)
-
-    parts = []
-    for i, content in enumerate(part_contents, 1):
+    # Build per-part section lists
+    part_list = []
+    for i, content in enumerate(parts, 1):
         part_sections = []
         for name, sec_content, tokens in named_sections:
             if sec_content.strip() in content:
                 part_sections.append((name, tokens))
         total_tokens = tk(content)
-        parts.append(
+        part_list.append(
             {
                 "part_num": i,
                 "sections": part_sections,
@@ -267,7 +307,7 @@ def dry_run(
             }
         )
 
-    return {"name_tmpl": name_tmpl, "max_tokens": max_tokens, "parts": parts}
+    return {"name_tmpl": name_tmpl, "max_tokens": max_tokens, "parts": part_list}
 
 
 def _get_exclude_patterns(profile: dict[str, Any]) -> list[str]:

@@ -1,5 +1,6 @@
 """Safe command execution with sandbox validation and audit logging."""
 
+import json
 import logging
 import shlex
 import subprocess
@@ -158,8 +159,6 @@ def _get_audit_log_path() -> Path | None:
         for parent in [cwd, *cwd.parents]:
             cfg = parent / ".arachna.json"
             if cfg.exists():
-                import json
-
                 try:
                     config = json.loads(cfg.read_text())
                     out_dir = config.get("output_dir", "arachna_context")

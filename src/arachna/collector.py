@@ -10,14 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from .cache import load_cache, save_cache
-from .compressor import compress, estimate_savings
 from .gatherer import (
-    _collect_named_sections,
+    _assemble_content,
     _get_exclude_patterns,
-    gather_command,
 )
 from .runner import run_command
-from .splitter import split
 from .tokenizer import count_tokens, load_tokenizer
 
 _MANIFEST = ".arachna_manifest.json"
@@ -93,12 +90,6 @@ def collect(
 ) -> list[str]:
     name_tmpl = profile["name_template"]
     title_tmpl = profile["title_template"]
-    max_tokens = profile["max_tokens"]
-    split_mode = profile.get("split_mode", "by_file")
-    split_marker = profile.get("split_marker", "\n\n")
-    command = profile.get("command")
-    do_compress = profile.get("compress", False)
-    section_format = profile.get("section_format", "markdown")
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
@@ -106,40 +97,25 @@ def collect(
     tokenizer_spec = profile.get("tokenizer", "default")
     tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
 
-    separator = "\n\n" if section_format == "markdown" else "\n"
+    exclude = _get_exclude_patterns(profile)
 
-    if command:
-        raw_content = gather_command(command)
-    else:
-        exclude = _get_exclude_patterns(profile)
-        if incremental:
-            cache = load_cache(out_path)
-            named_sections, new_cache = _collect_named_sections(
-                profile,
-                exclude,
-                incremental=True,
-                cache=cache,
-                verbose=verbose,
-                tokenizer=tokenizer,
-            )
-            save_cache(out_path, new_cache)
-        else:
-            named_sections, _ = _collect_named_sections(
-                profile, exclude, verbose=verbose, tokenizer=tokenizer
-            )
-        raw_content = "\n\n".join(content for _, content, _ in named_sections)
+    cache = load_cache(out_path) if incremental else None
 
-    if do_compress and raw_content.strip():
-        compressed = compress(raw_content)
-        if verbose:
-            orig, comp, pct = estimate_savings(raw_content, compressed)
-            print(f"  Compressed: ~{orig} -> ~{comp} tokens (-{pct:.0f}%)")
-        raw_content = compressed
+    named_sections, parts, new_cache = _assemble_content(
+        profile,
+        exclude,
+        tokenizer,
+        incremental=incremental,
+        cache=cache,
+        verbose=verbose,
+    )
 
-    if not raw_content.strip():
+    if incremental:
+        save_cache(out_path, new_cache)
+
+    if not parts:
         return []
 
-    parts = split(raw_content, max_tokens, split_mode, split_marker, separator, tokenizer)
     total_parts = len(parts)
 
     # In merge mode, start numbering after existing files
