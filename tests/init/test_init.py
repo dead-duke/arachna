@@ -83,23 +83,23 @@ def test_run_interactive_basic(tmp_path, monkeypatch):
         patch(
             "builtins.input",
             side_effect=[
-                "TestProject",  # project name
-                "out",  # output dir
-                "16000",  # max tokens
-                "y",  # add python
-                "y",  # add docs
-                "y",  # add git
-                "y",  # create config
+                "TestProject",
+                "out",
+                "16000",
+                "y",
+                "y",
+                "y",
+                "y",
             ],
         ),
     ):
         run_interactive(output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
-    if cfg.exists():
-        data = json.loads(cfg.read_text())
-        assert data["project_name"] == "TestProject"
-        assert data["output_dir"] == "out"
+    assert cfg.exists()
+    data = json.loads(cfg.read_text())
+    assert data["project_name"] == "TestProject"
+    assert data["output_dir"] == "out"
 
 
 def test_run_interactive_defaults_on_enter(tmp_path, monkeypatch):
@@ -112,16 +112,19 @@ def test_run_interactive_defaults_on_enter(tmp_path, monkeypatch):
         patch(
             "builtins.input",
             side_effect=[
-                "",  # default project name
-                "",  # default output dir
-                "",  # default max tokens
-                "y",  # add docs
-                "y",  # add git
-                "y",  # create
+                "",
+                "",
+                "",
+                "y",
+                "y",
+                "y",
             ],
         ),
     ):
         run_interactive(output_dir=".")
+
+    cfg = tmp_path / ".arachna.json"
+    assert cfg.exists()
 
 
 def test_run_interactive_decline_profile(tmp_path, monkeypatch):
@@ -137,19 +140,19 @@ def test_run_interactive_decline_profile(tmp_path, monkeypatch):
                 "TestProject",
                 "out",
                 "16000",
-                "n",  # decline docker
-                "y",  # add git
-                "y",  # create
+                "n",
+                "y",
+                "y",
             ],
         ),
     ):
         run_interactive(output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
-    if cfg.exists():
-        data = json.loads(cfg.read_text())
-        assert "docker" not in data["profiles"]
-        assert "git" in data["profiles"]
+    assert cfg.exists()
+    data = json.loads(cfg.read_text())
+    assert "docker" not in data["profiles"]
+    assert "git" in data["profiles"]
 
 
 def test_run_interactive_existing_config_overwrite(tmp_path, monkeypatch):
@@ -162,18 +165,20 @@ def test_run_interactive_existing_config_overwrite(tmp_path, monkeypatch):
         patch(
             "builtins.input",
             side_effect=[
-                "y",  # overwrite
+                "y",
                 "NewProject",
                 "out",
                 "16000",
-                "y",  # add git
-                "y",  # create
+                "y",
+                "y",
             ],
         ),
     ):
         run_interactive(output_dir=".")
 
-    data = json.loads((tmp_path / ".arachna.json").read_text())
+    cfg = tmp_path / ".arachna.json"
+    assert cfg.exists()
+    data = json.loads(cfg.read_text())
     assert data["project_name"] == "NewProject"
 
 
@@ -186,11 +191,13 @@ def test_run_interactive_existing_config_abort(tmp_path, monkeypatch):
         patch(
             "builtins.input",
             side_effect=[
-                "n",  # don't overwrite
+                "n",
             ],
         ),
     ):
         run_interactive(output_dir=".")
 
-    data = json.loads((tmp_path / ".arachna.json").read_text())
+    cfg = tmp_path / ".arachna.json"
+    assert cfg.exists()
+    data = json.loads(cfg.read_text())
     assert data["project_name"] == "old"

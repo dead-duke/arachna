@@ -10,3 +10,4 @@ venv/
 chat-*.md
 .coverage
 /arachna_context
+/llm_docs
