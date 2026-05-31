@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.2 — Fix --version CLI
+
+- __main__.py: handle --version before argparse to avoid mutually_exclusive_group conflict
+- __init__.py: bump __version__ to 1.0.2
+
 ## v1.0.1 — Windows test fixes
 
 - tests/cache: _make_entry uses real SHA256 hash instead of "dummy"

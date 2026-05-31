@@ -90,6 +90,11 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
 
 
 def main():
+    # Handle --version before argparse to avoid mutually_exclusive_group conflict
+    if "--version" in sys.argv:
+        print(f"arachna v{__version__}")
+        return
+
     if "--completion" in sys.argv:
         from .completion import main as completion_main
 
@@ -124,17 +129,12 @@ def main():
         "--merge", action="store_true", help="Append to existing output instead of replacing"
     )
     parser.add_argument("--force", action="store_true", help="Force overwrite with --install-hook")
-    parser.add_argument("--version", action="store_true", help="Show version and exit")
 
     args = parser.parse_args()
     config = load_config()
     project_name = config.get("project_name", "Project")
     output_dir = args.output_dir or config.get("output_dir", ".")
     out_path = Path(output_dir)
-
-    if args.version:
-        print(f"arachna v{__version__}")
-        return
 
     if args.init:
         from .init import run_defaults, run_interactive
