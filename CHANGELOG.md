@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.1 — Windows test fixes
+
+- tests/cache: _make_entry uses real SHA256 hash instead of "dummy"
+- tests/cache: time.sleep(0.01) in test_get_changed_files_modified and test_get_changed_files_mixed
+- tests/formatter: test_permission_denied skipped on Windows (chmod 0o000 unsupported)
+- tests/gatherer: time.sleep(0.01) in test_collect_sections_incremental_detects_modified
+- tests/hook: S_IXUSR check only on Unix (Windows does not support executable bits)
+- __init__.py: bump __version__ to 1.0.1
+- pyproject.toml: bump version to 1.0.1
+
 ## v1.0.0 — Public release
 
 - First public release on PyPI

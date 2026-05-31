@@ -1,5 +1,6 @@
 import json
 import stat
+import sys
 
 from arachna.hook import install_hook
 
@@ -18,8 +19,9 @@ def test_install_hook_default_command(tmp_path, monkeypatch):
     assert hook.exists()
     content = hook.read_text()
     assert "arachna --all" in content
-    # Check executable
-    assert hook.stat().st_mode & stat.S_IXUSR
+    # Check executable on Unix (Windows does not support this)
+    if sys.platform != "win32":
+        assert hook.stat().st_mode & stat.S_IXUSR
 
 
 def test_install_hook_custom_command_from_config(tmp_path, monkeypatch):

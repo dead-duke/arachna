@@ -1,5 +1,7 @@
+import sys
 from pathlib import Path
 
+import pytest
 from arachna.formatter import (
     _is_binary_allowed,
     _lang_from_shebang,
@@ -39,6 +41,7 @@ def test_no_extension(tmp_path):
     assert "```dockerfile" in format_file_section(f)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o000 does not work on Windows")
 def test_permission_denied(tmp_path):
     f = tmp_path / "secret.py"
     f.write_text("s")

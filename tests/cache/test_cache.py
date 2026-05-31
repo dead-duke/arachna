@@ -1,13 +1,16 @@
+import time
 from pathlib import Path
 
 from arachna.cache import get_changed_files, load_cache, save_cache, update_cache
 
 
 def _make_entry(filepath: Path) -> dict:
-    """Create a cache entry for a file in the new format."""
+    """Create a cache entry for a file with real mtime and hash."""
+    import hashlib
+
     return {
         "mtime": filepath.stat().st_mtime,
-        "hash": "dummy",
+        "hash": hashlib.sha256(filepath.read_bytes()).hexdigest(),
     }
 
 
@@ -50,6 +53,7 @@ def test_get_changed_files_modified(tmp_path):
     a = tmp_path / "a.py"
     a.write_text("original")
     cache = {str(a): _make_entry(a)}
+    time.sleep(0.01)
     a.write_text("modified")
 
     changed, new, deleted = get_changed_files([a], cache)
@@ -77,6 +81,7 @@ def test_get_changed_files_mixed(tmp_path):
     a.write_text("unchanged")
     b.write_text("original")
     cache = {str(a): _make_entry(a), str(b): _make_entry(b)}
+    time.sleep(0.01)
     b.write_text("modified")
     c.write_text("new file")
 
