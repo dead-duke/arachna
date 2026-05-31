@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import shlex
 import subprocess
 import sys
@@ -62,8 +63,9 @@ _ALLOWED_COMMANDS = frozenset(
     }
 )
 
-# Dangerous commands/patterns blocked by default
-_BLOCKED_PATTERNS = [
+# Dangerous command words/patterns — blocked by default.
+# Group A: whole-word patterns matched with \b boundaries.
+_BLOCKED_WORDS = [
     "curl",
     "wget",
     "nc",
@@ -76,17 +78,21 @@ _BLOCKED_PATTERNS = [
     "reboot",
     "halt",
     "poweroff",
+    "mkfs",
+    "eval",
+    "exec",
+]
+
+# Group B: multi-word/substring patterns matched literally.
+_BLOCKED_PHRASES = [
     "rm -rf /",
     "rm -rf ~",
     "rm -rf .",
-    "mkfs",
     "dd if=",
     "> /dev/sd",
     "chmod 777 /",
     "chown -R /",
     ":(){ :|:& };:",  # fork bomb
-    "eval",
-    "exec",
     "/etc/passwd",
     "/etc/shadow",
 ]
@@ -104,34 +110,87 @@ def _resolve_base(cmd_part: str) -> str:
     return parts[0]
 
 
+def _split_pipe_parts(cmd: str) -> list[str]:
+    """Split a command string by pipe symbols, respecting shell quoting.
+
+    Does not split on | inside single or double quotes.
+    Does not treat || (shell OR) as a pipe.
+    """
+    parts = []
+    current = []
+    in_single = False
+    in_double = False
+    i = 0
+    while i < len(cmd):
+        ch = cmd[i]
+        if in_single:
+            current.append(ch)
+            if ch == "'":
+                in_single = False
+        elif in_double:
+            current.append(ch)
+            if ch == '"':
+                in_double = False
+        elif ch == "'":
+            current.append(ch)
+            in_single = True
+        elif ch == '"':
+            current.append(ch)
+            in_double = True
+        elif ch == "|" and i + 1 < len(cmd) and cmd[i + 1] == "|":
+            # || is shell OR, not a pipe — treat as literal
+            current.append("||")
+            i += 1
+        elif ch == "|":
+            parts.append("".join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+        i += 1
+    parts.append("".join(current).strip())
+    return parts
+
+
 def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, str]:
     """Validate a command against safety rules.
 
     Returns (is_safe, reason).
 
     For piped commands, each pipe part is validated individually.
+    Pipe splitting respects shell quoting — | inside quotes is not a separator.
     """
     cmd_lower = cmd.lower().strip()
 
-    # Check blocked patterns on the full command string
-    for pattern in _BLOCKED_PATTERNS:
-        if pattern in cmd_lower:
+    # Check blocked word patterns (whole-word matching)
+    for word in _BLOCKED_WORDS:
+        if re.search(r"\b" + re.escape(word) + r"\b", cmd_lower):
             if allow_dangerous:
                 logger.warning("DANGEROUS command allowed via flag: %s", cmd)
                 return True, ""
-            return False, f"blocked pattern: '{pattern}'"
+            return False, f"blocked pattern: '{word}'"
 
-    # For piped commands, validate each part separately
+    # Check blocked phrase patterns (literal substring matching)
+    for phrase in _BLOCKED_PHRASES:
+        if phrase in cmd_lower:
+            if allow_dangerous:
+                logger.warning("DANGEROUS command allowed via flag: %s", cmd)
+                return True, ""
+            return False, f"blocked pattern: '{phrase}'"
+
+    # For piped commands, validate each pipe part separately
+    # Use quote-aware pipe splitting
     if _PIPE_SEP in cmd:
-        parts = cmd.split(_PIPE_SEP)
-        for part in parts:
-            base = _resolve_base(part)
-            if base and base not in _ALLOWED_COMMANDS:
-                if allow_dangerous:
-                    logger.warning("Unknown command in pipe allowed via flag: %s", cmd)
-                    return True, ""
-                return False, f"command in pipe not in allowlist: '{base}'"
-        return True, ""
+        # Quick check: if all | are inside quotes, treat as no pipe
+        pipe_parts = _split_pipe_parts(cmd)
+        if len(pipe_parts) > 1:
+            for part in pipe_parts:
+                base = _resolve_base(part)
+                if base and base not in _ALLOWED_COMMANDS:
+                    if allow_dangerous:
+                        logger.warning("Unknown command in pipe allowed via flag: %s", cmd)
+                        return True, ""
+                    return False, f"command in pipe not in allowlist: '{base}'"
+            return True, ""
 
     # For non-piped commands without shell metacharacters, check against allowlist
     base = _resolve_base(cmd)

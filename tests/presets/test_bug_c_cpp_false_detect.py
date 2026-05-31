@@ -1,9 +1,7 @@
 """Test for BUG-004: c_cpp preset falsely detected in Python-only projects.
 
-Tests that should pass after fix are marked xfail.
+BUG-004 fixed in v1.3.0 — "src" and "include" removed from detect list.
 """
-
-import pytest
 
 from arachna.presets import detect_presets
 
@@ -37,7 +35,6 @@ def test_python_and_cpp_together(tmp_path, monkeypatch):
     assert "c_cpp" in detected
 
 
-@pytest.mark.xfail(reason="BUG-004: c_cpp falsely detected via detect: ['src']", strict=True)
 def test_c_cpp_not_detected_in_python_project(tmp_path, monkeypatch):
     """c_cpp should not be detected when only src/ exists with .py files."""
     monkeypatch.chdir(tmp_path)
@@ -52,7 +49,6 @@ def test_c_cpp_not_detected_in_python_project(tmp_path, monkeypatch):
     )
 
 
-@pytest.mark.xfail(reason="BUG-004: c_cpp falsely detected with empty src/ directory", strict=True)
 def test_c_cpp_not_detected_empty_src(tmp_path, monkeypatch):
     """c_cpp should not be detected with just empty src/ directory."""
     monkeypatch.chdir(tmp_path)

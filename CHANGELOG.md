@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0 — Multi-source split modes + bug fixes
+
+- gatherer.py: pre_split_mode и pre_split_marker — раздельная нарезка pre_commands и файлов
+- runner.py: _split_pipe_parts с учётом кавычек, word-boundary matching для _BLOCKED_PATTERNS (BUG-001)
+- presets.py: c_cpp detect убран "src" и "include", оставлен только "CMakeLists.txt" (BUG-004)
+
 ## v1.2.2 — CLI consistency
 
 - init.py: run_interactive фильтрует автоопределение по --preset

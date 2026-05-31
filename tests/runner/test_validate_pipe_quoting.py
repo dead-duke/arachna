@@ -1,10 +1,7 @@
 """Tests for BUG-001: _validate_command splits pipe without respect for quotes.
 
-These tests document the expected behaviour after the bug is fixed.
-Currently xfail — will start passing when BUG-001 is resolved.
+BUG-001 fixed in v1.3.0 — pipe splitting now respects shell quoting.
 """
-
-import pytest
 
 from arachna.runner import _validate_command
 
@@ -21,7 +18,6 @@ def test_pipe_inside_double_quotes_safe():
     assert is_safe, f"Expected safe, got: {reason}"
 
 
-@pytest.mark.xfail(reason="BUG-001: pipe splitting doesn't respect single quotes", strict=True)
 def test_or_operator_with_dev_null():
     """|| and 2>/dev/null should be handled as shell metacharacters, not pipe parts."""
     is_safe, reason = _validate_command(
@@ -30,11 +26,8 @@ def test_or_operator_with_dev_null():
     assert is_safe, f"Expected safe, got: {reason}"
 
 
-@pytest.mark.xfail(
-    reason="BUG-001: _BLOCKED_PATTERNS substring match catches 'nc' in 'CHANGES'", strict=True
-)
 def test_git_log_with_format_containing_pipe():
-    """Git log format string may contain | as literal character."""
+    """Git log format string may contain | and %n but no blocked patterns as words."""
     cmd = (
         "git log --reverse "
         "--format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n%nCHANGES:%n' "

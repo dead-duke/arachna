@@ -217,6 +217,11 @@ def _assemble_content(
     Handles command mode, directory scans, specific files, pre_commands,
     compression, and splitting — the shared pipeline for both collect and dry_run.
 
+    If pre_split_mode is set in profile, pre_commands output is split separately
+    using that mode and its parts are prepended to the file-based parts.
+    This allows different split strategies for pre_commands (e.g. by_marker for
+    git log) and files (e.g. by_file for source code).
+
     Returns (named_sections, parts, updated_cache).
     """
     do_compress = profile.get("compress", False)
@@ -224,6 +229,11 @@ def _assemble_content(
     split_marker = profile.get("split_marker", "\n\n")
     max_tokens = profile.get("max_tokens", 16000)
     command = profile.get("command")
+
+    # Pre-commands split settings (optional — if not set, pre_commands are
+    # merged with files and split together using the main split_mode)
+    pre_split_mode = profile.get("pre_split_mode")
+    pre_split_marker = profile.get("pre_split_marker", "\n\n")
 
     if command:
         raw_content = gather_command(command)
@@ -255,7 +265,32 @@ def _assemble_content(
                 updated_sections.append((name, comp_content, tokenizer(comp_content)))
             named_sections = updated_sections
 
-    parts = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
+    # Split: if pre_split_mode is set, pre_commands are split separately
+    if pre_split_mode and not command:
+        pre_sections = _collect_pre_commands(profile, tokenizer)
+        file_sections = [
+            (name, content, tokens)
+            for name, content, tokens in named_sections
+            if not name.startswith("pre: ")
+        ]
+
+        # Split pre_commands output with their own mode
+        pre_raw = "\n\n".join(content for _, content, _ in pre_sections)
+        if do_compress and pre_raw.strip():
+            pre_raw = compress(pre_raw)
+        pre_parts = split(
+            pre_raw, max_tokens, pre_split_mode, pre_split_marker, tokenizer=tokenizer
+        )
+
+        # Split file content with main split_mode
+        file_raw = "\n\n".join(content for _, content, _ in file_sections)
+        if do_compress and file_raw.strip():
+            file_raw = compress(file_raw)
+        file_parts = split(file_raw, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
+
+        parts = pre_parts + file_parts
+    else:
+        parts = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
 
     return named_sections, parts, new_cache
 

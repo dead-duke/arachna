@@ -121,7 +121,7 @@ PRESETS: dict[str, dict] = {
         "pre_commands": ["tree src include 2>/dev/null || true"],
         "max_tokens": 16000,
         "split_mode": "by_file",
-        "detect": ["CMakeLists.txt", "src", "include"],
+        "detect": ["CMakeLists.txt"],
     },
     "csharp": {
         "dirs": ["."],
