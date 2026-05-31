@@ -1,5 +1,9 @@
 # arachna
 
+[![PyPI version](https://img.shields.io/pypi/v/arachna)](https://pypi.org/project/arachna/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
 Context collector for AI — gathers project files into token-limited chunks.
 
 ## What is arachna
@@ -35,15 +39,43 @@ arachna --profile code      collect one profile
 arachna --all --dry-run     preview without writing
 arachna --clean             remove collected files
 arachna --list              show profiles
-arachna --validate          check config
+arachna --validate          check config for errors
+arachna --doctor            run full diagnostic
+arachna --install-hook      install git post-commit hook
 ```
+
 ## Options
 
---output-dir path           where to write (default: arachna_context/)
---verbose                   show skipped files
---compress                  remove blank lines and trailing spaces
---incremental               only files changed since last run
---format xml                markdown (default), xml, or json
+| Option | Description |
+|--------|-------------|
+| `--output-dir path` | where to write (default: arachna_context/) |
+| `--verbose` | show skipped files |
+| `--compress` | remove blank lines and trailing spaces |
+| `--incremental` | only files changed since last run |
+| `--format xml` | markdown (default), xml, or json |
+| `--merge` | append to existing output instead of replacing |
+| `--dry-run` | preview without writing files |
+| `--force` | force overwrite with `--install-hook` |
+
+## Safety
+
+Commands in `.arachna.json` (pre_commands, post_commands, command) are validated before execution. Unknown or dangerous commands are blocked by default. Use `--dry-run` to preview what will be executed before running.
+
+## Doctor
+
+`arachna --doctor` runs a full diagnostic of your configuration — validates all profiles, checks that directories and files exist, and verifies `.gitignore` integration. Use it when something doesn't work as expected.
+
+## Git hooks
+
+`arachna --install-hook` installs a post-commit hook that automatically runs arachna after each commit. Configure the command in `.arachna.json`:
+
+```json
+{
+  "hook": {
+    "post-commit": "arachna --all --incremental"
+  }
+}
+```
 
 ## Configuration (.arachna.json)
 
@@ -108,12 +140,6 @@ compress: enable safe whitespace compression (blank lines, trailing spaces). Doe
 include_binary: include binaries as base64 (true/false)
 binary_extensions: whitelist like [".png"]
 binary_max_mb: max binary file size in MB
-
-## Security note
-
-Commands in .arachna.json (pre_commands, post_commands, command) are executed via shell.
-Only use .arachna.json from trusted sources. Running arachna with an untrusted config
-can execute arbitrary commands on your machine.
 
 ## Output
 
@@ -192,6 +218,12 @@ Go: cmd/, pkg/, *.go, go.mod
 Rust: src/, tests/, *.rs, Cargo.toml
 
 Also: README.md, TODO.md, CHANGELOG.md, Makefile, config/, docs/, data/prompts/.
+
+## Links
+
+- [GitHub Repository](https://github.com/dead-duke/arachna)
+- [Issue Tracker](https://github.com/dead-duke/arachna/issues)
+- [Changelog](https://github.com/dead-duke/arachna/blob/main/CHANGELOG.md)
 
 ## License
 
