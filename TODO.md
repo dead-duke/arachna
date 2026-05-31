@@ -7,8 +7,8 @@
 - [x] Бамп __version__ до 1.2.1
 
 ## v1.2.2 — CLI consistency
-- [ ] init.py: run_interactive фильтрует автоопределение по --preset
-- [ ] tests/presets: тесты на внешние пресеты с preset_name
+- [x] init.py: run_interactive фильтрует автоопределение по --preset
+- [x] tests/presets: тесты на внешние пресеты с preset_name
 
 ## Backlog
 - [ ] Unreal Engine пресет

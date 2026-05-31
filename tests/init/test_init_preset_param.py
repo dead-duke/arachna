@@ -61,25 +61,67 @@ def test_run_interactive_with_preset_param(tmp_path, monkeypatch):
     mock_detect.assert_called_once_with(preset_name="godot")
 
 
-def test_run_interactive_preset_param_passed_to_detect(tmp_path, monkeypatch):
-    """run_interactive passes preset to detect_presets, not ignoring it."""
+def test_run_interactive_preset_filters_autodetection(tmp_path, monkeypatch):
+    """run_interactive with preset='godot' only shows and creates godot profile,
+    not all auto-detected profiles."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / "project.godot").write_text("x")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("print('hi')")
+    (tmp_path / "README.md").write_text("# Project")
     (tmp_path / ".git").mkdir()
 
     with (
-        patch("arachna.init.detect_presets") as mock_detect,
         patch(
             "builtins.input",
             side_effect=[
-                "Test",
+                "TestProject",
                 "out",
                 "16000",
-                "y",
-                "y",
+                "y",  # godot — yes
+                "y",  # create config
             ],
         ),
     ):
-        mock_detect.return_value = ["git"]
-        run_interactive(output_dir=".", preset="docker")
+        run_interactive(output_dir=".", preset="godot")
 
-    mock_detect.assert_called_once_with(preset_name="docker")
+    cfg = tmp_path / ".arachna.json"
+    assert cfg.exists()
+    data = json.loads(cfg.read_text())
+    # Only godot should be in config, not python, docs, git
+    assert "godot" in data["profiles"]
+    assert "python" not in data["profiles"]
+    assert "docs" not in data["profiles"]
+    assert len(data["profiles"]) == 1
+
+
+def test_run_interactive_no_preset_full_autodetect(tmp_path, monkeypatch):
+    """run_interactive without preset shows all auto-detected profiles."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "project.godot").write_text("x")
+    (tmp_path / "README.md").write_text("# Project")
+    (tmp_path / ".git").mkdir()
+
+    with (
+        patch(
+            "builtins.input",
+            side_effect=[
+                "TestProject",
+                "out",
+                "16000",
+                "y",  # godot — yes
+                "y",  # docs — yes
+                "y",  # git — yes
+                "y",  # create config
+            ],
+        ),
+    ):
+        run_interactive(output_dir=".")
+
+    cfg = tmp_path / ".arachna.json"
+    assert cfg.exists()
+    data = json.loads(cfg.read_text())
+    # All detected profiles should be present
+    assert "godot" in data["profiles"]
+    assert "docs" in data["profiles"]
+    assert "git" in data["profiles"]
