@@ -27,6 +27,14 @@ _EXT_LANG = {
     "cpp": "cpp",
     "c": "c",
     "h": "c",
+    "gd": "gdscript",
+    "cs": "csharp",
+    "swift": "swift",
+    "kt": "kotlin",
+    "rb": "ruby",
+    "php": "php",
+    "tf": "hcl",
+    "dockerfile": "dockerfile",
     "makefile": "makefile",
     "gitignore": "gitignore",
 }
@@ -140,6 +148,13 @@ def format_file_section(
         ".cpp",
         ".c",
         ".h",
+        ".gd",
+        ".cs",
+        ".swift",
+        ".kt",
+        ".rb",
+        ".php",
+        ".tf",
     }
     size_mb = file_size / (1024 * 1024)
 

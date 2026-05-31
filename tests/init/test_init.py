@@ -10,39 +10,64 @@ def test_run_defaults_creates_config(tmp_path, monkeypatch):
     src.mkdir()
     (src / "main.py").write_text("print('hi')")
     (tmp_path / "README.md").write_text("# Project")
-    run_defaults(output_dir="out")
+    (tmp_path / ".git").mkdir()
+
+    with patch("arachna.init.detect_presets", return_value=["python", "docs", "config", "git"]):
+        run_defaults(output_dir="out")
+
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
     data = json.loads(cfg.read_text())
-    assert "code" in data["profiles"]
+    assert "python" in data["profiles"]
     assert "git" in data["profiles"]
     assert data["output_dir"] == "out"
 
 
 def test_run_defaults_empty_project(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    run_defaults(output_dir="out")
+    (tmp_path / ".git").mkdir()
+
+    with patch("arachna.init.detect_presets", return_value=["git"]):
+        run_defaults(output_dir="out")
+
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
     data = json.loads(cfg.read_text())
     assert "git" in data["profiles"]
-    assert "code" not in data["profiles"]
 
 
 def test_run_defaults_creates_output_dir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    run_defaults(output_dir="out")
+    (tmp_path / ".git").mkdir()
+
+    with patch("arachna.init.detect_presets", return_value=["git"]):
+        run_defaults(output_dir="out")
+
     assert (tmp_path / "out").is_dir()
 
 
-def test_run_defaults_detects_tests(tmp_path, monkeypatch):
+def test_run_defaults_detects_godot(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    tests = tmp_path / "tests"
-    tests.mkdir()
-    (tests / "test_main.py").write_text("def test(): pass")
-    run_defaults(output_dir="out")
+    (tmp_path / "project.godot").write_text("x")
+    (tmp_path / ".git").mkdir()
+
+    with patch("arachna.init.detect_presets", return_value=["godot", "git"]):
+        run_defaults(output_dir="out")
+
     data = json.loads((tmp_path / ".arachna.json").read_text())
-    assert "tests" in data["profiles"]
+    assert "godot" in data["profiles"]
+
+
+def test_run_defaults_detects_docker(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Dockerfile").write_text("FROM python")
+    (tmp_path / ".git").mkdir()
+
+    with patch("arachna.init.detect_presets", return_value=["docker", "git"]):
+        run_defaults(output_dir="out")
+
+    data = json.loads((tmp_path / ".arachna.json").read_text())
+    assert "docker" in data["profiles"]
 
 
 def test_run_interactive_basic(tmp_path, monkeypatch):
@@ -51,20 +76,25 @@ def test_run_interactive_basic(tmp_path, monkeypatch):
     src.mkdir()
     (src / "main.py").write_text("print('hi')")
     (tmp_path / "README.md").write_text("# Project")
-    with patch(
-        "builtins.input",
-        side_effect=[
-            "TestProject",  # project name
-            "out",  # output dir
-            "16000",  # max tokens
-            "y",  # add code profile
-            "y",  # add tests? (no tests dir)
-            "y",  # add docs profile
-            "y",  # add git profile
-            "y",  # create config
-        ],
+    (tmp_path / ".git").mkdir()
+
+    with (
+        patch("arachna.init.detect_presets", return_value=["python", "docs", "git"]),
+        patch(
+            "builtins.input",
+            side_effect=[
+                "TestProject",  # project name
+                "out",  # output dir
+                "16000",  # max tokens
+                "y",  # add python
+                "y",  # add docs
+                "y",  # add git
+                "y",  # create config
+            ],
+        ),
     ):
         run_interactive(output_dir=".")
+
     cfg = tmp_path / ".arachna.json"
     if cfg.exists():
         data = json.loads(cfg.read_text())
@@ -75,15 +105,92 @@ def test_run_interactive_basic(tmp_path, monkeypatch):
 def test_run_interactive_defaults_on_enter(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "README.md").write_text("# Project")
-    with patch(
-        "builtins.input",
-        side_effect=[
-            "",  # default project name
-            "",  # default output dir
-            "",  # default max tokens
-            "y",  # add docs
-            "y",  # add git
-            "y",  # create
-        ],
+    (tmp_path / ".git").mkdir()
+
+    with (
+        patch("arachna.init.detect_presets", return_value=["docs", "git"]),
+        patch(
+            "builtins.input",
+            side_effect=[
+                "",  # default project name
+                "",  # default output dir
+                "",  # default max tokens
+                "y",  # add docs
+                "y",  # add git
+                "y",  # create
+            ],
+        ),
     ):
         run_interactive(output_dir=".")
+
+
+def test_run_interactive_decline_profile(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Dockerfile").write_text("FROM python")
+    (tmp_path / ".git").mkdir()
+
+    with (
+        patch("arachna.init.detect_presets", return_value=["docker", "git"]),
+        patch(
+            "builtins.input",
+            side_effect=[
+                "TestProject",
+                "out",
+                "16000",
+                "n",  # decline docker
+                "y",  # add git
+                "y",  # create
+            ],
+        ),
+    ):
+        run_interactive(output_dir=".")
+
+    cfg = tmp_path / ".arachna.json"
+    if cfg.exists():
+        data = json.loads(cfg.read_text())
+        assert "docker" not in data["profiles"]
+        assert "git" in data["profiles"]
+
+
+def test_run_interactive_existing_config_overwrite(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "old"}))
+    (tmp_path / ".git").mkdir()
+
+    with (
+        patch("arachna.init.detect_presets", return_value=["git"]),
+        patch(
+            "builtins.input",
+            side_effect=[
+                "y",  # overwrite
+                "NewProject",
+                "out",
+                "16000",
+                "y",  # add git
+                "y",  # create
+            ],
+        ),
+    ):
+        run_interactive(output_dir=".")
+
+    data = json.loads((tmp_path / ".arachna.json").read_text())
+    assert data["project_name"] == "NewProject"
+
+
+def test_run_interactive_existing_config_abort(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "old"}))
+
+    with (
+        patch("arachna.init.detect_presets", return_value=["git"]),
+        patch(
+            "builtins.input",
+            side_effect=[
+                "n",  # don't overwrite
+            ],
+        ),
+    ):
+        run_interactive(output_dir=".")
+
+    data = json.loads((tmp_path / ".arachna.json").read_text())
+    assert data["project_name"] == "old"
