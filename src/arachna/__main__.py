@@ -129,6 +129,7 @@ def main():
         "--merge", action="store_true", help="Append to existing output instead of replacing"
     )
     parser.add_argument("--force", action="store_true", help="Force overwrite with --install-hook")
+    parser.add_argument("--preset", help="Use specific preset with --init (e.g. godot, unity)")
 
     args = parser.parse_args()
     config = load_config()
@@ -140,9 +141,9 @@ def main():
         from .init import run_defaults, run_interactive
 
         if args.defaults:
-            run_defaults(output_dir)
+            run_defaults(output_dir, preset=args.preset)
         else:
-            run_interactive(output_dir)
+            run_interactive(output_dir, preset=args.preset)
     elif args.list:
         _cmd_list(config)
     elif args.validate:

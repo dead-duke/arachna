@@ -3,11 +3,7 @@
 import json
 from pathlib import Path
 
-from .presets import (
-    _SEPARATOR,
-    detect_presets,
-    preset_to_profile,
-)
+from .presets import _SEPARATOR, detect_presets, preset_to_profile
 
 
 def _ask(prompt: str, default: str) -> str:
@@ -23,7 +19,7 @@ def _ask_yes(prompt: str, default: bool = True) -> bool:
     return answer in ("y", "yes")
 
 
-def run_defaults(output_dir: str = "."):
+def run_defaults(output_dir: str = ".", preset: str | None = None):
     cwd = Path.cwd()
     project_name = cwd.resolve().name
     config = {
@@ -32,7 +28,7 @@ def run_defaults(output_dir: str = "."):
         "profiles": {},
     }
 
-    detected = detect_presets()
+    detected = detect_presets(preset_name=preset)
 
     for name in detected:
         profile = preset_to_profile(name)
@@ -43,7 +39,7 @@ def run_defaults(output_dir: str = "."):
     print(f"Profiles: {', '.join(config['profiles'].keys())}")
 
 
-def run_interactive(output_dir: str = "."):
+def run_interactive(output_dir: str = ".", preset: str | None = None):
     cwd = Path.cwd()
     from .config import find_config
 
@@ -63,7 +59,7 @@ def run_interactive(output_dir: str = "."):
     print("Detected:")
     print(_SEPARATOR)
 
-    detected = detect_presets()
+    detected = detect_presets(preset_name=preset)
     profiles = {}
 
     for name in detected:
@@ -72,7 +68,6 @@ def run_interactive(output_dir: str = "."):
             continue
         profile["max_tokens"] = max_tokens
 
-        # Show what was detected for this preset
         dirs = profile.get("directories", [])
         files = profile.get("files", [])
         if dirs:

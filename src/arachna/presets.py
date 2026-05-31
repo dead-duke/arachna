@@ -1,8 +1,10 @@
 """Language and engine presets for arachna init."""
 
+import json
 from pathlib import Path
 
 _SEPARATOR = "-" * 50
+DEFAULT_PRESETS_PATH = "presets.json"
 
 # ── Detection helpers ──────────────────────────────────────────────
 
@@ -25,18 +27,8 @@ _GIT_CMD = (
 )
 
 # ── Preset definitions ──────────────────────────────────────────────
-# Each preset is a dict:
-#   dirs: list[str]           directories to scan
-#   patterns: list[str]       glob patterns for scanned dirs
-#   files: list[str]          explicit files to include
-#   pre_commands: list[str]   commands to run before collection
-#   max_tokens: int           token limit per part
-#   split_mode: str           "by_file" | "by_marker" | "by_paragraph" | "single"
-#   split_marker: str | None  marker for "by_marker" mode
-#   detect: list[str]         paths to check for auto-detection (dirs or files)
 
 PRESETS: dict[str, dict] = {
-    # ── Python ──
     "python": {
         "dirs": ["src", "app", "lib", "pkg", "scripts"],
         "patterns": ["*.py"],
@@ -48,7 +40,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["src", "app", "lib", "pkg"],
     },
-    # ── JavaScript / TypeScript ──
     "javascript": {
         "dirs": ["src", "app", "lib", "scripts"],
         "patterns": ["*.js", "*.ts", "*.jsx", "*.tsx"],
@@ -60,7 +51,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["package.json", "tsconfig.json"],
     },
-    # ── Tests (Python / JS / Go / Rust) ──
     "tests": {
         "dirs": ["tests", "test"],
         "patterns": ["*.py", "*.js", "*.ts", "*.go", "*.rs"],
@@ -70,7 +60,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["tests", "test"],
     },
-    # ── Documentation ──
     "docs": {
         "dirs": ["docs", "documentation", "data/prompts", "config/messages"],
         "patterns": ["*.md", "*.txt", "*.json"],
@@ -80,7 +69,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["docs", "documentation", "README.md", "TODO.md"],
     },
-    # ── Git history ──
     "git": {
         "dirs": [],
         "patterns": [],
@@ -91,7 +79,6 @@ PRESETS: dict[str, dict] = {
         "split_marker": "\n=== COMMIT:",
         "detect": [".git"],
     },
-    # ── Configuration files (cross-language) ──
     "config": {
         "dirs": [],
         "patterns": [],
@@ -109,7 +96,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": [],
     },
-    # ── Godot Engine ──
     "godot": {
         "dirs": ["."],
         "patterns": ["*.gd", "*.tscn", "*.tres", "*.gdshader"],
@@ -119,7 +105,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["project.godot"],
     },
-    # ── Unity ──
     "unity": {
         "dirs": ["Assets"],
         "patterns": ["*.cs", "*.unity", "*.prefab"],
@@ -129,7 +114,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["Assets"],
     },
-    # ── C / C++ ──
     "c_cpp": {
         "dirs": ["src", "include"],
         "patterns": ["*.c", "*.cpp", "*.h", "*.hpp"],
@@ -139,7 +123,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["CMakeLists.txt", "src", "include"],
     },
-    # ── C# ──
     "csharp": {
         "dirs": ["."],
         "patterns": ["*.cs", "*.csproj", "*.sln"],
@@ -149,7 +132,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["*.csproj", "*.sln"],
     },
-    # ── Swift ──
     "swift": {
         "dirs": ["Sources", "Source", "src"],
         "patterns": ["*.swift"],
@@ -159,7 +141,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["Package.swift", "Sources", "Source"],
     },
-    # ── Kotlin / Java ──
     "kotlin_java": {
         "dirs": ["src"],
         "patterns": ["*.kt", "*.java"],
@@ -169,7 +150,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["build.gradle", "build.gradle.kts", "pom.xml"],
     },
-    # ── Ruby ──
     "ruby": {
         "dirs": ["lib", "app"],
         "patterns": ["*.rb"],
@@ -179,7 +159,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["Gemfile", "Rakefile"],
     },
-    # ── PHP ──
     "php": {
         "dirs": ["src", "app", "public"],
         "patterns": ["*.php"],
@@ -189,7 +168,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["composer.json"],
     },
-    # ── Docker ──
     "docker": {
         "dirs": [],
         "patterns": [],
@@ -199,7 +177,6 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"],
     },
-    # ── Terraform ──
     "terraform": {
         "dirs": ["."],
         "patterns": ["*.tf", "*.tfvars"],
@@ -211,65 +188,145 @@ PRESETS: dict[str, dict] = {
     },
 }
 
+# ── Service preset names ────────────────────────────────────────────
+# These are always checked after language/engine presets.
+
+_SERVICE_PRESETS = {"tests", "docs", "config", "git"}
+
+# ── Valid preset keys ───────────────────────────────────────────────
+
+_VALID_PRESET_KEYS = {
+    "dirs",
+    "patterns",
+    "files",
+    "pre_commands",
+    "max_tokens",
+    "split_mode",
+    "split_marker",
+    "detect",
+}
+
+_VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
+
+
+# ── External presets loading ────────────────────────────────────────
+
+
+def load_presets_from_file(path: str | Path) -> dict[str, dict]:
+    """Load presets from a JSON file.
+
+    Returns dict of preset_name -> preset_dict.
+    Returns empty dict if file doesn't exist or is invalid.
+    """
+    p = Path(path)
+    if not p.exists():
+        return {}
+
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Warning: failed to load {path}: {e}")
+        return {}
+
+    if not isinstance(data, dict):
+        print(f"Warning: {path} must contain a JSON object, got {type(data).__name__}")
+        return {}
+
+    result = {}
+    for name, preset in data.items():
+        if not isinstance(preset, dict):
+            print(f"Warning: preset '{name}' is not an object, skipping")
+            continue
+
+        unknown_keys = set(preset.keys()) - _VALID_PRESET_KEYS
+        if unknown_keys:
+            print(f"Warning: preset '{name}' has unknown keys: {', '.join(sorted(unknown_keys))}")
+
+        split_mode = preset.get("split_mode", "by_file")
+        if split_mode not in _VALID_SPLIT_MODES:
+            print(
+                f"Warning: preset '{name}' has invalid split_mode '{split_mode}', "
+                f"must be one of {', '.join(sorted(_VALID_SPLIT_MODES))}"
+            )
+            continue
+
+        max_tokens = preset.get("max_tokens", 16000)
+        if not isinstance(max_tokens, int) or max_tokens <= 0:
+            print(f"Warning: preset '{name}' max_tokens must be > 0, got {max_tokens}")
+            continue
+
+        for list_field in ("dirs", "patterns", "files", "pre_commands", "detect"):
+            if list_field in preset and not isinstance(preset[list_field], list):
+                print(
+                    f"Warning: preset '{name}' field '{list_field}' must be a list, "
+                    f"got {type(preset[list_field]).__name__}"
+                )
+                preset[list_field] = []
+
+        result[name] = preset
+
+    return result
+
+
+def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
+    """Get merged presets: built-in + external (external overrides built-in)."""
+    if external_path is None:
+        external_path = DEFAULT_PRESETS_PATH
+
+    merged = dict(PRESETS)
+    external = load_presets_from_file(external_path)
+    merged.update(external)
+    return merged
+
 
 # ── Auto-detection ──────────────────────────────────────────────────
 
 
-def detect_presets() -> list[str]:
+def detect_presets(
+    preset_name: str | None = None,
+    external_path: str | Path | None = None,
+) -> list[str]:
     """Return names of presets detected in the current directory.
 
-    Detection order determines profile order in generated config.
-    Special presets:
-      - "config" is always included if any config files exist
-      - "git" is always included if .git exists
-      - "tests" is included if test dirs exist
-      - "docs" is included if doc dirs/files exist
+    If preset_name is given, returns [preset_name] if it exists.
+    Otherwise auto-detects based on files/dirs in current directory.
     """
+    all_presets = get_all_presets(external_path)
+
+    if preset_name:
+        if preset_name in all_presets:
+            return [preset_name]
+        print(f"Warning: preset '{preset_name}' not found in built-in or external presets")
+        return []
+
     detected: list[str] = []
 
-    # Language/engine presets (mutually exclusive first-match wins for
-    # the "primary code" slot, but we collect all detected)
-    language_presets = [
-        "python",
-        "javascript",
-        "godot",
-        "unity",
-        "c_cpp",
-        "csharp",
-        "swift",
-        "kotlin_java",
-        "ruby",
-        "php",
-        "terraform",
-        "docker",
-    ]
-
-    for name in language_presets:
-        preset = PRESETS[name]
-        detect_paths = preset.get("detect", [])
-        if _detect_any(detect_paths):
-            detected.append(name)
-
-    # Always detect tests, docs, config, git if relevant
-    for name in ["tests", "docs"]:
-        preset = PRESETS[name]
+    # Language/engine presets: all non-service presets with detect paths
+    for name, preset in all_presets.items():
+        if name in _SERVICE_PRESETS:
+            continue
         if _detect_any(preset.get("detect", [])):
             detected.append(name)
 
-    if _detect_any(PRESETS["config"]["files"]):
+    # Service presets (always checked, only if they exist in all_presets)
+    for name in ["tests", "docs"]:
+        preset = all_presets.get(name)
+        if preset and _detect_any(preset.get("detect", [])):
+            detected.append(name)
+
+    config_preset = all_presets.get("config")
+    if config_preset and _detect_any(config_preset.get("files", [])):
         detected.append("config")
 
-    if _detect_any(PRESETS["git"]["detect"]):
+    git_preset = all_presets.get("git")
+    if git_preset and _detect_any(git_preset.get("detect", [])):
         detected.append("git")
 
     return detected
 
 
 def _detect_any(paths: list[str]) -> bool:
-    """Return True if any path (dir or file) exists.
-
-    Glob patterns (e.g. "*.csproj") are matched via Path.glob.
-    """
+    """Return True if any path (dir or file) exists."""
     cwd = Path.cwd()
     for p in paths:
         if "*" in p or "?" in p:
@@ -283,33 +340,39 @@ def _detect_any(paths: list[str]) -> bool:
 # ── Preset → profile helpers ────────────────────────────────────────
 
 
-def preset_to_profile(name: str) -> dict | None:
-    """Convert a preset to a profile dict suitable for .arachna.json.
-
-    Returns None if preset not found.
-    """
-    preset = PRESETS.get(name)
+def preset_to_profile(name: str, external_path: str | Path | None = None) -> dict | None:
+    """Convert a preset to a profile dict suitable for .arachna.json."""
+    all_presets = get_all_presets(external_path)
+    preset = all_presets.get(name)
     if preset is None:
         return None
 
     profile: dict = {
-        "split_mode": preset["split_mode"],
-        "max_tokens": preset["max_tokens"],
+        "split_mode": preset.get("split_mode", "by_file"),
+        "max_tokens": preset.get("max_tokens", 16000),
     }
 
-    if preset["dirs"]:
-        profile["directories"] = [d for d in preset["dirs"] if _detect_dir(d)]
-    if preset["patterns"]:
-        profile["patterns"] = preset["patterns"]
-    if preset["files"]:
-        profile["files"] = [f for f in preset["files"] if _detect_file(f)]
-    if preset.get("split_marker"):
-        profile["split_marker"] = preset["split_marker"]
-    if preset["pre_commands"]:
-        profile["pre_commands"] = preset["pre_commands"]
+    dirs = preset.get("dirs", [])
+    if dirs:
+        profile["directories"] = [d for d in dirs if _detect_dir(d)]
 
-    # If this is the git preset with a command, use command mode
-    if name == "git" and _GIT_CMD in preset["pre_commands"]:
+    patterns = preset.get("patterns", [])
+    if patterns:
+        profile["patterns"] = patterns
+
+    files = preset.get("files", [])
+    if files:
+        profile["files"] = [f for f in files if _detect_file(f)]
+
+    split_marker = preset.get("split_marker")
+    if split_marker:
+        profile["split_marker"] = split_marker
+
+    pre_commands = preset.get("pre_commands", [])
+    if pre_commands:
+        profile["pre_commands"] = pre_commands
+
+    if name == "git" and _GIT_CMD in pre_commands:
         profile.pop("directories", None)
         profile.pop("patterns", None)
         profile.pop("files", None)
@@ -319,10 +382,10 @@ def preset_to_profile(name: str) -> dict | None:
     return profile
 
 
-def get_detected_summary() -> dict[str, dict]:
-    """Return {preset_name: preset_dict} for all detected presets.
-
-    Used by run_interactive to show what was found.
-    """
-    detected_names = detect_presets()
-    return {name: PRESETS[name] for name in detected_names}
+def get_detected_summary(
+    external_path: str | Path | None = None,
+) -> dict[str, dict]:
+    """Return {preset_name: preset_dict} for all detected presets."""
+    all_presets = get_all_presets(external_path)
+    detected_names = detect_presets(external_path=external_path)
+    return {name: all_presets[name] for name in detected_names if name in all_presets}

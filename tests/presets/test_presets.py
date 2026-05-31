@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from arachna.presets import (
@@ -5,6 +6,8 @@ from arachna.presets import (
     _detect_dir,
     _detect_file,
     detect_presets,
+    get_all_presets,
+    load_presets_from_file,
     preset_to_profile,
 )
 
@@ -200,6 +203,31 @@ def test_detect_multiple(tmp_path, monkeypatch):
     assert "docker" in detected
 
 
+# ── detect_presets with explicit preset_name ────────────────────────
+
+
+def test_detect_presets_explicit(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    detected = detect_presets(preset_name="godot")
+    assert detected == ["godot"]
+
+
+def test_detect_presets_explicit_unknown(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    detected = detect_presets(preset_name="nonexistent")
+    assert detected == []
+
+
+def test_detect_presets_explicit_override(tmp_path, monkeypatch):
+    """Explicit preset skips auto-detection entirely."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("x")
+    (tmp_path / ".git").mkdir()
+    detected = detect_presets(preset_name="docker")
+    assert detected == ["docker"]
+
+
 # ── preset_to_profile ───────────────────────────────────────────────
 
 
@@ -242,6 +270,189 @@ def test_preset_to_profile_filters_missing(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     profile = preset_to_profile("docs")
     assert profile is not None
-    # Only existing files should be in the profile
     for f in profile.get("files", []):
         assert Path(f).exists()
+
+
+# ── load_presets_from_file ──────────────────────────────────────────
+
+
+def test_load_presets_valid(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "my_preset": {
+                    "dirs": ["src"],
+                    "patterns": ["*.py"],
+                    "max_tokens": 8000,
+                    "split_mode": "by_file",
+                }
+            }
+        )
+    )
+    result = load_presets_from_file(f)
+    assert "my_preset" in result
+    assert result["my_preset"]["dirs"] == ["src"]
+    assert result["my_preset"]["max_tokens"] == 8000
+
+
+def test_load_presets_not_found(tmp_path):
+    result = load_presets_from_file(tmp_path / "nonexistent.json")
+    assert result == {}
+
+
+def test_load_presets_invalid_json(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text("not json")
+    result = load_presets_from_file(f)
+    assert result == {}
+
+
+def test_load_presets_not_object(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(json.dumps(["list", "not", "object"]))
+    result = load_presets_from_file(f)
+    assert result == {}
+
+
+def test_load_presets_skips_non_dict_preset(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(json.dumps({"bad": "string_not_object"}))
+    result = load_presets_from_file(f)
+    assert result == {}
+
+
+def test_load_presets_invalid_split_mode(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(json.dumps({"bad": {"split_mode": "invalid", "max_tokens": 100}}))
+    result = load_presets_from_file(f)
+    assert "bad" not in result
+
+
+def test_load_presets_zero_max_tokens(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(json.dumps({"bad": {"split_mode": "by_file", "max_tokens": 0}}))
+    result = load_presets_from_file(f)
+    assert "bad" not in result
+
+
+def test_load_presets_negative_max_tokens(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(json.dumps({"bad": {"split_mode": "by_file", "max_tokens": -1}}))
+    result = load_presets_from_file(f)
+    assert "bad" not in result
+
+
+def test_load_presets_unknown_keys_warning(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps({"ok": {"split_mode": "by_file", "max_tokens": 100, "unknown_field": "x"}})
+    )
+    result = load_presets_from_file(f)
+    assert "ok" in result
+
+
+def test_load_presets_non_list_fields_converted(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps({"ok": {"split_mode": "by_file", "max_tokens": 100, "dirs": "not_a_list"}})
+    )
+    result = load_presets_from_file(f)
+    assert "ok" in result
+    assert result["ok"]["dirs"] == []
+
+
+# ── get_all_presets ─────────────────────────────────────────────────
+
+
+def test_get_all_presets_builtin():
+    all_presets = get_all_presets(external_path="/nonexistent.json")
+    assert "python" in all_presets
+    assert "godot" in all_presets
+
+
+def test_get_all_presets_merged(tmp_path):
+    f = tmp_path / "custom.json"
+    f.write_text(
+        json.dumps(
+            {
+                "python": {
+                    "dirs": ["custom_src"],
+                    "patterns": ["*.py"],
+                    "max_tokens": 32000,
+                    "split_mode": "by_file",
+                },
+                "my_game": {
+                    "dirs": ["game"],
+                    "patterns": ["*.lua"],
+                    "max_tokens": 8000,
+                    "split_mode": "by_file",
+                },
+            }
+        )
+    )
+    all_presets = get_all_presets(external_path=f)
+    assert all_presets["python"]["dirs"] == ["custom_src"]
+    assert all_presets["python"]["max_tokens"] == 32000
+    assert "my_game" in all_presets
+    assert all_presets["my_game"]["patterns"] == ["*.lua"]
+
+
+def test_get_all_presets_default_path():
+    """get_all_presets with no args uses DEFAULT_PRESETS_PATH."""
+    all_presets = get_all_presets()
+    assert "python" in all_presets
+
+
+# ── detect_presets with external ────────────────────────────────────
+
+
+def test_detect_presets_with_external_custom(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "game").mkdir()
+    (tmp_path / "game" / "main.lua").write_text("x")
+
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "my_game": {
+                    "dirs": ["game"],
+                    "patterns": ["*.lua"],
+                    "max_tokens": 8000,
+                    "split_mode": "by_file",
+                    "detect": ["game"],
+                }
+            }
+        )
+    )
+    detected = detect_presets(external_path=f)
+    assert "my_game" in detected
+    assert "git" in detected
+
+
+def test_preset_to_profile_external(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "game").mkdir()
+    (tmp_path / "game" / "main.lua").write_text("x")
+
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "my_game": {
+                    "dirs": ["game"],
+                    "patterns": ["*.lua"],
+                    "max_tokens": 8000,
+                    "split_mode": "by_file",
+                }
+            }
+        )
+    )
+    profile = preset_to_profile("my_game", external_path=f)
+    assert profile is not None
+    assert profile["split_mode"] == "by_file"
+    assert "game" in profile["directories"]
+    assert "*.lua" in profile["patterns"]
