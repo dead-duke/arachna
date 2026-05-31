@@ -2,15 +2,16 @@
   "project_name": "arachna",
   "output_dir": "arachna_context",
   "profiles": {
-    "all": {
+    "full": {
       "title_template": "# {project_name} — FULL CONTEXT (part {part})\n\n",
-      "name_template": "chat-all",
+      "name_template": "chat-full",
       "split_mode": "by_file",
       "directories": ["src", "tests", "llm_docs", ".github"],
       "patterns": ["*.py", "*.md", "*.txt", "*.json", "*.toml", "*.yaml", "*.yml", "*.cfg", "*.ini"],
       "files": [".arachna.json", ".gitignore", "pyproject.toml", "README.md", "TODO.md", "CHANGELOG.md", "Makefile", "LICENSE", "requirements-dev.txt", ".pre-commit-config.yaml"],
       "pre_commands": [
-        "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2"
+        "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2",
+        "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n'"
       ],
       "max_tokens": 32768
     }
