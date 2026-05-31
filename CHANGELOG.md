@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.0 — Public release
+
+- First public release on PyPI
+- __init__.py: bump __version__ to 1.0.0
+- pyproject.toml: bump version to 1.0.0
+
+## v0.9.5 — GitHub prep
+
+- pyproject.toml: URLs updated to github.com/dead-duke/arachna
+- README.md: added repo link, badges, safety section, doctor, hooks, full commands and options
+- __init__.py: bump __version__ to 0.9.5
+
 ## v0.9.4 — Final polish
 
 - runner.py: import json вынесен на верхний уровень модуля
