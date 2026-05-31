@@ -13,29 +13,9 @@ from pathlib import Path
 # These are well-known libraries that provide token counting.
 _SAFE_TOKENIZERS = frozenset({"tiktoken", "transformers"})
 
-
-def _is_safe_tokenizer(spec: str) -> bool:
-    """Check if a tokenizer spec is safe to import.
-
-    A spec is safe if:
-    - It's "default" or empty (built-in)
-    - The module name is in the whitelist (tiktoken, transformers)
-    - The module is importable from the current directory or sys.path
-      (user-provided tokenizer in the project)
-
-    Returns False for system modules like os, subprocess, sys, etc.
-    """
-    if not spec or spec == "default":
-        return True
-
-    module_name = spec.split(":", 1)[0]
-
-    # Whitelist check
-    if module_name in _SAFE_TOKENIZERS:
-        return True
-
-    # Block modules with suspicious names (common attack vectors)
-    suspicious = {
+# Modules with suspicious names (common attack vectors) — always blocked.
+_SUSPICIOUS_MODULES = frozenset(
+    {
         "os",
         "subprocess",
         "sys",
@@ -48,8 +28,79 @@ def _is_safe_tokenizer(spec: str) -> bool:
         "urllib",
         "requests",
         "pickle",
+        "base64",
+        "code",
+        "codeop",
+        "compileall",
+        "crypt",
+        "curses",
+        "email",
+        "ftplib",
+        "glob",
+        "hashlib",
+        "imaplib",
+        "io",
+        "json",
+        "logging",
+        "marshal",
+        "multiprocessing",
+        "pathlib",
+        "pdb",
+        "platform",
+        "poplib",
+        "posix",
+        "pprint",
+        "pty",
+        "random",
+        "re",
+        "runpy",
+        "shelve",
+        "shlex",
+        "signal",
+        "smtplib",
+        "sqlite3",
+        "ssl",
+        "struct",
+        "tempfile",
+        "textwrap",
+        "threading",
+        "time",
+        "traceback",
+        "uuid",
+        "webbrowser",
+        "xml",
+        "zipfile",
+        "zipimport",
     }
-    if module_name in suspicious:
+)
+
+
+def _is_safe_tokenizer(spec: str) -> bool:
+    """Check if a tokenizer spec is safe to import.
+
+    A spec is safe if:
+    - It's "default" or empty (built-in)
+    - The module name is in the whitelist (tiktoken, transformers)
+    - The module is a local .py file in the current directory or sys.path
+      (user-provided tokenizer in the project)
+
+    Returns False for:
+    - System modules like os, subprocess, sys, etc.
+    - Stdlib modules that shouldn't be used as tokenizers
+    - Suspicious module names (common attack vectors)
+    - Non-existent modules that aren't local files
+    """
+    if not spec or spec == "default":
+        return True
+
+    module_name = spec.split(":", 1)[0]
+
+    # Whitelist check — these are known safe tokenizer libraries
+    if module_name in _SAFE_TOKENIZERS:
+        return True
+
+    # Block modules with suspicious names (common attack vectors)
+    if module_name in _SUSPICIOUS_MODULES:
         return False
 
     # Block stdlib modules — they shouldn't be used as tokenizers

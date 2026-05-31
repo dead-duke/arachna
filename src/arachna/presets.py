@@ -216,13 +216,13 @@ _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 def _is_safe_tokenizer(spec: str) -> bool:
     """Check if a tokenizer spec is safe for use in presets.
 
-    Only "default" or whitelisted tokenizers (tiktoken, transformers)
-    are allowed in external presets. Arbitrary module imports are blocked.
+    Delegates to tokenizer._is_safe_tokenizer for consistent validation.
+    Only "default", whitelisted tokenizers (tiktoken, transformers),
+    or local .py files are allowed.
     """
-    if not spec or spec == "default":
-        return True
-    module_name = spec.split(":", 1)[0]
-    return module_name in {"tiktoken", "transformers"}
+    from .tokenizer import _is_safe_tokenizer as _tok_safe
+
+    return _tok_safe(spec)
 
 
 def load_presets_from_file(path: str | Path) -> dict[str, dict]:
@@ -397,11 +397,8 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
 
     # Propagate tokenizer if specified and safe
     tokenizer = preset.get("tokenizer", "default")
-    if tokenizer != "default":
-        from .tokenizer import _is_safe_tokenizer as _tok_safe
-
-        if _tok_safe(tokenizer):
-            profile["tokenizer"] = tokenizer
+    if tokenizer != "default" and _is_safe_tokenizer(tokenizer):
+        profile["tokenizer"] = tokenizer
 
     dirs = preset.get("dirs", [])
     if dirs:
