@@ -1,14 +1,9 @@
 # TODO
 
-## v1.2.1 — Security fix
-- [x] tokenizer.py: sandbox-валидация importlib — запретить произвольные импорты
-- [x] presets.py: валидация tokenizer в load_presets_from_file — запретить unsafe tokenizer во внешних пресетах
-- [x] presets.py: detect_presets с preset_name проверяет detect-пути
-- [x] Бамп __version__ до 1.2.1
-
-## v1.2.2 — CLI consistency
-- [x] init.py: run_interactive фильтрует автоопределение по --preset
-- [x] tests/presets: тесты на внешние пресеты с preset_name
+## v1.3.0 — Bug fixes
+- [ ] BUG-001: _validate_command — pipe в кавычках + word-boundary matching
+- [ ] BUG-004: c_cpp пресет — убрать "src" и "include" из detect
+- [ ] Бамп __version__ до 1.3.0
 
 ## Backlog
 - [ ] Unreal Engine пресет

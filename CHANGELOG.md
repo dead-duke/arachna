@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.2.2 — CLI consistency
+
+- init.py: run_interactive фильтрует автоопределение по --preset
+- tests/presets: тесты на внешние пресеты с preset_name
+- tests/init: test_init_preset_param.py — 5 тестов на --preset в интерактивном режиме
+
+## v1.2.1 — Security fix
+
+- tokenizer.py: _is_safe_tokenizer с whitelist и блокировкой stdlib
+- tokenizer.py: load_tokenizer выбрасывает ValueError для небезопасных модулей
+- presets.py: валидация tokenizer в load_presets_from_file
+- presets.py: detect_presets с preset_name проверяет detect-пути
+- presets.py: _VALID_PRESET_KEYS включает "tokenizer"
+- tests/tokenizer: test_unsafe_rejection.py — 12 тестов
+- tests/presets: тесты на unsafe tokenizer в load_presets_from_file
+- tests/presets: тесты на explicit preset_name с matching/non-matching путями
+
 ## v1.2.0 — Presets as config
 
 - presets.py: load_presets_from_file для внешнего presets.json
