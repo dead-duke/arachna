@@ -204,12 +204,25 @@ _VALID_PRESET_KEYS = {
     "split_mode",
     "split_marker",
     "detect",
+    "tokenizer",
 }
 
 _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 
 
 # ── External presets loading ────────────────────────────────────────
+
+
+def _is_safe_tokenizer(spec: str) -> bool:
+    """Check if a tokenizer spec is safe for use in presets.
+
+    Only "default" or whitelisted tokenizers (tiktoken, transformers)
+    are allowed in external presets. Arbitrary module imports are blocked.
+    """
+    if not spec or spec == "default":
+        return True
+    module_name = spec.split(":", 1)[0]
+    return module_name in {"tiktoken", "transformers"}
 
 
 def load_presets_from_file(path: str | Path) -> dict[str, dict]:
@@ -255,6 +268,16 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
             print(f"Warning: preset '{name}' max_tokens must be > 0, got {max_tokens}")
             continue
 
+        # Validate tokenizer safety for external presets
+        tokenizer = preset.get("tokenizer", "default")
+        if not _is_safe_tokenizer(tokenizer):
+            print(
+                f"Warning: preset '{name}' has unsafe tokenizer '{tokenizer}', "
+                f"using 'default' instead. Only 'default', 'tiktoken', or 'transformers' "
+                f"are allowed in external presets."
+            )
+            preset["tokenizer"] = "default"
+
         for list_field in ("dirs", "patterns", "files", "pre_commands", "detect"):
             if list_field in preset and not isinstance(preset[list_field], list):
                 print(
@@ -288,16 +311,36 @@ def detect_presets(
 ) -> list[str]:
     """Return names of presets detected in the current directory.
 
-    If preset_name is given, returns [preset_name] if it exists.
+    If preset_name is given, checks that the preset exists and its
+    detect-paths match the current project. Returns [preset_name] only
+    if the preset is compatible with the project.
+
     Otherwise auto-detects based on files/dirs in current directory.
     """
     all_presets = get_all_presets(external_path)
 
     if preset_name:
-        if preset_name in all_presets:
+        if preset_name not in all_presets:
+            print(f"Warning: preset '{preset_name}' not found in built-in or external presets")
+            return []
+
+        preset = all_presets[preset_name]
+        detect_paths = preset.get("detect", [])
+
+        # Service presets (tests, docs, config, git) or presets with empty detect
+        # are always allowed — their detection is optional.
+        if preset_name in _SERVICE_PRESETS or not detect_paths:
             return [preset_name]
-        print(f"Warning: preset '{preset_name}' not found in built-in or external presets")
-        return []
+
+        # For language/engine presets, verify detect-paths match the project
+        if not _detect_any(detect_paths):
+            print(
+                f"Warning: preset '{preset_name}' doesn't match this project "
+                f"(none of {detect_paths} found)"
+            )
+            return []
+
+        return [preset_name]
 
     detected: list[str] = []
 
@@ -351,6 +394,14 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
         "split_mode": preset.get("split_mode", "by_file"),
         "max_tokens": preset.get("max_tokens", 16000),
     }
+
+    # Propagate tokenizer if specified and safe
+    tokenizer = preset.get("tokenizer", "default")
+    if tokenizer != "default":
+        from .tokenizer import _is_safe_tokenizer as _tok_safe
+
+        if _tok_safe(tokenizer):
+            profile["tokenizer"] = tokenizer
 
     dirs = preset.get("dirs", [])
     if dirs:

@@ -1,27 +1,16 @@
 # TODO
 
-## v1.1.0 — Language & engine presets
-- [x] init.py: вынести пресеты в presets.py
-- [x] presets.py: Godot (project.godot, *.gd, *.tscn, *.tres, *.gdshader)
-- [x] presets.py: Unity (Assets/, *.cs, *.unity, *.prefab)
-- [x] presets.py: C/C++ (src/, include/, *.c, *.cpp, *.h, CMakeLists.txt)
-- [x] presets.py: C# (*.cs, *.csproj, *.sln)
-- [x] presets.py: Swift (*.swift, Package.swift)
-- [x] presets.py: Kotlin/Java (*.kt, *.java, build.gradle, pom.xml)
-- [x] presets.py: Ruby (*.rb, Gemfile, Rakefile)
-- [x] presets.py: PHP (*.php, composer.json)
-- [x] presets.py: Docker (Dockerfile, docker-compose.yml)
-- [x] presets.py: Terraform (*.tf, *.tfvars)
-- [x] formatter.py: добавить расширения в _EXT_LANG (gd, cs, swift, kt, java, rb, php, tf, dockerfile)
-- [x] init.py: автоопределение всех новых типов проектов
-- [x] Бамп __version__ до 1.1.0
+## v1.2.1 — Security fix
+- [x] tokenizer.py: sandbox-валидация importlib — запретить произвольные импорты
+- [x] presets.py: валидация tokenizer в load_presets_from_file — запретить unsafe tokenizer во внешних пресетах
+- [x] presets.py: detect_presets с preset_name проверяет detect-пути
+- [x] Бамп __version__ до 1.2.1
 
-## v1.2.0 — Presets as config
-- [x] presets.json: внешний файл с пресетами
-- [x] --preset godot: выбор пресета при инициализации
-- [x] Пользовательские пресеты (кастомный presets.json)
+## v1.2.2 — CLI consistency
+- [ ] init.py: run_interactive фильтрует автоопределение по --preset
+- [ ] tests/presets: тесты на внешние пресеты с preset_name
 
 ## Backlog
-- [ ] Unreal Engine пресет (слишком сложный формат .uasset)
+- [ ] Unreal Engine пресет
 - [ ] Интеграция в IDE (VS Code extension)
 - [ ] Web UI для визуального редактора профилей

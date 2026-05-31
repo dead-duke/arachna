@@ -206,10 +206,19 @@ def test_detect_multiple(tmp_path, monkeypatch):
 # ── detect_presets with explicit preset_name ────────────────────────
 
 
-def test_detect_presets_explicit(tmp_path, monkeypatch):
+def test_detect_presets_explicit_valid(tmp_path, monkeypatch):
+    """Explicit preset with matching detect-paths returns the preset."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / "project.godot").write_text("x")
     detected = detect_presets(preset_name="godot")
     assert detected == ["godot"]
+
+
+def test_detect_presets_explicit_no_match(tmp_path, monkeypatch):
+    """Explicit preset without matching detect-paths returns empty list."""
+    monkeypatch.chdir(tmp_path)
+    detected = detect_presets(preset_name="godot")
+    assert detected == []
 
 
 def test_detect_presets_explicit_unknown(tmp_path, monkeypatch):
@@ -218,14 +227,39 @@ def test_detect_presets_explicit_unknown(tmp_path, monkeypatch):
     assert detected == []
 
 
+def test_detect_presets_explicit_service_presets_always_allowed(tmp_path, monkeypatch):
+    """Service presets (tests, docs, config, git) are always allowed with explicit name."""
+    monkeypatch.chdir(tmp_path)
+    # git preset: detect=[".git"], but service presets skip detection
+    detected = detect_presets(preset_name="git")
+    assert detected == ["git"]
+
+    detected = detect_presets(preset_name="tests")
+    assert detected == ["tests"]
+
+    detected = detect_presets(preset_name="docs")
+    assert detected == ["docs"]
+
+    detected = detect_presets(preset_name="config")
+    assert detected == ["config"]
+
+
 def test_detect_presets_explicit_override(tmp_path, monkeypatch):
-    """Explicit preset skips auto-detection entirely."""
+    """Explicit preset with matching files skips auto-detection entirely."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
+    (tmp_path / "Dockerfile").write_text("FROM python")
     (tmp_path / ".git").mkdir()
     detected = detect_presets(preset_name="docker")
     assert detected == ["docker"]
+
+
+def test_detect_presets_explicit_config_no_detect_paths(tmp_path, monkeypatch):
+    """Config preset has empty detect list — always allowed."""
+    monkeypatch.chdir(tmp_path)
+    detected = detect_presets(preset_name="config")
+    assert detected == ["config"]
 
 
 # ── preset_to_profile ───────────────────────────────────────────────
@@ -363,6 +397,68 @@ def test_load_presets_non_list_fields_converted(tmp_path):
     assert result["ok"]["dirs"] == []
 
 
+def test_load_presets_unsafe_tokenizer_rejected(tmp_path):
+    """External preset with unsafe tokenizer gets reset to 'default'."""
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "bad_tok": {
+                    "dirs": ["src"],
+                    "patterns": ["*.py"],
+                    "max_tokens": 100,
+                    "split_mode": "by_file",
+                    "tokenizer": "os:system",
+                }
+            }
+        )
+    )
+    result = load_presets_from_file(f)
+    assert "bad_tok" in result
+    assert result["bad_tok"]["tokenizer"] == "default"
+
+
+def test_load_presets_safe_tokenizer_allowed(tmp_path):
+    """External preset with tiktoken tokenizer is allowed."""
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "safe_tok": {
+                    "dirs": ["src"],
+                    "patterns": ["*.py"],
+                    "max_tokens": 100,
+                    "split_mode": "by_file",
+                    "tokenizer": "tiktoken:cl100k_base",
+                }
+            }
+        )
+    )
+    result = load_presets_from_file(f)
+    assert "safe_tok" in result
+    assert result["safe_tok"]["tokenizer"] == "tiktoken:cl100k_base"
+
+
+def test_load_presets_default_tokenizer_unchanged(tmp_path):
+    """Default tokenizer passes validation unchanged."""
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "ok": {
+                    "dirs": ["src"],
+                    "patterns": ["*.py"],
+                    "max_tokens": 100,
+                    "split_mode": "by_file",
+                    "tokenizer": "default",
+                }
+            }
+        )
+    )
+    result = load_presets_from_file(f)
+    assert result["ok"]["tokenizer"] == "default"
+
+
 # ── get_all_presets ─────────────────────────────────────────────────
 
 
@@ -434,6 +530,78 @@ def test_detect_presets_with_external_custom(tmp_path, monkeypatch):
 
 
 def test_preset_to_profile_external(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "game").mkdir()
+    (tmp_path / "game" / "main.lua").write_text("x")
+
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "my_game": {
+                    "dirs": ["game"],
+                    "patterns": ["*.lua"],
+                    "max_tokens": 8000,
+                    "split_mode": "by_file",
+                }
+            }
+        )
+    )
+    profile = preset_to_profile("my_game", external_path=f)
+    assert profile is not None
+    assert profile["split_mode"] == "by_file"
+    assert "game" in profile["directories"]
+    assert "*.lua" in profile["patterns"]
+
+
+def test_detect_presets_explicit_external_with_name(tmp_path, monkeypatch):
+    """Explicit preset_name with external presets checks detect-paths."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "game").mkdir()
+    (tmp_path / "game" / "main.lua").write_text("x")
+
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "my_game": {
+                    "dirs": ["game"],
+                    "patterns": ["*.lua"],
+                    "max_tokens": 8000,
+                    "split_mode": "by_file",
+                    "detect": ["game"],
+                }
+            }
+        )
+    )
+    detected = detect_presets(preset_name="my_game", external_path=f)
+    assert detected == ["my_game"]
+
+
+def test_detect_presets_explicit_external_no_match(tmp_path, monkeypatch):
+    """Explicit preset_name with external presets returns empty if no match."""
+    monkeypatch.chdir(tmp_path)
+
+    f = tmp_path / "presets.json"
+    f.write_text(
+        json.dumps(
+            {
+                "my_game": {
+                    "dirs": ["game"],
+                    "patterns": ["*.lua"],
+                    "max_tokens": 8000,
+                    "split_mode": "by_file",
+                    "detect": ["game"],
+                }
+            }
+        )
+    )
+    detected = detect_presets(preset_name="my_game", external_path=f)
+    assert detected == []
+
+
+def test_preset_to_profile_external_with_name(tmp_path, monkeypatch):
+    """preset_to_profile with external presets and explicit name."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "game").mkdir()
     (tmp_path / "game" / "main.lua").write_text("x")
