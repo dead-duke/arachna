@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.2.0 — Presets as config
+
+- presets.py: load_presets_from_file для внешнего presets.json
+- presets.py: валидация пользовательских пресетов
+- __main__.py: --preset для выбора пресета при инициализации
+- init.py: run_defaults и run_interactive принимают preset
+- tests/presets: 42 теста на detect, load, merge, external presets
+
+## v1.1.0 — Language & engine presets
+
+- presets.py: 16 пресетов (Python, JS, Godot, Unity, C/C++, C#, Swift, Kotlin/Java, Ruby, PHP, Docker, Terraform, docs, tests, config, git)
+- init.py: переписан на presets.py, автоопределение всех типов проектов
+- formatter.py: расширения gd, cs, swift, kt, java, rb, php, tf, dockerfile
+- tests/init: тесты на все новые пресеты
+
 ## v1.0.2 — Fix --version CLI
 
 - __main__.py: handle --version before argparse to avoid mutually_exclusive_group conflict
