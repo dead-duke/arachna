@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "0.9.4"
+version = "1.0.0"
 description = "Context collector for AI — gathers project files into token-limited chunks"
 readme = "README.md"
 license = {text = "MIT"}
@@ -26,10 +26,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/artem-terenin/arachna"
-Repository = "https://github.com/artem-terenin/arachna"
-Issues = "https://github.com/artem-terenin/arachna/issues"
-Changelog = "https://github.com/artem-terenin/arachna/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/dead-duke/arachna"
+Repository = "https://github.com/dead-duke/arachna"
+Issues = "https://github.com/dead-duke/arachna/issues"
+Changelog = "https://github.com/dead-duke/arachna/blob/main/CHANGELOG.md"
 
 [project.scripts]
 arachna = "arachna.__main__:main"
