@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from arachna.formatter import (
     _is_binary_allowed,
     _lang_from_shebang,
