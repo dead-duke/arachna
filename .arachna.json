@@ -13,6 +13,8 @@
         "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2",
         "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n'"
       ],
+      "pre_split_mode": "by_marker",
+      "pre_split_marker": "\n=== COMMIT:",
       "max_tokens": 32768
     }
   }
