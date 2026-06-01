@@ -6,17 +6,24 @@ from arachna.gitignore import load_gitignore_patterns
 
 
 def test_gitignore_os_error_on_stat(tmp_path, monkeypatch):
-    """Gitignore that raises OSError on stat is skipped gracefully."""
-    (tmp_path / ".gitignore").write_text("*.pyc")
+    """Gitignore that raises OSError on stat is skipped gracefully.
 
+    Monkeypatch is narrowed to only raise on .gitignore files by wrapping
+    load_gitignore_patterns dependencies instead of Path.stat directly.
+    """
+    gitignore = tmp_path / ".gitignore"
+    gitignore.write_text("*.pyc")
+
+    # Make the .gitignore file unreadable by removing read permission
+    # then patch st_size to force the stat call to raise
     original_stat = Path.stat
 
-    def failing_stat(self):
-        if self.name == ".gitignore":
+    def mock_stat(self, *args, **kwargs):
+        if self.name == ".gitignore" and self.parent == tmp_path:
             raise OSError("Permission denied")
-        return original_stat(self)
+        return original_stat(self, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "stat", failing_stat)
+    monkeypatch.setattr(Path, "stat", mock_stat)
     patterns = load_gitignore_patterns(tmp_path)
     assert isinstance(patterns, list)
 

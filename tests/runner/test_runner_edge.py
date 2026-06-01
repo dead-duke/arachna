@@ -25,9 +25,8 @@ def test_dry_run_unsafe_non_interactive():
     assert result == ""
 
 
-def test_dry_run_unsafe_interactive_no(tmp_path, monkeypatch):
+def test_dry_run_unsafe_interactive_no():
     """Dry-run unsafe interactive: user declines, returns empty."""
-    monkeypatch.chdir(tmp_path)
     with (
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
@@ -42,9 +41,8 @@ def test_dry_run_shell_metachar_non_interactive():
     assert result == ""
 
 
-def test_dry_run_shell_metachar_interactive_no(tmp_path, monkeypatch):
+def test_dry_run_shell_metachar_interactive_no():
     """Dry-run shell metachar interactive: user declines."""
-    monkeypatch.chdir(tmp_path)
     with (
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
@@ -53,9 +51,8 @@ def test_dry_run_shell_metachar_interactive_no(tmp_path, monkeypatch):
         assert result == ""
 
 
-def test_dry_run_shell_metachar_interactive_yes(tmp_path, monkeypatch):
+def test_dry_run_shell_metachar_interactive_yes():
     """Dry-run shell metachar interactive: user confirms, executes."""
-    monkeypatch.chdir(tmp_path)
     with (
         patch("subprocess.run") as mock_run,
         patch("sys.stdin.isatty", return_value=True),
@@ -76,14 +73,27 @@ def test_log_command_no_config(tmp_path, monkeypatch):
 
 def test_log_command_os_error_on_write(tmp_path, monkeypatch):
     """_log_command handles OSError when writing audit log."""
-    monkeypatch.chdir(tmp_path)
     import json
 
+    monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
     out_dir = tmp_path / "out"
     out_dir.mkdir()
     # Make the log file a directory to cause OSError on write
     (out_dir / ".arachna_commands.log").mkdir()
+
+    # Should not raise
+    _log_command("echo hello", True)
+
+
+def test_log_command_permission_error_on_mkdir(tmp_path, monkeypatch):
+    """_log_command handles OSError when mkdir fails."""
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
+    # Make 'out' a file instead of directory — mkdir will fail
+    (tmp_path / "out").write_text("blocked")
 
     # Should not raise
     _log_command("echo hello", True)
