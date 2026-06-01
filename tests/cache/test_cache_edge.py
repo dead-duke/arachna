@@ -1,10 +1,14 @@
 """Edge case tests for cache.py to improve coverage."""
 
+import sys
 import time
+
+import pytest
 
 from arachna.cache import _file_hash, get_changed_files, save_cache
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o000 does not prevent reads on Windows")
 def test_file_hash_os_error(tmp_path):
     """_file_hash returns None when file raises OSError on stat."""
     f = tmp_path / "unreadable.py"
