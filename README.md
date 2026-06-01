@@ -14,60 +14,60 @@ arachna is a command-line tool that collects your project's source code and docu
 
 - Token-aware splitting: other tools split by lines, arachna splits by tokens
 - Zero dependencies: just Python stdlib
-- Multiple profiles: code, docs, tests, git history
+- Uniformly packed parts: all output chunks are filled densely to the token limit
+- Multiple presets: 16 language and engine presets out of the box
 - Smart defaults: arachna --init detects your project in seconds
 
 ## Install
-```
-pip install arachna
-```
+
+    pip install arachna
 
 ## Quick start
-```
-cd your-project
-arachna --init
-arachna --all
-```
+
+    cd your-project
+    arachna --init
+    arachna --all
+
 Creates arachna_context/ folder with .md files ready for AI.
 
 ## Commands
-```
-arachna --init              interactive setup
-arachna --init --defaults   auto-detect everything
-arachna --all               collect all profiles
-arachna --profile code      collect one profile
-arachna --all --dry-run     preview without writing
-arachna --clean             remove collected files
-arachna --list              show profiles
-arachna --validate          check config for errors
-arachna --doctor            run full diagnostic
-arachna --install-hook      install git post-commit hook
-```
+
+    arachna --init              interactive setup
+    arachna --init --defaults   auto-detect everything
+    arachna --init --preset X   use specific preset
+    arachna --all               collect all profiles
+    arachna --profile code      collect one profile
+    arachna --all --dry-run     preview without writing
+    arachna --clean             remove collected files
+    arachna --list              show profiles
+    arachna --validate          check config for errors
+    arachna --doctor            run full diagnostic
+    arachna --install-hook      install git post-commit hook
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `--output-dir path` | where to write (default: arachna_context/) |
-| `--verbose` | show skipped files |
-| `--compress` | remove blank lines and trailing spaces |
-| `--incremental` | only files changed since last run |
-| `--format xml` | markdown (default), xml, or json |
-| `--merge` | append to existing output instead of replacing |
-| `--dry-run` | preview without writing files |
-| `--force` | force overwrite with `--install-hook` |
+| --output-dir path | where to write (default: arachna_context/) |
+| --verbose | show skipped files |
+| --compress | remove blank lines and trailing spaces |
+| --incremental | only files changed since last run |
+| --format xml,json | markdown (default), xml, or json |
+| --merge | append to existing output instead of replacing |
+| --dry-run | preview without writing files |
+| --force | force overwrite with --install-hook |
 
 ## Safety
 
-Commands in `.arachna.json` (pre_commands, post_commands, command) are validated before execution. Unknown or dangerous commands are blocked by default. Use `--dry-run` to preview what will be executed before running.
+Commands in .arachna.json (pre_commands, post_commands, command) are validated before execution. Unknown or dangerous commands are blocked by default. Use --dry-run to preview what will be executed before running.
 
 ## Doctor
 
-`arachna --doctor` runs a full diagnostic of your configuration — validates all profiles, checks that directories and files exist, and verifies `.gitignore` integration. Use it when something doesn't work as expected.
+arachna --doctor runs a full diagnostic of your configuration — validates all profiles, checks that directories and files exist, and verifies .gitignore integration. Use it when something doesn't work as expected.
 
 ## Git hooks
 
-`arachna --install-hook` installs a post-commit hook that automatically runs arachna after each commit. Configure the command in `.arachna.json`:
+arachna --install-hook installs a post-commit hook that automatically runs arachna after each commit. Configure the command in .arachna.json:
 
 ```json
 {
@@ -118,40 +118,40 @@ Example for a Python project:
 
 ## Split modes
 
-by_file: code and docs, each file stays intact (default)
-by_paragraph: logs, splits on blank lines
-by_marker: git history, splits on custom marker
-single: everything in one file, truncates if too big
+- by_file: code and docs, each file stays intact (default)
+- by_paragraph: logs, splits on blank lines
+- by_marker: git history, splits on custom marker
+- single: everything in one file, truncates if too big
 
 ## All config fields
 
-split_mode: by_file, by_paragraph, by_marker, or single
-split_marker: string for by_marker mode
-directories: folders to scan
-patterns: glob patterns like ["*.py"]
-files: specific files to include
-exclude_patterns: glob patterns to skip
-pre_commands: shell commands before collection
-post_commands: shell commands after collection
-command: use command output instead of files
-max_tokens: token limit per output file
-section_format: markdown, xml, or json
-compress: enable safe whitespace compression (blank lines, trailing spaces). Does not modify indentation.
-include_binary: include binaries as base64 (true/false)
-binary_extensions: whitelist like [".png"]
-binary_max_mb: max binary file size in MB
+- split_mode: by_file, by_paragraph, by_marker, or single
+- split_marker: string for by_marker mode
+- directories: folders to scan
+- patterns: glob patterns like ["*.py"]
+- files: specific files to include
+- exclude_patterns: glob patterns to skip
+- pre_commands: shell commands before collection
+- post_commands: shell commands after collection
+- command: use command output instead of files
+- max_tokens: token limit per output file
+- section_format: markdown, xml, or json
+- compress: enable safe whitespace compression (blank lines, trailing spaces). Does not modify indentation.
+- include_binary: include binaries as base64 (true/false)
+- binary_extensions: whitelist like [".png"]
+- binary_max_mb: max binary file size in MB
 
 ## Output
 
 Files go to arachna_context/ (configurable):
 
-arachna_context/
-  .arachna_manifest.json
-  chat-manifest.md          # summary of all files
-  chat-code.md
-  chat-tests.md
-  chat-docs.md
-  chat-git.md
+    arachna_context/
+      .arachna_manifest.json
+      chat-manifest.md          # summary of all files
+      chat-code.md
+      chat-tests.md
+      chat-docs.md
+      chat-git.md
 
 When content exceeds max_tokens, files are numbered: chat-code_1.md, chat-code_2.md...
 
@@ -178,46 +178,81 @@ No dependencies. Always works. Set max_tokens below your model's context window:
 
 Add to your .arachna.json:
 
-  "tokenizer": "my_module:count_tokens"
+      "tokenizer": "my_module:count_tokens"
 
 Your module must export count_tokens(text) -> int. Example:
 
-  # my_tok.py
-  def count_tokens(text: str) -> int:
-      return max(1, len(text) // 4)  # your logic here
+    # my_tok.py
+    def count_tokens(text: str) -> int:
+        return max(1, len(text) // 4)  # your logic here
 
 ### Cloud models
 
 For exact token counts with cloud APIs, install tiktoken:
 
-  pip install tiktoken
+    pip install tiktoken
 
-  "tokenizer": "tiktoken:cl100k_base"    # GPT-4, DeepSeek
-  "tokenizer": "tiktoken:o200k_base"     # GPT-4o
+      "tokenizer": "tiktoken:cl100k_base"    # GPT-4, DeepSeek
+      "tokenizer": "tiktoken:o200k_base"     # GPT-4o
 
 ### Local models
 
 For exact token counts with HuggingFace tokenizers, install transformers:
 
-  pip install transformers
+    pip install transformers
 
-  "tokenizer": "transformers:Qwen/Qwen2.5-7B-Instruct"
-  "tokenizer": "transformers:mistralai/Mistral-7B-Instruct-v0.3"
-  "tokenizer": "transformers:google/gemma-7b"
+      "tokenizer": "transformers:Qwen/Qwen2.5-7B-Instruct"
+      "tokenizer": "transformers:mistralai/Mistral-7B-Instruct-v0.3"
+      "tokenizer": "transformers:google/gemma-7b"
 
 Note: transformers is a heavy dependency (gigabytes). Use only if you need exact counts.
 For most local models, the built-in estimate with safety margin is sufficient.
 
 ## Supported project types
 
-arachna --init auto-detects:
+arachna --init auto-detects 16 project types:
 
-Python: src/, app/, tests/, *.py, pyproject.toml, requirements.txt
-JS/TS: src/, tests/, *.js, *.ts, package.json
-Go: cmd/, pkg/, *.go, go.mod
-Rust: src/, tests/, *.rs, Cargo.toml
+### Languages
+- Python: src/, app/, lib/, pkg/, scripts/, *.py, pyproject.toml
+- JavaScript/TypeScript: src/, app/, lib/, *.js, *.ts, package.json
+- C/C++: src/, include/, *.c, *.cpp, *.h, CMakeLists.txt
+- C#: *.cs, *.csproj, *.sln
+- Swift: Sources/, *.swift, Package.swift
+- Kotlin/Java: src/, *.kt, *.java, build.gradle, pom.xml
+- Ruby: lib/, app/, *.rb, Gemfile
+- PHP: src/, app/, public/, *.php, composer.json
 
-Also: README.md, TODO.md, CHANGELOG.md, Makefile, config/, docs/, data/prompts/.
+### Engines
+- Godot: *.gd, *.tscn, *.tres, project.godot
+- Unity: Assets/, *.cs, *.unity, *.prefab
+
+### Infrastructure
+- Docker: Dockerfile, docker-compose.yml
+- Terraform: *.tf, *.tfvars
+
+### Service (always available)
+- tests: tests/, test/
+- docs: docs/, README.md, TODO.md, CHANGELOG.md, Makefile
+- config: pyproject.toml, package.json, go.mod, Cargo.toml, requirements.txt
+- git: git log --reverse with commit history
+
+### Custom presets
+
+Create presets.json in your project root to add or override presets:
+
+```json
+{
+  "my_game": {
+    "dirs": ["game"],
+    "patterns": ["*.lua"],
+    "max_tokens": 8000,
+    "split_mode": "by_file",
+    "detect": ["game"]
+  }
+}
+```
+
+Use with: arachna --init --preset my_game
 
 ## Links
 

@@ -1,42 +1,70 @@
 # Changelog
 
+## v1.4.1 — Unified split + audit fixes
+
+- gatherer.py: unified split — single section stream, dense part packing. Removed pre_split_mode/pre_split_marker
+- splitter.py: split_sections() for pre-built section lists
+- collector.py: _build_toc format-agnostic via named_sections
+- __main__.py: extracted _count_file_tokens helper
+- runner.py: removed mv, cp from _ALLOWED_COMMANDS
+- presets.py: service presets validate detect-paths with explicit preset_name
+- .arachna.json: removed pre_split_mode/pre_split_marker from full profile
+- tests: test_pre_split_mode.py rewritten for unified split (5 tests)
+- tests: test_toc_formats.py — 6 tests for markdown/xml/json TOC
+- tests: test_cache_edge.py, test_gitignore_errors.py, test_audit_log_errors.py, test_load_tokenizer_import.py (14 tests)
+- tests: removed duplicate external+preset_name tests from test_presets.py
+- 436 tests, 93% coverage
+
+## v1.4.0 — Security hardening + cleanup
+
+- tokenizer.py: removed fallback to sys.modules in _is_safe_tokenizer, deny by default
+- runner.py: removed chmod, chown from _ALLOWED_COMMANDS
+- gatherer.py: skip symlinks in _scan_directories with warning
+- gatherer.py: decomposed _assemble_content into _assemble_command_content and _assemble_file_content
+- __main__.py: --version via argparse action='version'
+- tests/runner: audit log coverage (3 tests)
+- tests/tokenizer: test_local_file_check.py (6 tests)
+- tests/runner: test_runner_edge.py (7 tests)
+- tests/formatter: test_should_skip_binary.py (9 tests)
+- 414 tests, 93% coverage
+
 ## v1.3.0 — Multi-source split modes + bug fixes
 
-- gatherer.py: pre_split_mode и pre_split_marker — раздельная нарезка pre_commands и файлов
-- runner.py: _split_pipe_parts с учётом кавычек, word-boundary matching для _BLOCKED_PATTERNS (BUG-001)
-- presets.py: c_cpp detect убран "src" и "include", оставлен только "CMakeLists.txt" (BUG-004)
+- gatherer.py: pre_split_mode and pre_split_marker — separate splitting of pre_commands and files
+- runner.py: _split_pipe_parts respects shell quoting, word-boundary matching for _BLOCKED_PATTERNS (BUG-001)
+- presets.py: c_cpp detect reduced to CMakeLists.txt only (BUG-004)
 
 ## v1.2.2 — CLI consistency
 
-- init.py: run_interactive фильтрует автоопределение по --preset
-- tests/presets: тесты на внешние пресеты с preset_name
-- tests/init: test_init_preset_param.py — 5 тестов на --preset в интерактивном режиме
+- init.py: run_interactive filters autodetection by --preset
+- tests/presets: tests for external presets with preset_name
+- tests/init: test_init_preset_param.py — 5 tests for --preset in interactive mode
 
 ## v1.2.1 — Security fix
 
-- tokenizer.py: _is_safe_tokenizer с whitelist и блокировкой stdlib
-- tokenizer.py: load_tokenizer выбрасывает ValueError для небезопасных модулей
-- presets.py: валидация tokenizer в load_presets_from_file
-- presets.py: detect_presets с preset_name проверяет detect-пути
-- presets.py: _VALID_PRESET_KEYS включает "tokenizer"
-- tests/tokenizer: test_unsafe_rejection.py — 12 тестов
-- tests/presets: тесты на unsafe tokenizer в load_presets_from_file
-- tests/presets: тесты на explicit preset_name с matching/non-matching путями
+- tokenizer.py: _is_safe_tokenizer with whitelist and stdlib blocking
+- tokenizer.py: load_tokenizer raises ValueError for unsafe modules
+- presets.py: tokenizer validation in load_presets_from_file
+- presets.py: detect_presets with preset_name validates detect-paths
+- presets.py: _VALID_PRESET_KEYS includes "tokenizer"
+- tests/tokenizer: test_unsafe_rejection.py — 12 tests
+- tests/presets: tests for unsafe tokenizer in load_presets_from_file
+- tests/presets: tests for explicit preset_name with matching/non-matching paths
 
 ## v1.2.0 — Presets as config
 
-- presets.py: load_presets_from_file для внешнего presets.json
-- presets.py: валидация пользовательских пресетов
-- __main__.py: --preset для выбора пресета при инициализации
-- init.py: run_defaults и run_interactive принимают preset
-- tests/presets: 42 теста на detect, load, merge, external presets
+- presets.py: load_presets_from_file for external presets.json
+- presets.py: validation of user presets
+- __main__.py: --preset for preset selection during init
+- init.py: run_defaults and run_interactive accept preset
+- tests/presets: 42 tests for detect, load, merge, external presets
 
 ## v1.1.0 — Language & engine presets
 
-- presets.py: 16 пресетов (Python, JS, Godot, Unity, C/C++, C#, Swift, Kotlin/Java, Ruby, PHP, Docker, Terraform, docs, tests, config, git)
-- init.py: переписан на presets.py, автоопределение всех типов проектов
-- formatter.py: расширения gd, cs, swift, kt, java, rb, php, tf, dockerfile
-- tests/init: тесты на все новые пресеты
+- presets.py: 16 presets (Python, JS, Godot, Unity, C/C++, C#, Swift, Kotlin/Java, Ruby, PHP, Docker, Terraform, docs, tests, config, git)
+- init.py: rewritten on presets.py, autodetection of all project types
+- formatter.py: extensions gd, cs, swift, kt, java, rb, php, tf, dockerfile
+- tests/init: tests for all new presets
 
 ## v1.0.2 — Fix --version CLI
 
@@ -67,27 +95,27 @@
 
 ## v0.9.4 — Final polish
 
-- runner.py: import json вынесен на верхний уровень модуля
-- gatherer.py: _assemble_content — общая функция сборки контента для collect и dry_run
-- collector.py: collect использует _assemble_content, убран дублирующийся код
+- runner.py: import json moved to module level
+- gatherer.py: _assemble_content — shared content assembly for collect and dry_run
+- collector.py: collect uses _assemble_content, removed duplicated assembly logic
 - __init__.py: bump __version__ to 0.9.4
 - pyproject.toml: bump version to 0.9.4
 
 ## v0.9.3 — Final fixes
 
-- __main__.py: _cmd_validate использует get_profile() для консистентной валидации
-- cache.py, gitignore.py: комментарии к _MAX_HASH_SIZE и _MAX_GITIGNORE_SIZE
-- gitignore.py: обработка ValueError от relative_to на всех вызовах
-- tests/runner: subprocess.CompletedProcess вместо MagicMock
+- __main__.py: _cmd_validate uses get_profile() for consistent validation
+- cache.py, gitignore.py: comments for _MAX_HASH_SIZE and _MAX_GITIGNORE_SIZE
+- gitignore.py: ValueError handling from relative_to on all calls
+- tests/runner: subprocess.CompletedProcess instead of MagicMock
 - __init__.py: bump __version__ to 0.9.3
 
 ## v0.9.2 — Pre-release fixes
 
 - hook.py: git_dir.exists() → git_dir.is_dir()
-- doctor.py: проверка project_root.is_dir() перед load_gitignore_patterns
-- gitignore.py: обработка ValueError от relative_to для симлинков
-- __main__.py: _cmd_doctor и _cmd_install_hook без неиспользуемых параметров
-- tests/doctor: тесты на _cmd_doctor и _cmd_install_hook с проверкой sys.exit
+- doctor.py: check project_root.is_dir() before load_gitignore_patterns
+- gitignore.py: ValueError handling from relative_to for symlinks
+- __main__.py: _cmd_doctor and _cmd_install_hook without unused parameters
+- tests/doctor: tests for _cmd_doctor and _cmd_install_hook with sys.exit check
 - __init__.py: bump __version__ to 0.9.2
 
 ## v0.9.1 — Version sync
@@ -97,129 +125,129 @@
 
 ## v0.9.0 — Infrastructure
 
-- PyPI-упаковка: authors, keywords, urls в pyproject.toml
-- Кроссплатформенные тесты (Windows CI)
+- PyPI packaging: authors, keywords, urls in pyproject.toml
+- Cross-platform tests (Windows CI)
 
 ## v0.8.5 — Sandbox
 
-- runner.py: dry-run + интерактивное подтверждение для недоверенных команд
-- runner.py: _is_safe_command для проверки безопасности в dry-run режиме
+- runner.py: dry-run + interactive confirmation for untrusted commands
+- runner.py: _is_safe_command for safety check in dry-run mode
 
 ## v0.8.4 — Merge
 
-- collector.py: --merge для --profile, добавление вывода к существующему манифесту
-- collector.py: _find_next_part_num для нумерации в merge режиме
+- collector.py: --merge for --profile, append output to existing manifest
+- collector.py: _find_next_part_num for numbering in merge mode
 
 ## v0.8.3 — Git hooks
 
-- hook.py: arachna --install-hook, установка post-commit хука
-- hook.py: настраиваемая команда через .arachna.json hook.post-commit
-- hook.py: --force для перезаписи существующего хука
+- hook.py: arachna --install-hook, post-commit hook installation
+- hook.py: configurable command via .arachna.json hook.post-commit
+- hook.py: --force to overwrite existing hook
 
 ## v0.8.2 — Doctor
 
-- doctor.py: arachna --doctor, проверка конфига и корректности контекста
-- doctor.py: run_doctor и print_doctor для программного использования
+- doctor.py: arachna --doctor, config validation and context integrity check
+- doctor.py: run_doctor and print_doctor for programmatic use
 
 ## v0.8.1 — Low fixes
 
-- config.py: DEFAULT_EXCLUDE генерируется из _COMMON_EXCLUDE_DIRS
-- splitter.py: токенизаторное усечение через бинарный поиск вместо CHARS_PER_TOKEN
-- tests/splitter: тесты на проброс кастомного токенизатора (MagicMock)
+- config.py: DEFAULT_EXCLUDE generated from _COMMON_EXCLUDE_DIRS
+- splitter.py: tokenizer-based truncation via binary search instead of CHARS_PER_TOKEN
+- tests/splitter: tests for custom tokenizer passthrough (MagicMock)
 
 ## v0.8.0 — God function
 
-- gatherer.py: декомпозиция _collect_named_sections
-- gatherer.py: _collect_directory_sections и _collect_file_sections
+- gatherer.py: decomposed _collect_named_sections
+- gatherer.py: _collect_directory_sections and _collect_file_sections
 
 ## v0.7.5 — Truncation API + shlex
 
-- splitter.py: was_truncated через logger.warning вместо print
-- runner.py: проверка пустой строки и непарных кавычек перед shlex.split
+- splitter.py: was_truncated via logger.warning instead of print
+- runner.py: empty string and unclosed quotes check before shlex.split
 
 ## v0.7.4 — Sandbox pipe fix
 
-- runner.py: проверка частей пайпа по отдельности в _validate_command
-- runner.py: _resolve_base вместо _resolve_command
+- runner.py: validate each pipe part individually in _validate_command
+- runner.py: _resolve_base instead of _resolve_command
 
 ## v0.7.3 — Test stability
 
-- tests: замена os.chdir на tmp_path/monkeypatch (все модули)
-- tests/runner: замокать subprocess.run
-- tests/config: изоляция от родительского .arachna.json
-- tests/gatherer/test_incremental.py: переписан на интеграционный тест
+- tests: replace os.chdir with tmp_path/monkeypatch (all modules)
+- tests/runner: mock subprocess.run
+- tests/config: isolate from parent .arachna.json
+- tests/gatherer/test_incremental.py: rewritten as integration test
 
 ## v0.7.2 — Architecture cleanup
 
-- gatherer.py: удалено глобальное _TOKENIZE, get_tokenizer, set_tokenizer
-- collector.py: убран fallback write_text в save_manifest
-- splitter.py: вынесен CHARS_PER_TOKEN, добавлен флаг truncated в _handle_single
-- config.py + gitignore.py: унифицированы EXCLUDED_DIRS
-- CHANGELOG.md: исправлена дезинформация и дублирование
+- gatherer.py: removed global _TOKENIZE, get_tokenizer, set_tokenizer
+- collector.py: removed fallback write_text in save_manifest
+- splitter.py: extracted CHARS_PER_TOKEN, added truncated flag to _handle_single
+- config.py + gitignore.py: unified EXCLUDED_DIRS
+- CHANGELOG.md: fixed disinformation and duplication
 
 ## v0.7.1 — Critical fixes
 
-- runner.py: удалены интерпретаторы (python, node, ruby, perl, php) из _ALLOWED_COMMANDS
-- splitter.py: исправлен проброс tokenizer в _build_parts (keyword args)
-- __main__.py: _apply_args_to_profile возвращает копию, не мутирует оригинал
+- runner.py: removed interpreters (python, node, ruby, perl, php) from _ALLOWED_COMMANDS
+- splitter.py: fixed tokenizer passthrough in _build_parts (keyword args)
+- __main__.py: _apply_args_to_profile returns copy, does not mutate original
 
 ## v0.7.0 — Security sandbox, architecture cleanup
 
-- runner.py: sandbox-валидация _validate_command с _BLOCKED_PATTERNS и _ALLOWED_COMMANDS
-- runner.py: аудит-лог команд в .arachna_commands.log
-- cache.py: атомарная запись через tempfile + os.replace
-- gitignore.py: ограничение размера, фильтрация EXCLUDED_DIRS, детект бинарных файлов
-- formatter.py: проверка размера до read_text, verbose skip reasons
-- __main__.py: рефакторинг _cmd_all и _cmd_single через _run_profile
+- runner.py: sandbox validation _validate_command with _BLOCKED_PATTERNS and _ALLOWED_COMMANDS
+- runner.py: audit log of commands in .arachna_commands.log
+- cache.py: atomic write via tempfile + os.replace
+- gitignore.py: size limit, EXCLUDED_DIRS filtering, binary file detection
+- formatter.py: size check before read_text, verbose skip reasons
+- __main__.py: refactored _cmd_all and _cmd_single via _run_profile
 - gatherer.py: set_tokenizer/get_tokenizer deprecated
 - 179 tests, 90% coverage
 
 ## v0.6.0 — Pluggable tokenizer
 
 - tokenizer.py: load_tokenizer(spec)
-- tokenizer field в profile
-- Проброшен через collector → gatherer
+- tokenizer field in profile
+- Plumbed through collector → gatherer
 - 179 tests, 90% coverage
 
 ## v0.5.0 — Tests, safety, audit fixes
 
-- Тесты: cache, completion, init, formatter xml/json, incremental, manifest
-- Убран compress_indent (небезопасный для Python)
-- Безопасное сжатие: пустые строки + trailing spaces
-- Shell security warning в README
+- Tests: cache, completion, init, formatter xml/json, incremental, manifest
+- Removed compress_indent (unsafe for Python)
+- Safe compression: blank lines + trailing spaces
+- Shell security warning in README
 - LICENSE (MIT)
 - 175 tests, 90% coverage
 
 ## v0.4.2 — Audit fixes
 
-- Убран мёртвый код в gatherer.py
-- Исправлены CJK token тесты
-- README: рекомендация по token margin
+- Removed dead code in gatherer.py
+- Fixed CJK token tests
+- README: token margin recommendation
 
 ## v0.4.1 — Table of contents + manifest
 
-- TOC в каждой части: список файлов
-- chat-manifest.md: сводка всех собранных файлов
+- TOC in each part: file list
+- chat-manifest.md: summary of all collected files
 
 ## v0.4.0 — Shell completion + hooks
 
-- bash и zsh completion (arachna --completion bash|zsh)
-- post_commands в профиле: запуск после коллекта
+- bash and zsh completion (arachna --completion bash|zsh)
+- post_commands in profile: run after collection
 - 144 tests, 70% coverage
 
 ## v0.3.0 — Compress, incremental, formats, binary
 
 - Whitespace compression (--compress)
-- Инкрементальный режим: mtime кэш (--incremental)
+- Incremental mode: mtime cache (--incremental)
 - section_format: markdown (default), xml, json (--format)
-- include_binary: base64 с фильтрами по размеру и расширению
+- include_binary: base64 with size/extension filters
 - 140 tests
 
 ## v0.2.2 — Git split marker, per-profile manifest cleanup
 
 - git split_marker: \n=== COMMIT:
-- --all: очистка всех файлов, пересборка всех профилей
-- --profile: очистка только этого профиля
+- --all: clean all files, rebuild all profiles
+- --profile: clean only this profile
 
 ## v0.2.1 — arachna init
 
@@ -235,16 +263,3 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
-
-## v1.4.0 — Security hardening + cleanup
-
-- tokenizer.py: убран fallback на sys.modules в _is_safe_tokenizer, deny by default
-- runner.py: убраны chmod, chown из _ALLOWED_COMMANDS
-- gatherer.py: пропуск симлинков в _scan_directories с предупреждением
-- gatherer.py: декомпозиция _assemble_content на _assemble_command_content и _assemble_file_content
-- __main__.py: --version через argparse action='version'
-- tests/runner: покрытие аудит-лога (3 теста)
-- tests/tokenizer: test_local_file_check.py (6 тестов)
-- tests/runner: test_runner_edge.py (7 тестов)
-- tests/formatter: test_should_skip_binary.py (9 тестов)
-- 414 тестов, 93% coverage
