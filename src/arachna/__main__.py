@@ -268,17 +268,22 @@ def _print_result(f: str):
     print(f"  {Path(f).name} ({lines} lines, ~{tokens} tokens)")
 
 
+def _count_file_tokens(f: str) -> int:
+    """Count tokens in a file without reading it twice across calls."""
+    p = Path(f)
+    if p.exists():
+        return count_tokens(p.read_text(encoding="utf-8"))
+    return 0
+
+
 def _write_manifest(out_path: Path, all_files: list[str], config: dict):
     lines = [
         f"# {config.get('project_name', 'Project')} — MANIFEST\n",
         "\nAll collected files:\n",
     ]
     for f in sorted(all_files):
-        p = Path(f)
-        if p.exists():
-            content = p.read_text(encoding="utf-8")
-            tokens = count_tokens(content)
-            lines.append(f"  {f} (~{tokens} tokens)")
+        tokens = _count_file_tokens(f)
+        lines.append(f"  {f} (~{tokens} tokens)")
     lines.append(f"\nTotal: {len(all_files)} file(s)\n")
 
     mf = out_path / "chat-manifest.md"

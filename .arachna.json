@@ -3,7 +3,7 @@
   "output_dir": "arachna_context",
   "profiles": {
     "full": {
-      "title_template": "# {project_name} — FULL CONTEXT (part {part})\n\n",
+      "title_template": "# {project_name} — FULL CONTEXT (part {part} of {total})\n\n",
       "name_template": "chat-full",
       "split_mode": "by_file",
       "directories": ["src", "tests", "llm_docs", ".github"],
@@ -13,8 +13,6 @@
         "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2",
         "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n'"
       ],
-      "pre_split_mode": "by_marker",
-      "pre_split_marker": "\n=== COMMIT:",
       "max_tokens": 32768
     }
   }

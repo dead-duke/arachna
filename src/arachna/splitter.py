@@ -42,6 +42,21 @@ def split(
     return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
 
 
+def split_sections(
+    sections: list[str],
+    max_tokens: int,
+    separator: str = "\n\n",
+    tokenizer: Callable[[str], int] | None = None,
+) -> list[str]:
+    """Split pre-built sections into token-limited parts.
+
+    Unlike split(), this takes already-separated sections and packs
+    them densely into parts without parsing a marker from raw content.
+    """
+    tk = tokenizer if tokenizer is not None else count_tokens
+    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
+
+
 def _split_to_sections(text: str, marker: str) -> list[str]:
     chunks = text.split(marker)
     result = []

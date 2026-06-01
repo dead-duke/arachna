@@ -123,7 +123,7 @@ def collect(
 
     created = []
     for i, part_content in enumerate(parts, start_num):
-        title = title_tmpl.format(project_name=project_name, part=i)
+        title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         if total_parts == 1 and not merge:
             filename = f"{name_tmpl}.md"
         elif total_parts == 1 and merge:
@@ -132,7 +132,7 @@ def collect(
             filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
-        toc = _build_toc(part_content, i, start_num + total_parts - 1, name_tmpl)
+        toc = _build_toc(named_sections, part_content, i, start_num + total_parts - 1)
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
@@ -149,18 +149,31 @@ def collect(
     return created
 
 
-def _build_toc(content: str, part_num: int, total_parts: int, name_tmpl: str) -> str:
-    lines = []
+def _build_toc(
+    named_sections: list[tuple[str, str, int]],
+    part_content: str,
+    part_num: int,
+    total_parts: int,
+) -> str:
+    """Build table of contents for a part.
+
+    Uses named_sections to list files present in this part's content.
+    Works for all output formats — detects files by matching section
+    content strings, not markdown headers.
+    """
     files = []
-    for line in content.split("\n"):
-        if line.startswith("### "):
-            fname = line[4:].strip()
-            files.append(fname)
+    for name, content, _tokens in named_sections:
+        if content.strip() in part_content:
+            # Extract filename from the name (may be "pre: ..." or full path)
+            if name.startswith("pre: "):
+                files.append(name)
+            else:
+                files.append(Path(name).name if "/" in name or "\\" in name else name)
 
     if not files:
         return ""
 
-    lines.append(f"\nPart {part_num} of {total_parts}. Files in this part:\n")
+    lines = [f"\nPart {part_num} of {total_parts}. Files in this part:\n"]
     for f in files:
         lines.append(f"  {f}")
     lines.append("")

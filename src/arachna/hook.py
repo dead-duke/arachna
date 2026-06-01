@@ -43,7 +43,7 @@ def install_hook(command: str | None = None, force: bool = False) -> tuple[bool,
     if hook_path.exists():
         if not force:
             return False, (
-                f"post-commit hook already exists at {hook_path}. " "Use --force to overwrite."
+                f"post-commit hook already exists at {hook_path}. Use --force to overwrite."
             )
         hook_path.unlink()
 

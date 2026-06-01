@@ -235,3 +235,16 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
+
+## v1.4.0 — Security hardening + cleanup
+
+- tokenizer.py: убран fallback на sys.modules в _is_safe_tokenizer, deny by default
+- runner.py: убраны chmod, chown из _ALLOWED_COMMANDS
+- gatherer.py: пропуск симлинков в _scan_directories с предупреждением
+- gatherer.py: декомпозиция _assemble_content на _assemble_command_content и _assemble_file_content
+- __main__.py: --version через argparse action='version'
+- tests/runner: покрытие аудит-лога (3 теста)
+- tests/tokenizer: test_local_file_check.py (6 тестов)
+- tests/runner: test_runner_edge.py (7 тестов)
+- tests/formatter: test_should_skip_binary.py (9 тестов)
+- 414 тестов, 93% coverage

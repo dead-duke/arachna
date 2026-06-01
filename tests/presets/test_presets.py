@@ -227,20 +227,19 @@ def test_detect_presets_explicit_unknown(tmp_path, monkeypatch):
     assert detected == []
 
 
-def test_detect_presets_explicit_service_presets_always_allowed(tmp_path, monkeypatch):
-    """Service presets (tests, docs, config, git) are always allowed with explicit name."""
+def test_detect_presets_explicit_service_no_match(tmp_path, monkeypatch):
+    """Service presets with explicit name now validate detect-paths (v1.4.1)."""
     monkeypatch.chdir(tmp_path)
     detected = detect_presets(preset_name="git")
+    assert detected == []
+
+
+def test_detect_presets_explicit_service_with_match(tmp_path, monkeypatch):
+    """Service presets with explicit name return preset when detect-path matches."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".git").mkdir()
+    detected = detect_presets(preset_name="git")
     assert detected == ["git"]
-
-    detected = detect_presets(preset_name="tests")
-    assert detected == ["tests"]
-
-    detected = detect_presets(preset_name="docs")
-    assert detected == ["docs"]
-
-    detected = detect_presets(preset_name="config")
-    assert detected == ["config"]
 
 
 def test_detect_presets_explicit_override(tmp_path, monkeypatch):

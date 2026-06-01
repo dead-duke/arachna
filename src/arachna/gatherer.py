@@ -9,7 +9,7 @@ from .compressor import compress
 from .formatter import format_file_section, is_excluded
 from .gitignore import load_gitignore_patterns
 from .runner import run_command
-from .splitter import split
+from .splitter import split, split_sections
 from .tokenizer import count_tokens
 
 
@@ -243,16 +243,13 @@ def _assemble_file_content(
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
     """Assemble content from directories, files, and pre_commands.
 
-    Handles pre_split_mode for separate splitting of pre_commands and files.
+    All sections are collected into a single list and packed densely
+    via split_sections() for uniform part sizes.
 
     Returns (named_sections, parts, updated_cache).
     """
     do_compress = profile.get("compress", False)
-    split_mode = profile.get("split_mode", "by_file")
-    split_marker = profile.get("split_marker", "\n\n")
     max_tokens = profile.get("max_tokens", 16000)
-    pre_split_mode = profile.get("pre_split_mode")
-    pre_split_marker = profile.get("pre_split_marker", "\n\n")
 
     named_sections, new_cache = _collect_named_sections(
         profile,
@@ -263,45 +260,23 @@ def _assemble_file_content(
         tokenizer=tokenizer,
     )
 
-    if pre_split_mode:
-        # Separate pre_commands from file sections for split
-        pre_sections = _collect_pre_commands(profile, tokenizer)
-        file_sections = [
-            (name, content, tokens)
-            for name, content, tokens in named_sections
-            if not name.startswith("pre: ")
-        ]
+    # Build list of section content strings
+    sections = []
+    for _name, content, _tokens in named_sections:
+        if do_compress and content.strip():
+            sections.append(compress(content))
+        else:
+            sections.append(content)
 
-        pre_raw = "\n\n".join(content for _, content, _ in pre_sections)
-        if do_compress and pre_raw.strip():
-            pre_raw = compress(pre_raw)
-        pre_parts = split(
-            pre_raw, max_tokens, pre_split_mode, pre_split_marker, tokenizer=tokenizer
-        )
+    if verbose and do_compress:
+        raw_tokens = sum(tokenizer(s) for s in sections)
+        comp_tokens = sum(tokenizer(s) for s in sections)
+        if raw_tokens > 0:
+            pct = (raw_tokens - comp_tokens) / raw_tokens * 100
+            print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
 
-        file_raw = "\n\n".join(content for _, content, _ in file_sections)
-        if do_compress and file_raw.strip():
-            file_raw = compress(file_raw)
-        file_parts = split(file_raw, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
-
-        parts = pre_parts + file_parts
-    else:
-        raw_content = "\n\n".join(content for _, content, _ in named_sections)
-        if do_compress and raw_content.strip():
-            orig_tokens = tokenizer(raw_content)
-            raw_content = compress(raw_content)
-            comp_tokens = tokenizer(raw_content)
-            if verbose:
-                pct = ((orig_tokens - comp_tokens) / orig_tokens * 100) if orig_tokens > 0 else 0
-                print(f"  Compressed: ~{orig_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
-            # Update named_sections with compressed content
-            updated_sections = []
-            for name, content, _ in named_sections:
-                comp_content = compress(content)
-                updated_sections.append((name, comp_content, tokenizer(comp_content)))
-            named_sections = updated_sections
-
-        parts = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
+    # Pack sections densely into token-limited parts
+    parts = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
 
     return named_sections, parts, new_cache
 

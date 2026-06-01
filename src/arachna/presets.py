@@ -315,7 +315,8 @@ def detect_presets(
     detect-paths match the current project. Returns [preset_name] only
     if the preset is compatible with the project.
 
-    Otherwise auto-detects based on files/dirs in current directory.
+    For service presets (tests, docs, config, git), detect-paths are
+    validated like language presets — warning if no match, not added.
     """
     all_presets = get_all_presets(external_path)
 
@@ -327,12 +328,11 @@ def detect_presets(
         preset = all_presets[preset_name]
         detect_paths = preset.get("detect", [])
 
-        # Service presets (tests, docs, config, git) or presets with empty detect
-        # are always allowed — their detection is optional.
-        if preset_name in _SERVICE_PRESETS or not detect_paths:
+        # Presets with empty detect list are always allowed (e.g. config)
+        if not detect_paths:
             return [preset_name]
 
-        # For language/engine presets, verify detect-paths match the project
+        # For all presets with detect paths, verify they match the project
         if not _detect_any(detect_paths):
             print(
                 f"Warning: preset '{preset_name}' doesn't match this project "
