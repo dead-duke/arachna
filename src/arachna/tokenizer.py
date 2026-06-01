@@ -78,33 +78,35 @@ _SUSPICIOUS_MODULES = frozenset(
 def _is_safe_tokenizer(spec: str) -> bool:
     """Check if a tokenizer spec is safe to import.
 
-    A spec is safe ONLY if:
-    - It's "default" or empty (built-in)
-    - The module name is in the whitelist (tiktoken, transformers)
-    - The module is a local .py file in the current directory or sys.path
-      (user-provided tokenizer in the project)
+    Safety check order (deny-by-default, each step gates the next):
+    1. "default" or empty → always safe (built-in)
+    2. Module name in _SAFE_TOKENIZERS whitelist → safe (tiktoken, transformers)
+    3. Module name in _SUSPICIOUS_MODULES → blocked (os, subprocess, ...)
+    4. Module name in sys.stdlib_module_names → blocked (json, pathlib, ...)
+    5. Module exists as local .py file in cwd or sys.path → safe
+       (user-provided tokenizer in the project)
+    6. Everything else → denied
 
-    Everything else is rejected — no fallback to sys.modules.
-    This follows the principle "deny by default, allow explicitly."
+    No fallback to sys.modules — principle of "deny by default, allow explicitly."
     """
     if not spec or spec == "default":
         return True
 
     module_name = spec.split(":", 1)[0]
 
-    # Whitelist check — these are known safe tokenizer libraries
+    # Step 2: whitelist check — known safe tokenizer libraries
     if module_name in _SAFE_TOKENIZERS:
         return True
 
-    # Block modules with suspicious names (common attack vectors)
+    # Step 3: block modules with suspicious names (common attack vectors)
     if module_name in _SUSPICIOUS_MODULES:
         return False
 
-    # Block stdlib modules — they shouldn't be used as tokenizers
+    # Step 4: block stdlib modules — they shouldn't be used as tokenizers
     if module_name in sys.stdlib_module_names:
         return False
 
-    # Check if the module is a local file: try cwd + sys.path
+    # Step 5: check if the module is a local file in cwd or sys.path
     paths_to_check = [Path.cwd()] + [Path(p) for p in sys.path if p]
     try:
         for base in paths_to_check:
@@ -117,7 +119,7 @@ def _is_safe_tokenizer(spec: str) -> bool:
     except OSError:
         pass
 
-    # Deny everything else — no fallback to sys.modules
+    # Step 6: deny everything else
     return False
 
 

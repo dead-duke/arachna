@@ -47,7 +47,6 @@ _ALLOWED_COMMANDS = frozenset(
         "uname",
         "which",
         "mkdir",
-        "touch",
         "diff",
         "comm",
         "join",

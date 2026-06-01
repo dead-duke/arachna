@@ -1,6 +1,7 @@
 """CLI entry point for arachna."""
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -31,9 +32,9 @@ def _collect_profile_names(config: dict, args) -> list[str]:
 def _apply_args_to_profile(profile: dict, args):
     """Apply CLI args to profile dict (compress, format).
 
-    Returns a modified copy — does not mutate the original.
+    Returns a deep copy — does not mutate the original.
     """
-    profile = dict(profile)
+    profile = copy.deepcopy(profile)
     if args.compress:
         profile["compress"] = True
     if args.format:
@@ -42,20 +43,20 @@ def _apply_args_to_profile(profile: dict, args):
 
 
 def _run_profile(name: str, config: dict, args, project_name: str, out_path: Path):
-    """Collect a single profile. Returns list of created files, or stats dict for dry-run."""
+    """Collect a single profile. Returns (created_files, tokens_by_file) tuple, or stats dict for dry-run."""
     try:
         profile = get_profile(name)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
-        return []  # unreachable unless sys.exit is mocked in tests
+        return [], {}  # unreachable unless sys.exit is mocked in tests
 
     profile = _apply_args_to_profile(profile, args)
 
     if args.dry_run:
         stats = dry_run(profile)
         stats["name"] = name
-        return stats
+        return stats, {}
 
     name_tmpl = profile.get("name_template", f"chat-{name}")
 
@@ -63,7 +64,7 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
     if not args.merge:
         clean_manifest(out_path, name_tmpl)
 
-    created = collect(
+    created, tokens_by_file = collect(
         profile,
         project_name,
         str(out_path),
@@ -86,7 +87,7 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
             updated.extend(created)
         save_manifest(out_path, updated)
 
-    return created
+    return created, tokens_by_file
 
 
 def main():
@@ -256,33 +257,32 @@ def _cmd_dry_run(config: dict, args):
     profiles_to_run = _collect_profile_names(config, args)
     all_stats = []
     for name in profiles_to_run:
-        stats = _run_profile(name, config, args, "", Path("."))
+        stats, _ = _run_profile(name, config, args, "", Path("."))
         all_stats.append(stats)
     render_dry_run(all_stats)
 
 
-def _print_result(f: str):
-    content = Path(f).read_text(encoding="utf-8")
-    lines = content.count("\n") + 1
-    tokens = count_tokens(content)
-    print(f"  {Path(f).name} ({lines} lines, ~{tokens} tokens)")
+def _print_collected(created: list[str]):
+    """Print summary of collected output files."""
+    if created:
+        for f in created:
+            content = Path(f).read_text(encoding="utf-8")
+            lines = content.count("\n") + 1
+            tokens = count_tokens(content)
+            print(f"  {Path(f).name} ({lines} lines, ~{tokens} tokens)")
+    else:
+        print("  No content collected.")
 
 
-def _count_file_tokens(f: str) -> int:
-    """Count tokens in a file without reading it twice across calls."""
-    p = Path(f)
-    if p.exists():
-        return count_tokens(p.read_text(encoding="utf-8"))
-    return 0
-
-
-def _write_manifest(out_path: Path, all_files: list[str], config: dict):
+def _write_manifest(
+    out_path: Path, all_files: list[str], tokens_by_file: dict[str, int], config: dict
+):
     lines = [
         f"# {config.get('project_name', 'Project')} — MANIFEST\n",
         "\nAll collected files:\n",
     ]
     for f in sorted(all_files):
-        tokens = _count_file_tokens(f)
+        tokens = tokens_by_file.get(f, 0)
         lines.append(f"  {f} (~{tokens} tokens)")
     lines.append(f"\nTotal: {len(all_files)} file(s)\n")
 
@@ -294,17 +294,18 @@ def _write_manifest(out_path: Path, all_files: list[str], config: dict):
 def _cmd_all(config: dict, args, project_name: str, out_path: Path):
     clean_manifest(out_path, "")
     all_created = []
+    all_tokens = {}
     for name in _list_profiles(config):
         print(f"[{name}] Collecting...")
-        created = _run_profile(name, config, args, project_name, out_path)
+        created, tokens_by_file = _run_profile(name, config, args, project_name, out_path)
         if created:
             all_created.extend(created)
-            for f in created:
-                _print_result(f)
+            all_tokens.update(tokens_by_file)
+            _print_collected(created)
         else:
             print("  No content collected.")
 
-    _write_manifest(out_path, all_created, config)
+    _write_manifest(out_path, all_created, all_tokens, config)
     all_created.append("chat-manifest.md")
     save_manifest(out_path, all_created)
 
@@ -312,12 +313,8 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
 def _cmd_single(config: dict, args, project_name: str, out_path: Path):
     name = args.profile
     print(f"[{name}] Collecting...")
-    created = _run_profile(name, config, args, project_name, out_path)
-    if created:
-        for f in created:
-            _print_result(f)
-    else:
-        print("  No content collected.")
+    created, tokens_by_file = _run_profile(name, config, args, project_name, out_path)
+    _print_collected(created)
 
 
 if __name__ == "__main__":

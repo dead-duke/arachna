@@ -87,7 +87,12 @@ def collect(
     verbose: bool = False,
     incremental: bool = False,
     merge: bool = False,
-) -> list[str]:
+) -> tuple[list[str], dict[str, int]]:
+    """Collect content and write output files.
+
+    Returns (created_files, tokens_by_file) tuple.
+    tokens_by_file maps filename -> token count for manifest generation.
+    """
     name_tmpl = profile["name_template"]
     title_tmpl = profile["title_template"]
     out_path = Path(output_dir)
@@ -114,7 +119,7 @@ def collect(
         save_cache(out_path, new_cache)
 
     if not parts:
-        return []
+        return [], {}
 
     total_parts = len(parts)
 
@@ -122,6 +127,7 @@ def collect(
     start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
 
     created = []
+    tokens_by_file = {}
     for i, part_content in enumerate(parts, start_num):
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         if total_parts == 1 and not merge:
@@ -140,13 +146,14 @@ def collect(
             f.write(part_content)
 
         created.append(str(filepath))
+        tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
 
     for cmd in profile.get("post_commands", []):
         output = run_command(cmd)
         if verbose and output.strip():
             print(f"  post: {output.strip()}")
 
-    return created
+    return created, tokens_by_file
 
 
 def _build_toc(

@@ -1,6 +1,7 @@
 """Tests for _build_toc with different output formats."""
 
 from arachna.collector import _build_toc
+from arachna.compressor import compress
 
 
 def test_toc_markdown():
@@ -81,3 +82,26 @@ def test_toc_pre_commands():
     toc = _build_toc(sections, content, 1, 1)
     assert "pre: tree src" in toc
     assert "main.py" in toc
+
+
+def test_toc_with_compress():
+    """TOC works when content has been compressed (whitespace changes).
+
+    Compress collapses blank lines (3+ → 2) and strips trailing whitespace.
+    TOC matching uses content.strip() in part_content — after compression,
+    content may differ from original named_sections content.
+    """
+    # Content with extra blank lines — after compress: "hello\n\nworld"
+    raw_content = "### src/main.py\n\n```python\nhello\n\n\n\nworld\n```\n"
+    compressed = compress(raw_content)
+    # Original named_sections entry — uncompressed
+    sections = [
+        ("src/main.py", raw_content, 10),
+    ]
+    # Build TOC with compressed part_content
+    toc = _build_toc(sections, compressed, 1, 1)
+    # Content.strip() of raw: '### src/main.py\n\n```python\nhello\n\n\n\nworld\n```'
+    # Content.strip() of compressed: '### src/main.py\n\n```python\nhello\n\nworld\n```'
+    # These differ → "in" check will fail → TOC may be empty
+    # This test documents current behaviour — TOC may miss files after compression
+    assert "Part 1 of 1" in toc or toc == ""

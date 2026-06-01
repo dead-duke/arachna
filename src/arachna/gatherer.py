@@ -269,7 +269,7 @@ def _assemble_file_content(
             sections.append(content)
 
     if verbose and do_compress:
-        raw_tokens = sum(tokenizer(s) for s in sections)
+        raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
         comp_tokens = sum(tokenizer(s) for s in sections)
         if raw_tokens > 0:
             pct = (raw_tokens - comp_tokens) / raw_tokens * 100

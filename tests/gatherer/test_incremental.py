@@ -21,11 +21,11 @@ def test_collect_incremental_skips_unchanged(tmp_path, monkeypatch):
     }
 
     # First run — should collect the file
-    created1 = collect(profile, "P", "out", incremental=True)
+    created1, _ = collect(profile, "P", "out", incremental=True)
     assert len(created1) == 1
 
     # Second run — file unchanged, should produce no output
-    created2 = collect(profile, "P", "out", incremental=True)
+    created2, _ = collect(profile, "P", "out", incremental=True)
     assert len(created2) == 0
 
 
@@ -50,14 +50,14 @@ def test_collect_incremental_detects_modified(tmp_path, monkeypatch):
     }
 
     # First run
-    created1 = collect(profile, "P", "out", incremental=True)
+    created1, _ = collect(profile, "P", "out", incremental=True)
     assert len(created1) == 1
 
     # Modify the file
     fp.write_text("modified")
 
     # Second run — should detect modification and collect again
-    created2 = collect(profile, "P", "out", incremental=True)
+    created2, _ = collect(profile, "P", "out", incremental=True)
     assert len(created2) == 1
 
 
@@ -81,12 +81,12 @@ def test_collect_incremental_detects_new_file(tmp_path, monkeypatch):
     }
 
     # First run — collect a.py
-    created1 = collect(profile, "P", "out", incremental=True)
+    created1, _ = collect(profile, "P", "out", incremental=True)
     assert len(created1) == 1
 
     # Add new file
     (src / "b.py").write_text("new file")
 
     # Second run — should detect new file
-    created2 = collect(profile, "P", "out", incremental=True)
+    created2, _ = collect(profile, "P", "out", incremental=True)
     assert len(created2) == 1

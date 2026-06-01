@@ -51,7 +51,7 @@ def install_hook(command: str | None = None, force: bool = False) -> tuple[bool,
     script = _HOOK_SCRIPT_TEMPLATE.format(command=command)
     hook_path.write_text(script)
 
-    # Make executable
-    hook_path.chmod(hook_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    # Make executable — owner and group only, not world-executable
+    hook_path.chmod(hook_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
 
     return True, f"post-commit hook installed: {hook_path} (command: {command})"
