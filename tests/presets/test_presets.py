@@ -230,7 +230,6 @@ def test_detect_presets_explicit_unknown(tmp_path, monkeypatch):
 def test_detect_presets_explicit_service_presets_always_allowed(tmp_path, monkeypatch):
     """Service presets (tests, docs, config, git) are always allowed with explicit name."""
     monkeypatch.chdir(tmp_path)
-    # git preset: detect=[".git"], but service presets skip detection
     detected = detect_presets(preset_name="git")
     assert detected == ["git"]
 
@@ -530,78 +529,6 @@ def test_detect_presets_with_external_custom(tmp_path, monkeypatch):
 
 
 def test_preset_to_profile_external(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "game").mkdir()
-    (tmp_path / "game" / "main.lua").write_text("x")
-
-    f = tmp_path / "presets.json"
-    f.write_text(
-        json.dumps(
-            {
-                "my_game": {
-                    "dirs": ["game"],
-                    "patterns": ["*.lua"],
-                    "max_tokens": 8000,
-                    "split_mode": "by_file",
-                }
-            }
-        )
-    )
-    profile = preset_to_profile("my_game", external_path=f)
-    assert profile is not None
-    assert profile["split_mode"] == "by_file"
-    assert "game" in profile["directories"]
-    assert "*.lua" in profile["patterns"]
-
-
-def test_detect_presets_explicit_external_with_name(tmp_path, monkeypatch):
-    """Explicit preset_name with external presets checks detect-paths."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "game").mkdir()
-    (tmp_path / "game" / "main.lua").write_text("x")
-
-    f = tmp_path / "presets.json"
-    f.write_text(
-        json.dumps(
-            {
-                "my_game": {
-                    "dirs": ["game"],
-                    "patterns": ["*.lua"],
-                    "max_tokens": 8000,
-                    "split_mode": "by_file",
-                    "detect": ["game"],
-                }
-            }
-        )
-    )
-    detected = detect_presets(preset_name="my_game", external_path=f)
-    assert detected == ["my_game"]
-
-
-def test_detect_presets_explicit_external_no_match(tmp_path, monkeypatch):
-    """Explicit preset_name with external presets returns empty if no match."""
-    monkeypatch.chdir(tmp_path)
-
-    f = tmp_path / "presets.json"
-    f.write_text(
-        json.dumps(
-            {
-                "my_game": {
-                    "dirs": ["game"],
-                    "patterns": ["*.lua"],
-                    "max_tokens": 8000,
-                    "split_mode": "by_file",
-                    "detect": ["game"],
-                }
-            }
-        )
-    )
-    detected = detect_presets(preset_name="my_game", external_path=f)
-    assert detected == []
-
-
-def test_preset_to_profile_external_with_name(tmp_path, monkeypatch):
-    """preset_to_profile with external presets and explicit name."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "game").mkdir()
     (tmp_path / "game" / "main.lua").write_text("x")

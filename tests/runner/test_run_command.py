@@ -215,3 +215,49 @@ def test_empty_args_after_split():
     """Empty command returns empty string."""
     assert run_command("") == ""
     assert run_command("   ") == ""
+
+
+def test_audit_log_written(tmp_path, monkeypatch):
+    """Audit log is written when .arachna.json exists."""
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = _completed_process(stdout="hello\n")
+        run_command("echo hello")
+
+    log_path = tmp_path / "out" / ".arachna_commands.log"
+    assert log_path.exists()
+    content = log_path.read_text()
+    assert "OK: echo hello" in content
+    assert "[20" in content  # timestamp starts with year
+
+
+def test_audit_log_blocked(tmp_path, monkeypatch):
+    """Audit log records FAIL for blocked commands."""
+    import json
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
+
+    result = run_command("curl http://evil.com")
+    assert result == ""
+
+    log_path = tmp_path / "out" / ".arachna_commands.log"
+    assert log_path.exists()
+    content = log_path.read_text()
+    assert "FAIL: curl http://evil.com" in content
+
+
+def test_audit_log_no_config(tmp_path, monkeypatch):
+    """Audit log falls back to arachna_context/ when no .arachna.json."""
+    monkeypatch.chdir(tmp_path)
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = _completed_process(stdout="hello\n")
+        run_command("echo hello")
+
+    log_path = tmp_path / "arachna_context" / ".arachna_commands.log"
+    assert log_path.exists()

@@ -33,12 +33,19 @@ def _scan_directories(
     profile: dict[str, Any],
     exclude: list[str],
 ) -> list[Path]:
-    """Scan directories for matching files, return sorted Path list."""
+    """Scan directories for matching files, return sorted Path list.
+
+    Symlinks are skipped with a warning to prevent path traversal
+    outside the project root.
+    """
     seen = []
     for directory in profile.get("directories", []):
         for pattern in profile.get("patterns", ["*"]):
             for filepath in sorted(Path(directory).rglob(pattern)):
                 if not filepath.is_file():
+                    continue
+                if filepath.is_symlink():
+                    print(f"  Warning: skipping symlink: {filepath}")
                     continue
                 if is_excluded(filepath, exclude):
                     continue
@@ -204,7 +211,29 @@ def _collect_named_sections(
     return named_sections, new_cache
 
 
-def _assemble_content(
+def _assemble_command_content(
+    profile: dict[str, Any],
+    tokenizer: Callable[[str], int],
+) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
+    """Assemble content from a command source.
+
+    Returns (named_sections, parts, empty_cache).
+    """
+    command = profile["command"]
+    do_compress = profile.get("compress", False)
+    split_mode = profile.get("split_mode", "by_file")
+    split_marker = profile.get("split_marker", "\n\n")
+    max_tokens = profile.get("max_tokens", 16000)
+
+    raw_content = gather_command(command)
+    if do_compress and raw_content.strip():
+        raw_content = compress(raw_content)
+    named_sections = [("command output", raw_content, tokenizer(raw_content))]
+    parts = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
+    return named_sections, parts, {}
+
+
+def _assemble_file_content(
     profile: dict[str, Any],
     exclude: list[str],
     tokenizer: Callable[[str], int],
@@ -212,15 +241,9 @@ def _assemble_content(
     cache: dict[str, float] | None = None,
     verbose: bool = False,
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
-    """Assemble raw content from profile and split into token-limited parts.
+    """Assemble content from directories, files, and pre_commands.
 
-    Handles command mode, directory scans, specific files, pre_commands,
-    compression, and splitting — the shared pipeline for both collect and dry_run.
-
-    If pre_split_mode is set in profile, pre_commands output is split separately
-    using that mode and its parts are prepended to the file-based parts.
-    This allows different split strategies for pre_commands (e.g. by_marker for
-    git log) and files (e.g. by_file for source code).
+    Handles pre_split_mode for separate splitting of pre_commands and files.
 
     Returns (named_sections, parts, updated_cache).
     """
@@ -228,28 +251,41 @@ def _assemble_content(
     split_mode = profile.get("split_mode", "by_file")
     split_marker = profile.get("split_marker", "\n\n")
     max_tokens = profile.get("max_tokens", 16000)
-    command = profile.get("command")
-
-    # Pre-commands split settings (optional — if not set, pre_commands are
-    # merged with files and split together using the main split_mode)
     pre_split_mode = profile.get("pre_split_mode")
     pre_split_marker = profile.get("pre_split_marker", "\n\n")
 
-    if command:
-        raw_content = gather_command(command)
-        if do_compress and raw_content.strip():
-            raw_content = compress(raw_content)
-        named_sections = [("command output", raw_content, tokenizer(raw_content))]
-        new_cache = {}
-    else:
-        named_sections, new_cache = _collect_named_sections(
-            profile,
-            exclude,
-            incremental=incremental,
-            cache=cache,
-            verbose=verbose,
-            tokenizer=tokenizer,
+    named_sections, new_cache = _collect_named_sections(
+        profile,
+        exclude,
+        incremental=incremental,
+        cache=cache,
+        verbose=verbose,
+        tokenizer=tokenizer,
+    )
+
+    if pre_split_mode:
+        # Separate pre_commands from file sections for split
+        pre_sections = _collect_pre_commands(profile, tokenizer)
+        file_sections = [
+            (name, content, tokens)
+            for name, content, tokens in named_sections
+            if not name.startswith("pre: ")
+        ]
+
+        pre_raw = "\n\n".join(content for _, content, _ in pre_sections)
+        if do_compress and pre_raw.strip():
+            pre_raw = compress(pre_raw)
+        pre_parts = split(
+            pre_raw, max_tokens, pre_split_mode, pre_split_marker, tokenizer=tokenizer
         )
+
+        file_raw = "\n\n".join(content for _, content, _ in file_sections)
+        if do_compress and file_raw.strip():
+            file_raw = compress(file_raw)
+        file_parts = split(file_raw, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
+
+        parts = pre_parts + file_parts
+    else:
         raw_content = "\n\n".join(content for _, content, _ in named_sections)
         if do_compress and raw_content.strip():
             orig_tokens = tokenizer(raw_content)
@@ -265,34 +301,36 @@ def _assemble_content(
                 updated_sections.append((name, comp_content, tokenizer(comp_content)))
             named_sections = updated_sections
 
-    # Split: if pre_split_mode is set, pre_commands are split separately
-    if pre_split_mode and not command:
-        pre_sections = _collect_pre_commands(profile, tokenizer)
-        file_sections = [
-            (name, content, tokens)
-            for name, content, tokens in named_sections
-            if not name.startswith("pre: ")
-        ]
-
-        # Split pre_commands output with their own mode
-        pre_raw = "\n\n".join(content for _, content, _ in pre_sections)
-        if do_compress and pre_raw.strip():
-            pre_raw = compress(pre_raw)
-        pre_parts = split(
-            pre_raw, max_tokens, pre_split_mode, pre_split_marker, tokenizer=tokenizer
-        )
-
-        # Split file content with main split_mode
-        file_raw = "\n\n".join(content for _, content, _ in file_sections)
-        if do_compress and file_raw.strip():
-            file_raw = compress(file_raw)
-        file_parts = split(file_raw, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
-
-        parts = pre_parts + file_parts
-    else:
         parts = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
 
     return named_sections, parts, new_cache
+
+
+def _assemble_content(
+    profile: dict[str, Any],
+    exclude: list[str],
+    tokenizer: Callable[[str], int],
+    incremental: bool = False,
+    cache: dict[str, float] | None = None,
+    verbose: bool = False,
+) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
+    """Assemble raw content from profile and split into token-limited parts.
+
+    Dispatches to _assemble_command_content for command-based profiles
+    or _assemble_file_content for directory/file-based profiles.
+
+    Returns (named_sections, parts, updated_cache).
+    """
+    if profile.get("command"):
+        return _assemble_command_content(profile, tokenizer)
+    return _assemble_file_content(
+        profile,
+        exclude,
+        tokenizer,
+        incremental=incremental,
+        cache=cache,
+        verbose=verbose,
+    )
 
 
 def gather_files(

@@ -50,8 +50,6 @@ _ALLOWED_COMMANDS = frozenset(
         "cp",
         "mv",
         "touch",
-        "chmod",
-        "chown",
         "diff",
         "comm",
         "join",

@@ -90,11 +90,7 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
 
 
 def main():
-    # Handle --version before argparse to avoid mutually_exclusive_group conflict
-    if "--version" in sys.argv:
-        print(f"arachna v{__version__}")
-        return
-
+    # Handle --completion before argparse (requires interactive output)
     if "--completion" in sys.argv:
         from .completion import main as completion_main
 
@@ -105,6 +101,7 @@ def main():
         return
 
     parser = argparse.ArgumentParser(description="arachna — context collector for AI")
+    parser.add_argument("--version", action="version", version=f"arachna v{__version__}")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--profile", "-p", help="Profile name to collect")
     group.add_argument("--all", "-a", action="store_true", help="Collect all profiles")

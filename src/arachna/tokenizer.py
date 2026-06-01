@@ -78,17 +78,14 @@ _SUSPICIOUS_MODULES = frozenset(
 def _is_safe_tokenizer(spec: str) -> bool:
     """Check if a tokenizer spec is safe to import.
 
-    A spec is safe if:
+    A spec is safe ONLY if:
     - It's "default" or empty (built-in)
     - The module name is in the whitelist (tiktoken, transformers)
     - The module is a local .py file in the current directory or sys.path
       (user-provided tokenizer in the project)
 
-    Returns False for:
-    - System modules like os, subprocess, sys, etc.
-    - Stdlib modules that shouldn't be used as tokenizers
-    - Suspicious module names (common attack vectors)
-    - Non-existent modules that aren't local files
+    Everything else is rejected — no fallback to sys.modules.
+    This follows the principle "deny by default, allow explicitly."
     """
     if not spec or spec == "default":
         return True
@@ -120,8 +117,8 @@ def _is_safe_tokenizer(spec: str) -> bool:
     except OSError:
         pass
 
-    # Allow if module is already loaded (installed package), reject otherwise
-    return module_name in sys.modules
+    # Deny everything else — no fallback to sys.modules
+    return False
 
 
 def count_tokens(text: str) -> int:
