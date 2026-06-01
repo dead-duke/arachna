@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.4.2 — Audit LOW fixes + compression stats bug
+
+- gatherer.py: fix compression stats — raw_tokens from named_sections, comp_tokens from compressed sections
+- runner.py: remove touch from _ALLOWED_COMMANDS (unused, FS modification risk)
+- __main__.py: extract _print_collected helper from _cmd_all/_cmd_single
+- hook.py: remove S_IXOTH from chmod, keep S_IXUSR | S_IXGRP
+- __main__.py: pass tokens_by_file from collect() to _write_manifest (memory instead of disk read)
+- __main__.py: use copy.deepcopy in _apply_args_to_profile
+- tokenizer.py: document safety check order in _is_safe_tokenizer docstring
+- collector.py: collect() now returns tuple (files, tokens_by_file)
+- tests: adapt all collect() callers for new return signature
+- tests/presets: remove duplicate external+preset_name tests from test_presets.py
+- tests/collector: add test_toc_with_compress to test_toc_formats.py
+
 ## v1.4.1 — Unified split + audit fixes
 
 - gatherer.py: unified split — single section stream, dense part packing. Removed pre_split_mode/pre_split_marker
