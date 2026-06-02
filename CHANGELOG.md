@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.4 — Security allowlist cleanup
+
+- runner.py: remove mkdir, xargs, sed, awk, tee from _ALLOWED_COMMANDS
+- All commands now strictly read-only
+- Makefile: sync check order with pre-commit (format before lint)
+- tests/integration: 13 end-to-end CLI tests
+- 455 tests, 94% coverage
+
 ## v1.4.3 — Unreal Engine preset + AGPLv3
 
 - presets.py: add Unreal Engine preset (Source/, Content/, *.cpp, *.h, *.cs, *.ini, *.uproject, *.uplugin)
