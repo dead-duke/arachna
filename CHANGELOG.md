@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.4.3 — Unreal Engine preset + AGPLv3
+
+- presets.py: add Unreal Engine preset (Source/, Content/, *.cpp, *.h, *.cs, *.ini, *.uproject, *.uplugin)
+- presets.py: detect Unreal by *.uproject glob
+- LICENSE: switch from MIT to GNU AGPLv3
+- pyproject.toml: license AGPL-3.0, version 1.4.3
+- README.md: AGPLv3 badge, Unreal Engine in supported types (17 presets)
+- tests/presets: test_detect_unreal, test_preset_to_profile_unreal, test_unreal_not_detected_without_uproject
+- 449 tests, 94% coverage
+
 ## v1.4.2 — Audit LOW fixes + compression stats bug
 
 - gatherer.py: fix compression stats — raw_tokens from named_sections, comp_tokens from compressed sections
