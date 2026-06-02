@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.5.0 — Architecture refactor + LOW fixes
+
+- presets.py: split PRESETS dict into individual JSON files in presets/ directory
+- presets.py: remove _SERVICE_PRESETS hardcoded set — all presets use detect-paths equally
+- collector.py: decompose collect() into _write_parts() and _run_post_commands()
+- splitter.py: remove CHARS_PER_TOKEN dead code
+- __main__.py: remove unreachable return after sys.exit in _run_profile()
+- formatter.py: add _TEXT_EXTENSIONS frozenset, single _should_skip_binary() entry point
+- MANIFEST.in: add graft src/arachna/presets/
+- 475 tests, 94% coverage
+
 ## v1.4.4 — Security allowlist cleanup
 
 - runner.py: remove mkdir, xargs, sed, awk, tee from _ALLOWED_COMMANDS
