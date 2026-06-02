@@ -1,7 +1,7 @@
 # arachna
 
 [![PyPI version](https://img.shields.io/pypi/v/arachna)](https://pypi.org/project/arachna/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
 Context collector for AI — gathers project files into token-limited chunks.
@@ -15,7 +15,7 @@ arachna is a command-line tool that collects your project's source code and docu
 - Token-aware splitting: other tools split by lines, arachna splits by tokens
 - Zero dependencies: just Python stdlib
 - Uniformly packed parts: all output chunks are filled densely to the token limit
-- Multiple presets: 16 language and engine presets out of the box
+- Multiple presets: 17 language and engine presets out of the box
 - Smart defaults: arachna --init detects your project in seconds
 
 ## Install
@@ -210,7 +210,7 @@ For most local models, the built-in estimate with safety margin is sufficient.
 
 ## Supported project types
 
-arachna --init auto-detects 16 project types:
+arachna --init auto-detects 17 project types:
 
 ### Languages
 - Python: src/, app/, lib/, pkg/, scripts/, *.py, pyproject.toml
@@ -225,6 +225,7 @@ arachna --init auto-detects 16 project types:
 ### Engines
 - Godot: *.gd, *.tscn, *.tres, project.godot
 - Unity: Assets/, *.cs, *.unity, *.prefab
+- Unreal Engine: Source/, Content/, *.cpp, *.h, *.cs, *.uproject, *.uplugin
 
 ### Infrastructure
 - Docker: Dockerfile, docker-compose.yml
@@ -262,4 +263,5 @@ Use with: arachna --init --preset my_game
 
 ## License
 
-MIT
+GNU Affero General Public License v3.0 (AGPL-3.0)
+See [LICENSE](LICENSE) for full text.
