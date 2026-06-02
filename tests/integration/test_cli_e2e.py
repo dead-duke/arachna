@@ -1,17 +1,21 @@
 """End-to-end integration tests — run arachna as a real process."""
 
 import json
+import os
 import subprocess
 import sys
 
 
 def _arachna(*args: str) -> subprocess.CompletedProcess:
     """Run arachna as subprocess, return CompletedProcess."""
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(
         [sys.executable, "-m", "arachna", *args],
         capture_output=True,
         text=True,
         timeout=30,
+        env=env,
     )
 
 
@@ -29,8 +33,24 @@ def test_list():
     assert "full:" in result.stdout
 
 
-def test_validate():
+def test_validate(tmp_path, monkeypatch):
     """TC-012: arachna --validate exits 0 on valid config."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "src").mkdir()
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "profiles": {
+                    "code": {
+                        "directories": ["src"],
+                        "max_tokens": 16000,
+                        "split_mode": "by_file",
+                    }
+                }
+            }
+        )
+    )
+
     result = _arachna("--validate")
     assert result.returncode == 0
     assert "valid" in result.stdout
