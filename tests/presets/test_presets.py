@@ -550,3 +550,50 @@ def test_preset_to_profile_external(tmp_path, monkeypatch):
     assert profile["split_mode"] == "by_file"
     assert "game" in profile["directories"]
     assert "*.lua" in profile["patterns"]
+
+
+# ── Unreal Engine ───────────────────────────────────────────────────
+
+
+def test_detect_unreal(tmp_path, monkeypatch):
+    """Unreal Engine preset detected when .uproject file exists."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "MyProject.uproject").write_text("{}")
+    (tmp_path / "Source").mkdir()
+    (tmp_path / "Source" / "MyClass.cpp").write_text("// C++")
+    (tmp_path / ".git").mkdir()
+    detected = detect_presets()
+    assert "unreal" in detected
+
+
+def test_preset_to_profile_unreal(tmp_path, monkeypatch):
+    """Unreal preset converts to profile with correct fields."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "MyProject.uproject").write_text("{}")
+    (tmp_path / "Source").mkdir()
+    (tmp_path / "Source" / "MyClass.cpp").write_text("// C++")
+    (tmp_path / "Content").mkdir()
+    (tmp_path / "Content" / "texture.uasset").write_bytes(b"\x00")
+
+    profile = preset_to_profile("unreal")
+    assert profile is not None
+    assert profile["split_mode"] == "by_file"
+    assert profile["max_tokens"] == 16000
+    assert "Source" in profile["directories"]
+    assert "Content" in profile["directories"]
+    assert "*.cpp" in profile["patterns"]
+    assert "*.h" in profile["patterns"]
+    assert "*.cs" in profile["patterns"]
+    assert "*.ini" in profile["patterns"]
+    assert "*.uproject" in profile["patterns"]
+    assert "*.uplugin" in profile["patterns"]
+
+
+def test_unreal_not_detected_without_uproject(tmp_path, monkeypatch):
+    """Unreal preset not detected when no .uproject file."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Source").mkdir()
+    (tmp_path / "Source" / "MyClass.cpp").write_text("// C++")
+    (tmp_path / ".git").mkdir()
+    detected = detect_presets()
+    assert "unreal" not in detected

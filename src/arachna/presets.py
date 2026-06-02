@@ -114,6 +114,15 @@ PRESETS: dict[str, dict] = {
         "split_mode": "by_file",
         "detect": ["Assets"],
     },
+    "unreal": {
+        "dirs": ["Source", "Content"],
+        "patterns": ["*.cpp", "*.h", "*.cs", "*.ini", "*.uproject", "*.uplugin"],
+        "files": [],
+        "pre_commands": ["tree Source Content 2>/dev/null || true"],
+        "max_tokens": 16000,
+        "split_mode": "by_file",
+        "detect": ["*.uproject"],
+    },
     "c_cpp": {
         "dirs": ["src", "include"],
         "patterns": ["*.c", "*.cpp", "*.h", "*.hpp"],
