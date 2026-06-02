@@ -1,0 +1,13 @@
+{
+  "dirs": [],
+  "patterns": [],
+  "files": [],
+  "pre_commands": [
+    "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n%nCHANGES:%n' --stat"
+  ],
+  "max_tokens": 16000,
+  "split_mode": "by_marker",
+  "split_marker": "\n=== COMMIT:",
+  "detect": [".git"],
+  "service": true
+}

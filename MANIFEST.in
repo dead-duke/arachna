@@ -1,7 +1,4 @@
 include README.md
-include CHANGELOG.md
 include LICENSE
-include TODO.md
-include requirements-dev.txt
-recursive-include src *.py
-recursive-include tests *.py
+include CHANGELOG.md
+graft src/arachna/presets

@@ -1,0 +1,10 @@
+{
+  "dirs": ["."],
+  "patterns": ["*.gd", "*.tscn", "*.tres", "*.gdshader"],
+  "files": ["project.godot"],
+  "pre_commands": ["tree -I '.godot|__pycache__' 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["project.godot"],
+  "service": false
+}

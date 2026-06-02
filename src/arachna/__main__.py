@@ -49,7 +49,6 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
-        return [], {}  # unreachable unless sys.exit is mocked in tests
 
     profile = _apply_args_to_profile(profile, args)
 
@@ -180,7 +179,6 @@ def _cmd_validate(config: dict):
     if not profiles:
         profiles = {"default": get_profile("default")}
     else:
-        # Apply setdefault through get_profile() for each profile
         profiles = {name: get_profile(name) for name in profiles}
     all_errors = 0
     all_warnings = 0

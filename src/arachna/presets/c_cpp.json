@@ -1,0 +1,10 @@
+{
+  "dirs": ["src", "include"],
+  "patterns": ["*.c", "*.cpp", "*.h", "*.hpp"],
+  "files": ["CMakeLists.txt", "Makefile"],
+  "pre_commands": ["tree src include 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["CMakeLists.txt"],
+  "service": false
+}

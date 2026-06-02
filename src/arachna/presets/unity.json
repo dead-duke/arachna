@@ -1,0 +1,10 @@
+{
+  "dirs": ["Assets"],
+  "patterns": ["*.cs", "*.unity", "*.prefab"],
+  "files": [],
+  "pre_commands": ["tree Assets 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["Assets"],
+  "service": false
+}

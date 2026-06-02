@@ -1,0 +1,10 @@
+{
+  "dirs": ["tests", "test"],
+  "patterns": ["*.py", "*.js", "*.ts", "*.go", "*.rs"],
+  "files": [],
+  "pre_commands": ["tree tests test 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["tests", "test"],
+  "service": true
+}

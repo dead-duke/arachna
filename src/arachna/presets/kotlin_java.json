@@ -1,0 +1,10 @@
+{
+  "dirs": ["src"],
+  "patterns": ["*.kt", "*.java"],
+  "files": ["build.gradle", "build.gradle.kts", "pom.xml"],
+  "pre_commands": ["tree src 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["build.gradle", "build.gradle.kts", "pom.xml"],
+  "service": false
+}

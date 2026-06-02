@@ -18,190 +18,6 @@ def _detect_file(path: str) -> bool:
     return Path(path).exists()
 
 
-# ── Git history command ─────────────────────────────────────────────
-
-_GIT_CMD = (
-    "git log --reverse "
-    "--format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n%nCHANGES:%n' "
-    "--stat"
-)
-
-# ── Preset definitions ──────────────────────────────────────────────
-
-PRESETS: dict[str, dict] = {
-    "python": {
-        "dirs": ["src", "app", "lib", "pkg", "scripts"],
-        "patterns": ["*.py"],
-        "files": ["pyproject.toml", "requirements.txt", "requirements-dev.txt"],
-        "pre_commands": [
-            "tree -I '__pycache__|*.pyc|*.egg-info|venv|node_modules' src app lib pkg scripts 2>/dev/null || true"
-        ],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["src", "app", "lib", "pkg"],
-    },
-    "javascript": {
-        "dirs": ["src", "app", "lib", "scripts"],
-        "patterns": ["*.js", "*.ts", "*.jsx", "*.tsx"],
-        "files": ["package.json", "tsconfig.json"],
-        "pre_commands": [
-            "tree -I 'node_modules|__pycache__|venv' src app lib scripts 2>/dev/null || true"
-        ],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["package.json", "tsconfig.json"],
-    },
-    "tests": {
-        "dirs": ["tests", "test"],
-        "patterns": ["*.py", "*.js", "*.ts", "*.go", "*.rs"],
-        "files": [],
-        "pre_commands": ["tree tests test 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["tests", "test"],
-    },
-    "docs": {
-        "dirs": ["docs", "documentation", "data/prompts", "config/messages"],
-        "patterns": ["*.md", "*.txt", "*.json"],
-        "files": ["README.md", "README_DEV.md", "TODO.md", "CHANGELOG.md", "Makefile"],
-        "pre_commands": [],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["docs", "documentation", "README.md", "TODO.md"],
-    },
-    "git": {
-        "dirs": [],
-        "patterns": [],
-        "files": [],
-        "pre_commands": [_GIT_CMD],
-        "max_tokens": 16000,
-        "split_mode": "by_marker",
-        "split_marker": "\n=== COMMIT:",
-        "detect": [".git"],
-    },
-    "config": {
-        "dirs": [],
-        "patterns": [],
-        "files": [
-            "package.json",
-            "tsconfig.json",
-            "go.mod",
-            "Cargo.toml",
-            "pyproject.toml",
-            "requirements.txt",
-            "requirements-dev.txt",
-        ],
-        "pre_commands": [],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": [],
-    },
-    "godot": {
-        "dirs": ["."],
-        "patterns": ["*.gd", "*.tscn", "*.tres", "*.gdshader"],
-        "files": ["project.godot"],
-        "pre_commands": ["tree -I '.godot|__pycache__' 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["project.godot"],
-    },
-    "unity": {
-        "dirs": ["Assets"],
-        "patterns": ["*.cs", "*.unity", "*.prefab"],
-        "files": [],
-        "pre_commands": ["tree Assets 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["Assets"],
-    },
-    "unreal": {
-        "dirs": ["Source", "Content"],
-        "patterns": ["*.cpp", "*.h", "*.cs", "*.ini", "*.uproject", "*.uplugin"],
-        "files": [],
-        "pre_commands": ["tree Source Content 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["*.uproject"],
-    },
-    "c_cpp": {
-        "dirs": ["src", "include"],
-        "patterns": ["*.c", "*.cpp", "*.h", "*.hpp"],
-        "files": ["CMakeLists.txt", "Makefile"],
-        "pre_commands": ["tree src include 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["CMakeLists.txt"],
-    },
-    "csharp": {
-        "dirs": ["."],
-        "patterns": ["*.cs", "*.csproj", "*.sln"],
-        "files": [],
-        "pre_commands": ["tree -I 'bin|obj|node_modules' 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["*.csproj", "*.sln"],
-    },
-    "swift": {
-        "dirs": ["Sources", "Source", "src"],
-        "patterns": ["*.swift"],
-        "files": ["Package.swift"],
-        "pre_commands": ["tree Sources Source src 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["Package.swift", "Sources", "Source"],
-    },
-    "kotlin_java": {
-        "dirs": ["src"],
-        "patterns": ["*.kt", "*.java"],
-        "files": ["build.gradle", "build.gradle.kts", "pom.xml"],
-        "pre_commands": ["tree src 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["build.gradle", "build.gradle.kts", "pom.xml"],
-    },
-    "ruby": {
-        "dirs": ["lib", "app"],
-        "patterns": ["*.rb"],
-        "files": ["Gemfile", "Rakefile"],
-        "pre_commands": ["tree lib app 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["Gemfile", "Rakefile"],
-    },
-    "php": {
-        "dirs": ["src", "app", "public"],
-        "patterns": ["*.php"],
-        "files": ["composer.json"],
-        "pre_commands": ["tree src app public 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["composer.json"],
-    },
-    "docker": {
-        "dirs": [],
-        "patterns": [],
-        "files": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"],
-        "pre_commands": [],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"],
-    },
-    "terraform": {
-        "dirs": ["."],
-        "patterns": ["*.tf", "*.tfvars"],
-        "files": [],
-        "pre_commands": ["tree -I '.terraform|__pycache__' 2>/dev/null || true"],
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "detect": ["*.tf"],
-    },
-}
-
-# ── Service preset names ────────────────────────────────────────────
-# These are always checked after language/engine presets.
-
-_SERVICE_PRESETS = {"tests", "docs", "config", "git"}
-
 # ── Valid preset keys ───────────────────────────────────────────────
 
 _VALID_PRESET_KEYS = {
@@ -214,9 +30,31 @@ _VALID_PRESET_KEYS = {
     "split_marker",
     "detect",
     "tokenizer",
+    "service",
 }
 
 _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
+
+
+# ── Built-in presets loading ───────────────────────────────────────
+
+
+def _load_builtin_presets() -> dict[str, dict]:
+    """Load built-in presets from presets/*.json files."""
+    presets_dir = Path(__file__).parent / "presets"
+    if not presets_dir.is_dir():
+        return {}
+
+    result = {}
+    for preset_file in sorted(presets_dir.glob("*.json")):
+        name = preset_file.stem
+        try:
+            data = json.loads(preset_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if isinstance(data, dict):
+            result[name] = data
+    return result
 
 
 # ── External presets loading ────────────────────────────────────────
@@ -305,7 +143,7 @@ def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
     if external_path is None:
         external_path = DEFAULT_PRESETS_PATH
 
-    merged = dict(PRESETS)
+    merged = _load_builtin_presets()
     external = load_presets_from_file(external_path)
     merged.update(external)
     return merged
@@ -324,8 +162,9 @@ def detect_presets(
     detect-paths match the current project. Returns [preset_name] only
     if the preset is compatible with the project.
 
-    For service presets (tests, docs, config, git), detect-paths are
-    validated like language presets — warning if no match, not added.
+    All presets (language, engine, service) are treated equally —
+    detect-paths are validated for every preset that has them.
+    Presets with empty detect list are always allowed.
     """
     all_presets = get_all_presets(external_path)
 
@@ -353,26 +192,13 @@ def detect_presets(
 
     detected: list[str] = []
 
-    # Language/engine presets: all non-service presets with detect paths
+    # All presets with detect paths — language, engine, and service alike
     for name, preset in all_presets.items():
-        if name in _SERVICE_PRESETS:
+        detect_paths = preset.get("detect", [])
+        if not detect_paths:
             continue
-        if _detect_any(preset.get("detect", [])):
+        if _detect_any(detect_paths):
             detected.append(name)
-
-    # Service presets (always checked, only if they exist in all_presets)
-    for name in ["tests", "docs"]:
-        preset = all_presets.get(name)
-        if preset and _detect_any(preset.get("detect", [])):
-            detected.append(name)
-
-    config_preset = all_presets.get("config")
-    if config_preset and _detect_any(config_preset.get("files", [])):
-        detected.append("config")
-
-    git_preset = all_presets.get("git")
-    if git_preset and _detect_any(git_preset.get("detect", [])):
-        detected.append("git")
 
     return detected
 
@@ -429,12 +255,14 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
     if pre_commands:
         profile["pre_commands"] = pre_commands
 
-    if name == "git" and _GIT_CMD in pre_commands:
+    # Git preset: convert to command-based profile
+    if name == "git" and pre_commands:
+        git_cmd = pre_commands[0]
         profile.pop("directories", None)
         profile.pop("patterns", None)
         profile.pop("files", None)
         profile.pop("pre_commands", None)
-        profile["command"] = _GIT_CMD
+        profile["command"] = git_cmd
 
     return profile
 

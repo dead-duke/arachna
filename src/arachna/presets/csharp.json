@@ -1,0 +1,10 @@
+{
+  "dirs": ["."],
+  "patterns": ["*.cs", "*.csproj", "*.sln"],
+  "files": [],
+  "pre_commands": ["tree -I 'bin|obj|node_modules' 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["*.csproj", "*.sln"],
+  "service": false
+}

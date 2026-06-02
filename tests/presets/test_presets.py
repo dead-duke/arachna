@@ -5,11 +5,55 @@ from arachna.presets import (
     _detect_any,
     _detect_dir,
     _detect_file,
+    _load_builtin_presets,
     detect_presets,
     get_all_presets,
     load_presets_from_file,
     preset_to_profile,
 )
+
+# ── _load_builtin_presets ──────────────────────────────────────────
+
+
+def test_load_builtin_presets_has_all():
+    """Built-in presets loaded from JSON files contain all expected presets."""
+    presets = _load_builtin_presets()
+    assert "python" in presets
+    assert "javascript" in presets
+    assert "godot" in presets
+    assert "unity" in presets
+    assert "unreal" in presets
+    assert "c_cpp" in presets
+    assert "csharp" in presets
+    assert "swift" in presets
+    assert "kotlin_java" in presets
+    assert "ruby" in presets
+    assert "php" in presets
+    assert "docker" in presets
+    assert "terraform" in presets
+    assert "tests" in presets
+    assert "docs" in presets
+    assert "config" in presets
+    assert "git" in presets
+
+
+def test_load_builtin_presets_service_field():
+    """Service presets have service: true, language presets have service: false."""
+    presets = _load_builtin_presets()
+    assert presets["tests"]["service"] is True
+    assert presets["docs"]["service"] is True
+    assert presets["config"]["service"] is True
+    assert presets["git"]["service"] is True
+    assert presets["python"]["service"] is False
+    assert presets["godot"]["service"] is False
+
+
+def test_load_builtin_presets_git_command():
+    """Git preset has pre_commands with git log command."""
+    presets = _load_builtin_presets()
+    assert len(presets["git"]["pre_commands"]) == 1
+    assert "git log" in presets["git"]["pre_commands"][0]
+
 
 # ── _detect_dir ─────────────────────────────────────────────────────
 
@@ -228,7 +272,7 @@ def test_detect_presets_explicit_unknown(tmp_path, monkeypatch):
 
 
 def test_detect_presets_explicit_service_no_match(tmp_path, monkeypatch):
-    """Service presets with explicit name now validate detect-paths (v1.4.1)."""
+    """Service presets with explicit name validate detect-paths."""
     monkeypatch.chdir(tmp_path)
     detected = detect_presets(preset_name="git")
     assert detected == []
@@ -597,3 +641,20 @@ def test_unreal_not_detected_without_uproject(tmp_path, monkeypatch):
     (tmp_path / ".git").mkdir()
     detected = detect_presets()
     assert "unreal" not in detected
+
+
+# ── No _SERVICE_PRESETS — all presets treated equally ───────────────
+
+
+def test_no_service_presets_hardcoded():
+    """_SERVICE_PRESETS should not exist in the module."""
+    import arachna.presets as p
+
+    assert not hasattr(p, "_SERVICE_PRESETS")
+
+
+def test_no_presets_dict_hardcoded():
+    """PRESETS dict should not exist — presets come from JSON files."""
+    import arachna.presets as p
+
+    assert not hasattr(p, "PRESETS")

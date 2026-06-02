@@ -7,9 +7,6 @@ from .tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.splitter")
 
-# Conservative estimate: 4 characters ≈ 1 token
-CHARS_PER_TOKEN = 4
-
 
 def split(
     raw_content: str,

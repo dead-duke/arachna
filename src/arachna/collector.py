@@ -80,82 +80,6 @@ def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
     return max_num + 1
 
 
-def collect(
-    profile: dict[str, Any],
-    project_name: str,
-    output_dir: str,
-    verbose: bool = False,
-    incremental: bool = False,
-    merge: bool = False,
-) -> tuple[list[str], dict[str, int]]:
-    """Collect content and write output files.
-
-    Returns (created_files, tokens_by_file) tuple.
-    tokens_by_file maps filename -> token count for manifest generation.
-    """
-    name_tmpl = profile["name_template"]
-    title_tmpl = profile["title_template"]
-    out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
-
-    # Load tokenizer if specified
-    tokenizer_spec = profile.get("tokenizer", "default")
-    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
-
-    exclude = _get_exclude_patterns(profile)
-
-    cache = load_cache(out_path) if incremental else None
-
-    named_sections, parts, new_cache = _assemble_content(
-        profile,
-        exclude,
-        tokenizer,
-        incremental=incremental,
-        cache=cache,
-        verbose=verbose,
-    )
-
-    if incremental:
-        save_cache(out_path, new_cache)
-
-    if not parts:
-        return [], {}
-
-    total_parts = len(parts)
-
-    # In merge mode, start numbering after existing files
-    start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
-
-    created = []
-    tokens_by_file = {}
-    for i, part_content in enumerate(parts, start_num):
-        title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
-        if total_parts == 1 and not merge:
-            filename = f"{name_tmpl}.md"
-        elif total_parts == 1 and merge:
-            filename = f"{name_tmpl}_{i}.md"
-        else:
-            filename = f"{name_tmpl}_{i}.md"
-        filepath = out_path / filename
-
-        toc = _build_toc(named_sections, part_content, i, start_num + total_parts - 1)
-
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(title)
-            f.write(toc)
-            f.write(part_content)
-
-        created.append(str(filepath))
-        tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
-
-    for cmd in profile.get("post_commands", []):
-        output = run_command(cmd)
-        if verbose and output.strip():
-            print(f"  post: {output.strip()}")
-
-    return created, tokens_by_file
-
-
 def _build_toc(
     named_sections: list[tuple[str, str, int]],
     part_content: str,
@@ -185,3 +109,102 @@ def _build_toc(
         lines.append(f"  {f}")
     lines.append("")
     return "\n".join(lines) + "\n"
+
+
+def _write_parts(
+    parts: list[str],
+    named_sections: list[tuple[str, str, int]],
+    out_path: Path,
+    name_tmpl: str,
+    title_tmpl: str,
+    project_name: str,
+    tokenizer: Any,
+    merge: bool = False,
+) -> tuple[list[str], dict[str, int]]:
+    """Write token-limited parts to output files.
+
+    Returns (created_files, tokens_by_file) tuple.
+    """
+    total_parts = len(parts)
+    start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
+
+    created = []
+    tokens_by_file = {}
+    for i, part_content in enumerate(parts, start_num):
+        title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
+        if total_parts == 1 and not merge:
+            filename = f"{name_tmpl}.md"
+        elif total_parts == 1 and merge:
+            filename = f"{name_tmpl}_{i}.md"
+        else:
+            filename = f"{name_tmpl}_{i}.md"
+        filepath = out_path / filename
+
+        toc = _build_toc(named_sections, part_content, i, start_num + total_parts - 1)
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(title)
+            f.write(toc)
+            f.write(part_content)
+
+        created.append(str(filepath))
+        tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
+
+    return created, tokens_by_file
+
+
+def _run_post_commands(commands: list[str], verbose: bool = False):
+    """Execute post-collection commands."""
+    for cmd in commands:
+        output = run_command(cmd)
+        if verbose and output.strip():
+            print(f"  post: {output.strip()}")
+
+
+def collect(
+    profile: dict[str, Any],
+    project_name: str,
+    output_dir: str,
+    verbose: bool = False,
+    incremental: bool = False,
+    merge: bool = False,
+) -> tuple[list[str], dict[str, int]]:
+    """Collect content and write output files.
+
+    Returns (created_files, tokens_by_file) tuple.
+    tokens_by_file maps filename -> token count for manifest generation.
+    """
+    name_tmpl = profile["name_template"]
+    title_tmpl = profile["title_template"]
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    # Load tokenizer if specified
+    tokenizer_spec = profile.get("tokenizer", "default")
+    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
+
+    exclude = _get_exclude_patterns(profile)
+    cache = load_cache(out_path) if incremental else None
+
+    named_sections, parts, new_cache = _assemble_content(
+        profile,
+        exclude,
+        tokenizer,
+        incremental=incremental,
+        cache=cache,
+        verbose=verbose,
+    )
+
+    if incremental:
+        save_cache(out_path, new_cache)
+
+    if not parts:
+        return [], {}
+
+    created, tokens_by_file = _write_parts(
+        parts, named_sections, out_path, name_tmpl, title_tmpl, project_name, tokenizer, merge=merge
+    )
+
+    _run_post_commands(profile.get("post_commands", []), verbose=verbose)
+
+    return created, tokens_by_file

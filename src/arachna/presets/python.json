@@ -1,0 +1,12 @@
+{
+  "dirs": ["src", "app", "lib", "pkg", "scripts"],
+  "patterns": ["*.py"],
+  "files": ["pyproject.toml", "requirements.txt", "requirements-dev.txt"],
+  "pre_commands": [
+    "tree -I '__pycache__|*.pyc|*.egg-info|venv|node_modules' src app lib pkg scripts 2>/dev/null || true"
+  ],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["src", "app", "lib", "pkg"],
+  "service": false
+}

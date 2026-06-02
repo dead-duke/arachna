@@ -1,0 +1,18 @@
+{
+  "dirs": [],
+  "patterns": [],
+  "files": [
+    "package.json",
+    "tsconfig.json",
+    "go.mod",
+    "Cargo.toml",
+    "pyproject.toml",
+    "requirements.txt",
+    "requirements-dev.txt"
+  ],
+  "pre_commands": [],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": [],
+  "service": true
+}

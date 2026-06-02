@@ -1,6 +1,8 @@
 import json
 from unittest.mock import patch
 
+import pytest
+
 from arachna.__main__ import main
 
 
@@ -32,9 +34,8 @@ def test_missing_profile(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     cfg = {"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}}
     (tmp_path / ".arachna.json").write_text(json.dumps(cfg))
-    with patch("sys.argv", ["arachna", "--profile", "x"]), patch("sys.exit") as ex:
+    with patch("sys.argv", ["arachna", "--profile", "x"]), pytest.raises(SystemExit):
         main()
-        ex.assert_called_with(1)
 
 
 def test_no_profiles_default(tmp_path, monkeypatch):

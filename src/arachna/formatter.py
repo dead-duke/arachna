@@ -47,6 +47,40 @@ _FILENAME_LANG = {
     "vagrantfile": "ruby",
 }
 
+# Extensions that are known to be text-based (not binary).
+_TEXT_EXTENSIONS = frozenset(
+    {
+        ".py",
+        ".json",
+        ".toml",
+        ".yaml",
+        ".yml",
+        ".md",
+        ".sh",
+        ".cfg",
+        ".ini",
+        ".txt",
+        ".js",
+        ".ts",
+        ".html",
+        ".css",
+        ".sql",
+        ".rs",
+        ".go",
+        ".java",
+        ".cpp",
+        ".c",
+        ".h",
+        ".gd",
+        ".cs",
+        ".swift",
+        ".kt",
+        ".rb",
+        ".php",
+        ".tf",
+    }
+)
+
 _SHEBANG_MAP = {
     "python": "python",
     "python3": "python",
@@ -92,16 +126,45 @@ def _should_skip_binary(
     binary_extensions: list[str] | None,
     binary_max_mb: float,
 ) -> bool:
-    """Check if a binary file should be skipped before attempting read_text."""
+    """Check if a binary file should be skipped before attempting read_text.
+
+    Text files (with known text extensions) are never skipped.
+    Files without extension are treated as potential text files
+    and not skipped, unless include_binary is True and they exceed
+    the size limit.
+    Binary files are skipped unless include_binary=True and they pass
+    the size and extension filters.
+    """
     if not path.exists():
         return True
+
+    ext = path.suffix.lower()
+
+    # Text files by extension — never skipped
+    if ext in _TEXT_EXTENSIONS:
+        return False
+
+    # Files without extension — check size, treat as text if within limit
+    if not ext:
+        if not include_binary:
+            return False
+        try:
+            size_mb = path.stat().st_size / (1024 * 1024)
+        except OSError:
+            return True
+        if size_mb > binary_max_mb:
+            return True
+        return bool(binary_extensions is not None and "" not in binary_extensions)
+
+    # Binary file handling
     try:
         size_mb = path.stat().st_size / (1024 * 1024)
     except OSError:
         return True
+
     if size_mb > binary_max_mb:
         return True
-    if binary_extensions is not None and path.suffix.lower() not in binary_extensions:
+    if binary_extensions is not None and ext not in binary_extensions:
         return True
     return not include_binary
 
@@ -115,60 +178,24 @@ def format_file_section(
     verbose: bool = False,
 ) -> str:
     """Read a file and format it as a section."""
-    # Check size and binary status before attempting read_text
-    try:
-        file_size = path.stat().st_size
-    except OSError as e:
+    if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
+        try:
+            path.stat()
+        except OSError as e:
+            if verbose:
+                print(f"  Skipped (error): {path} - {e}")
+            return ""
         if verbose:
-            print(f"  Skipped (error): {path} - {e}")
-        return ""
-
-    # Quick binary check via extension and size before read
-    ext = path.suffix.lower()
-    is_binary_ext = ext not in {
-        "",
-        ".py",
-        ".json",
-        ".toml",
-        ".yaml",
-        ".yml",
-        ".md",
-        ".sh",
-        ".cfg",
-        ".ini",
-        ".txt",
-        ".js",
-        ".ts",
-        ".html",
-        ".css",
-        ".sql",
-        ".rs",
-        ".go",
-        ".java",
-        ".cpp",
-        ".c",
-        ".h",
-        ".gd",
-        ".cs",
-        ".swift",
-        ".kt",
-        ".rb",
-        ".php",
-        ".tf",
-    }
-    size_mb = file_size / (1024 * 1024)
-
-    if is_binary_ext and size_mb > binary_max_mb:
-        if verbose:
-            print(f"  Skipped (binary too large): {path}")
-        return ""
-    if is_binary_ext and not include_binary:
-        if verbose:
-            print(f"  Skipped (binary): {path}")
-        return ""
-    if is_binary_ext and binary_extensions is not None and ext not in binary_extensions:
-        if verbose:
-            print(f"  Skipped (binary not in allowlist): {path}")
+            size_mb = path.stat().st_size / (1024 * 1024)
+            ext = path.suffix.lower()
+            if size_mb > binary_max_mb:
+                print(f"  Skipped (binary too large): {path}")
+            elif not include_binary:
+                print(f"  Skipped (binary): {path}")
+            elif binary_extensions is not None and ext not in binary_extensions:
+                print(f"  Skipped (binary not in allowlist): {path}")
+            else:
+                print(f"  Skipped (binary): {path}")
         return ""
 
     try:

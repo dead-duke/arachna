@@ -1,0 +1,10 @@
+{
+  "dirs": ["Sources", "Source", "src"],
+  "patterns": ["*.swift"],
+  "files": ["Package.swift"],
+  "pre_commands": ["tree Sources Source src 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["Package.swift", "Sources", "Source"],
+  "service": false
+}

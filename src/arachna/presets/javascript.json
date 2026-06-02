@@ -1,0 +1,12 @@
+{
+  "dirs": ["src", "app", "lib", "scripts"],
+  "patterns": ["*.js", "*.ts", "*.jsx", "*.tsx"],
+  "files": ["package.json", "tsconfig.json"],
+  "pre_commands": [
+    "tree -I 'node_modules|__pycache__|venv' src app lib scripts 2>/dev/null || true"
+  ],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["package.json", "tsconfig.json"],
+  "service": false
+}
