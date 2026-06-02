@@ -345,3 +345,117 @@ def test_init_defaults(tmp_path, monkeypatch):
     data = json.loads(cfg.read_text())
     assert "python" in data["profiles"]
     assert "git" in data["profiles"]
+
+
+# TC-042: --verbose flag shows skipped files
+def test_verbose_flag(tmp_path, monkeypatch):
+    """TC-042: --verbose prints skipped file information."""
+    monkeypatch.chdir(tmp_path)
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("print('hello')")
+    (tmp_path / "src" / "data.bin").write_bytes(b"\x00\x01\x02")
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": "out",
+                "profiles": {
+                    "code": {
+                        "directories": ["src"],
+                        "patterns": ["*"],
+                        "max_tokens": 16000,
+                        "split_mode": "by_file",
+                        "use_gitignore": False,
+                    }
+                },
+            }
+        )
+    )
+
+    result = _arachna("--profile", "code", "--verbose")
+    assert result.returncode == 0
+    assert "Skipped" in result.stdout or "Skipped" in result.stderr
+
+
+# TC-043: --incremental flag skips unchanged files on second run
+def test_incremental_flag(tmp_path, monkeypatch):
+    """TC-043: --incremental second run collects no content for unchanged sources.
+
+    Note: --profile (non-merge) cleans old files before collecting.
+    When incremental skip produces no new content, old files are removed
+    and "No content collected" is printed.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("print('hello')")
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": "out",
+                "profiles": {
+                    "code": {
+                        "directories": ["src"],
+                        "patterns": ["*.py"],
+                        "max_tokens": 16000,
+                        "split_mode": "by_file",
+                        "use_gitignore": False,
+                    }
+                },
+            }
+        )
+    )
+
+    # First run — should create file
+    result1 = _arachna("--profile", "code", "--incremental")
+    assert result1.returncode == 0
+
+    out_dir = tmp_path / "out"
+    files_after_first = sorted(out_dir.glob("chat-code*"))
+    assert len(files_after_first) == 1
+
+    # Second run — unchanged, should print "No content collected"
+    result2 = _arachna("--profile", "code", "--incremental")
+    assert result2.returncode == 0
+    assert "No content collected" in result2.stdout
+
+
+# TC-044: --output-dir flag writes to custom directory
+def test_output_dir_flag(tmp_path, monkeypatch):
+    """TC-044: --output-dir writes files to the specified directory."""
+    monkeypatch.chdir(tmp_path)
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("print('hello')")
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": "out",
+                "profiles": {
+                    "code": {
+                        "directories": ["src"],
+                        "patterns": ["*.py"],
+                        "max_tokens": 16000,
+                        "split_mode": "by_file",
+                        "use_gitignore": False,
+                    }
+                },
+            }
+        )
+    )
+
+    custom_dir = tmp_path / "custom_output"
+    result = _arachna("--profile", "code", "--output-dir", str(custom_dir))
+    assert result.returncode == 0
+
+    # Files should be in custom_output, not in default "out"
+    assert custom_dir.is_dir()
+    custom_files = list(custom_dir.glob("chat-code*"))
+    assert len(custom_files) == 1
+
+    # Default output dir should NOT have been created
+    default_out = tmp_path / "out"
+    assert not default_out.exists() or len(list(default_out.glob("chat-code*"))) == 0
