@@ -1,14 +1,16 @@
 # TODO
 
-## v1.4.3 — Unreal Engine preset + AGPLv3
-- [x] Change license from MIT to AGPLv3 (LICENSE, pyproject.toml, README.md)
-- [x] Add Unreal Engine preset to presets.py
-- [x] Bump version to 1.4.3 in __init__.py
-- [x] Add tests for Unreal Engine preset detection and conversion
-- [ ] Update CHANGELOG.md with v1.4.3 entry
-- [ ] Publish v1.4.3 on PyPI
-- [ ] Remove all old versions from PyPI (keep only v1.4.3)
+## v1.4.4 — Security allowlist cleanup
+- [x] Remove mkdir, xargs, sed, awk, tee from _ALLOWED_COMMANDS in runner.py
+- [x] Update tests if any use removed commands
+- [x] Bump version to 1.4.4 (__init__.py, pyproject.toml)
+- [ ] Update CHANGELOG.md with v1.4.4 entry
+- [ ] Publish v1.4.4 on PyPI
 
 ## Backlog
+- [ ] Presets architecture refactor (split PRESETS dict into individual JSON files)
+- [ ] Decompose collect() God function
+- [ ] Remove _SERVICE_PRESETS hardcoded set
+- [ ] LOW fixes: CHARS_PER_TOKEN dead code, unreachable return, double binary checks
 - [ ] IDE integration (VS Code extension)
 - [ ] Web UI for visual profile editor
