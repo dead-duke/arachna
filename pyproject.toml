@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "1.5.0"
+version = "1.5.1"
 description = "Context collector for AI — gathers project files into token-limited chunks"
 readme = "README.md"
 license = {text = "AGPL-3.0"}
@@ -53,3 +53,4 @@ indent-style = "space"
 minversion = "6.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
+

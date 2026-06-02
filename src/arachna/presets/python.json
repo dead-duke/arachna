@@ -7,6 +7,5 @@
   ],
   "max_tokens": 16000,
   "split_mode": "by_file",
-  "detect": ["src", "app", "lib", "pkg"],
-  "service": false
+  "detect": ["src", "app", "lib", "pkg"]
 }

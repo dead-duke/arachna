@@ -37,15 +37,11 @@ def test_load_builtin_presets_has_all():
     assert "git" in presets
 
 
-def test_load_builtin_presets_service_field():
-    """Service presets have service: true, language presets have service: false."""
+def test_load_builtin_presets_no_service_field():
+    """Service field removed in v1.5.1 — presets are JSON-only now, no metadata."""
     presets = _load_builtin_presets()
-    assert presets["tests"]["service"] is True
-    assert presets["docs"]["service"] is True
-    assert presets["config"]["service"] is True
-    assert presets["git"]["service"] is True
-    assert presets["python"]["service"] is False
-    assert presets["godot"]["service"] is False
+    for name, preset in presets.items():
+        assert "service" not in preset, f"Preset '{name}' has 'service' field — should be removed"
 
 
 def test_load_builtin_presets_git_command():

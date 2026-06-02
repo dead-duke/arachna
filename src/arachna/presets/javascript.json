@@ -7,6 +7,5 @@
   ],
   "max_tokens": 16000,
   "split_mode": "by_file",
-  "detect": ["package.json", "tsconfig.json"],
-  "service": false
+  "detect": ["package.json", "tsconfig.json"]
 }

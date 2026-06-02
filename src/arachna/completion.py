@@ -12,7 +12,7 @@ _arachna_complete() {
 
     case $prev in
         -p|--profile)
-            COMPREPLY=($(compgen -W "$(arachna --list 2>/dev/null | awk '{print $1}')" -- "$cur"))
+            COMPREPLY=()
             return
             ;;
         -o|--output-dir)
@@ -26,7 +26,7 @@ _arachna_complete() {
     esac
 
     if [[ $cur == -* ]]; then
-        COMPREPLY=($(compgen -W "--profile --all --clean --list --validate --init --dry-run --output-dir --verbose --compress --incremental --format --defaults -p -a -c -l -o -v" -- "$cur"))
+        COMPREPLY=($(compgen -W "--profile --all --clean --list --validate --init --dry-run --output-dir --verbose --compress --incremental --format --defaults --merge --force --preset --install-hook --doctor --help --version -p -a -c -l -o -v" -- "$cur"))
     fi
 }
 complete -F _arachna_complete arachna
@@ -42,7 +42,7 @@ def generate_zsh():
 _arachna() {
     local -a commands
     commands=(
-        '--profile[Collect specific profile]:profile:->profiles'
+        '--profile[Collect specific profile]:profile:'
         '--all[Collect all profiles]'
         '--clean[Remove all collected files]'
         '--list[List available profiles]'
@@ -55,15 +55,14 @@ _arachna() {
         '--incremental[Only changed files]'
         '--format[Output format]:format:(markdown xml json)'
         '--defaults[Use defaults with --init]'
+        '--merge[Append to existing output]'
+        '--force[Force overwrite with --install-hook]'
+        '--preset[Use specific preset with --init]:preset:'
+        '--install-hook[Install post-commit git hook]'
+        '--doctor[Run configuration diagnostic]'
+        '--help[Show help]'
+        '--version[Show version]'
     )
-
-    case $state in
-        profiles)
-            local -a profile_list
-            profile_list=(${(f)"$(arachna --list 2>/dev/null | awk '{print $1}')"})
-            _describe 'profile' profile_list
-            ;;
-    esac
 
     _arguments -s $commands
 }

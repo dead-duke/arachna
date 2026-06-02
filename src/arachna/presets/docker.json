@@ -5,6 +5,5 @@
   "pre_commands": [],
   "max_tokens": 16000,
   "split_mode": "by_file",
-  "detect": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"],
-  "service": false
+  "detect": ["Dockerfile", "docker-compose.yml", "docker-compose.yaml"]
 }

@@ -1,6 +1,7 @@
 import time
 
 from arachna.gatherer import _collect_named_sections
+from arachna.tokenizer import count_tokens
 
 
 def test_collect_sections_incremental_new_files(tmp_path, monkeypatch):
@@ -9,6 +10,7 @@ def test_collect_sections_incremental_new_files(tmp_path, monkeypatch):
     sections, cache = _collect_named_sections(
         {"directories": [str(tmp_path)], "patterns": ["*.py"], "use_gitignore": False},
         exclude=[],
+        tokenizer=count_tokens,
         incremental=True,
         cache={},
     )
@@ -23,6 +25,7 @@ def test_collect_sections_incremental_skips_unchanged(tmp_path, monkeypatch):
     sections1, cache = _collect_named_sections(
         {"directories": [str(tmp_path)], "patterns": ["*.py"], "use_gitignore": False},
         exclude=[],
+        tokenizer=count_tokens,
         incremental=True,
         cache={},
     )
@@ -32,6 +35,7 @@ def test_collect_sections_incremental_skips_unchanged(tmp_path, monkeypatch):
     sections2, cache2 = _collect_named_sections(
         {"directories": [str(tmp_path)], "patterns": ["*.py"], "use_gitignore": False},
         exclude=[],
+        tokenizer=count_tokens,
         incremental=True,
         cache=cache,
     )
@@ -46,6 +50,7 @@ def test_collect_sections_incremental_detects_modified(tmp_path, monkeypatch):
     sections1, cache = _collect_named_sections(
         {"directories": [str(tmp_path)], "patterns": ["*.py"], "use_gitignore": False},
         exclude=[],
+        tokenizer=count_tokens,
         incremental=True,
         cache={},
     )
@@ -59,6 +64,7 @@ def test_collect_sections_incremental_detects_modified(tmp_path, monkeypatch):
     sections2, cache2 = _collect_named_sections(
         {"directories": [str(tmp_path)], "patterns": ["*.py"], "use_gitignore": False},
         exclude=[],
+        tokenizer=count_tokens,
         incremental=True,
         cache=cache,
     )

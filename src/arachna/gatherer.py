@@ -15,15 +15,14 @@ from .tokenizer import count_tokens
 
 def _collect_pre_commands(
     profile: dict[str, Any],
-    tokenizer: Callable[[str], int] | None = None,
+    tokenizer: Callable[[str], int],
 ) -> list[tuple[str, str, int]]:
     """Run pre_commands and return (label, output, tokens) tuples."""
-    tk = tokenizer if tokenizer is not None else count_tokens
     results = []
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
         if output.strip():
-            tokens = tk(output)
+            tokens = tokenizer(output)
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
             results.append((f"pre: {label}", output, tokens))
     return results
@@ -56,7 +55,7 @@ def _scan_directories(
 def _collect_specific_files(
     file_paths: list[str],
     exclude: list[str],
-    tokenizer: Callable[[str], int] | None = None,
+    tokenizer: Callable[[str], int],
     fmt: str = "markdown",
     include_binary: bool = False,
     binary_extensions: list[str] | None = None,
@@ -64,7 +63,6 @@ def _collect_specific_files(
     verbose: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Format specific files into (path, content, tokens) tuples."""
-    tk = tokenizer if tokenizer is not None else count_tokens
     results = []
     for filepath_str in file_paths:
         filepath = Path(filepath_str)
@@ -83,14 +81,14 @@ def _collect_specific_files(
             verbose=verbose,
         )
         if section:
-            tokens = tk(section)
+            tokens = tokenizer(section)
             results.append((str(filepath), section, tokens))
     return results
 
 
 def _format_scanned_files(
     filepaths: list[Path],
-    tokenizer: Callable[[str], int] | None = None,
+    tokenizer: Callable[[str], int],
     fmt: str = "markdown",
     include_binary: bool = False,
     binary_extensions: list[str] | None = None,
@@ -98,7 +96,6 @@ def _format_scanned_files(
     verbose: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Format scanned files into (path, content, tokens) tuples."""
-    tk = tokenizer if tokenizer is not None else count_tokens
     results = []
     for filepath in filepaths:
         section = format_file_section(
@@ -110,7 +107,7 @@ def _format_scanned_files(
             verbose=verbose,
         )
         if section:
-            tokens = tk(section)
+            tokens = tokenizer(section)
             results.append((str(filepath), section, tokens))
     return results
 
@@ -183,30 +180,28 @@ def _collect_file_sections(
 def _collect_named_sections(
     profile: dict[str, Any],
     exclude: list[str],
+    tokenizer: Callable[[str], int],
     incremental: bool = False,
     cache: dict[str, float] | None = None,
     verbose: bool = False,
-    tokenizer: Callable[[str], int] | None = None,
 ) -> tuple[list[tuple[str, str, int]], dict[str, float]]:
     """Collect all named sections from pre_commands, directories, and files.
 
     Returns (named_sections, updated_cache).
     """
-    tk = tokenizer if tokenizer is not None else count_tokens
-
     named_sections = []
 
     # Pre-commands
-    named_sections.extend(_collect_pre_commands(profile, tk))
+    named_sections.extend(_collect_pre_commands(profile, tokenizer))
 
     # Directories (with incremental logic)
     dir_sections, new_cache = _collect_directory_sections(
-        profile, exclude, tk, incremental=incremental, cache=cache, verbose=verbose
+        profile, exclude, tokenizer, incremental=incremental, cache=cache, verbose=verbose
     )
     named_sections.extend(dir_sections)
 
     # Specific files
-    named_sections.extend(_collect_file_sections(profile, exclude, tk, verbose=verbose))
+    named_sections.extend(_collect_file_sections(profile, exclude, tokenizer, verbose=verbose))
 
     return named_sections, new_cache
 
@@ -254,10 +249,10 @@ def _assemble_file_content(
     named_sections, new_cache = _collect_named_sections(
         profile,
         exclude,
+        tokenizer=tokenizer,
         incremental=incremental,
         cache=cache,
         verbose=verbose,
-        tokenizer=tokenizer,
     )
 
     # Build list of section content strings
@@ -314,8 +309,9 @@ def gather_files(
     tokenizer: Callable[[str], int] | None = None,
 ) -> list[str]:
     """Gather file contents as formatted strings."""
+    tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns(profile)
-    sections, _ = _collect_named_sections(profile, exclude, verbose=verbose, tokenizer=tokenizer)
+    sections, _ = _collect_named_sections(profile, exclude, tokenizer=tk, verbose=verbose)
     return [content for _, content, _ in sections]
 
 

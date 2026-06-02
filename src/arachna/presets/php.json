@@ -5,6 +5,5 @@
   "pre_commands": ["tree src app public 2>/dev/null || true"],
   "max_tokens": 16000,
   "split_mode": "by_file",
-  "detect": ["composer.json"],
-  "service": false
+  "detect": ["composer.json"]
 }

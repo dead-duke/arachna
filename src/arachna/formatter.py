@@ -48,38 +48,8 @@ _FILENAME_LANG = {
 }
 
 # Extensions that are known to be text-based (not binary).
-_TEXT_EXTENSIONS = frozenset(
-    {
-        ".py",
-        ".json",
-        ".toml",
-        ".yaml",
-        ".yml",
-        ".md",
-        ".sh",
-        ".cfg",
-        ".ini",
-        ".txt",
-        ".js",
-        ".ts",
-        ".html",
-        ".css",
-        ".sql",
-        ".rs",
-        ".go",
-        ".java",
-        ".cpp",
-        ".c",
-        ".h",
-        ".gd",
-        ".cs",
-        ".swift",
-        ".kt",
-        ".rb",
-        ".php",
-        ".tf",
-    }
-)
+# Generated from _EXT_LANG — single source of truth for language extensions.
+_TEXT_EXTENSIONS = frozenset(f".{ext}" for ext in _EXT_LANG)
 
 _SHEBANG_MAP = {
     "python": "python",

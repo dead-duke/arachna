@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.5.1 — LOW fixes from audit
+
+- gatherer.py: make tokenizer required parameter in _collect_named_sections, remove tk wrapper
+- __main__.py: replace _commands dispatch dict with direct if-elif in main()
+- completion.py: remove dynamic profile listing from bash/zsh completion (cached)
+- presets: remove unused service field from all 17 preset JSON files and _VALID_PRESET_KEYS
+- formatter.py: deduplicate _TEXT_EXTENSIONS — generated from _EXT_LANG
+- tests/cache: remove monkeypatch.chdir, use absolute paths in tmp_path
+- tests/collector: fix fragile mock target in test_post_commands_executed
+- 475 tests, 94% coverage
+
 ## v1.5.0 — Architecture refactor + LOW fixes
 
 - presets.py: split PRESETS dict into individual JSON files in presets/ directory
@@ -306,3 +317,4 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
+

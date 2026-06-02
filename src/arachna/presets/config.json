@@ -13,6 +13,5 @@
   "pre_commands": [],
   "max_tokens": 16000,
   "split_mode": "by_file",
-  "detect": [],
-  "service": true
+  "detect": []
 }

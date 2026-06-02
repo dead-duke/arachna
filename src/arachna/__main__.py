@@ -134,13 +134,9 @@ def main():
     output_dir = args.output_dir or config.get("output_dir", ".")
     out_path = Path(output_dir)
 
+    # Dispatch: determine action from args and call handler directly
     if args.init:
-        from .init import run_defaults, run_interactive
-
-        if args.defaults:
-            run_defaults(output_dir, preset=args.preset)
-        else:
-            run_interactive(output_dir, preset=args.preset)
+        _cmd_init(args, output_dir)
     elif args.list:
         _cmd_list(config)
     elif args.validate:
@@ -151,12 +147,21 @@ def main():
         _cmd_install_hook(args)
     elif args.clean:
         _cmd_clean(config, out_path)
-    elif args.dry_run:
+    elif args.dry_run and (args.all or args.profile):
         _cmd_dry_run(config, args)
     elif args.all:
         _cmd_all(config, args, project_name, out_path)
     else:
         _cmd_single(config, args, project_name, out_path)
+
+
+def _cmd_init(args, output_dir: str):
+    from .init import run_defaults, run_interactive
+
+    if args.defaults:
+        run_defaults(output_dir, preset=args.preset)
+    else:
+        run_interactive(output_dir, preset=args.preset)
 
 
 def _cmd_list(config: dict):

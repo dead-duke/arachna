@@ -5,6 +5,5 @@
   "pre_commands": ["tree lib app 2>/dev/null || true"],
   "max_tokens": 16000,
   "split_mode": "by_file",
-  "detect": ["Gemfile", "Rakefile"],
-  "service": false
+  "detect": ["Gemfile", "Rakefile"]
 }

@@ -30,7 +30,6 @@ _VALID_PRESET_KEYS = {
     "split_marker",
     "detect",
     "tokenizer",
-    "service",
 }
 
 _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
@@ -162,9 +161,9 @@ def detect_presets(
     detect-paths match the current project. Returns [preset_name] only
     if the preset is compatible with the project.
 
-    All presets (language, engine, service) are treated equally —
-    detect-paths are validated for every preset that has them.
-    Presets with empty detect list are always allowed.
+    All presets are treated equally — detect-paths are validated for
+    every preset that has them. Presets with empty detect list are
+    always allowed.
     """
     all_presets = get_all_presets(external_path)
 
@@ -192,7 +191,7 @@ def detect_presets(
 
     detected: list[str] = []
 
-    # All presets with detect paths — language, engine, and service alike
+    # All presets with detect paths
     for name, preset in all_presets.items():
         detect_paths = preset.get("detect", [])
         if not detect_paths:
