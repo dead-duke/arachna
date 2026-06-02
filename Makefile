@@ -13,8 +13,8 @@ help:
 	@echo "  make test-cov      - run tests with coverage (terminal)"
 	@echo "  make test-cov-html - run tests with coverage (HTML)"
 	@echo "  make lint          - ruff check"
-	@echo "  make format        - ruff format"
-	@echo "  make check         - lint + format + test"
+	@echo "  make format        - ruff format (auto-fix)"
+	@echo "  make check         - format + lint + test"
 	@echo "  make clean         - remove build artifacts and context files"
 	@echo "  make tree          - show project structure"
 	@echo "  make info          - show project info"
@@ -42,8 +42,9 @@ lint:
 
 format:
 	ruff format src/ tests/
+	ruff check --fix src/ tests/
 
-check: lint format test
+check: format lint test
 	@echo "[OK] All checks passed"
 
 clean:
@@ -60,5 +61,5 @@ info:
 	@echo "Path: $$(pwd)"
 
 activate:
-	@echo "Активация виртуального окружения:"
+	@echo "Activate virtual environment:"
 	@echo "  source $(VENV)/bin/activate"

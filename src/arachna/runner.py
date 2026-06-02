@@ -16,7 +16,8 @@ _SHELL_CHARS = {"|", "&", ";", "<", ">", "$", "`", "(", ")", "{", "}"}
 # Pipe separator for splitting piped commands
 _PIPE_SEP = "|"
 
-# Safe utilities that don't download/execute external code
+# Safe utilities that don't download/execute external code.
+# Strictly read-only: no filesystem modifications.
 _ALLOWED_COMMANDS = frozenset(
     {
         "echo",
@@ -32,8 +33,6 @@ _ALLOWED_COMMANDS = frozenset(
         "tail",
         "cut",
         "tr",
-        "xargs",
-        "tee",
         "git",
         "hg",
         "svn",
