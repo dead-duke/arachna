@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.6.2 — Watch polish: profile files + --diff --full
+
+- watcher.py: create_snapshot and compute_diff include profile "files" (not just directories)
+- watcher.py: _read_profile_files helper for explicit file reading with error handling
+- watcher.py: _path_matches_profile checks explicit files list
+- __main__.py: _cmd_diff supports --full flag for combined full context + diff
+- __main__.py: _cmd_diff_full orchestrates collect + diff + combine into single output
+- __main__.py: _combine_full_and_diff merges context and diff sections
+- __main__.py: _cmd_clean handles chat-diff-full files
+- 619 tests, 92% coverage
+
 ## v1.6.1 — Watch MVP + README fix
 
 - README.md: fix malformed code blocks in PyPI description
