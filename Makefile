@@ -31,7 +31,7 @@ test:
 	python -m pytest tests/ -v
 
 test-cov:
-	python -m pytest tests/ --cov=src/arachna --cov-report=term-missing
+	python -m pytest tests/ -v --cov=src/arachna --cov-report=term-missing
 
 test-cov-html:
 	python -m pytest tests/ --cov=src/arachna --cov-report=html
