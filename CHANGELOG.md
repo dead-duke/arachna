@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.6.1 — Watch MVP + README fix
+
+- README.md: fix malformed code blocks in PyPI description
+- All v1.6.0 features included (snapshots, diffs, store)
+
 ## v1.6.0 — Watch MVP
 
 - store.py: content-addressable store with SHA256 + zlib compression
