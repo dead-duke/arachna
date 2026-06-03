@@ -1,8 +1,8 @@
 # TODO
 
 ## v1.5.2 — Race condition fix + escaped pipes
-- [ ] File locking in _find_next_part_num() for concurrent merge safety
-- [ ] Handle escaped pipes (\|) in _split_pipe_parts()
+- [x] File locking in _find_next_part_num() for concurrent merge safety
+- [x] Handle escaped pipes (\|) in _split_pipe_parts()
 - [ ] Bump version to 1.5.2
 - [ ] Update CHANGELOG.md
 - [ ] Update TEST_REPORT.md
