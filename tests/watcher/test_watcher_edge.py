@@ -1,8 +1,15 @@
 """Edge case tests for watcher.py."""
 
+import sys
+
+import pytest
+
 
 def test_create_snapshot_skip_unreadable(tmp_path, monkeypatch):
     """create_snapshot skips files that raise OSError on read."""
+    if sys.platform == "win32":
+        pytest.skip("chmod 0o000 does not prevent reads on Windows")
+
     monkeypatch.chdir(tmp_path)
     from arachna.watcher import create_snapshot
 

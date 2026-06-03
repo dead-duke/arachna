@@ -14,6 +14,11 @@ from .store import create_snapshot as store_create_snapshot
 from .store import load_snapshot, read_object
 
 
+def _normalize_path(path: str) -> str:
+    """Convert Windows backslashes to forward slashes for cross-platform consistency."""
+    return path.replace("\\", "/")
+
+
 def create_snapshot(profile: dict, name: str | None = None) -> str:
     """Walk all files in profile and create a snapshot.
 
@@ -38,9 +43,9 @@ def create_snapshot(profile: dict, name: str | None = None) -> str:
         except (OSError, UnicodeDecodeError):
             continue
         try:
-            rel_path = str(fp.relative_to(Path.cwd()))
+            rel_path = _normalize_path(str(fp.relative_to(Path.cwd())))
         except ValueError:
-            rel_path = str(fp)
+            rel_path = _normalize_path(str(fp))
         files[rel_path] = content
 
     profile_name = profile.get("name_template", "full")
@@ -68,13 +73,13 @@ def compute_diff(
     exclude = _get_exclude_patterns(profile)
     current_filepaths = _scan_directories(profile, exclude)
 
-    # Build set of current file paths (relative)
+    # Build set of current file paths (relative, normalized)
     current_files = {}
     for fp in current_filepaths:
         try:
-            rel_path = str(fp.relative_to(Path.cwd()))
+            rel_path = _normalize_path(str(fp.relative_to(Path.cwd())))
         except ValueError:
-            rel_path = str(fp)
+            rel_path = _normalize_path(str(fp))
         try:
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
@@ -96,12 +101,12 @@ def compute_diff(
                 sections.append(DiffSection(type="modified", path=path, content=diff_output))
         elif _path_matches_profile(path, profile):
             # File was in snapshot, not on disk, but still matches
-            # current profile patterns → genuinely deleted
+            # current profile patterns -> genuinely deleted
             sections.append(
                 DiffSection(type="deleted", path=path, content=f"### {path}\n\n[DELETED]\n")
             )
         # else: file not on disk AND doesn't match profile patterns
-        # → profile changed, ignore
+        # -> profile changed, ignore
 
     # Check for new files not in snapshot
     for path, content in current_files.items():
@@ -117,8 +122,8 @@ def _path_matches_profile(path: str, profile: dict) -> bool:
 
     Used to distinguish "file deleted from disk" from "file no longer
     in profile config". If the path still matches the profile but the
-    file is gone → genuinely deleted. If the path doesn't match the
-    profile → user changed config, ignore.
+    file is gone -> genuinely deleted. If the path doesn't match the
+    profile -> user changed config, ignore.
     """
     directories = profile.get("directories", [])
     patterns = profile.get("patterns", ["*"])
