@@ -11,6 +11,7 @@
       "files": [".arachna.json", ".gitignore", "pyproject.toml", "README.md", "TODO.md", "CHANGELOG.md", "Makefile", "LICENSE", "requirements-dev.txt", ".pre-commit-config.yaml"],
       "pre_commands": [
         "tree -I '__pycache__|*.pyc|*.egg-info|venv|arachna_context' -L 2",
+        "git tag --sort=-creatordate",
         "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n'"
       ],
       "max_tokens": 32768
