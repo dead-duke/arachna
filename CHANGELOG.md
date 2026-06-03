@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.6.0 — Watch MVP
+
+- store.py: content-addressable store with SHA256 + zlib compression
+- store.py: create/load/list/delete snapshots, HEAD tracking
+- store.py: gc() garbage collection, stats() with dedup %
+- store_errors.py: CorruptedStoreError, ObjectNotFoundError
+- differ.py: LLM-optimized diff with markdown and XML formats
+- differ.py: DiffSection dataclass, compute_diff_stats
+- watcher.py: create_snapshot + compute_diff orchestration
+- watcher.py: _path_matches_profile for profile change detection
+- CLI: --snapshot create/list/delete, --diff, --store gc/stats
+- 606 tests, 93% coverage
+
 ## v1.5.3 — Smart hybrid incremental cache
 
 - cache.py: v2 format with mtime_ns + size + SHA256
