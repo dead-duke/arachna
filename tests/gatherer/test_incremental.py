@@ -31,6 +31,8 @@ def test_collect_incremental_skips_unchanged(tmp_path, monkeypatch):
 
 def test_collect_incremental_detects_modified(tmp_path, monkeypatch):
     """Integration test: collect with incremental=True detects modified files."""
+    import time
+
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -53,8 +55,11 @@ def test_collect_incremental_detects_modified(tmp_path, monkeypatch):
     created1, _ = collect(profile, "P", "out", incremental=True)
     assert len(created1) == 1
 
-    # Modify the file
-    fp.write_text("modified")
+    # Ensure mtime_ns difference exceeds 1ms tolerance for smart hybrid
+    time.sleep(0.01)
+    # Modify the file — different size ensures size check fails,
+    # guaranteeing the slow path triggers
+    fp.write_text("modified content that is longer")
 
     # Second run — should detect modification and collect again
     created2, _ = collect(profile, "P", "out", incremental=True)
