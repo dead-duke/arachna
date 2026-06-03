@@ -106,6 +106,8 @@ def _split_pipe_parts(cmd: str) -> list[str]:
 
     Does not split on | inside single or double quotes.
     Does not treat || (shell OR) as a pipe.
+    Handles escaped pipes: \\| is treated as a literal | character,
+    not a pipe separator.
     """
     parts = []
     current = []
@@ -119,9 +121,31 @@ def _split_pipe_parts(cmd: str) -> list[str]:
             if ch == "'":
                 in_single = False
         elif in_double:
-            current.append(ch)
-            if ch == '"':
-                in_double = False
+            if ch == "\\" and i + 1 < len(cmd):
+                # Backslash in double quotes: escapes only $ ` " \ and newline
+                next_ch = cmd[i + 1]
+                if next_ch in ("$", "`", '"', "\\", "\n"):
+                    current.append("\\")
+                    current.append(next_ch)
+                    i += 1
+                else:
+                    current.append("\\")
+            else:
+                current.append(ch)
+                if ch == '"':
+                    in_double = False
+        elif ch == "\\" and i + 1 < len(cmd):
+            # Backslash outside quotes: escapes the next character
+            next_ch = cmd[i + 1]
+            if next_ch == "|":
+                # Escaped pipe: literal |, not a separator
+                current.append("|")
+                i += 1
+            elif next_ch == "\\":
+                current.append("\\")
+                i += 1
+            else:
+                current.append("\\")
         elif ch == "'":
             current.append(ch)
             in_single = True

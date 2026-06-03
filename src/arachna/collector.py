@@ -18,6 +18,64 @@ from .runner import run_command
 from .tokenizer import count_tokens, load_tokenizer
 
 _MANIFEST = ".arachna_manifest.json"
+_MERGE_LOCK_FILE = ".arachna_merge.lock"
+
+# File locking for merge mode: prevents race condition when two
+# processes compute _find_next_part_num concurrently.
+# Uses fcntl.flock on Unix, msvcrt.locking on Windows,
+# falls back to threading.Lock (no cross-process safety, but
+# prevents thread races in single-process usage).
+try:
+    import fcntl
+
+    def _lock_file(f):
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+
+    def _unlock_file(f):
+        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+except ImportError:
+    try:
+        import msvcrt
+
+        def _lock_file(f):
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+
+        def _unlock_file(f):
+            msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+
+    except ImportError:
+        import threading
+
+        _fallback_lock = threading.Lock()
+
+        def _lock_file(f):
+            _fallback_lock.acquire()
+
+        def _unlock_file(f):
+            _fallback_lock.release()
+
+
+@contextlib.contextmanager
+def _merge_lock(out_dir: Path):
+    """Acquire a file-based lock for merge mode operations.
+
+    Prevents race condition when two processes compute
+    _find_next_part_num concurrently.
+
+    On Unix: fcntl.flock (advisory, cross-process).
+    On Windows: msvcrt.locking.
+    Fallback: threading.Lock (same process only).
+    """
+    lock_path = out_dir / _MERGE_LOCK_FILE
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(lock_path, "w") as lock_file:
+            _lock_file(lock_file)
+            yield
+    finally:
+        with contextlib.suppress(OSError):
+            lock_path.unlink()
 
 
 def load_manifest(out_dir: Path) -> list[str]:
@@ -65,19 +123,23 @@ def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
 
     Scans existing files matching name_tmpl_*.md and returns max_num + 1.
     Returns 1 if no existing files found.
+
+    Uses file-based lock to prevent race conditions when multiple
+    processes run merge mode concurrently.
     """
-    max_num = 0
-    pattern = re.compile(rf"^{re.escape(name_tmpl)}_(\d+)\.md$")
-    for f in out_dir.glob(f"{name_tmpl}_*.md"):
-        m = pattern.match(f.name)
-        if m:
-            num = int(m.group(1))
-            if num > max_num:
-                max_num = num
-    # Also check for the single-file case (name_tmpl.md)
-    if (out_dir / f"{name_tmpl}.md").exists() and max_num == 0:
-        max_num = 1
-    return max_num + 1
+    with _merge_lock(out_dir):
+        max_num = 0
+        pattern = re.compile(rf"^{re.escape(name_tmpl)}_(\d+)\.md$")
+        for f in out_dir.glob(f"{name_tmpl}_*.md"):
+            m = pattern.match(f.name)
+            if m:
+                num = int(m.group(1))
+                if num > max_num:
+                    max_num = num
+        # Also check for the single-file case (name_tmpl.md)
+        if (out_dir / f"{name_tmpl}.md").exists() and max_num == 0:
+            max_num = 1
+        return max_num + 1
 
 
 def _build_toc(
