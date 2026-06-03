@@ -1,22 +1,57 @@
 # arachna
 
 [![PyPI version](https://img.shields.io/pypi/v/arachna)](https://pypi.org/project/arachna/)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Free Software](https://img.shields.io/badge/Free%20Software-AGPLv3-brightgreen.svg)](https://www.gnu.org/philosophy/free-sw.html)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://github.com/dead-duke/arachna/actions/workflows/test.yml/badge.svg)](https://github.com/dead-duke/arachna/actions/workflows/test.yml)
 
 Context collector for AI — gathers project files into token-limited chunks.
 
-## What is arachna
+## What I believe
 
-arachna is a command-line tool that collects your project's source code and documentation into files ready to be sent to an AI. It understands tokens (not lines) and splits output smartly so nothing gets cut in the middle.
+I'm a solo developer building tools for myself. arachna is an indie project —
+not a startup, not a company, not a product for sale. Free software. AGPLv3.
 
-## Why arachna
+I believe AI tools should be independent. Not tied to a specific editor,
+cloud provider, or way of working. arachna doesn't lock you in. It prepares
+your project for AI to understand. The rest is up to you.
 
-- Token-aware splitting: other tools split by lines, arachna splits by tokens
-- Zero dependencies: just Python stdlib
-- Uniformly packed parts: all output chunks are filled densely to the token limit
-- Multiple presets: 17 language and engine presets out of the box
-- Smart defaults: arachna --init detects your project in seconds
+- **Any editor.** Vim, VS Code, Cursor, Emacs — arachna doesn't care where you write code
+- **Any LLM.** Local models, cloud APIs, web chats — the brain is your choice
+- **Plain files.** No databases, no daemons, no hidden state. Everything is transparent —
+  you can cat, grep, diff the output
+- **No telemetry.** No tracking, no cloud sync, no phoning home. Your code stays on your machine
+- **Zero dependencies.** Just Python 3.11+ stdlib. pip install arachna, that's it
+- **Free software, not just open source.** AGPLv3 guarantees the four freedoms.
+  No proprietary forks. [What's the difference?](https://www.gnu.org/philosophy/free-sw.html)
+
+## Contents
+
+- [What arachna does](#what-arachna-does)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Examples](#examples)
+- [Commands](#commands)
+- [Options](#options)
+- [Profiles](#profiles)
+- [Split modes](#split-modes)
+- [All config fields](#all-config-fields)
+- [Output](#output)
+- [Manifest and cleanup](#manifest-and-cleanup)
+- [Incremental mode](#incremental-mode)
+- [Safety](#safety)
+- [Doctor](#doctor)
+- [Git hooks (optional)](#git-hooks-optional)
+- [Tokenizer](#tokenizer)
+- [Supported project types](#supported-project-types)
+- [Links](#links)
+- [License](#license)
+
+## What arachna does
+
+arachna collects your project files into files ready to be sent to an AI.
+It understands tokens (not lines) and splits output smartly so nothing
+gets cut in the middle.
 
 ## Install
 
@@ -28,7 +63,52 @@ arachna is a command-line tool that collects your project's source code and docu
     arachna --init
     arachna --all
 
-Creates arachna_context/ folder with .md files ready for AI.
+Creates arachna_context/ with .md files ready for AI.
+
+## Examples
+
+### Local model (Ollama)
+
+    arachna --profile code
+    cat arachna_context/chat-code.md | ollama run qwen2.5:32b
+
+### Cloud API (OpenAI)
+
+    arachna --profile code
+    # Then paste arachna_context/chat-code.md into chat.openai.com
+    # Or use the API:
+    curl https://api.openai.com/v1/chat/completions \
+      -H "Authorization: Bearer $OPENAI_API_KEY" \
+      -d '{"messages": [{"role": "user", "content": "'"$(cat arachna_context/chat-code.md)"'"}]}'
+
+### Multiple profiles for different tasks
+
+    # Give code to the Programmer agent
+    arachna --profile code
+
+    # Give tests to the Tester agent
+    arachna --profile tests
+
+    # Give docs to the Auditor agent
+    arachna --profile docs
+
+    # Give git history for context
+    arachna --profile git
+
+### Incremental mode (only changed files)
+
+    arachna --profile code --incremental
+    # First run: collects everything
+    # Second run: skips unchanged files, creates nothing
+
+### Dry-run (preview without writing)
+
+    arachna --all --dry-run
+
+### Safety check
+
+    arachna --validate
+    # Checks config for errors, exits 1 if problems found
 
 ## Commands
 
@@ -42,7 +122,7 @@ Creates arachna_context/ folder with .md files ready for AI.
     arachna --list              show profiles
     arachna --validate          check config for errors
     arachna --doctor            run full diagnostic
-    arachna --install-hook      install git post-commit hook
+    arachna --install-hook      install post-commit git hook (optional)
 
 ## Options
 
@@ -57,31 +137,11 @@ Creates arachna_context/ folder with .md files ready for AI.
 | --dry-run | preview without writing files |
 | --force | force overwrite with --install-hook |
 
-## Safety
+## Profiles
 
-Commands in .arachna.json (pre_commands, post_commands, command) are validated before execution. Unknown or dangerous commands are blocked by default. Use --dry-run to preview what will be executed before running.
+Profiles let you separate context by role — different context for different AI tasks.
 
-## Doctor
-
-arachna --doctor runs a full diagnostic of your configuration — validates all profiles, checks that directories and files exist, and verifies .gitignore integration. Use it when something doesn't work as expected.
-
-## Git hooks
-
-arachna --install-hook installs a post-commit hook that automatically runs arachna after each commit. Configure the command in .arachna.json:
-
-```json
-{
-  "hook": {
-    "post-commit": "arachna --all --incremental"
-  }
-}
-```
-
-## Configuration (.arachna.json)
-
-arachna uses profiles to define what and how to collect.
-
-Example for a Python project:
+Example .arachna.json for a Python project:
 
 ```json
 {
@@ -136,7 +196,8 @@ Example for a Python project:
 - command: use command output instead of files
 - max_tokens: token limit per output file
 - section_format: markdown, xml, or json
-- compress: enable safe whitespace compression (blank lines, trailing spaces). Does not modify indentation.
+- compress: safe whitespace compression (blank lines, trailing spaces).
+  Does not modify indentation
 - include_binary: include binaries as base64 (true/false)
 - binary_extensions: whitelist like [".png"]
 - binary_max_mb: max binary file size in MB
@@ -153,24 +214,59 @@ Files go to arachna_context/ (configurable):
       chat-docs.md
       chat-git.md
 
-When content exceeds max_tokens, files are numbered: chat-code_1.md, chat-code_2.md...
+When content exceeds max_tokens, files are numbered: chat-code_1.md,
+chat-code_2.md...
 
 ## Manifest and cleanup
 
-Every created file is tracked in .arachna_manifest.json. Running --all again removes old files automatically. With --profile, only that profile's files are cleaned.
+Every created file is tracked in .arachna_manifest.json. Running --all
+again removes old files automatically. With --profile, only that
+profile's files are cleaned.
 
 ## Incremental mode
 
-With --incremental, arachna skips files unchanged since last run. Uses .arachna_cache.json.
+With --incremental, arachna skips files unchanged since last run.
+Uses .arachna_cache.json with mtime + SHA256 hashes. This is a cache
+for speed — not the same as Watch+Diff for agent sessions (coming in v1.6.0).
+
+## Safety
+
+Commands in .arachna.json (pre_commands, post_commands, command) are validated
+before execution. Unknown or dangerous commands are blocked. The command
+allowlist is strictly read-only — no interpreters, no filesystem modification.
+Use --dry-run to preview what will be executed.
+
+## Doctor
+
+arachna --doctor runs a full diagnostic — validates all profiles, checks
+that directories and files exist, verifies .gitignore integration.
+
+## Git hooks (optional)
+
+If you prefer git-based workflow, arachna can integrate via post-commit hooks.
+But it works fine without git.
+
+    arachna --install-hook
+
+Configure the command in .arachna.json:
+
+```json
+{
+  "hook": {
+    "post-commit": "arachna --all --incremental"
+  }
+}
+```
 
 ## Tokenizer
 
 arachna uses a conservative estimate: 4 characters = 1 token.
-This works for any model with a 20-30% safety margin.
+Works for any model with a 20-30% safety margin.
 
 ### Built-in (default)
 
-No dependencies. Always works. Set max_tokens below your model's context window:
+No dependencies. Always works. Set max_tokens below your model's
+context window:
 - 8192 window → max_tokens: 6000
 - 32768 window → max_tokens: 24000
 
@@ -180,7 +276,7 @@ Add to your .arachna.json:
 
       "tokenizer": "my_module:count_tokens"
 
-Your module must export count_tokens(text) -> int. Example:
+Your module must export count_tokens(text) -> int:
 
     # my_tok.py
     def count_tokens(text: str) -> int:
@@ -188,7 +284,7 @@ Your module must export count_tokens(text) -> int. Example:
 
 ### Cloud models
 
-For exact token counts with cloud APIs, install tiktoken:
+For exact token counts, install tiktoken:
 
     pip install tiktoken
 
@@ -197,7 +293,7 @@ For exact token counts with cloud APIs, install tiktoken:
 
 ### Local models
 
-For exact token counts with HuggingFace tokenizers, install transformers:
+For HuggingFace tokenizers, install transformers:
 
     pip install transformers
 
@@ -205,8 +301,8 @@ For exact token counts with HuggingFace tokenizers, install transformers:
       "tokenizer": "transformers:mistralai/Mistral-7B-Instruct-v0.3"
       "tokenizer": "transformers:google/gemma-7b"
 
-Note: transformers is a heavy dependency (gigabytes). Use only if you need exact counts.
-For most local models, the built-in estimate with safety margin is sufficient.
+Note: transformers is a heavy dependency. For most local models,
+the built-in estimate with safety margin is sufficient.
 
 ## Supported project types
 
@@ -231,7 +327,7 @@ arachna --init auto-detects 17 project types:
 - Docker: Dockerfile, docker-compose.yml
 - Terraform: *.tf, *.tfvars
 
-### Service (always available)
+### Service
 - tests: tests/, test/
 - docs: docs/, README.md, TODO.md, CHANGELOG.md, Makefile
 - config: pyproject.toml, package.json, go.mod, Cargo.toml, requirements.txt
@@ -263,5 +359,14 @@ Use with: arachna --init --preset my_game
 
 ## License
 
-GNU Affero General Public License v3.0 (AGPL-3.0)
-See [LICENSE](LICENSE) for full text.
+arachna is free software licensed under GNU AGPLv3. This license guarantees
+the four essential freedoms: to run the program for any purpose, to study
+and modify it, to redistribute copies, and to distribute modified versions.
+
+Why AGPLv3 and not MIT or Apache? Because permissive licenses allow
+proprietary forks. AGPLv3 ensures that derivative works — including
+software running as a network service — remain free. No proprietary
+forks. No closed modifications. What the community builds, the community
+keeps.
+
+See [LICENSE](LICENSE) for the full legal text.
