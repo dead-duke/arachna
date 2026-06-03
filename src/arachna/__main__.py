@@ -100,6 +100,21 @@ def main():
         completion_main()
         return
 
+    # Handle --snapshot before argparse
+    if "--snapshot" in sys.argv:
+        _cmd_snapshot(sys.argv)
+        return
+
+    # Handle --diff before argparse
+    if "--diff" in sys.argv:
+        _cmd_diff(sys.argv)
+        return
+
+    # Handle --store before argparse
+    if "--store" in sys.argv:
+        _cmd_store(sys.argv)
+        return
+
     parser = argparse.ArgumentParser(description="arachna — context collector for AI")
     parser.add_argument("--version", action="version", version=f"arachna v{__version__}")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -111,6 +126,8 @@ def main():
     group.add_argument("--init", action="store_true", help="Create .arachna.json interactively")
     group.add_argument("--doctor", action="store_true", help="Run configuration diagnostic")
     group.add_argument("--install-hook", action="store_true", help="Install post-commit git hook")
+    group.add_argument("--snapshot", action="store_true", help="Create or manage snapshots")
+    group.add_argument("--diff", action="store_true", help="Compute diff from snapshot")
     parser.add_argument(
         "--dry-run", action="store_true", help="Show what will be collected without writing"
     )
@@ -127,6 +144,9 @@ def main():
     )
     parser.add_argument("--force", action="store_true", help="Force overwrite with --install-hook")
     parser.add_argument("--preset", help="Use specific preset with --init (e.g. godot, unity)")
+    parser.add_argument("--name", help="Snapshot name")
+    parser.add_argument("--from", dest="from_snapshot", help="Snapshot ID to diff from")
+    parser.add_argument("--store", help="Store command: gc or stats")
 
     args = parser.parse_args()
     config = load_config()
@@ -318,6 +338,171 @@ def _cmd_single(config: dict, args, project_name: str, out_path: Path):
     print(f"[{name}] Collecting...")
     created, tokens_by_file = _run_profile(name, config, args, project_name, out_path)
     _print_collected(created)
+
+
+# ── Watch CLI handlers ─────────────────────────────────────────────
+
+
+def _cmd_snapshot(argv: list[str]):
+    """Handle --snapshot commands.
+
+    Usage:
+        arachna --snapshot              list all snapshots
+        arachna --snapshot delete <id>  delete a snapshot
+        arachna --snapshot --name X     create named snapshot
+        arachna --snapshot --profile X  snapshot specific profile
+    """
+    from .store import delete_snapshot, list_snapshots
+    from .watcher import create_snapshot as watch_create_snapshot
+
+    # --snapshot delete <id>
+    if "delete" in argv:
+        idx = argv.index("delete")
+        if idx + 1 < len(argv):
+            sid = argv[idx + 1]
+            try:
+                delete_snapshot(sid)
+                print(f"Snapshot '{sid}' deleted.")
+            except Exception as e:
+                print(f"Error: {e}")
+                sys.exit(1)
+        else:
+            print("Usage: arachna --snapshot delete <id>")
+            sys.exit(1)
+        return
+
+    # --snapshot with --name
+    name = None
+    if "--name" in argv:
+        idx = argv.index("--name")
+        if idx + 1 < len(argv):
+            name = argv[idx + 1]
+        else:
+            print("Error: --name requires a value")
+            sys.exit(1)
+
+    # --snapshot with --profile
+    profile_name = None
+    if "--profile" in argv:
+        idx = argv.index("--profile")
+        if idx + 1 < len(argv):
+            profile_name = argv[idx + 1]
+        else:
+            print("Error: --profile requires a value")
+            sys.exit(1)
+
+    # If --name or --profile given, create snapshot
+    if name is not None or profile_name is not None:
+        profile = get_profile(profile_name) if profile_name else get_profile("full")
+        sid = watch_create_snapshot(profile, name=name)
+        file_count = len(load_config().get("profiles", {}))
+        print(f"Snapshot '{sid}' created.")
+        return
+
+    # --snapshot without arguments → list
+    snaps = list_snapshots()
+    if not snaps:
+        print("No snapshots found.")
+        return
+    print("Snapshots:")
+    for s in snaps:
+        name_str = s.get("name") or s["id"]
+        created = s.get("created", "?")
+        file_count = len(s.get("files", {}))
+        print(f"  {s['id']:30} {name_str:20} {created:25} {file_count} files")
+
+
+def _cmd_diff(argv: list[str]):
+    """Handle --diff commands.
+
+    Usage:
+        arachna --diff                  diff from HEAD
+        arachna --diff --from <id>      diff from specific snapshot
+        arachna --diff --profile X      diff for specific profile
+        arachna --diff --format xml     XML output
+    """
+    from .watcher import compute_diff
+
+    snapshot_id = None
+    if "--from" in argv:
+        idx = argv.index("--from")
+        if idx + 1 < len(argv):
+            snapshot_id = argv[idx + 1]
+        else:
+            print("Error: --from requires a snapshot ID")
+            sys.exit(1)
+
+    profile_name = None
+    if "--profile" in argv:
+        idx = argv.index("--profile")
+        if idx + 1 < len(argv):
+            profile_name = argv[idx + 1]
+        else:
+            print("Error: --profile requires a value")
+            sys.exit(1)
+
+    fmt = "markdown"
+    if "--format" in argv:
+        idx = argv.index("--format")
+        if idx + 1 < len(argv):
+            fmt = argv[idx + 1]
+        else:
+            print("Error: --format requires a value")
+            sys.exit(1)
+
+    # Resolve snapshot ID
+    if snapshot_id is None:
+        from .store import _store_root
+
+        head_path = _store_root() / "HEAD"
+        if not head_path.exists():
+            print("Error: No snapshots found. Run 'arachna --snapshot' first.")
+            sys.exit(1)
+        snapshot_id = head_path.read_text().strip()
+
+    profile = get_profile(profile_name) if profile_name else get_profile("full")
+    sections = compute_diff(snapshot_id, profile, fmt=fmt)
+
+    if not sections:
+        print("No changes since snapshot.")
+        return
+
+    # Print to stdout (same format as collected context)
+    for section in sections:
+        print(section.content)
+
+
+def _cmd_store(argv: list[str]):
+    """Handle --store commands.
+
+    Usage:
+        arachna --store gc      garbage collect unreferenced objects
+        arachna --store stats   show store statistics
+    """
+    from .store import gc, stats
+
+    cmd = None
+    if "gc" in argv:
+        cmd = "gc"
+    elif "stats" in argv:
+        cmd = "stats"
+
+    if cmd == "gc":
+        result = gc()
+        if result["removed"] == 0:
+            print("No objects to collect.")
+        else:
+            print(f"Removed {result['removed']} objects (freed {result['freed_bytes']} bytes).")
+    elif cmd == "stats":
+        s = stats()
+        print("Store statistics:")
+        print(f"  Snapshots: {s['snapshots']}")
+        print(f"  Objects: {s['objects']}")
+        print(f"  Total size: {s['total_bytes']} bytes")
+        print(f"  Unique content: {s['unique_bytes']} bytes ({s['dedup_pct']}% deduplication)")
+    else:
+        print("Usage: arachna --store gc|stats")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
