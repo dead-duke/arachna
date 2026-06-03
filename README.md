@@ -39,6 +39,7 @@ your project for AI to understand. The rest is up to you.
 - [Output](#output)
 - [Manifest and cleanup](#manifest-and-cleanup)
 - [Incremental mode](#incremental-mode)
+- [Watch — snapshots and diffs](#watch--snapshots-and-diffs)
 - [Safety](#safety)
 - [Doctor](#doctor)
 - [Git hooks (optional)](#git-hooks-optional)
@@ -101,6 +102,13 @@ Creates arachna_context/ with .md files ready for AI.
     # First run: collects everything
     # Second run: skips unchanged files, creates nothing
 
+### Agent workflow with snapshots (10-50x token savings)
+
+    arachna --snapshot --profile code --name "baseline"
+    # ... AI makes changes to your project ...
+    arachna --diff --from baseline --profile code
+    # Sends only the diff, not the full project
+
 ### Dry-run (preview without writing)
 
     arachna --all --dry-run
@@ -123,6 +131,11 @@ Creates arachna_context/ with .md files ready for AI.
     arachna --validate          check config for errors
     arachna --doctor            run full diagnostic
     arachna --install-hook      install post-commit git hook (optional)
+    arachna --snapshot          create snapshot (optionally --name, --profile)
+    arachna --snapshot delete X delete snapshot
+    arachna --diff              diff from HEAD (optionally --from, --profile, --format)
+    arachna --store stats       show store statistics
+    arachna --store gc          garbage collect unreferenced objects
 
 ## Options
 
@@ -226,8 +239,67 @@ profile's files are cleaned.
 ## Incremental mode
 
 With --incremental, arachna skips files unchanged since last run.
-Uses .arachna_cache.json with mtime + SHA256 hashes. This is a cache
-for speed — not the same as Watch+Diff for agent sessions (coming in v1.6.0).
+Uses .arachna_cache.json with mtime_ns + size + SHA256 hashes
+(smart hybrid — fast path without hashing, SHA256 fallback for
+false positives like git checkout).
+
+## Watch — snapshots and diffs
+
+Watch is a subsystem for incremental AI workflows. Instead of sending
+full project context (50k+ tokens) every time, create a snapshot once,
+then send only changes (diff) in subsequent iterations.
+
+### How it works
+
+    # Create a baseline snapshot
+    arachna --snapshot --profile code --name "before-refactor"
+
+    # AI or developer makes changes to the project
+    # ...
+
+    # See what changed (markdown diff)
+    arachna --diff --from before-refactor --profile code
+
+    # XML output for programmatic processing
+    arachna --diff --from before-refactor --format xml
+
+### Content-addressable store
+
+Snapshots are stored in .arachna/store/ (never committed — auto-gitignored).
+Files are deduplicated by SHA256 hash. Multiple snapshots share identical
+content — only one copy stored.
+
+    arachna --store stats
+    # Store statistics:
+    #   Snapshots: 5
+    #   Objects: 127
+    #   Total size: 2.3 MB
+    #   Unique content: 1.1 MB (52% deduplication)
+
+    arachna --store gc
+    # Removed 15 objects (freed 2.3 MB)
+
+### Diff format
+
+Human-readable diff optimized for AI consumption:
+
+    ### src/main.py
+
+    REMOVED lines 45-47:
+        total = 0
+        for item in items:
+            total += item.price
+
+    ADDED lines 45:
+        return sum(item.price for item in items)
+
+### Managing snapshots
+
+    # List all snapshots
+    arachna --snapshot
+
+    # Delete a snapshot (objects survive for other snapshots)
+    arachna --snapshot delete before-refactor
 
 ## Safety
 
@@ -370,3 +442,4 @@ forks. No closed modifications. What the community builds, the community
 keeps.
 
 See [LICENSE](LICENSE) for the full legal text.
+
