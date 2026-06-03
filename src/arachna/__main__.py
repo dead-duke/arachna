@@ -611,8 +611,9 @@ def _cmd_diff(argv: list[str]):
                 sys.exit(1)
             snapshot_id = head_path.read_text().strip()
 
-        # Get output dir
-        output_dir = "."
+        # Get output dir: CLI arg takes precedence over config default
+        config = load_config()
+        output_dir = config.get("output_dir", ".")
         if "--output-dir" in argv:
             idx = argv.index("--output-dir")
             if idx + 1 < len(argv):
@@ -622,7 +623,6 @@ def _cmd_diff(argv: list[str]):
             if idx + 1 < len(argv):
                 output_dir = argv[idx + 1]
 
-        config = load_config()
         project_name = config.get("project_name", "Project")
         out_path = Path(output_dir)
         out_path.mkdir(parents=True, exist_ok=True)
