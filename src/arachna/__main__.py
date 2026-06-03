@@ -9,9 +9,10 @@ from pathlib import Path
 from . import __version__
 from .collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
 from .config import get_profile, load_config
-from .gatherer import dry_run
+from .gatherer import _assemble_content, _get_exclude_patterns, dry_run
 from .renderer import render_dry_run
-from .tokenizer import count_tokens
+from .splitter import split_sections
+from .tokenizer import count_tokens, load_tokenizer
 from .validator import validate_profile
 
 
@@ -89,6 +90,147 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
     return created, tokens_by_file
 
 
+def _combine_full_and_diff(
+    full_parts: list[str],
+    diff_sections: list,
+    snapshot_id: str,
+    project_name: str,
+    title_tmpl: str,
+    max_tokens: int,
+    out_path: Path,
+    tokenizer,
+) -> list[str]:
+    """Merge full context parts and diff sections into a single output.
+
+    Output format:
+        # Project — FULL CONTEXT + DIFF (part {part})
+
+        ## Full Context
+        <context parts>
+
+        ---
+
+        ## Changes since snapshot <id>
+        <diff sections>
+
+    Returns list of created file paths.
+    """
+    # Build diff content from sections
+    if diff_sections:
+        diff_content = "\n".join(s.content for s in diff_sections)
+    else:
+        diff_content = "No changes since snapshot."
+
+    # Combine: each full part + separator + diff in one block
+    # then split by tokens
+    separator = "\n\n---\n\n## Changes since snapshot " + snapshot_id + "\n\n"
+    combined_sections = []
+    for i, part in enumerate(full_parts):
+        header = title_tmpl.format(project_name=project_name, part=i + 1, total=len(full_parts))
+        body = "## Full Context\n\n" + part + separator
+        if i == 0:
+            # First part includes diff
+            body += diff_content
+        combined_sections.append(header + body)
+
+    # Split combined sections by token limit
+    all_content = "\n\n".join(combined_sections)
+    final_parts = split_sections([all_content], max_tokens, separator="\n\n", tokenizer=tokenizer)
+
+    # Write output files
+    created = []
+    name_tmpl = "chat-diff-full"
+    total_parts = len(final_parts)
+    for i, part_content in enumerate(final_parts, 1):
+        filename = f"{name_tmpl}.md" if total_parts == 1 else f"{name_tmpl}_{i}.md"
+        filepath = out_path / filename
+
+        title = f"# {project_name} — FULL CONTEXT + DIFF (part {i} of {total_parts})\n\n"
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(title)
+            f.write(part_content)
+
+        created.append(str(filepath))
+
+    return created
+
+
+def _cmd_diff_full(
+    snapshot_id: str,
+    profile_name: str | None,
+    config: dict,
+    args,
+    project_name: str,
+    out_path: Path,
+):
+    """Handle --diff --full: collect full context + diff, combine into single output."""
+    # Get profile
+    profile = get_profile(profile_name) if profile_name else get_profile("full")
+    profile = _apply_args_to_profile(profile, args)
+
+    # Load tokenizer
+    tokenizer_spec = profile.get("tokenizer", "default")
+    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
+
+    # Collect full context
+    exclude = _get_exclude_patterns(profile)
+    named_sections, full_parts, _ = _assemble_content(
+        profile,
+        exclude,
+        tokenizer,
+        incremental=False,
+        cache=None,
+        verbose=args.verbose,
+    )
+
+    if not full_parts:
+        print("No content collected for full context.")
+        return
+
+    # Compute diff
+    from .watcher import compute_diff
+
+    diff_sections = compute_diff(snapshot_id, profile)
+
+    if not diff_sections:
+        print("No changes since snapshot.")
+
+    # Combine and write
+    title_tmpl = profile.get(
+        "title_template", f"# {project_name} — FULL CONTEXT + DIFF (part {{part}})\n\n"
+    )
+    max_tokens = profile.get("max_tokens", 32768)
+    name_tmpl = "chat-diff-full"
+
+    # Clean old diff-full files
+    clean_manifest(out_path, name_tmpl)
+
+    created = _combine_full_and_diff(
+        full_parts,
+        diff_sections,
+        snapshot_id,
+        project_name,
+        title_tmpl,
+        max_tokens,
+        out_path,
+        tokenizer,
+    )
+
+    # Print summary
+    for f in created:
+        filepath = Path(f)
+        content = filepath.read_text(encoding="utf-8")
+        lines = content.count("\n") + 1
+        tokens = tokenizer(content)
+        print(f"  {filepath.name} ({lines} lines, ~{tokens} tokens)")
+
+    # Update manifest
+    prev = load_manifest(out_path)
+    updated = [f for f in prev if not f.startswith(name_tmpl)]
+    updated.extend(created)
+    save_manifest(out_path, updated)
+
+
 def main():
     # Handle --completion before argparse (requires interactive output)
     if "--completion" in sys.argv:
@@ -147,6 +289,7 @@ def main():
     parser.add_argument("--name", help="Snapshot name")
     parser.add_argument("--from", dest="from_snapshot", help="Snapshot ID to diff from")
     parser.add_argument("--store", help="Store command: gc or stats")
+    parser.add_argument("--full", action="store_true", help="Combine full context with --diff")
 
     args = parser.parse_args()
     config = load_config()
@@ -273,6 +416,11 @@ def _cmd_clean(config: dict, out_path: Path):
             plain.unlink()
             cleaned += 1
             print(f"  Removed: {plain.name}")
+    # Also clean chat-diff-full files
+    for f in out_path.glob("chat-diff-full*.md"):
+        f.unlink()
+        cleaned += 1
+        print(f"  Removed: {f.name}")
     print(f"Cleaned {cleaned} file(s).")
 
 
@@ -420,6 +568,7 @@ def _cmd_diff(argv: list[str]):
         arachna --diff --from <id>      diff from specific snapshot
         arachna --diff --profile X      diff for specific profile
         arachna --diff --format xml     XML output
+        arachna --diff --full           full context + diff in one output
     """
     from .watcher import compute_diff
 
@@ -449,6 +598,54 @@ def _cmd_diff(argv: list[str]):
         else:
             print("Error: --format requires a value")
             sys.exit(1)
+
+    # --full flag: full context + diff in single output
+    if "--full" in argv:
+        # Resolve snapshot ID
+        if snapshot_id is None:
+            from .store import _store_root
+
+            head_path = _store_root() / "HEAD"
+            if not head_path.exists():
+                print("Error: No snapshots found. Run 'arachna --snapshot' first.")
+                sys.exit(1)
+            snapshot_id = head_path.read_text().strip()
+
+        # Get output dir
+        output_dir = "."
+        if "--output-dir" in argv:
+            idx = argv.index("--output-dir")
+            if idx + 1 < len(argv):
+                output_dir = argv[idx + 1]
+        elif "-o" in argv:
+            idx = argv.index("-o")
+            if idx + 1 < len(argv):
+                output_dir = argv[idx + 1]
+
+        config = load_config()
+        project_name = config.get("project_name", "Project")
+        out_path = Path(output_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        # Build fake args for _cmd_diff_full
+        class DiffFullArgs:
+            verbose = "--verbose" in argv
+            compress = "--compress" in argv
+            format = fmt
+            dry_run = False
+            merge = False
+            incremental = False
+            all = False
+
+        _cmd_diff_full(
+            snapshot_id,
+            profile_name,
+            config,
+            DiffFullArgs(),
+            project_name,
+            out_path,
+        )
+        return
 
     # Resolve snapshot ID
     if snapshot_id is None:

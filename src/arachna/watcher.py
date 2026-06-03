@@ -19,12 +19,38 @@ def _normalize_path(path: str) -> str:
     return path.replace("\\", "/")
 
 
+def _read_profile_files(profile: dict) -> dict[str, str]:
+    """Read explicitly listed files from profile.
+
+    Returns {normalized_path: content} dict.
+    Skips files that don't exist or can't be read.
+    """
+    result = {}
+    cwd = Path.cwd()
+    for filepath_str in profile.get("files", []):
+        fp = Path(filepath_str)
+        if not fp.is_file():
+            continue
+        try:
+            content = fp.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        try:
+            rel_path = _normalize_path(str(fp.relative_to(cwd)))
+        except ValueError:
+            rel_path = _normalize_path(str(fp))
+        result[rel_path] = content
+    return result
+
+
 def create_snapshot(profile: dict, name: str | None = None) -> str:
     """Walk all files in profile and create a snapshot.
 
     Reuses existing _scan_directories logic from gatherer.
     Reads file contents, stores in content-addressable store,
     creates manifest, returns snapshot ID.
+
+    Includes both directories (scanned) and explicit files from profile.
 
     Args:
         profile: profile dict (same format as .arachna.json profiles).
@@ -48,6 +74,10 @@ def create_snapshot(profile: dict, name: str | None = None) -> str:
             rel_path = _normalize_path(str(fp))
         files[rel_path] = content
 
+    # Add explicitly listed files from profile
+    profile_files = _read_profile_files(profile)
+    files.update(profile_files)
+
     profile_name = profile.get("name_template", "full")
     return store_create_snapshot(files, profile=profile_name, name=name)
 
@@ -58,6 +88,8 @@ def compute_diff(
     fmt: str = "markdown",
 ) -> list[DiffSection]:
     """Compute diff between a snapshot and current files.
+
+    Includes both directories (scanned) and explicit files from profile.
 
     Args:
         snapshot_id: ID of the snapshot to diff against.
@@ -85,6 +117,12 @@ def compute_diff(
         except (OSError, UnicodeDecodeError):
             continue
         current_files[rel_path] = content
+
+    # Add explicitly listed files from profile
+    profile_files = _read_profile_files(profile)
+    for rel_path, content in profile_files.items():
+        if rel_path not in current_files:
+            current_files[rel_path] = content
 
     sections = []
 
@@ -121,10 +159,15 @@ def _path_matches_profile(path: str, profile: dict) -> bool:
     """Check if a relative path matches the current profile's directory/pattern settings.
 
     Used to distinguish "file deleted from disk" from "file no longer
-    in profile config". If the path still matches the profile but the
+    in profile config". Checks both directories and explicit files.
+    If the path still matches the profile but the
     file is gone -> genuinely deleted. If the path doesn't match the
     profile -> user changed config, ignore.
     """
+    # Check explicit files list
+    if path in profile.get("files", []):
+        return True
+
     directories = profile.get("directories", [])
     patterns = profile.get("patterns", ["*"])
 
