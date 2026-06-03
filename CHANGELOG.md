@@ -1,9 +1,18 @@
 # Changelog
 
+## v1.5.3 — Smart hybrid incremental cache
+
+- cache.py: v2 format with mtime_ns + size + SHA256
+- cache.py: fast path — size + mtime_ns within 1ms tolerance skips file
+- cache.py: SHA256 fallback detects false positives (git checkout)
+- cache.py: automatic migration from v1 format
+- ci: add PyPI publish job on version tags
+- 530 tests, 92% coverage
+
 ## v1.5.2 — Race condition fix + escaped pipes
 
 - collector.py: add file locking (_merge_lock) for concurrent merge safety
-- runner.py: handle escaped pipes (\\|) in _split_pipe_parts
+- runner.py: handle escaped pipes (\|) in _split_pipe_parts
 - runner.py: handle backslash escaping in double-quoted strings per shell rules
 
 ## v1.5.1 — LOW fixes from audit
@@ -221,3 +230,4 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
+

@@ -1,15 +1,5 @@
 # TODO
 
-## v1.5.3 — Incremental mode optimization
-- [x] Replace mtime-only check with mtime_ns + st_size pre-check
-- [x] Add SHA256 fallback when size/mtime changed (smart hybrid)
-- [x] Handle false positives: git checkout updates mtime, SHA256 confirms unchanged
-- [x] Store mtime_ns, st_size, sha256 in cache
-- [ ] Bump version to 1.5.3
-- [ ] Update CHANGELOG.md
-- [ ] Update TEST_REPORT.md
-- [ ] Publish v1.5.3 on PyPI
-
 ## Backlog
 - [ ] v1.6.0 — Watch MVP: store.py, differ.py, watcher.py, --snapshot, --diff
 - [ ] v1.6.1 — Watch polish: --diff --full, --store gc/stats, XML format
@@ -18,3 +8,4 @@
 - [ ] Man page (arachna.1) installed with pip
 - [ ] Add more language presets (Go, Rust, Zig, Lua, etc.)
 - [ ] Lazy loading for presets
+
