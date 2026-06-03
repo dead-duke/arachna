@@ -23,8 +23,7 @@ def _arachna(*args: str, cwd=None) -> subprocess.CompletedProcess:
 def test_diff_full_creates_combined_output(tmp_path, monkeypatch):
     """TC-061: --diff --full creates combined context + diff output.
 
-    Note: uses --output-dir explicitly because BUG-001:
-    _cmd_diff --full ignores output_dir from .arachna.json.
+    Verifies BUG-001 fix: output_dir from .arachna.json is respected.
     """
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
@@ -54,18 +53,8 @@ def test_diff_full_creates_combined_output(tmp_path, monkeypatch):
     # Modify file
     (tmp_path / "src" / "main.py").write_text("modified")
 
-    # Run --diff --full with explicit --output-dir (workaround BUG-001)
-    result = _arachna(
-        "--diff",
-        "--from",
-        "full-diff-test",
-        "--profile",
-        "code",
-        "--full",
-        "--output-dir",
-        "out",
-        cwd=cwd,
-    )
+    # Run --diff --full (no explicit --output-dir — relies on config, BUG-001 fixed)
+    result = _arachna("--diff", "--from", "full-diff-test", "--profile", "code", "--full", cwd=cwd)
     assert result.returncode == 0, f"stdout: {result.stdout}\nstderr: {result.stderr}"
 
     out_dir = tmp_path / "out"
