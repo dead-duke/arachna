@@ -1,13 +1,5 @@
 # TODO
 
-## v1.5.2 — Race condition fix + escaped pipes
-- [x] File locking in _find_next_part_num() for concurrent merge safety
-- [x] Handle escaped pipes (\|) in _split_pipe_parts()
-- [ ] Bump version to 1.5.2
-- [ ] Update CHANGELOG.md
-- [ ] Update TEST_REPORT.md
-- [ ] Publish v1.5.2 on PyPI
-
 ## v1.5.3 — Incremental mode optimization
 - [ ] Replace mtime-only check with mtime_ns + st_size pre-check
 - [ ] Add SHA256 fallback when size/mtime changed (smart hybrid)
