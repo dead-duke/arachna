@@ -1,9 +1,8 @@
 # TODO
 
 ## v1.6.2 — Watch: fix --diff to include profile files + polish
-- [ ] watcher.py: compute_diff and create_snapshot include profile "files" (not just directories)
-- [ ] --diff --full: full context + diff in single output
-- [ ] --diff --format json: JSON output for programmatic processing
+- [x] watcher.py: compute_diff and create_snapshot include profile "files" (not just directories)
+- [x] --diff --full: full context + diff in single output
 
 ## Backlog
 - [ ] v1.7.0 — Named snapshots, cross-snapshot diff, rename detection
