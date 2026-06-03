@@ -1,10 +1,10 @@
 # TODO
 
 ## v1.5.3 — Incremental mode optimization
-- [ ] Replace mtime-only check with mtime_ns + st_size pre-check
-- [ ] Add SHA256 fallback when size/mtime changed (smart hybrid)
-- [ ] Handle false positives: git checkout updates mtime, SHA256 confirms unchanged
-- [ ] Store mtime_ns, st_size, sha256 in cache
+- [x] Replace mtime-only check with mtime_ns + st_size pre-check
+- [x] Add SHA256 fallback when size/mtime changed (smart hybrid)
+- [x] Handle false positives: git checkout updates mtime, SHA256 confirms unchanged
+- [x] Store mtime_ns, st_size, sha256 in cache
 - [ ] Bump version to 1.5.3
 - [ ] Update CHANGELOG.md
 - [ ] Update TEST_REPORT.md
