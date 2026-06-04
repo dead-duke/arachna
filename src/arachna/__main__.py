@@ -7,11 +7,17 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
+from .collector import (
+    _MANIFEST,
+    _write_diff_parts,
+    clean_manifest,
+    collect,
+    load_manifest,
+    save_manifest,
+)
 from .config import get_profile, load_config
-from .gatherer import _assemble_content, _get_exclude_patterns, dry_run
+from .gatherer import dry_run
 from .renderer import render_dry_run
-from .splitter import split_sections
 from .tokenizer import count_tokens, load_tokenizer
 from .validator import validate_profile
 
@@ -90,147 +96,6 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
     return created, tokens_by_file
 
 
-def _combine_full_and_diff(
-    full_parts: list[str],
-    diff_sections: list,
-    snapshot_id: str,
-    project_name: str,
-    title_tmpl: str,
-    max_tokens: int,
-    out_path: Path,
-    tokenizer,
-) -> list[str]:
-    """Merge full context parts and diff sections into a single output.
-
-    Output format:
-        # Project — FULL CONTEXT + DIFF (part {part})
-
-        ## Full Context
-        <context parts>
-
-        ---
-
-        ## Changes since snapshot <id>
-        <diff sections>
-
-    Returns list of created file paths.
-    """
-    # Build diff content from sections
-    if diff_sections:
-        diff_content = "\n".join(s.content for s in diff_sections)
-    else:
-        diff_content = "No changes since snapshot."
-
-    # Combine: each full part + separator + diff in one block
-    # then split by tokens
-    separator = "\n\n---\n\n## Changes since snapshot " + snapshot_id + "\n\n"
-    combined_sections = []
-    for i, part in enumerate(full_parts):
-        header = title_tmpl.format(project_name=project_name, part=i + 1, total=len(full_parts))
-        body = "## Full Context\n\n" + part + separator
-        if i == 0:
-            # First part includes diff
-            body += diff_content
-        combined_sections.append(header + body)
-
-    # Split combined sections by token limit
-    all_content = "\n\n".join(combined_sections)
-    final_parts = split_sections([all_content], max_tokens, separator="\n\n", tokenizer=tokenizer)
-
-    # Write output files
-    created = []
-    name_tmpl = "chat-diff-full"
-    total_parts = len(final_parts)
-    for i, part_content in enumerate(final_parts, 1):
-        filename = f"{name_tmpl}.md" if total_parts == 1 else f"{name_tmpl}_{i}.md"
-        filepath = out_path / filename
-
-        title = f"# {project_name} — FULL CONTEXT + DIFF (part {i} of {total_parts})\n\n"
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(title)
-            f.write(part_content)
-
-        created.append(str(filepath))
-
-    return created
-
-
-def _cmd_diff_full(
-    snapshot_id: str,
-    profile_name: str | None,
-    config: dict,
-    args,
-    project_name: str,
-    out_path: Path,
-):
-    """Handle --diff --full: collect full context + diff, combine into single output."""
-    # Get profile
-    profile = get_profile(profile_name) if profile_name else get_profile("full")
-    profile = _apply_args_to_profile(profile, args)
-
-    # Load tokenizer
-    tokenizer_spec = profile.get("tokenizer", "default")
-    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
-
-    # Collect full context
-    exclude = _get_exclude_patterns(profile)
-    named_sections, full_parts, _ = _assemble_content(
-        profile,
-        exclude,
-        tokenizer,
-        incremental=False,
-        cache=None,
-        verbose=args.verbose,
-    )
-
-    if not full_parts:
-        print("No content collected for full context.")
-        return
-
-    # Compute diff
-    from .watcher import compute_diff
-
-    diff_sections = compute_diff(snapshot_id, profile)
-
-    if not diff_sections:
-        print("No changes since snapshot.")
-
-    # Combine and write
-    title_tmpl = profile.get(
-        "title_template", f"# {project_name} — FULL CONTEXT + DIFF (part {{part}})\n\n"
-    )
-    max_tokens = profile.get("max_tokens", 32768)
-    name_tmpl = "chat-diff-full"
-
-    # Clean old diff-full files
-    clean_manifest(out_path, name_tmpl)
-
-    created = _combine_full_and_diff(
-        full_parts,
-        diff_sections,
-        snapshot_id,
-        project_name,
-        title_tmpl,
-        max_tokens,
-        out_path,
-        tokenizer,
-    )
-
-    # Print summary
-    for f in created:
-        filepath = Path(f)
-        content = filepath.read_text(encoding="utf-8")
-        lines = content.count("\n") + 1
-        tokens = tokenizer(content)
-        print(f"  {filepath.name} ({lines} lines, ~{tokens} tokens)")
-
-    # Update manifest
-    prev = load_manifest(out_path)
-    updated = [f for f in prev if not f.startswith(name_tmpl)]
-    updated.extend(created)
-    save_manifest(out_path, updated)
-
-
 def main():
     # Handle --completion before argparse (requires interactive output)
     if "--completion" in sys.argv:
@@ -268,8 +133,6 @@ def main():
     group.add_argument("--init", action="store_true", help="Create .arachna.json interactively")
     group.add_argument("--doctor", action="store_true", help="Run configuration diagnostic")
     group.add_argument("--install-hook", action="store_true", help="Install post-commit git hook")
-    group.add_argument("--snapshot", action="store_true", help="Create or manage snapshots")
-    group.add_argument("--diff", action="store_true", help="Compute diff from snapshot")
     parser.add_argument(
         "--dry-run", action="store_true", help="Show what will be collected without writing"
     )
@@ -288,8 +151,7 @@ def main():
     parser.add_argument("--preset", help="Use specific preset with --init (e.g. godot, unity)")
     parser.add_argument("--name", help="Snapshot name")
     parser.add_argument("--from", dest="from_snapshot", help="Snapshot ID to diff from")
-    parser.add_argument("--store", help="Store command: gc or stats")
-    parser.add_argument("--full", action="store_true", help="Combine full context with --diff")
+    parser.add_argument("--stat", action="store_true", help="Show diff statistics only")
 
     args = parser.parse_args()
     config = load_config()
@@ -416,8 +278,8 @@ def _cmd_clean(config: dict, out_path: Path):
             plain.unlink()
             cleaned += 1
             print(f"  Removed: {plain.name}")
-    # Also clean chat-diff-full files
-    for f in out_path.glob("chat-diff-full*.md"):
+    # Also clean chat-diff files
+    for f in out_path.glob("chat-diff*.md"):
         f.unlink()
         cleaned += 1
         print(f"  Removed: {f.name}")
@@ -495,13 +357,30 @@ def _cmd_snapshot(argv: list[str]):
     """Handle --snapshot commands.
 
     Usage:
-        arachna --snapshot              list all snapshots
-        arachna --snapshot delete <id>  delete a snapshot
-        arachna --snapshot --name X     create named snapshot
-        arachna --snapshot --profile X  snapshot specific profile
+        arachna --snapshot                     show usage hint
+        arachna --snapshot list                list all snapshots
+        arachna --snapshot create --profile X --name Y   create named snapshot
+        arachna --snapshot update ID [--profile X]       update snapshot
+        arachna --snapshot delete ID           delete snapshot
     """
     from .store import delete_snapshot, list_snapshots
+    from .store_errors import SnapshotExistsError
     from .watcher import create_snapshot as watch_create_snapshot
+    from .watcher import update_snapshot as watch_update_snapshot
+
+    # --snapshot list
+    if "list" in argv:
+        snaps = list_snapshots()
+        if not snaps:
+            print("No snapshots found.")
+            return
+        print("Snapshots:")
+        for s in snaps:
+            name_str = s.get("name") or s["id"]
+            created = s.get("created", "?")
+            file_count = len(s.get("files", {}))
+            print(f"  {s['id']:30} {name_str:20} {created:25} {file_count} files")
+        return
 
     # --snapshot delete <id>
     if "delete" in argv:
@@ -519,59 +398,104 @@ def _cmd_snapshot(argv: list[str]):
             sys.exit(1)
         return
 
-    # --snapshot with --name
-    name = None
-    if "--name" in argv:
-        idx = argv.index("--name")
-        if idx + 1 < len(argv):
-            name = argv[idx + 1]
-        else:
-            print("Error: --name requires a value")
+    # --snapshot create --profile X --name Y
+    if "create" in argv:
+        profile_name = None
+        if "--profile" in argv:
+            idx = argv.index("--profile")
+            if idx + 1 < len(argv):
+                profile_name = argv[idx + 1]
+            else:
+                print("Error: --profile requires a value")
+                sys.exit(1)
+
+        name = None
+        if "--name" in argv:
+            idx = argv.index("--name")
+            if idx + 1 < len(argv):
+                name = argv[idx + 1]
+            else:
+                print("Error: --name requires a value")
+                sys.exit(1)
+
+        if not name:
+            print("Error: --name is required for 'create'. Usage:")
+            print("  arachna --snapshot create --profile X --name Y")
             sys.exit(1)
 
-    # --snapshot with --profile
-    profile_name = None
-    if "--profile" in argv:
-        idx = argv.index("--profile")
-        if idx + 1 < len(argv):
-            profile_name = argv[idx + 1]
-        else:
-            print("Error: --profile requires a value")
-            sys.exit(1)
-
-    # If --name or --profile given, create snapshot
-    if name is not None or profile_name is not None:
         profile = get_profile(profile_name) if profile_name else get_profile("full")
-        sid = watch_create_snapshot(profile, name=name)
-        file_count = len(load_config().get("profiles", {}))
-        print(f"Snapshot '{sid}' created.")
+        try:
+            sid = watch_create_snapshot(profile, name=name)
+            print(f"Snapshot '{sid}' created.")
+        except SnapshotExistsError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
         return
 
-    # --snapshot without arguments → list
-    snaps = list_snapshots()
-    if not snaps:
-        print("No snapshots found.")
+    # --snapshot update <id> [--profile X]
+    if "update" in argv:
+        idx = argv.index("update")
+        if idx + 1 >= len(argv):
+            print("Usage: arachna --snapshot update <id> [--profile X]")
+            sys.exit(1)
+        sid = argv[idx + 1]
+        if sid.startswith("-"):
+            print(f"Error: invalid snapshot ID '{sid}'")
+            print("Usage: arachna --snapshot update <id> [--profile X]")
+            sys.exit(1)
+
+        profile = None
+        if "--profile" in argv:
+            profile_idx = argv.index("--profile")
+            if profile_idx + 1 < len(argv):
+                profile = get_profile(argv[profile_idx + 1])
+            else:
+                print("Error: --profile requires a value")
+                sys.exit(1)
+
+        try:
+            watch_update_snapshot(sid, profile=profile)
+            print(f"Snapshot '{sid}' updated.")
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
         return
-    print("Snapshots:")
-    for s in snaps:
-        name_str = s.get("name") or s["id"]
-        created = s.get("created", "?")
-        file_count = len(s.get("files", {}))
-        print(f"  {s['id']:30} {name_str:20} {created:25} {file_count} files")
+
+    # --snapshot without subcommand → usage hint
+    print("Usage: arachna --snapshot <command>")
+    print()
+    print("Commands:")
+    print("  list                List all snapshots")
+    print("  create --profile X --name Y")
+    print("                      Create a named snapshot")
+    print("  update <id> [--profile X]")
+    print("                      Update an existing snapshot")
+    print("  delete <id>         Delete a snapshot")
+    print()
+    print("Examples:")
+    print("  arachna --snapshot list")
+    print("  arachna --snapshot create --profile code --name before-refactor")
+    print("  arachna --snapshot update before-refactor")
+    print("  arachna --snapshot delete before-refactor")
 
 
 def _cmd_diff(argv: list[str]):
     """Handle --diff commands.
 
     Usage:
-        arachna --diff                  diff from HEAD
+        arachna --diff                  auto-select snapshot or show hint
         arachna --diff --from <id>      diff from specific snapshot
-        arachna --diff --profile X      diff for specific profile
+        arachna --diff --from <id> --profile X  diff with explicit profile
+        arachna --diff --stat           show stats only
         arachna --diff --format xml     XML output
-        arachna --diff --full           full context + diff in one output
+
+    Always writes output files to output_dir (not stdout).
     """
+    from .differ import compute_diff_stats
+    from .store import list_snapshots, load_snapshot
     from .watcher import compute_diff
 
+    # Parse flags
     snapshot_id = None
     if "--from" in argv:
         idx = argv.index("--from")
@@ -581,11 +505,11 @@ def _cmd_diff(argv: list[str]):
             print("Error: --from requires a snapshot ID")
             sys.exit(1)
 
-    profile_name = None
+    profile = None
     if "--profile" in argv:
         idx = argv.index("--profile")
         if idx + 1 < len(argv):
-            profile_name = argv[idx + 1]
+            profile = get_profile(argv[idx + 1])
         else:
             print("Error: --profile requires a value")
             sys.exit(1)
@@ -599,74 +523,104 @@ def _cmd_diff(argv: list[str]):
             print("Error: --format requires a value")
             sys.exit(1)
 
-    # --full flag: full context + diff in single output
-    if "--full" in argv:
-        # Resolve snapshot ID
-        if snapshot_id is None:
-            from .store import _store_root
-
-            head_path = _store_root() / "HEAD"
-            if not head_path.exists():
-                print("Error: No snapshots found. Run 'arachna --snapshot' first.")
-                sys.exit(1)
-            snapshot_id = head_path.read_text().strip()
-
-        # Get output dir: CLI arg takes precedence over config default
-        config = load_config()
-        output_dir = config.get("output_dir", ".")
-        if "--output-dir" in argv:
-            idx = argv.index("--output-dir")
-            if idx + 1 < len(argv):
-                output_dir = argv[idx + 1]
-        elif "-o" in argv:
-            idx = argv.index("-o")
-            if idx + 1 < len(argv):
-                output_dir = argv[idx + 1]
-
-        project_name = config.get("project_name", "Project")
-        out_path = Path(output_dir)
-        out_path.mkdir(parents=True, exist_ok=True)
-
-        # Build fake args for _cmd_diff_full
-        class DiffFullArgs:
-            verbose = "--verbose" in argv
-            compress = "--compress" in argv
-            format = fmt
-            dry_run = False
-            merge = False
-            incremental = False
-            all = False
-
-        _cmd_diff_full(
-            snapshot_id,
-            profile_name,
-            config,
-            DiffFullArgs(),
-            project_name,
-            out_path,
-        )
-        return
+    stat_only = "--stat" in argv
 
     # Resolve snapshot ID
     if snapshot_id is None:
-        from .store import _store_root
-
-        head_path = _store_root() / "HEAD"
-        if not head_path.exists():
-            print("Error: No snapshots found. Run 'arachna --snapshot' first.")
+        snaps = list_snapshots()
+        if len(snaps) == 0:
+            print("Error: No snapshots found. Run 'arachna --snapshot create' first.")
             sys.exit(1)
-        snapshot_id = head_path.read_text().strip()
+        elif len(snaps) == 1:
+            snapshot_id = snaps[0]["id"]
+        else:
+            print("Error: Multiple snapshots found. Use --from to specify which one:")
+            for s in snaps:
+                name_str = s.get("name") or s["id"]
+                print(f"  arachna --diff --from {s['id']:20} # {name_str}")
+            sys.exit(1)
 
-    profile = get_profile(profile_name) if profile_name else get_profile("full")
+    # Get output dir
+    config = load_config()
+    output_dir = config.get("output_dir", ".")
+    if "--output-dir" in argv:
+        idx = argv.index("--output-dir")
+        if idx + 1 < len(argv):
+            output_dir = argv[idx + 1]
+    elif "-o" in argv:
+        idx = argv.index("-o")
+        if idx + 1 < len(argv):
+            output_dir = argv[idx + 1]
+
+    project_name = config.get("project_name", "Project")
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    # Resolve profile: explicit arg > manifest > error
+    if profile is None:
+        manifest = load_snapshot(snapshot_id)
+        stored = manifest.get("profile", {})
+        if isinstance(stored, dict):
+            profile = stored
+        else:
+            print(
+                f"Error: Snapshot '{snapshot_id}' was created with an older version "
+                f"and does not store the full profile. Use --profile to specify a profile."
+            )
+            sys.exit(1)
+
+    # Apply compress flag
+    if "--compress" in argv:
+        profile["compress"] = True
+
+    # Compute diff
     sections = compute_diff(snapshot_id, profile, fmt=fmt)
+
+    if stat_only:
+        stats = compute_diff_stats(sections)
+        print(f"Modified: {stats['modified']}")
+        print(f"Added:    {stats['added']}")
+        print(f"Deleted:  {stats['deleted']}")
+        print(f"Tokens:   {stats['tokens']}")
+        return
 
     if not sections:
         print("No changes since snapshot.")
         return
 
-    # Print to stdout (same format as collected context)
-    for section in sections:
-        print(section.content)
+    # Write diff to files
+    max_tokens = profile.get("max_tokens", 16000)
+    tokenizer_spec = profile.get("tokenizer", "default")
+    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
+
+    name_tmpl = "chat-diff"
+    title_tmpl = profile.get(
+        "title_template",
+        f"# {project_name} — DIFF (part {{part}} of {{total}})\n\n",
+    )
+    # Override title for diff output
+    title_tmpl = f"# {project_name} — DIFF from {snapshot_id} (part {{part}} of {{total}})\n\n"
+
+    # Clean old diff files
+    clean_manifest(out_path, name_tmpl)
+
+    created = _write_diff_parts(
+        sections,
+        out_path,
+        name_tmpl,
+        title_tmpl,
+        project_name,
+        max_tokens,
+        tokenizer,
+    )
+
+    _print_collected(created)
+
+    # Update manifest
+    prev = load_manifest(out_path)
+    updated = [f for f in prev if not f.startswith(name_tmpl)]
+    updated.extend(created)
+    save_manifest(out_path, updated)
 
 
 def _cmd_store(argv: list[str]):

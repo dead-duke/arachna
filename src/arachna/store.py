@@ -23,7 +23,7 @@ import zlib
 from datetime import datetime
 from pathlib import Path
 
-from .store_errors import CorruptedStoreError, ObjectNotFoundError
+from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExistsError
 
 
 def _store_root() -> Path:
@@ -114,6 +114,7 @@ def read_object(object_hash: str) -> bytes:
 
 def create_snapshot(
     files: dict[str, str],
+    profile_dict: dict | None = None,
     profile: str = "full",
     name: str | None = None,
     pre_commands: dict[str, str] | None = None,
@@ -123,19 +124,33 @@ def create_snapshot(
 
     Args:
         files: {path: content} dict of all files to snapshot.
-        profile: profile name used to collect files.
-        name: optional human-readable name. If None, timestamp is used.
+        profile_dict: full profile dict (directories, patterns, etc.).
+            Stored in manifest for later use by --diff without --profile.
+        profile: profile name string (legacy, used if profile_dict not given).
+        name: human-readable name. Required for named snapshots.
+            If None, timestamp YYYYMMDDTHHMMSS is used as ID.
         pre_commands: optional {label: "sha256:hash"} for pre_commands output.
         command: optional {label: "sha256:hash"} for command output.
 
     Returns:
         Snapshot ID (name if given, else timestamp YYYYMMDDTHHMMSS).
+
+    Raises:
+        SnapshotExistsError: if a snapshot with the given name already exists.
     """
     store_dir = _store_root()
     snapshots_dir = store_dir / "snapshots"
     snapshots_dir.mkdir(parents=True, exist_ok=True)
 
     snapshot_id = name if name else datetime.now().strftime("%Y%m%dT%H%M%S")
+
+    # Check for duplicate name
+    manifest_path = snapshots_dir / f"{snapshot_id}.json"
+    if name and manifest_path.exists():
+        raise SnapshotExistsError(
+            f"Snapshot '{name}' already exists. Use 'arachna --snapshot update {name}' "
+            f"to update it, or delete it first."
+        )
 
     # Store all file contents, collect hashes
     file_hashes = {}
@@ -147,7 +162,7 @@ def create_snapshot(
         "id": snapshot_id,
         "name": name,
         "created": datetime.now().isoformat(),
-        "profile": profile,
+        "profile": profile_dict if profile_dict else profile,
         "files": file_hashes,
     }
 
@@ -156,12 +171,73 @@ def create_snapshot(
     if command:
         manifest["command"] = command
 
-    manifest_path = snapshots_dir / f"{snapshot_id}.json"
     manifest_path.write_text(json.dumps(manifest, indent=2))
 
     # Update HEAD
     head_path = store_dir / "HEAD"
     head_path.write_text(snapshot_id)
+
+    return snapshot_id
+
+
+def update_snapshot(
+    snapshot_id: str,
+    files: dict[str, str],
+    profile_dict: dict | None = None,
+    pre_commands: dict[str, str] | None = None,
+    command: dict[str, str] | None = None,
+) -> str:
+    """Update an existing snapshot with new content.
+
+    Preserves snapshot ID and name. Updates created timestamp.
+    If profile_dict is given, updates stored profile.
+    Otherwise keeps existing profile from manifest.
+
+    Args:
+        snapshot_id: ID of the snapshot to update.
+        files: new {path: content} dict.
+        profile_dict: optional new profile dict.
+        pre_commands: optional new pre_commands data.
+        command: optional new command data.
+
+    Returns:
+        Snapshot ID (same as input).
+
+    Raises:
+        ObjectNotFoundError: if snapshot doesn't exist.
+    """
+    manifest = load_snapshot(snapshot_id)
+
+    # Store new file contents
+    file_hashes = {}
+    for path, content in files.items():
+        obj_hash = write_object(content.encode("utf-8"))
+        file_hashes[path] = f"sha256:{obj_hash}"
+
+    manifest["files"] = file_hashes
+    manifest["created"] = datetime.now().isoformat()
+
+    if profile_dict is not None:
+        manifest["profile"] = profile_dict
+
+    if pre_commands is not None:
+        manifest["pre_commands"] = pre_commands
+    elif "pre_commands" in manifest:
+        del manifest["pre_commands"]
+
+    if command is not None:
+        manifest["command"] = command
+    elif "command" in manifest:
+        del manifest["command"]
+
+    store_dir = _store_root()
+    manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+
+    # Update HEAD if this was HEAD
+    head_path = store_dir / "HEAD"
+    if head_path.exists() and head_path.read_text().strip() == snapshot_id:
+        head_path.write_text(snapshot_id)
 
     return snapshot_id
 

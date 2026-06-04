@@ -10,11 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from .cache import load_cache, save_cache
+from .differ import DiffSection
 from .gatherer import (
     _assemble_content,
     _get_exclude_patterns,
 )
 from .runner import run_command
+from .splitter import split_sections
 from .tokenizer import count_tokens, load_tokenizer
 
 _MANIFEST = ".arachna_manifest.json"
@@ -213,6 +215,56 @@ def _write_parts(
         tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
 
     return created, tokens_by_file
+
+
+def _write_diff_parts(
+    diff_sections: list[DiffSection],
+    out_path: Path,
+    name_tmpl: str,
+    title_tmpl: str,
+    project_name: str,
+    max_tokens: int,
+    tokenizer: Any,
+) -> list[str]:
+    """Write diff sections to chat-diff_N.md files with token-based splitting.
+
+    Uses split_sections for dense packing of diff content into
+    token-limited parts.
+
+    Returns list of created file paths.
+    """
+    # Build content strings from DiffSections
+    contents = [s.content for s in diff_sections if s.content.strip()]
+
+    if not contents:
+        return []
+
+    # Split into token-limited parts
+    parts = split_sections(contents, max_tokens, separator="\n\n", tokenizer=tokenizer)
+
+    if not parts:
+        return []
+
+    # Build named sections for TOC (path -> content mapping)
+    named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
+
+    created = []
+    total_parts = len(parts)
+    for i, part_content in enumerate(parts, 1):
+        title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
+        filename = f"{name_tmpl}.md" if total_parts == 1 else f"{name_tmpl}_{i}.md"
+        filepath = out_path / filename
+
+        toc = _build_toc(named_sections, part_content, i, total_parts)
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(title)
+            f.write(toc)
+            f.write(part_content)
+
+        created.append(str(filepath))
+
+    return created
 
 
 def _run_post_commands(commands: list[str], verbose: bool = False):

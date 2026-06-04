@@ -11,3 +11,7 @@ class CorruptedStoreError(StoreError):
 
 class ObjectNotFoundError(StoreError):
     """Object not found in the store."""
+
+
+class SnapshotExistsError(StoreError):
+    """Snapshot with this name already exists."""

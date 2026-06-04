@@ -13,6 +13,7 @@ from .gatherer import _get_exclude_patterns, _scan_directories
 from .runner import run_command
 from .store import create_snapshot as store_create_snapshot
 from .store import load_snapshot, read_object, write_object
+from .store import update_snapshot as store_update_snapshot
 
 
 def _normalize_path(path: str) -> str:
@@ -44,22 +45,10 @@ def _read_profile_files(profile: dict) -> dict[str, str]:
     return result
 
 
-def create_snapshot(profile: dict, name: str | None = None) -> str:
-    """Walk all files in profile and create a snapshot.
+def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
+    """Collect files, pre_commands, and command output for a snapshot.
 
-    Reuses existing _scan_directories logic from gatherer.
-    Reads file contents, stores in content-addressable store,
-    creates manifest, returns snapshot ID.
-
-    Includes both directories (scanned) and explicit files from profile.
-    Also executes pre_commands and command (if present) and stores their output.
-
-    Args:
-        profile: profile dict (same format as .arachna.json profiles).
-        name: optional human-readable name.
-
-    Returns:
-        Snapshot ID.
+    Returns (files_dict, pre_commands_data, command_data).
     """
     exclude = _get_exclude_patterns(profile)
     filepaths = _scan_directories(profile, exclude)
@@ -80,8 +69,6 @@ def create_snapshot(profile: dict, name: str | None = None) -> str:
     profile_files = _read_profile_files(profile)
     files.update(profile_files)
 
-    profile_name = profile.get("name_template", "full")
-
     # Execute pre_commands and store output as named sections
     pre_commands_data = {}
     for cmd in profile.get("pre_commands", []):
@@ -100,34 +87,119 @@ def create_snapshot(profile: dict, name: str | None = None) -> str:
             obj_hash = write_object(output.encode("utf-8"))
             command_data["command output"] = f"sha256:{obj_hash}"
 
+    return files, pre_commands_data, command_data
+
+
+def create_snapshot(profile: dict, name: str) -> str:
+    """Walk all files in profile and create a snapshot.
+
+    Stores full profile dict in manifest for later use by --diff
+    without requiring --profile flag.
+
+    Args:
+        profile: profile dict (same format as .arachna.json profiles).
+        name: required human-readable name for the snapshot.
+
+    Returns:
+        Snapshot ID (same as name).
+
+    Raises:
+        store_errors.SnapshotExistsError: if snapshot with this name exists.
+    """
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile)
+
     return store_create_snapshot(
         files,
-        profile=profile_name,
+        profile_dict=profile,
         name=name,
         pre_commands=pre_commands_data if pre_commands_data else None,
         command=command_data if command_data else None,
     )
 
 
+def update_snapshot(snapshot_id: str, profile: dict | None = None) -> str:
+    """Update an existing snapshot with current content.
+
+    If profile is given, updates stored profile. Otherwise uses
+    existing profile from manifest.
+
+    Args:
+        snapshot_id: ID of the snapshot to update.
+        profile: optional new profile dict. If None, uses existing.
+
+    Returns:
+        Snapshot ID (same as input).
+
+    Raises:
+        store_errors.ObjectNotFoundError: if snapshot doesn't exist.
+    """
+    if profile is None:
+        manifest = load_snapshot(snapshot_id)
+        stored = manifest.get("profile", {})
+        if isinstance(stored, dict):
+            profile = stored
+        else:
+            raise ValueError(
+                f"Snapshot '{snapshot_id}' has legacy format (profile is a string). "
+                f"Use --profile to specify a profile."
+            )
+
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile)
+
+    return store_update_snapshot(
+        snapshot_id,
+        files,
+        profile_dict=profile,
+        pre_commands=pre_commands_data if pre_commands_data else None,
+        command=command_data if command_data else None,
+    )
+
+
+def _get_profile_from_manifest(manifest: dict) -> dict | None:
+    """Extract profile dict from manifest.
+
+    Returns dict if manifest has profile as dict, None if legacy string format.
+    """
+    stored = manifest.get("profile", {})
+    if isinstance(stored, dict):
+        return stored
+    return None
+
+
 def compute_diff(
     snapshot_id: str,
-    profile: dict,
+    profile: dict | None = None,
     fmt: str = "markdown",
 ) -> list[DiffSection]:
     """Compute diff between a snapshot and current files.
+
+    Profile is resolved in this order:
+    1. Explicit profile argument (if given)
+    2. Profile stored in snapshot manifest
+    3. Error — cannot compute diff without profile
 
     Includes both directories (scanned) and explicit files from profile.
     Also diffs pre_commands and command output.
 
     Args:
         snapshot_id: ID of the snapshot to diff against.
-        profile: current profile dict.
+        profile: current profile dict. If None, uses profile from manifest.
         fmt: "markdown" or "xml".
 
     Returns:
         List of DiffSection objects.
     """
     manifest = load_snapshot(snapshot_id)
+
+    # Resolve profile
+    if profile is None:
+        profile = _get_profile_from_manifest(manifest)
+        if profile is None:
+            raise ValueError(
+                f"Snapshot '{snapshot_id}' was created with an older version of arachna "
+                f"and does not store the full profile. Use --profile to specify a profile."
+            )
+
     snapshot_files = manifest.get("files", {})
 
     exclude = _get_exclude_patterns(profile)
