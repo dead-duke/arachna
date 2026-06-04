@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff snapshot-create snapshot-update snapshot-list snapshot-delete store-stats store-gc
+.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc
 
 VENV := venv
 VENV_BIN := $(VENV)/bin
@@ -25,14 +25,14 @@ help:
 	@echo "  make context       - collect full context for AI"
 	@echo ""
 	@echo "Watch (snapshots and diffs):"
-	@echo "  make snapshot-create NAME=name  - create named snapshot"
-	@echo "  make snapshot-list              - list all snapshots"
-	@echo "  make snapshot-update NAME=name  - update existing snapshot"
-	@echo "  make snapshot-delete NAME=name  - delete snapshot"
-	@echo "  make diff SNAPSHOT=name        - diff from snapshot (auto if one)"
-	@echo "  make diff-stat SNAPSHOT=name   - diff stats only"
-	@echo "  make store-stats               - store statistics"
-	@echo "  make store-gc                  - garbage collect store"
+	@echo "  make snapshot-create SNAPSHOT=name  - create named snapshot"
+	@echo "  make snapshot-list                  - list all snapshots"
+	@echo "  make snapshot-update SNAPSHOT=name  - update existing snapshot"
+	@echo "  make snapshot-delete SNAPSHOT=name  - delete snapshot"
+	@echo "  make diff SNAPSHOT=name             - diff from snapshot"
+	@echo "  make diff-stat SNAPSHOT=name        - diff stats only"
+	@echo "  make store-stats                    - store statistics"
+	@echo "  make store-gc                       - garbage collect store"
 
 install:
 	pip install -e .
@@ -95,7 +95,7 @@ snapshot-delete:
 	arachna --snapshot delete $(SNAPSHOT)
 
 diff:
-	arachna --diff --from $(SNAPSHOT) $(if $(PROFILE),--profile $(PROFILE))
+	arachna --diff --from $(SNAPSHOT)
 
 diff-stat:
 	arachna --diff --from $(SNAPSHOT) --stat
