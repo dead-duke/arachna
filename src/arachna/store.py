@@ -116,6 +116,8 @@ def create_snapshot(
     files: dict[str, str],
     profile: str = "full",
     name: str | None = None,
+    pre_commands: dict[str, str] | None = None,
+    command: dict[str, str] | None = None,
 ) -> str:
     """Create a snapshot manifest and return its ID.
 
@@ -123,6 +125,8 @@ def create_snapshot(
         files: {path: content} dict of all files to snapshot.
         profile: profile name used to collect files.
         name: optional human-readable name. If None, timestamp is used.
+        pre_commands: optional {label: "sha256:hash"} for pre_commands output.
+        command: optional {label: "sha256:hash"} for command output.
 
     Returns:
         Snapshot ID (name if given, else timestamp YYYYMMDDTHHMMSS).
@@ -146,6 +150,11 @@ def create_snapshot(
         "profile": profile,
         "files": file_hashes,
     }
+
+    if pre_commands:
+        manifest["pre_commands"] = pre_commands
+    if command:
+        manifest["command"] = command
 
     manifest_path = snapshots_dir / f"{snapshot_id}.json"
     manifest_path.write_text(json.dumps(manifest, indent=2))
@@ -244,6 +253,12 @@ def gc() -> dict:
                     # Format: "sha256:abcdef..."
                     if hash_spec.startswith("sha256:"):
                         referenced.add(hash_spec[7:])
+                for hash_spec in manifest.get("pre_commands", {}).values():
+                    if hash_spec.startswith("sha256:"):
+                        referenced.add(hash_spec[7:])
+                for hash_spec in manifest.get("command", {}).values():
+                    if hash_spec.startswith("sha256:"):
+                        referenced.add(hash_spec[7:])
             except (json.JSONDecodeError, OSError):
                 continue
 
@@ -293,6 +308,12 @@ def stats() -> dict:
             try:
                 manifest = json.loads(mf.read_text())
                 for hash_spec in manifest.get("files", {}).values():
+                    if hash_spec.startswith("sha256:"):
+                        referenced_hashes.add(hash_spec[7:])
+                for hash_spec in manifest.get("pre_commands", {}).values():
+                    if hash_spec.startswith("sha256:"):
+                        referenced_hashes.add(hash_spec[7:])
+                for hash_spec in manifest.get("command", {}).values():
                     if hash_spec.startswith("sha256:"):
                         referenced_hashes.add(hash_spec[7:])
             except (json.JSONDecodeError, OSError):

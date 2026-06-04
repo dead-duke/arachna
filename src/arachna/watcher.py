@@ -10,8 +10,9 @@ from pathlib import Path
 from .differ import DiffSection
 from .differ import compute_diff as differ_compute_diff
 from .gatherer import _get_exclude_patterns, _scan_directories
+from .runner import run_command
 from .store import create_snapshot as store_create_snapshot
-from .store import load_snapshot, read_object
+from .store import load_snapshot, read_object, write_object
 
 
 def _normalize_path(path: str) -> str:
@@ -51,6 +52,7 @@ def create_snapshot(profile: dict, name: str | None = None) -> str:
     creates manifest, returns snapshot ID.
 
     Includes both directories (scanned) and explicit files from profile.
+    Also executes pre_commands and command (if present) and stores their output.
 
     Args:
         profile: profile dict (same format as .arachna.json profiles).
@@ -79,7 +81,32 @@ def create_snapshot(profile: dict, name: str | None = None) -> str:
     files.update(profile_files)
 
     profile_name = profile.get("name_template", "full")
-    return store_create_snapshot(files, profile=profile_name, name=name)
+
+    # Execute pre_commands and store output as named sections
+    pre_commands_data = {}
+    for cmd in profile.get("pre_commands", []):
+        output = run_command(cmd)
+        if output.strip():
+            label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
+            obj_hash = write_object(output.encode("utf-8"))
+            pre_commands_data[f"pre: {label}"] = f"sha256:{obj_hash}"
+
+    # Execute command (for command-based profiles) and store output
+    command_data = {}
+    cmd = profile.get("command")
+    if cmd:
+        output = run_command(cmd)
+        if output.strip():
+            obj_hash = write_object(output.encode("utf-8"))
+            command_data["command output"] = f"sha256:{obj_hash}"
+
+    return store_create_snapshot(
+        files,
+        profile=profile_name,
+        name=name,
+        pre_commands=pre_commands_data if pre_commands_data else None,
+        command=command_data if command_data else None,
+    )
 
 
 def compute_diff(
@@ -90,6 +117,7 @@ def compute_diff(
     """Compute diff between a snapshot and current files.
 
     Includes both directories (scanned) and explicit files from profile.
+    Also diffs pre_commands and command output.
 
     Args:
         snapshot_id: ID of the snapshot to diff against.
@@ -151,6 +179,70 @@ def compute_diff(
         if path not in snapshot_files:
             diff_output = differ_compute_diff("", content, path, fmt=fmt)
             sections.append(DiffSection(type="added", path=path, content=diff_output))
+
+    # ── Diff pre_commands ──────────────────────────────────────────
+
+    snapshot_pre = manifest.get("pre_commands", {})
+    current_pre_commands = profile.get("pre_commands", [])
+
+    # Build current pre_commands output
+    current_pre = {}
+    for cmd in current_pre_commands:
+        output = run_command(cmd)
+        if output.strip():
+            label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
+            current_pre[label] = output
+
+    # Compare: commands in snapshot
+    for label, hash_spec in snapshot_pre.items():
+        obj_hash = hash_spec[7:]
+        if label in current_pre:
+            old_content = read_object(obj_hash).decode("utf-8")
+            new_content = current_pre[label]
+            diff_output = differ_compute_diff(old_content, new_content, label, fmt=fmt)
+            if diff_output:
+                sections.append(DiffSection(type="modified", path=label, content=diff_output))
+        else:
+            # Command removed from profile
+            sections.append(
+                DiffSection(type="deleted", path=label, content=f"### {label}\n\n[DELETED]\n")
+            )
+
+    # New pre_commands not in snapshot
+    for label in current_pre:
+        if label not in snapshot_pre:
+            diff_output = differ_compute_diff("", current_pre[label], label, fmt=fmt)
+            sections.append(DiffSection(type="added", path=label, content=diff_output))
+
+    # ── Diff command ───────────────────────────────────────────────
+
+    snapshot_cmd = manifest.get("command", {})
+    current_cmd = profile.get("command")
+
+    current_cmd_output = ""
+    if current_cmd:
+        output = run_command(current_cmd)
+        if output.strip():
+            current_cmd_output = output
+
+    if snapshot_cmd and current_cmd_output:
+        # Command exists in both — compare
+        for label, hash_spec in snapshot_cmd.items():
+            obj_hash = hash_spec[7:]
+            old_content = read_object(obj_hash).decode("utf-8")
+            diff_output = differ_compute_diff(old_content, current_cmd_output, label, fmt=fmt)
+            if diff_output:
+                sections.append(DiffSection(type="modified", path=label, content=diff_output))
+    elif snapshot_cmd and not current_cmd_output:
+        # Command removed or now produces empty output
+        for label in snapshot_cmd:
+            sections.append(
+                DiffSection(type="deleted", path=label, content=f"### {label}\n\n[DELETED]\n")
+            )
+    elif not snapshot_cmd and current_cmd_output:
+        # New command output
+        diff_output = differ_compute_diff("", current_cmd_output, "command output", fmt=fmt)
+        sections.append(DiffSection(type="added", path="command output", content=diff_output))
 
     return sections
 
