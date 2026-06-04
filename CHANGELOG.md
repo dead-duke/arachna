@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.6.4 — Watch CLI redesign
+
+- --snapshot: explicit subcommands (list, create, update, delete)
+- --snapshot create: --name required, duplicate names raise SnapshotExistsError
+- --snapshot update: re-scan and update existing snapshot
+- --diff: writes to chat-diff_N.md files instead of stdout
+- --diff: auto-selects single snapshot, hints for multiple
+- --diff --stat: show stats only (modified/added/deleted counts)
+- --diff: profile from manifest if --profile not specified
+- store.py: manifest stores full profile dict, update_snapshot added
+- store_errors.py: SnapshotExistsError added
+- collector.py: _write_diff_parts for token-split diff output
+- Removed --full flag (_cmd_diff_full, _combine_full_and_diff)
+- 654 tests, 92% coverage
+
 ## v1.6.3 — Watch: command-based profiles support
 
 - watcher.py: create_snapshot executes pre_commands and command, stores output in manifest
