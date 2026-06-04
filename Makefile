@@ -2,7 +2,7 @@
 
 VENV := venv
 VENV_BIN := $(VENV)/bin
-SNAPSHOT ?= cycle-current
+SNAPSHOT ?= cycle
 PROFILE ?= full
 
 help:
@@ -25,12 +25,12 @@ help:
 	@echo "  make context       - collect full context for AI"
 	@echo ""
 	@echo "Watch (snapshots and diffs):"
-	@echo "  make snapshot-create SNAPSHOT=name  - create named snapshot"
+	@echo "  make snapshot-create SNAPSHOT=name  - create named snapshot (default: cycle)"
 	@echo "  make snapshot-list                  - list all snapshots"
-	@echo "  make snapshot-update SNAPSHOT=name  - update existing snapshot"
+	@echo "  make snapshot-update SNAPSHOT=name  - update existing snapshot (default: cycle)"
 	@echo "  make snapshot-delete SNAPSHOT=name  - delete snapshot"
-	@echo "  make diff SNAPSHOT=name             - diff from snapshot"
-	@echo "  make diff-stat SNAPSHOT=name        - diff stats only"
+	@echo "  make diff SNAPSHOT=name             - diff from snapshot (default: cycle)"
+	@echo "  make diff-stat SNAPSHOT=name        - diff stats only (default: cycle)"
 	@echo "  make store-stats                    - store statistics"
 	@echo "  make store-gc                       - garbage collect store"
 
