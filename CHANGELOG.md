@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.6.5 — README update for Watch CLI
+
+- README.md: updated all Watch commands to v1.6.4 syntax
+- README.md: added --snapshot list/create/update/delete, --diff --stat
+
 ## v1.6.4 — Watch CLI redesign
 
 - --snapshot: explicit subcommands (list, create, update, delete)
@@ -282,4 +287,3 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
-

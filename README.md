@@ -104,9 +104,9 @@ Creates arachna_context/ with .md files ready for AI.
 
 ### Agent workflow with snapshots (10-50x token savings)
 
-    arachna --snapshot --profile code --name "baseline"
+    arachna --snapshot create --profile code --name "baseline"
     # ... AI makes changes to your project ...
-    arachna --diff --from baseline --profile code
+    arachna --diff --from baseline
     # Sends only the diff, not the full project
 
 ### Dry-run (preview without writing)
@@ -131,11 +131,20 @@ Creates arachna_context/ with .md files ready for AI.
     arachna --validate          check config for errors
     arachna --doctor            run full diagnostic
     arachna --install-hook      install post-commit git hook (optional)
-    arachna --snapshot          create snapshot (optionally --name, --profile)
-    arachna --snapshot delete X delete snapshot
-    arachna --diff              diff from HEAD (optionally --from, --profile, --format)
-    arachna --store stats       show store statistics
-    arachna --store gc          garbage collect unreferenced objects
+
+### Watch commands
+
+    arachna --snapshot                          show usage hint
+    arachna --snapshot list                     list all snapshots
+    arachna --snapshot create --profile X --name Y   create snapshot
+    arachna --snapshot update <id>              update snapshot
+    arachna --snapshot delete <id>              delete snapshot
+    arachna --diff                              diff from single snapshot (auto)
+    arachna --diff --from <id>                  diff from specific snapshot
+    arachna --diff --from <id> --stat           stats only (no content)
+    arachna --diff --from <id> --format xml     XML output
+    arachna --store stats                       store statistics
+    arachna --store gc                          garbage collect
 
 ## Options
 
@@ -226,6 +235,8 @@ Files go to arachna_context/ (configurable):
       chat-tests.md
       chat-docs.md
       chat-git.md
+      chat-diff.md              # diff output
+      chat-diff_1.md            # diff parts when over token limit
 
 When content exceeds max_tokens, files are numbered: chat-code_1.md,
 chat-code_2.md...
@@ -252,13 +263,19 @@ then send only changes (diff) in subsequent iterations.
 ### How it works
 
     # Create a baseline snapshot
-    arachna --snapshot --profile code --name "before-refactor"
+    arachna --snapshot create --profile code --name "before-refactor"
 
     # AI or developer makes changes to the project
     # ...
 
-    # See what changed (markdown diff)
-    arachna --diff --from before-refactor --profile code
+    # See what changed (diff written to output_dir)
+    arachna --diff --from before-refactor
+
+    # Just the stats
+    arachna --diff --from before-refactor --stat
+    # Modified: 3
+    # Added:    1
+    # Deleted:  0
 
     # XML output for programmatic processing
     arachna --diff --from before-refactor --format xml
@@ -279,6 +296,17 @@ content — only one copy stored.
     arachna --store gc
     # Removed 15 objects (freed 2.3 MB)
 
+### Snapshot management
+
+    # List all snapshots
+    arachna --snapshot list
+
+    # Update a snapshot (re-scan current state)
+    arachna --snapshot update before-refactor
+
+    # Delete a snapshot (objects survive for other snapshots)
+    arachna --snapshot delete before-refactor
+
 ### Diff format
 
 Human-readable diff optimized for AI consumption:
@@ -292,14 +320,6 @@ Human-readable diff optimized for AI consumption:
 
     ADDED lines 45:
         return sum(item.price for item in items)
-
-### Managing snapshots
-
-    # List all snapshots
-    arachna --snapshot
-
-    # Delete a snapshot (objects survive for other snapshots)
-    arachna --snapshot delete before-refactor
 
 ## Safety
 
@@ -442,4 +462,3 @@ forks. No closed modifications. What the community builds, the community
 keeps.
 
 See [LICENSE](LICENSE) for the full legal text.
-
