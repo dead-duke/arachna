@@ -1,12 +1,14 @@
-.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info
+.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff snapshot-create snapshot-update snapshot-list snapshot-delete store-stats store-gc
 
-# Конфигурация
 VENV := venv
 VENV_BIN := $(VENV)/bin
+SNAPSHOT ?= cycle-current
+PROFILE ?= full
 
 help:
 	@echo "arachna — context collector for AI"
 	@echo ""
+	@echo "Development:"
 	@echo "  make install       - install in development mode"
 	@echo "  make install-dev   - install with dev dependencies + pre-commit"
 	@echo "  make test          - run unit tests"
@@ -18,6 +20,19 @@ help:
 	@echo "  make clean         - remove build artifacts and context files"
 	@echo "  make tree          - show project structure"
 	@echo "  make info          - show project info"
+	@echo ""
+	@echo "arachna context:"
+	@echo "  make context       - collect full context for AI"
+	@echo ""
+	@echo "Watch (snapshots and diffs):"
+	@echo "  make snapshot-create NAME=name  - create named snapshot"
+	@echo "  make snapshot-list              - list all snapshots"
+	@echo "  make snapshot-update NAME=name  - update existing snapshot"
+	@echo "  make snapshot-delete NAME=name  - delete snapshot"
+	@echo "  make diff SNAPSHOT=name        - diff from snapshot (auto if one)"
+	@echo "  make diff-stat SNAPSHOT=name   - diff stats only"
+	@echo "  make store-stats               - store statistics"
+	@echo "  make store-gc                  - garbage collect store"
 
 install:
 	pip install -e .
@@ -60,6 +75,34 @@ info:
 	@echo "Python: $$(python3 --version)"
 	@echo "Path: $$(pwd)"
 
-activate:
-	@echo "Activate virtual environment:"
-	@echo "  source $(VENV)/bin/activate"
+# ── arachna context ────────────────────────────────────────────────
+
+context:
+	arachna --all
+
+# ── Watch commands ──────────────────────────────────────────────────
+
+snapshot-create:
+	arachna --snapshot create --profile $(PROFILE) --name $(SNAPSHOT)
+
+snapshot-list:
+	arachna --snapshot list
+
+snapshot-update:
+	arachna --snapshot update $(SNAPSHOT)
+
+snapshot-delete:
+	arachna --snapshot delete $(SNAPSHOT)
+
+diff:
+	arachna --diff --from $(SNAPSHOT) $(if $(PROFILE),--profile $(PROFILE))
+
+diff-stat:
+	arachna --diff --from $(SNAPSHOT) --stat
+
+store-stats:
+	arachna --store stats
+
+store-gc:
+	arachna --store gc
+
