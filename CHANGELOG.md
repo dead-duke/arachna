@@ -1,8 +1,16 @@
 # Changelog
 
+## v1.6.3 — Watch: command-based profiles support
+
+- watcher.py: create_snapshot executes pre_commands and command, stores output in manifest
+- watcher.py: compute_diff diffs pre_commands and command output against snapshot
+- store.py: create_snapshot accepts optional pre_commands/command dicts
+- store.py: gc() and stats() scan pre_commands/command hashes
+- 9 new tests: command profiles, pre_commands, backward compat, edge cases
+
 ## v1.6.2 — Watch polish: profile files + --diff --full
 
-- watcher.py: create_snapshot and compute_diff include profile "files" (not just directories)
+- watcher.py: create_snapshot and compute_diff include profile files (not just directories)
 - watcher.py: _read_profile_files helper for explicit file reading with error handling
 - watcher.py: _path_matches_profile checks explicit files list
 - __main__.py: _cmd_diff supports --full flag for combined full context + diff
