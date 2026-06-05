@@ -3,9 +3,9 @@
 ## v1.7.0 — Watch Advanced: cross-snapshot diff, rename/move detection, grouped output
 
 ### store.py
-- [ ] add rename_snapshot(old_id, new_id) method
-- [ ] update manifest id/name, update HEAD if needed
-- [ ] raise error on duplicate name
+- [x] add rename_snapshot(old_id, new_id) method
+- [x] update manifest id/name, update HEAD if needed
+- [x] raise error on duplicate name
 
 ### differ.py
 - [ ] add similarity field to DiffSection (float 0.0-1.0)
