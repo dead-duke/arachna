@@ -25,9 +25,9 @@
 - [x] edge cases: multiple files with same hash, binary files, dissimilar (<=0.7)
 
 ### watcher.py — grouped output
-- [ ] group DiffSections by type: renamed, moved, modified, added, deleted
-- [ ] generate summary header with counts
-- [ ] flat mode via --diff --flat for backward compatibility
+- [x] group DiffSections by type: renamed, moved, modified, added, deleted
+- [x] generate summary header with counts
+- [x] flat mode via --diff --flat for backward compatibility
 
 ### __main__.py
 - [ ] --diff --to <id> flag for cross-snapshot diff
