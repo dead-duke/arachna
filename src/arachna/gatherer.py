@@ -6,10 +6,10 @@ from typing import Any
 
 from .cache import get_changed_files, update_cache
 from .compressor import compress
-from .formatter import format_file_section, is_excluded
+from .formatter import _generate_header, format_file_section, is_excluded, lang_for_path
 from .gitignore import load_gitignore_patterns
 from .runner import run_command
-from .splitter import split, split_sections
+from .splitter import extract_signatures, split, split_sections
 from .tokenizer import count_tokens
 
 
@@ -61,6 +61,7 @@ def _collect_specific_files(
     binary_extensions: list[str] | None = None,
     binary_max_mb: float = 1.0,
     verbose: bool = False,
+    include_header: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Format specific files into (path, content, tokens) tuples."""
     results = []
@@ -79,6 +80,7 @@ def _collect_specific_files(
             binary_extensions=binary_extensions,
             binary_max_mb=binary_max_mb,
             verbose=verbose,
+            include_header=include_header,
         )
         if section:
             tokens = tokenizer(section)
@@ -94,6 +96,7 @@ def _format_scanned_files(
     binary_extensions: list[str] | None = None,
     binary_max_mb: float = 1.0,
     verbose: bool = False,
+    include_header: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Format scanned files into (path, content, tokens) tuples."""
     results = []
@@ -105,6 +108,7 @@ def _format_scanned_files(
             binary_extensions=binary_extensions,
             binary_max_mb=binary_max_mb,
             verbose=verbose,
+            include_header=include_header,
         )
         if section:
             tokens = tokenizer(section)
@@ -119,6 +123,7 @@ def _collect_directory_sections(
     incremental: bool = False,
     cache: dict[str, float] | None = None,
     verbose: bool = False,
+    include_header: bool = False,
 ) -> tuple[list[tuple[str, str, int]], dict[str, float] | None]:
     """Collect sections from directory scans with optional incremental logic.
 
@@ -147,6 +152,7 @@ def _collect_directory_sections(
         binary_extensions=binary_extensions,
         binary_max_mb=binary_max_mb,
         verbose=verbose,
+        include_header=include_header,
     )
 
     new_cache = update_cache(target_files, cache or {})
@@ -158,6 +164,7 @@ def _collect_file_sections(
     exclude: list[str],
     tokenizer: Callable[[str], int],
     verbose: bool = False,
+    include_header: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Collect sections from explicitly listed files."""
     fmt = profile.get("section_format", "markdown")
@@ -174,7 +181,131 @@ def _collect_file_sections(
         binary_extensions=binary_extensions,
         binary_max_mb=binary_max_mb,
         verbose=verbose,
+        include_header=include_header,
     )
+
+
+# ── Query filtering ────────────────────────────────────────────────
+
+
+def _collect_import_graph(
+    named_sections: list[tuple[str, str, int]],
+) -> dict[str, list[str]]:
+    """Build {filepath: [imported_modules]} dict from section headers.
+
+    Parses header deps from each section to build the import graph.
+    """
+    graph: dict[str, list[str]] = {}
+    for filepath, content, _tokens in named_sections:
+        # Extract header from content (first lines before code fence or content)
+        lang = lang_for_path(Path(filepath))
+        header = _generate_header(Path(filepath), content, lang)
+        if not header:
+            graph[filepath] = []
+            continue
+        # Parse deps from header
+        for line in header.split("\n"):
+            if line.startswith("deps: "):
+                deps_str = line[6:]
+                deps = [d.strip() for d in deps_str.split(",") if d.strip()]
+                graph[filepath] = deps
+                break
+        else:
+            graph[filepath] = []
+    return graph
+
+
+def _filter_by_query(
+    named_sections: list[tuple[str, str, int]],
+    query: str,
+) -> list[tuple[str, str, int]]:
+    """Filter named_sections by query relevance.
+
+    Algorithm:
+    1. Tokenize query into words (lowercase)
+    2. For each file, compute relevance score:
+       - query word in filename: +10
+       - query word in exports (header): +8
+       - query word in imports (header deps): +5
+       - query word in file content: +3
+    3. Include files with score > 0
+    4. Include files imported by matched files (import chain, max depth 2)
+
+    Returns filtered list of (path, content, tokens) tuples.
+    """
+    if not query or not query.strip():
+        return named_sections
+
+    query_words = query.lower().split()
+    graph = _collect_import_graph(named_sections)
+
+    scores: dict[str, int] = {}
+    for filepath, content, _tokens in named_sections:
+        score = 0
+        fname_lower = Path(filepath).name.lower()
+        content_lower = content.lower()
+
+        for word in query_words:
+            if word in fname_lower:
+                score += 10
+            if word in content_lower:
+                score += 3
+
+        # Check exports in header for scoring
+        lang = lang_for_path(Path(filepath))
+        header = _generate_header(Path(filepath), content, lang)
+        for line in header.split("\n"):
+            if line.startswith("exports: "):
+                exports_str = line[9:]
+                for word in query_words:
+                    if word in exports_str.lower():
+                        score += 8
+                break
+
+        # Check imports for scoring
+        for dep in graph.get(filepath, []):
+            for word in query_words:
+                if word in dep.lower():
+                    score += 5
+
+        if score > 0:
+            scores[filepath] = score
+
+    # Import chain: include files that import matched files (depth 2)
+    matched = set(scores.keys())
+    # Build reverse graph: {module: [files that import it]}
+    reverse: dict[str, list[str]] = {}
+    for fpath, deps in graph.items():
+        for dep in deps:
+            # Match module name to file basename
+            dep_basename = dep.split("/")[-1].split(".")[0]
+            reverse.setdefault(dep_basename, []).append(fpath)
+            # Also try matching the full dep path
+            reverse.setdefault(dep, []).append(fpath)
+
+    for _depth in range(2):
+        new_matches: set[str] = set()
+        for fpath in matched:
+            basename = Path(fpath).name.split(".")[0]
+            for importer in reverse.get(basename, []):
+                if importer not in matched:
+                    new_matches.add(importer)
+            for importer in reverse.get(fpath, []):
+                if importer not in matched:
+                    new_matches.add(importer)
+        matched |= new_matches
+        if not new_matches:
+            break
+
+    # Rebuild result preserving original order
+    result = []
+    for section in named_sections:
+        if section[0] in matched:
+            result.append(section)
+    return result
+
+
+# ── End query filtering ────────────────────────────────────────────
 
 
 def _collect_named_sections(
@@ -184,6 +315,9 @@ def _collect_named_sections(
     incremental: bool = False,
     cache: dict[str, float] | None = None,
     verbose: bool = False,
+    include_header: bool = False,
+    query: str | None = None,
+    mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], dict[str, float]]:
     """Collect all named sections from pre_commands, directories, and files.
 
@@ -196,12 +330,43 @@ def _collect_named_sections(
 
     # Directories (with incremental logic)
     dir_sections, new_cache = _collect_directory_sections(
-        profile, exclude, tokenizer, incremental=incremental, cache=cache, verbose=verbose
+        profile,
+        exclude,
+        tokenizer,
+        incremental=incremental,
+        cache=cache,
+        verbose=verbose,
+        include_header=include_header,
     )
     named_sections.extend(dir_sections)
 
     # Specific files
-    named_sections.extend(_collect_file_sections(profile, exclude, tokenizer, verbose=verbose))
+    named_sections.extend(
+        _collect_file_sections(
+            profile,
+            exclude,
+            tokenizer,
+            verbose=verbose,
+            include_header=include_header,
+        )
+    )
+
+    # Apply query filtering if query is provided
+    if query and query.strip():
+        named_sections = _filter_by_query(named_sections, query)
+
+    # Apply repo-map mode: extract signatures only
+    if mode == "repo-map":
+        mapped_sections = []
+        for filepath, content, _tokens in named_sections:
+            if filepath.startswith("pre: "):
+                # Don't modify pre_commands output
+                mapped_sections.append((filepath, content, tokenizer(content)))
+            else:
+                lang = lang_for_path(Path(filepath))
+                sigs = extract_signatures(content, lang)
+                mapped_sections.append((filepath, sigs, tokenizer(sigs)))
+        named_sections = mapped_sections
 
     return named_sections, new_cache
 
@@ -235,6 +400,8 @@ def _assemble_file_content(
     incremental: bool = False,
     cache: dict[str, float] | None = None,
     verbose: bool = False,
+    query: str | None = None,
+    mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
     """Assemble content from directories, files, and pre_commands.
 
@@ -246,6 +413,9 @@ def _assemble_file_content(
     do_compress = profile.get("compress", False)
     max_tokens = profile.get("max_tokens", 16000)
 
+    # Headers auto-enabled when query is used
+    include_header = bool(query and query.strip()) or mode == "headers"
+
     named_sections, new_cache = _collect_named_sections(
         profile,
         exclude,
@@ -253,6 +423,9 @@ def _assemble_file_content(
         incremental=incremental,
         cache=cache,
         verbose=verbose,
+        include_header=include_header,
+        query=query,
+        mode=mode,
     )
 
     # Build list of section content strings
@@ -283,6 +456,8 @@ def _assemble_content(
     incremental: bool = False,
     cache: dict[str, float] | None = None,
     verbose: bool = False,
+    query: str | None = None,
+    mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
     """Assemble raw content from profile and split into token-limited parts.
 
@@ -300,6 +475,8 @@ def _assemble_content(
         incremental=incremental,
         cache=cache,
         verbose=verbose,
+        query=query,
+        mode=mode,
     )
 
 

@@ -78,6 +78,8 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
         verbose=args.verbose,
         incremental=args.incremental,
         merge=args.merge,
+        query=getattr(args, "query", None),
+        mode=getattr(args, "mode", "full"),
     )
 
     if not args.all:
@@ -153,6 +155,13 @@ def main():
     parser.add_argument("--name", help="Snapshot name")
     parser.add_argument("--from", dest="from_snapshot", help="Snapshot ID to diff from")
     parser.add_argument("--stat", action="store_true", help="Show diff statistics only")
+    parser.add_argument("--query", help="Filter files by query (e.g. 'authentication')")
+    parser.add_argument(
+        "--mode",
+        choices=["full", "headers", "repo-map"],
+        default="full",
+        help="Output mode: full (default), headers (with deps/exports), repo-map (signatures only)",
+    )
 
     args = parser.parse_args()
     config = load_config()

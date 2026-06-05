@@ -1,6 +1,7 @@
 """Split content into token-limited parts."""
 
 import logging
+import re
 from collections.abc import Callable
 
 from .tokenizer import count_tokens
@@ -141,3 +142,137 @@ def _handle_single(
 
     text = text[:lo] + "\n\n# ... truncated ...\n"
     return [text.strip()], True
+
+
+# ── Repo-map: signature extraction ─────────────────────────────────
+
+# Language sets for dispatch — mirrors formatter.py
+_C_LIKE_LANGS = frozenset(
+    {
+        "javascript",
+        "typescript",
+        "rust",
+        "go",
+        "java",
+        "cpp",
+        "c",
+        "csharp",
+        "swift",
+        "kotlin",
+        "php",
+    }
+)
+_SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
+
+# C-like: match function/class/type signatures up to opening brace.
+# [^{]* allows zero chars before { (e.g. "type Handler struct {").
+_RE_C_LIKE_SIG = re.compile(
+    r"^(\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
+    r"type\s+\w+\s+\w+|type\s+|"
+    r"public\s+class|public\s+static|public\s+function|"
+    r"fn|func)\s+[^{]*)",
+    re.MULTILINE,
+)
+
+# Ruby/Elixir/Lua: match def/function signatures
+_RE_SCRIPT_SIG = re.compile(
+    r"^(\s*(?:def\s+(?:self\.)?\w+[?!]?.*|"
+    r"defmodule\s+[\w.]+.*|"
+    r"defp\s+\w+.*|"
+    r"function\s+\w+.*))",
+    re.MULTILINE,
+)
+
+
+def extract_signatures(text: str, lang: str) -> str:
+    """Extract only function/class signatures, strip bodies.
+
+    Used for repo-map mode: gives AI an overview of the codebase
+    without consuming tokens on implementation details.
+
+    Args:
+        text: full file content.
+        lang: language from lang_for_path().
+
+    Returns:
+        Signatures-only text, or full text if language is unknown.
+    """
+    if lang == "python":
+        return _extract_python_signatures(text)
+    elif lang in _C_LIKE_LANGS or lang == "gdscript":
+        return _extract_c_like_signatures(text)
+    elif lang in _SCRIPT_LANGS:
+        return _extract_script_signatures(text)
+    # Fallback: return full file for unknown languages
+    return text
+
+
+def _extract_python_signatures(text: str) -> str:
+    """Extract signatures from Python source using ast.
+
+    Strips function/class bodies, replaces with '    ...'.
+    Preserves decorators on the line before the definition.
+    """
+    import ast as _ast
+
+    try:
+        tree = _ast.parse(text)
+    except SyntaxError:
+        return text
+
+    lines = text.split("\n")
+    keep = [True] * len(lines)
+
+    for node in _ast.iter_child_nodes(tree):
+        if isinstance(node, (_ast.FunctionDef, _ast.ClassDef, _ast.AsyncFunctionDef)) and node.body:
+            body_start = node.body[0].lineno - 1  # 0-indexed
+            # Mark body lines for removal (keep signature + decorators)
+            for i in range(body_start, node.end_lineno):
+                keep[i] = False
+            # Keep the signature line itself
+            keep[node.lineno - 1] = True
+            # Add placeholder after signature
+            keep[body_start] = True
+            lines[body_start] = "    ..."
+            # Keep decorators
+            for decorator in node.decorator_list:
+                keep[decorator.lineno - 1] = True
+            # If there's a return type annotation on its own line, keep it (FunctionDef only)
+            if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and node.returns:
+                keep[node.end_lineno - 1] = True
+
+    result = "\n".join(line for i, line in enumerate(lines) if keep[i])
+    return result.strip()
+
+
+def _extract_c_like_signatures(text: str) -> str:
+    """Extract signatures from C-like languages via regex.
+
+    Matches function/class/method/type declarations up to {.
+    Handles multi-line signatures by capturing until the brace.
+    """
+    sigs = []
+    for m in _RE_C_LIKE_SIG.finditer(text):
+        sig = m.group(1).strip()
+        sigs.append(sig)
+
+    if not sigs:
+        return text
+
+    return "\n".join(sigs)
+
+
+def _extract_script_signatures(text: str) -> str:
+    """Extract signatures from Ruby/Elixir/Lua via regex."""
+    sigs = []
+    for m in _RE_SCRIPT_SIG.finditer(text):
+        sig = m.group(1).strip()
+        sigs.append(sig)
+
+    if not sigs:
+        return text
+
+    return "\n".join(sigs)
+
+
+# ── End repo-map ───────────────────────────────────────────────────

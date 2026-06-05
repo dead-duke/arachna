@@ -288,6 +288,8 @@ def collect(
     verbose: bool = False,
     incremental: bool = False,
     merge: bool = False,
+    query: str | None = None,
+    mode: str = "full",
 ) -> tuple[list[str], dict[str, int]]:
     """Collect content and write output files.
 
@@ -313,6 +315,8 @@ def collect(
         incremental=incremental,
         cache=cache,
         verbose=verbose,
+        query=query,
+        mode=mode,
     )
 
     if incremental:

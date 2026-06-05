@@ -1,8 +1,10 @@
 """File formatting for markdown output."""
 
+import ast as _ast
 import base64
 import fnmatch
 import json
+import re
 from pathlib import Path
 
 _EXT_LANG = {
@@ -139,6 +141,166 @@ def _should_skip_binary(
     return not include_binary
 
 
+# ── Header generation ──────────────────────────────────────────────
+
+# Python: import X, from X import Y
+_RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
+
+# C-like: import/require/include statements
+# Captures: import "pkg" (Go), import ... from '...' (JS/TS),
+# require('...') (JS), #include <...> (C/C++), using X; (C#)
+_RE_C_LIKE_IMPORT = re.compile(
+    r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]"
+    r"|import\s+['\"]([^'\"]+)['\"]"
+    r"|(?:const|let|var)\s+[\w{},\s*]+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
+    r"|#include\s*[<\"]([^>\"]+)[>\"]"
+    r"|using\s+([\w.]+)\s*;)",
+    re.MULTILINE,
+)
+
+# C-like exports: function/class/method/type signatures
+_RE_C_LIKE_EXPORT = re.compile(
+    r"^\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
+    r"type\s+|"
+    r"public\s+class|public\s+static|public\s+function|"
+    r"fn|func)\s+(\w+)",
+    re.MULTILINE,
+)
+
+# Ruby/Elixir/Lua imports: require, import, use
+_RE_SCRIPT_IMPORT = re.compile(
+    r"^\s*(?:require\s+['\"]([^'\"]+)['\"]"
+    r"|import\s+['\"]([^'\"]+)['\"]"
+    r"|use\s+([\w.]+))",
+    re.MULTILINE,
+)
+
+# Ruby/Elixir/Lua exports: def, defmodule, defp, function
+_RE_SCRIPT_EXPORT = re.compile(
+    r"^\s*(?:def\s+(?:self\.)?(\w+[?!]?)"
+    r"|defmodule\s+([\w.]+)"
+    r"|defp\s+(\w+)"
+    r"|function\s+(\w+))",
+    re.MULTILINE,
+)
+
+# Language sets for dispatch
+_C_LIKE_LANGS = frozenset(
+    {
+        "javascript",
+        "typescript",
+        "rust",
+        "go",
+        "java",
+        "cpp",
+        "c",
+        "csharp",
+        "swift",
+        "kotlin",
+        "php",
+    }
+)
+_SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
+
+
+def _generate_header(path: Path, text: str, lang: str) -> str:
+    """Generate a context header with dependencies and exports.
+
+    Returns empty string for unknown languages (no crash).
+    Format:
+        ### path
+        deps: dep1, dep2
+        exports: func1, func2
+    """
+    deps: list[str] = []
+    exports: list[str] = []
+
+    if lang == "python":
+        deps, exports = _parse_python(text)
+    elif lang in _C_LIKE_LANGS or lang == "gdscript":
+        deps, exports = _parse_c_like(text)
+    elif lang in _SCRIPT_LANGS:
+        deps, exports = _parse_script(text)
+    # Fallback: unknown language → empty header
+
+    if not deps and not exports:
+        return ""
+
+    lines = [f"### {path}\n"]
+    if deps:
+        lines.append(f"deps: {', '.join(sorted(set(deps)))}\n")
+    if exports:
+        lines.append(f"exports: {', '.join(sorted(set(exports)))}\n")
+    return "".join(lines)
+
+
+def _parse_python(text: str) -> tuple[list[str], list[str]]:
+    """Extract imports and top-level function/class names from Python source."""
+    deps: list[str] = []
+    exports: list[str] = []
+
+    try:
+        tree = _ast.parse(text)
+    except SyntaxError:
+        # Fall back to regex for syntactically invalid Python
+        for m in _RE_PY_IMPORT.finditer(text):
+            mod = m.group(1) or m.group(2)
+            if mod:
+                deps.append(mod)
+        return deps, exports
+
+    for node in _ast.iter_child_nodes(tree):
+        if isinstance(node, _ast.Import):
+            for alias in node.names:
+                deps.append(alias.name)
+        elif isinstance(node, _ast.ImportFrom):
+            if node.module:
+                deps.append(node.module)
+        elif isinstance(node, (_ast.FunctionDef, _ast.ClassDef, _ast.AsyncFunctionDef)):
+            exports.append(node.name)
+
+    return deps, exports
+
+
+def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
+    """Extract imports and exports from C-like languages via regex."""
+    deps: list[str] = []
+    exports: list[str] = []
+
+    for m in _RE_C_LIKE_IMPORT.finditer(text):
+        dep = m.group(1) or m.group(2) or m.group(3) or m.group(4) or m.group(5)
+        if dep:
+            deps.append(dep)
+
+    for m in _RE_C_LIKE_EXPORT.finditer(text):
+        name = m.group(1)
+        if name:
+            exports.append(name)
+
+    return deps, exports
+
+
+def _parse_script(text: str) -> tuple[list[str], list[str]]:
+    """Extract imports and exports from Ruby/Elixir/Lua via regex."""
+    deps: list[str] = []
+    exports: list[str] = []
+
+    for m in _RE_SCRIPT_IMPORT.finditer(text):
+        dep = m.group(1) or m.group(2) or m.group(3)
+        if dep:
+            deps.append(dep)
+
+    for m in _RE_SCRIPT_EXPORT.finditer(text):
+        name = m.group(1) or m.group(2) or m.group(3) or m.group(4)
+        if name:
+            exports.append(name)
+
+    return deps, exports
+
+
+# ── End header generation ──────────────────────────────────────────
+
+
 def format_file_section(
     path: Path,
     fmt: str = "markdown",
@@ -146,6 +308,7 @@ def format_file_section(
     binary_extensions: list[str] | None = None,
     binary_max_mb: float = 1.0,
     verbose: bool = False,
+    include_header: bool = False,
 ) -> str:
     """Read a file and format it as a section."""
     if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
@@ -197,12 +360,17 @@ def format_file_section(
         first_line = text.split("\n")[0] if text else ""
         lang = _lang_from_shebang(first_line)
 
+    # Generate header if requested
+    header = ""
+    if include_header:
+        header = _generate_header(path, text, lang)
+
     if fmt == "xml":
-        return _format_xml(path, lang, text)
+        return header + _format_xml(path, lang, text)
     elif fmt == "json":
-        return _format_json(path, lang, text)
+        return header + _format_json(path, lang, text)
     else:
-        return _format_markdown(path, lang, text)
+        return header + _format_markdown(path, lang, text)
 
 
 def _is_binary_allowed(path: Path, extensions: list[str] | None, max_mb: float) -> bool:
