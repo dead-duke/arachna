@@ -1,9 +1,24 @@
 # Changelog
 
+## v1.7.0 — Watch Advanced
+
+- --diff --to: cross-snapshot diff between two snapshots
+- Rename detection: exact (same hash) and similar (SequenceMatcher > 0.7)
+- Move detection: same hash, different directory
+- Grouped diff output: renamed, moved, modified, added, deleted
+- Summary header with counts
+- --snapshot info <id>: detailed snapshot info
+- --snapshot info <id> --profile/--stats: profile or stats only
+- --snapshot rename <old> <new>: rename snapshot
+- --snapshot list: removed duplicate id/name column
+- --diff --flat: flat output for backward compatibility
+- store.py: rename_snapshot method
+- differ.py: similarity field, renamed/moved counts in stats
+- 36 new tests
+
 ## v1.6.5 — README update for Watch CLI
 
 - README.md: updated all Watch commands to v1.6.4 syntax
-- README.md: added --snapshot list/create/update/delete, --diff --stat
 
 ## v1.6.4 — Watch CLI redesign
 

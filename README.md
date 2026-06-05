@@ -139,10 +139,14 @@ Creates arachna_context/ with .md files ready for AI.
     arachna --snapshot create --profile X --name Y   create snapshot
     arachna --snapshot update <id>              update snapshot
     arachna --snapshot delete <id>              delete snapshot
+    arachna --snapshot info <id>                show snapshot details
+    arachna --snapshot rename <old> <new>       rename snapshot
     arachna --diff                              diff from single snapshot (auto)
     arachna --diff --from <id>                  diff from specific snapshot
-    arachna --diff --from <id> --stat           stats only (no content)
-    arachna --diff --from <id> --format xml     XML output
+    arachna --diff --from A --to B              cross-snapshot diff
+    arachna --diff --stat                       stats only (no content)
+    arachna --diff --flat                       flat output (no grouping)
+    arachna --diff --format xml                 XML output
     arachna --store stats                       store statistics
     arachna --store gc                          garbage collect
 
@@ -268,17 +272,40 @@ then send only changes (diff) in subsequent iterations.
     # AI or developer makes changes to the project
     # ...
 
-    # See what changed (diff written to output_dir)
+    # See what changed (grouped by type)
     arachna --diff --from before-refactor
+    # Output:
+    #   ## Changes from before-refactor to current (1 renamed, 2 modified)
+    #   ### Renamed
+    #   RENAMED: src/old.py → src/new.py
+    #   ### Modified
+    #   ### src/main.py
+    #   REMOVED/ADDED...
+
+    # Cross-snapshot diff (between two snapshots)
+    arachna --diff --from v1 --to v2
 
     # Just the stats
     arachna --diff --from before-refactor --stat
-    # Modified: 3
-    # Added:    1
-    # Deleted:  0
+    # Modified: 3, Added: 1, Renamed: 1, Deleted: 0
 
-    # XML output for programmatic processing
-    arachna --diff --from before-refactor --format xml
+    # Flat output (old format, backward compatible)
+    arachna --diff --from before-refactor --flat
+
+### Rename and move detection
+
+arachna automatically detects renamed and moved files:
+
+    # Exact rename (same content hash)
+    RENAMED: src/old.py → src/new.py
+
+    # Exact move (same content, different directory)
+    MOVED: src/utils.py → lib/utils.py
+
+    # Similar rename (content > 70% similar)
+    RENAMED: src/old.py → src/new.py (87% similar)
+
+No git needed — works on any project.
 
 ### Content-addressable store
 
@@ -301,8 +328,17 @@ content — only one copy stored.
     # List all snapshots
     arachna --snapshot list
 
+    # Show snapshot details
+    arachna --snapshot info before-refactor
+
+    # Show profile only
+    arachna --snapshot info before-refactor --profile
+
     # Update a snapshot (re-scan current state)
     arachna --snapshot update before-refactor
+
+    # Rename a snapshot
+    arachna --snapshot rename before-refactor after-refactor
 
     # Delete a snapshot (objects survive for other snapshots)
     arachna --snapshot delete before-refactor
