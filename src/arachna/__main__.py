@@ -61,7 +61,9 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
     profile = _apply_args_to_profile(profile, args)
 
     if args.dry_run:
-        stats = dry_run(profile)
+        query = getattr(args, "query", None)
+        mode = getattr(args, "mode", "full")
+        stats = dry_run(profile, query=query, mode=mode)
         stats["name"] = name
         return stats, {}
 

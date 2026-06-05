@@ -1,5 +1,6 @@
 """Content gatherer — collects files and runs commands."""
 
+import contextlib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -62,6 +63,7 @@ def _collect_specific_files(
     binary_max_mb: float = 1.0,
     verbose: bool = False,
     include_header: bool = False,
+    mode: str = "full",
 ) -> list[tuple[str, str, int]]:
     """Format specific files into (path, content, tokens) tuples."""
     results = []
@@ -73,6 +75,13 @@ def _collect_specific_files(
             continue
         if is_excluded(filepath, exclude):
             continue
+
+        # Read raw text for repo-map before formatting
+        raw_text = None
+        if mode == "repo-map":
+            with contextlib.suppress(OSError, UnicodeDecodeError):
+                raw_text = filepath.read_text(encoding="utf-8")
+
         section = format_file_section(
             filepath,
             fmt=fmt,
@@ -83,6 +92,20 @@ def _collect_specific_files(
             include_header=include_header,
         )
         if section:
+            # Apply repo-map to raw text, then re-format just the signatures
+            if mode == "repo-map" and raw_text is not None:
+                lang = lang_for_path(filepath)
+                sigs = extract_signatures(raw_text, lang)
+                header = ""
+                if include_header:
+                    header = _generate_header(filepath, raw_text, lang)
+                if fmt == "xml":
+                    section = header + _format_xml_sigs(filepath, lang, sigs)
+                elif fmt == "json":
+                    section = header + _format_json_sigs(filepath, lang, sigs)
+                else:
+                    section = header + _format_markdown_sigs(filepath, lang, sigs)
+
             tokens = tokenizer(section)
             results.append((str(filepath), section, tokens))
     return results
@@ -97,10 +120,17 @@ def _format_scanned_files(
     binary_max_mb: float = 1.0,
     verbose: bool = False,
     include_header: bool = False,
+    mode: str = "full",
 ) -> list[tuple[str, str, int]]:
     """Format scanned files into (path, content, tokens) tuples."""
     results = []
     for filepath in filepaths:
+        # Read raw text for repo-map before formatting
+        raw_text = None
+        if mode == "repo-map":
+            with contextlib.suppress(OSError, UnicodeDecodeError):
+                raw_text = filepath.read_text(encoding="utf-8")
+
         section = format_file_section(
             filepath,
             fmt=fmt,
@@ -111,9 +141,51 @@ def _format_scanned_files(
             include_header=include_header,
         )
         if section:
+            # Apply repo-map to raw text, then re-format just the signatures
+            if mode == "repo-map" and raw_text is not None:
+                lang = lang_for_path(filepath)
+                sigs = extract_signatures(raw_text, lang)
+                header = ""
+                if include_header:
+                    header = _generate_header(filepath, raw_text, lang)
+                if fmt == "xml":
+                    section = header + _format_xml_sigs(filepath, lang, sigs)
+                elif fmt == "json":
+                    section = header + _format_json_sigs(filepath, lang, sigs)
+                else:
+                    section = header + _format_markdown_sigs(filepath, lang, sigs)
+
             tokens = tokenizer(section)
             results.append((str(filepath), section, tokens))
     return results
+
+
+# ── Repo-map formatting helpers ────────────────────────────────────
+
+
+def _format_markdown_sigs(filepath: Path, lang: str, sigs: str) -> str:
+    """Format signatures as markdown code block."""
+    fence_lang = lang if lang else ""
+    return f"### {filepath}\n\n```{fence_lang}\n{sigs}\n```\n"
+
+
+def _format_xml_sigs(filepath: Path, lang: str, sigs: str) -> str:
+    """Format signatures as XML."""
+    lang_attr = f' language="{lang}"' if lang else ""
+    return f'<file path="{filepath}"{lang_attr}>\n<![CDATA[\n{sigs}\n]]>\n</file>\n'
+
+
+def _format_json_sigs(filepath: Path, lang: str, sigs: str) -> str:
+    """Format signatures as JSON."""
+    import json
+
+    obj = {"path": str(filepath), "content": sigs}
+    if lang:
+        obj["language"] = lang
+    return json.dumps(obj, ensure_ascii=False) + "\n"
+
+
+# ── End repo-map formatting ────────────────────────────────────────
 
 
 def _collect_directory_sections(
@@ -124,6 +196,7 @@ def _collect_directory_sections(
     cache: dict[str, float] | None = None,
     verbose: bool = False,
     include_header: bool = False,
+    mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], dict[str, float] | None]:
     """Collect sections from directory scans with optional incremental logic.
 
@@ -153,6 +226,7 @@ def _collect_directory_sections(
         binary_max_mb=binary_max_mb,
         verbose=verbose,
         include_header=include_header,
+        mode=mode,
     )
 
     new_cache = update_cache(target_files, cache or {})
@@ -165,6 +239,7 @@ def _collect_file_sections(
     tokenizer: Callable[[str], int],
     verbose: bool = False,
     include_header: bool = False,
+    mode: str = "full",
 ) -> list[tuple[str, str, int]]:
     """Collect sections from explicitly listed files."""
     fmt = profile.get("section_format", "markdown")
@@ -182,6 +257,7 @@ def _collect_file_sections(
         binary_max_mb=binary_max_mb,
         verbose=verbose,
         include_header=include_header,
+        mode=mode,
     )
 
 
@@ -197,13 +273,11 @@ def _collect_import_graph(
     """
     graph: dict[str, list[str]] = {}
     for filepath, content, _tokens in named_sections:
-        # Extract header from content (first lines before code fence or content)
         lang = lang_for_path(Path(filepath))
         header = _generate_header(Path(filepath), content, lang)
         if not header:
             graph[filepath] = []
             continue
-        # Parse deps from header
         for line in header.split("\n"):
             if line.startswith("deps: "):
                 deps_str = line[6:]
@@ -241,6 +315,9 @@ def _filter_by_query(
 
     scores: dict[str, int] = {}
     for filepath, content, _tokens in named_sections:
+        if filepath.startswith("pre: "):
+            continue
+
         score = 0
         fname_lower = Path(filepath).name.lower()
         content_lower = content.lower()
@@ -251,7 +328,6 @@ def _filter_by_query(
             if word in content_lower:
                 score += 3
 
-        # Check exports in header for scoring
         lang = lang_for_path(Path(filepath))
         header = _generate_header(Path(filepath), content, lang)
         for line in header.split("\n"):
@@ -262,7 +338,6 @@ def _filter_by_query(
                         score += 8
                 break
 
-        # Check imports for scoring
         for dep in graph.get(filepath, []):
             for word in query_words:
                 if word in dep.lower():
@@ -271,16 +346,12 @@ def _filter_by_query(
         if score > 0:
             scores[filepath] = score
 
-    # Import chain: include files that import matched files (depth 2)
     matched = set(scores.keys())
-    # Build reverse graph: {module: [files that import it]}
     reverse: dict[str, list[str]] = {}
     for fpath, deps in graph.items():
         for dep in deps:
-            # Match module name to file basename
             dep_basename = dep.split("/")[-1].split(".")[0]
             reverse.setdefault(dep_basename, []).append(fpath)
-            # Also try matching the full dep path
             reverse.setdefault(dep, []).append(fpath)
 
     for _depth in range(2):
@@ -297,10 +368,9 @@ def _filter_by_query(
         if not new_matches:
             break
 
-    # Rebuild result preserving original order
     result = []
     for section in named_sections:
-        if section[0] in matched:
+        if section[0].startswith("pre: ") or section[0] in matched:
             result.append(section)
     return result
 
@@ -325,10 +395,10 @@ def _collect_named_sections(
     """
     named_sections = []
 
-    # Pre-commands
+    # Pre-commands (never affected by repo-map)
     named_sections.extend(_collect_pre_commands(profile, tokenizer))
 
-    # Directories (with incremental logic)
+    # Directories (with incremental logic, repo-map applied at format level)
     dir_sections, new_cache = _collect_directory_sections(
         profile,
         exclude,
@@ -337,10 +407,11 @@ def _collect_named_sections(
         cache=cache,
         verbose=verbose,
         include_header=include_header,
+        mode=mode,
     )
     named_sections.extend(dir_sections)
 
-    # Specific files
+    # Specific files (repo-map applied at format level)
     named_sections.extend(
         _collect_file_sections(
             profile,
@@ -348,25 +419,13 @@ def _collect_named_sections(
             tokenizer,
             verbose=verbose,
             include_header=include_header,
+            mode=mode,
         )
     )
 
     # Apply query filtering if query is provided
     if query and query.strip():
         named_sections = _filter_by_query(named_sections, query)
-
-    # Apply repo-map mode: extract signatures only
-    if mode == "repo-map":
-        mapped_sections = []
-        for filepath, content, _tokens in named_sections:
-            if filepath.startswith("pre: "):
-                # Don't modify pre_commands output
-                mapped_sections.append((filepath, content, tokenizer(content)))
-            else:
-                lang = lang_for_path(Path(filepath))
-                sigs = extract_signatures(content, lang)
-                mapped_sections.append((filepath, sigs, tokenizer(sigs)))
-        named_sections = mapped_sections
 
     return named_sections, new_cache
 
@@ -500,6 +559,8 @@ def gather_command(cmd: str) -> str:
 def dry_run(
     profile: dict[str, Any],
     tokenizer: Callable[[str], int] | None = None,
+    query: str | None = None,
+    mode: str = "full",
 ) -> dict:
     """Preview collection without writing files."""
     tk = tokenizer if tokenizer is not None else count_tokens
@@ -509,7 +570,14 @@ def dry_run(
     name_tmpl = profile.get("name_template", "chat")
 
     named_sections, parts, _ = _assemble_content(
-        profile, exclude, tk, incremental=False, cache=None, verbose=False
+        profile,
+        exclude,
+        tk,
+        incremental=False,
+        cache=None,
+        verbose=False,
+        query=query,
+        mode=mode,
     )
 
     # Build per-part section lists
