@@ -30,14 +30,14 @@
 - [x] flat mode via --diff --flat for backward compatibility
 
 ### __main__.py
-- [ ] --diff --to <id> flag for cross-snapshot diff
-- [ ] --snapshot info <id> subcommand
-- [ ] --snapshot info <id> --profile
-- [ ] --snapshot info <id> --stats
-- [ ] --snapshot rename <old> <new> subcommand
-- [ ] --snapshot list: remove duplicate id/name column
-- [ ] --diff --flat flag (backward compatible, current behaviour)
-- [ ] --diff grouped output as default
+- [x] --diff --to <id> flag for cross-snapshot diff
+- [x] --snapshot info <id> subcommand
+- [x] --snapshot info <id> --profile
+- [x] --snapshot info <id> --stats
+- [x] --snapshot rename <old> <new> subcommand
+- [x] --snapshot list: remove duplicate id/name column
+- [x] --diff --flat flag (backward compatible, current behaviour)
+- [x] --diff grouped output as default
 
 ## v1.8.0 — Headers, --query, repo-map mode (see llm_docs/spec-v1.8.0-headers-query-repo-map.md)
 
