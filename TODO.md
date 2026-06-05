@@ -17,12 +17,12 @@
 - [x] cross-snapshot mode: read old content from store, new content from store
 
 ### watcher.py — rename/move detection
-- [ ] detect exact rename: same hash, different filename
-- [ ] detect exact move: same hash, different directory
-- [ ] detect rename+move: same hash, different name AND directory
-- [ ] detect similar rename: SequenceMatcher > 0.7 + different filename
-- [ ] detect similar move: SequenceMatcher > 0.7 + different directory
-- [ ] edge cases: multiple files with same hash, binary files, dissimilar (<=0.7)
+- [x] detect exact rename: same hash, different filename
+- [x] detect exact move: same hash, different directory
+- [x] detect rename+move: same hash, different name AND directory
+- [x] detect similar rename: SequenceMatcher > 0.7 + different filename
+- [x] detect similar move: SequenceMatcher > 0.7 + different directory
+- [x] edge cases: multiple files with same hash, binary files, dissimilar (<=0.7)
 
 ### watcher.py — grouped output
 - [ ] group DiffSections by type: renamed, moved, modified, added, deleted
