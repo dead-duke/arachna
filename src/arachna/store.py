@@ -303,6 +303,55 @@ def delete_snapshot(snapshot_id: str) -> None:
             head_path.unlink()
 
 
+def rename_snapshot(old_id: str, new_id: str) -> str:
+    """Rename a snapshot — updates manifest id/name and file name.
+
+    Updates HEAD if it pointed to the old snapshot ID.
+
+    Args:
+        old_id: current snapshot ID.
+        new_id: new snapshot ID.
+
+    Returns:
+        New snapshot ID.
+
+    Raises:
+        ObjectNotFoundError: if old_id doesn't exist.
+        SnapshotExistsError: if new_id already exists.
+    """
+    store_dir = _store_root()
+    snapshots_dir = store_dir / "snapshots"
+    old_path = snapshots_dir / f"{old_id}.json"
+    new_path = snapshots_dir / f"{new_id}.json"
+
+    if not old_path.exists():
+        raise ObjectNotFoundError(f"Snapshot not found: {old_id}")
+
+    if new_path.exists():
+        raise SnapshotExistsError(
+            f"Snapshot '{new_id}' already exists. "
+            f"Use a different name or delete the existing snapshot first."
+        )
+
+    # Load manifest, update id and name
+    manifest = json.loads(old_path.read_text())
+    manifest["id"] = new_id
+    manifest["name"] = new_id
+
+    # Write to new path
+    new_path.write_text(json.dumps(manifest, indent=2))
+
+    # Remove old file
+    old_path.unlink()
+
+    # Update HEAD if it pointed to old_id
+    head_path = store_dir / "HEAD"
+    if head_path.exists() and head_path.read_text().strip() == old_id:
+        head_path.write_text(new_id)
+
+    return new_id
+
+
 def gc() -> dict:
     """Garbage collection: delete unreferenced objects.
 
