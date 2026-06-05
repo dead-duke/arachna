@@ -166,46 +166,33 @@ def _get_profile_from_manifest(manifest: dict) -> dict | None:
     return None
 
 
-def compute_diff(
-    snapshot_id: str,
-    profile: dict | None = None,
-    fmt: str = "markdown",
-) -> list[DiffSection]:
-    """Compute diff between a snapshot and current files.
-
-    Profile is resolved in this order:
-    1. Explicit profile argument (if given)
-    2. Profile stored in snapshot manifest
-    3. Error — cannot compute diff without profile
-
-    Includes both directories (scanned) and explicit files from profile.
-    Also diffs pre_commands and command output.
+def _get_content_from_manifest(
+    path: str,
+    hash_spec: str,
+) -> str:
+    """Read file content from store by hash spec.
 
     Args:
-        snapshot_id: ID of the snapshot to diff against.
-        profile: current profile dict. If None, uses profile from manifest.
-        fmt: "markdown" or "xml".
+        path: file path (for error messages).
+        hash_spec: "sha256:abcdef..." string.
 
     Returns:
-        List of DiffSection objects.
+        Decoded file content as string.
     """
-    manifest = load_snapshot(snapshot_id)
+    obj_hash = hash_spec[7:]  # strip "sha256:"
+    return read_object(obj_hash).decode("utf-8")
 
-    # Resolve profile
-    if profile is None:
-        profile = _get_profile_from_manifest(manifest)
-        if profile is None:
-            raise ValueError(
-                f"Snapshot '{snapshot_id}' was created with an older version of arachna "
-                f"and does not store the full profile. Use --profile to specify a profile."
-            )
 
-    snapshot_files = manifest.get("files", {})
+def _build_current_files(
+    profile: dict,
+    exclude: list[str],
+) -> dict[str, str]:
+    """Build dict of current files from disk.
 
-    exclude = _get_exclude_patterns(profile)
+    Returns {normalized_path: content}.
+    """
     current_filepaths = _scan_directories(profile, exclude)
 
-    # Build set of current file paths (relative, normalized)
     current_files = {}
     for fp in current_filepaths:
         try:
@@ -224,63 +211,139 @@ def compute_diff(
         if rel_path not in current_files:
             current_files[rel_path] = content
 
+    return current_files
+
+
+def _diff_file_sets(
+    old_files: dict[str, str],
+    new_files: dict[str, str],
+    fmt: str,
+) -> list[DiffSection]:
+    """Compare two file sets and return DiffSections.
+
+    Args:
+        old_files: {path: content} from snapshot.
+        new_files: {path: content} from current state.
+        fmt: "markdown" or "xml".
+
+    Returns:
+        List of DiffSection objects (flat, ungrouped).
+    """
     sections = []
 
-    # Check files in snapshot
-    for path, hash_spec in snapshot_files.items():
-        obj_hash = hash_spec[7:]  # strip "sha256:"
-
-        if path in current_files:
-            # File exists in both — check for changes
-            old_content = read_object(obj_hash).decode("utf-8")
-            new_content = current_files[path]
-            diff_output = differ_compute_diff(old_content, new_content, path, fmt=fmt)
+    for path, old_content in old_files.items():
+        if path in new_files:
+            diff_output = differ_compute_diff(old_content, new_files[path], path, fmt=fmt)
             if diff_output:
                 sections.append(DiffSection(type="modified", path=path, content=diff_output))
-        elif _path_matches_profile(path, profile):
-            # File was in snapshot, not on disk, but still matches
-            # current profile patterns -> genuinely deleted
+        else:
             sections.append(
                 DiffSection(type="deleted", path=path, content=f"### {path}\n\n[DELETED]\n")
             )
-        # else: file not on disk AND doesn't match profile patterns
-        # -> profile changed, ignore
 
-    # Check for new files not in snapshot
-    for path, content in current_files.items():
-        if path not in snapshot_files:
+    for path, content in new_files.items():
+        if path not in old_files:
             diff_output = differ_compute_diff("", content, path, fmt=fmt)
             sections.append(DiffSection(type="added", path=path, content=diff_output))
+
+    return sections
+
+
+def compute_diff(
+    snapshot_id: str,
+    profile: dict | None = None,
+    fmt: str = "markdown",
+    to_snapshot_id: str | None = None,
+    flat: bool = False,
+) -> list[DiffSection]:
+    """Compute diff between a snapshot and current files or another snapshot.
+
+    Profile is resolved in this order:
+    1. Explicit profile argument (if given)
+    2. Profile stored in snapshot manifest
+    3. Error — cannot compute diff without profile
+
+    Includes both directories (scanned) and explicit files from profile.
+    Also diffs pre_commands and command output.
+
+    Args:
+        snapshot_id: ID of the snapshot to diff against (--from).
+        profile: current profile dict. If None, uses profile from manifest.
+        fmt: "markdown" or "xml".
+        to_snapshot_id: optional second snapshot for cross-snapshot diff.
+            If None, diffs against current files on disk.
+        flat: if True, return flat list (backward compatible).
+            If False, group by type (default for v1.7.0+).
+
+    Returns:
+        List of DiffSection objects.
+    """
+    manifest = load_snapshot(snapshot_id)
+
+    # Resolve profile
+    if profile is None:
+        profile = _get_profile_from_manifest(manifest)
+        if profile is None:
+            raise ValueError(
+                f"Snapshot '{snapshot_id}' was created with an older version of arachna "
+                f"and does not store the full profile. Use --profile to specify a profile."
+            )
+
+    snapshot_files = manifest.get("files", {})
+    exclude = _get_exclude_patterns(profile)
+
+    # Build old file set from snapshot A
+    old_files = {}
+    for path, hash_spec in snapshot_files.items():
+        old_files[path] = _get_content_from_manifest(path, hash_spec)
+
+    # Build new file set — from second snapshot or from disk
+    if to_snapshot_id is not None:
+        # Cross-snapshot mode: load snapshot B from store
+        to_manifest = load_snapshot(to_snapshot_id)
+        to_snapshot_files = to_manifest.get("files", {})
+        new_files = {}
+        for path, hash_spec in to_snapshot_files.items():
+            new_files[path] = _get_content_from_manifest(path, hash_spec)
+    else:
+        # Snapshot vs current files on disk
+        new_files = _build_current_files(profile, exclude)
+
+        # Filter deleted files: only report if path still matches profile
+        for path in list(old_files.keys()):
+            if path not in new_files and not _path_matches_profile(path, profile):
+                del old_files[path]
+
+    sections = _diff_file_sets(old_files, new_files, fmt)
 
     # ── Diff pre_commands ──────────────────────────────────────────
 
     snapshot_pre = manifest.get("pre_commands", {})
-    current_pre_commands = profile.get("pre_commands", [])
+    current_pre: dict[str, str] = {}
 
-    # Build current pre_commands output
-    current_pre = {}
-    for cmd in current_pre_commands:
-        output = run_command(cmd)
-        if output.strip():
-            label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
-            current_pre[label] = output
+    if to_snapshot_id is not None:
+        to_manifest = load_snapshot(to_snapshot_id)
+        snapshot_to_pre = to_manifest.get("pre_commands", {})
+        for label, hash_spec in snapshot_to_pre.items():
+            current_pre[label] = _get_content_from_manifest(label, hash_spec)
+    else:
+        for cmd in profile.get("pre_commands", []):
+            output = run_command(cmd)
+            if output.strip():
+                label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
+                current_pre[label] = output
 
-    # Compare: commands in snapshot
     for label, hash_spec in snapshot_pre.items():
-        obj_hash = hash_spec[7:]
+        old_content = _get_content_from_manifest(label, hash_spec)
         if label in current_pre:
-            old_content = read_object(obj_hash).decode("utf-8")
-            new_content = current_pre[label]
-            diff_output = differ_compute_diff(old_content, new_content, label, fmt=fmt)
+            diff_output = differ_compute_diff(old_content, current_pre[label], label, fmt=fmt)
             if diff_output:
                 sections.append(DiffSection(type="modified", path=label, content=diff_output))
         else:
-            # Command removed from profile
             sections.append(
                 DiffSection(type="deleted", path=label, content=f"### {label}\n\n[DELETED]\n")
             )
 
-    # New pre_commands not in snapshot
     for label in current_pre:
         if label not in snapshot_pre:
             diff_output = differ_compute_diff("", current_pre[label], label, fmt=fmt)
@@ -289,30 +352,32 @@ def compute_diff(
     # ── Diff command ───────────────────────────────────────────────
 
     snapshot_cmd = manifest.get("command", {})
-    current_cmd = profile.get("command")
-
     current_cmd_output = ""
-    if current_cmd:
-        output = run_command(current_cmd)
-        if output.strip():
-            current_cmd_output = output
+
+    if to_snapshot_id is not None:
+        to_manifest = load_snapshot(to_snapshot_id)
+        snapshot_to_cmd = to_manifest.get("command", {})
+        for label, hash_spec in snapshot_to_cmd.items():
+            current_cmd_output = _get_content_from_manifest(label, hash_spec)
+    else:
+        cmd = profile.get("command")
+        if cmd:
+            output = run_command(cmd)
+            if output.strip():
+                current_cmd_output = output
 
     if snapshot_cmd and current_cmd_output:
-        # Command exists in both — compare
         for label, hash_spec in snapshot_cmd.items():
-            obj_hash = hash_spec[7:]
-            old_content = read_object(obj_hash).decode("utf-8")
+            old_content = _get_content_from_manifest(label, hash_spec)
             diff_output = differ_compute_diff(old_content, current_cmd_output, label, fmt=fmt)
             if diff_output:
                 sections.append(DiffSection(type="modified", path=label, content=diff_output))
     elif snapshot_cmd and not current_cmd_output:
-        # Command removed or now produces empty output
         for label in snapshot_cmd:
             sections.append(
                 DiffSection(type="deleted", path=label, content=f"### {label}\n\n[DELETED]\n")
             )
     elif not snapshot_cmd and current_cmd_output:
-        # New command output
         diff_output = differ_compute_diff("", current_cmd_output, "command output", fmt=fmt)
         sections.append(DiffSection(type="added", path="command output", content=diff_output))
 
