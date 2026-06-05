@@ -8,8 +8,8 @@
 - [x] raise error on duplicate name
 
 ### differ.py
-- [ ] add similarity field to DiffSection (float 0.0-1.0)
-- [ ] add renamed and moved counts to compute_diff_stats
+- [x] add similarity field to DiffSection (float 0.0-1.0)
+- [x] add renamed and moved counts to compute_diff_stats
 
 ### watcher.py — cross-snapshot diff
 - [ ] add to_snapshot_id parameter to compute_diff (optional, default None)
