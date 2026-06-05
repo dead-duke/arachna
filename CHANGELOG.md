@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.7.1 — Watch fixes: diff file naming, unified part numbering
+
+- _write_parts: always use numbered filenames (name_1.md, name_2.md)
+- _write_diff_parts: include snapshot name in filename (chat-diff-{snapshot}_N.md)
+- _cmd_diff: cross-snapshot naming (chat-diff-{from}-to-{to}_N.md)
+- _cmd_clean: update glob patterns for new filenames
+- runner.py coverage: 83% → 89%, __main__.py: 89% → 90%
+- 731 tests, 92% coverage
+
 ## v1.7.0 — Watch Advanced
 
 - --diff --to: cross-snapshot diff between two snapshots
@@ -302,3 +311,4 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
+
