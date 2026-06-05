@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.8.0 — Headers, --query, repo-map mode
+
+- formatter.py: _generate_header extracts imports/exports (Python: ast, C-like: regex, Ruby/Elixir/Lua: regex)
+- splitter.py: extract_signatures for repo-map mode (Python: ast, C-like/script: regex)
+- gatherer.py: _filter_by_query with keyword scoring + import chain (depth 2)
+- gatherer.py: _collect_import_graph from header deps
+- __main__.py: --query and --mode (full/headers/repo-map) flags
+- 24 new tests: headers (8), query (8), extract_signatures (8)
+- 755 tests, 92% coverage
+
 ## v1.7.1 — Watch fixes: diff file naming, unified part numbering
 
 - _write_parts: always use numbered filenames (name_1.md, name_2.md)
