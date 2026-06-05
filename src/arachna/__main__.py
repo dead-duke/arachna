@@ -631,6 +631,7 @@ def _cmd_diff(argv: list[str]):
         arachna --diff --stat                show stats only
         arachna --diff --flat                flat output (backward compatible)
         arachna --diff --format xml          XML output
+        arachna --diff --mode structural     structural (block-level) diff
 
     Always writes output files to output_dir (not stdout).
     Output filenames:
@@ -679,6 +680,13 @@ def _cmd_diff(argv: list[str]):
 
     stat_only = "--stat" in argv
     flat_mode = "--flat" in argv
+
+    # Parse --mode for diff (structural, full, repo-map)
+    diff_mode = "full"
+    if "--mode" in argv:
+        idx = argv.index("--mode")
+        if idx + 1 < len(argv):
+            diff_mode = argv[idx + 1]
 
     # Resolve snapshot ID
     if snapshot_id is None:
@@ -751,6 +759,23 @@ def _cmd_diff(argv: list[str]):
     if not sections:
         print("No changes since snapshot.")
         return
+
+    # Apply structural or repo-map mode to diff sections
+    if diff_mode == "structural":
+        from .differ_structural import structural_diff_sections
+
+        sections = structural_diff_sections(sections, fmt)
+    elif diff_mode == "repo-map":
+        from pathlib import Path as _Path
+
+        from .formatter import lang_for_path as _lang_for_path
+        from .splitter import extract_signatures as _extract_signatures
+
+        for s in sections:
+            if s.type in ("header",) or not s.path:
+                continue
+            lang = _lang_for_path(_Path(s.path))
+            s.content = _extract_signatures(s.content, lang)
 
     # For grouped output, sections include headers — extract content for file writing
     content_sections = [s for s in sections if s.content.strip()]
