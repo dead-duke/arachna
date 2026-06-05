@@ -39,10 +39,11 @@ from .tokenizer import count_tokens
 class DiffSection:
     """A single file change in a diff."""
 
-    type: str  # "modified" | "added" | "deleted"
+    type: str  # "modified" | "added" | "deleted" | "renamed" | "moved"
     path: str
     content: str = ""
-    old_path: str | None = None  # for future rename support
+    old_path: str | None = None  # for rename/move: previous path
+    similarity: float | None = None  # 0.0-1.0 for rename/move detection
 
 
 def compute_diff(
@@ -165,11 +166,13 @@ def compute_diff_stats(diffs: list[DiffSection]) -> dict:
     """Return aggregate statistics for a list of DiffSections.
 
     Returns:
-        {modified: N, added: N, deleted: N, tokens: N}
+        {modified: N, added: N, deleted: N, renamed: N, moved: N, tokens: N}
     """
     modified = 0
     added = 0
     deleted = 0
+    renamed = 0
+    moved = 0
     tokens = 0
 
     for d in diffs:
@@ -179,11 +182,17 @@ def compute_diff_stats(diffs: list[DiffSection]) -> dict:
             added += 1
         elif d.type == "deleted":
             deleted += 1
+        elif d.type == "renamed":
+            renamed += 1
+        elif d.type == "moved":
+            moved += 1
         tokens += count_tokens(d.content)
 
     return {
         "modified": modified,
         "added": added,
         "deleted": deleted,
+        "renamed": renamed,
+        "moved": moved,
         "tokens": tokens,
     }

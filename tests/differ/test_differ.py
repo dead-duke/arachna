@@ -76,18 +76,57 @@ def test_non_empty_to_empty():
 
 
 def test_compute_diff_stats():
-    """compute_diff_stats aggregates correctly."""
+    """compute_diff_stats aggregates correctly with renamed and moved."""
     diffs = [
         DiffSection(type="modified", path="a.py", content="diff a"),
         DiffSection(type="modified", path="b.py", content="diff b"),
         DiffSection(type="added", path="c.py", content="new file"),
         DiffSection(type="deleted", path="d.py", content="[DELETED]"),
+        DiffSection(
+            type="renamed", path="e.py", old_path="old_e.py", similarity=0.95, content="diff e"
+        ),
+        DiffSection(type="moved", path="sub/f.py", old_path="f.py", similarity=1.0, content=""),
     ]
     stats = compute_diff_stats(diffs)
     assert stats["modified"] == 2
     assert stats["added"] == 1
     assert stats["deleted"] == 1
+    assert stats["renamed"] == 1
+    assert stats["moved"] == 1
     assert stats["tokens"] > 0
+
+
+def test_compute_diff_stats_all_zero():
+    """Empty diff list returns zeros."""
+    stats = compute_diff_stats([])
+    assert stats["modified"] == 0
+    assert stats["added"] == 0
+    assert stats["deleted"] == 0
+    assert stats["renamed"] == 0
+    assert stats["moved"] == 0
+    assert stats["tokens"] == 0
+
+
+def test_diff_section_similarity_field():
+    """DiffSection accepts similarity and old_path fields."""
+    section = DiffSection(
+        type="renamed",
+        path="src/new.py",
+        old_path="src/old.py",
+        similarity=0.87,
+        content="diff here",
+    )
+    assert section.type == "renamed"
+    assert section.path == "src/new.py"
+    assert section.old_path == "src/old.py"
+    assert section.similarity == 0.87
+
+
+def test_diff_section_defaults():
+    """DiffSection defaults are correct."""
+    section = DiffSection(type="added", path="new.py", content="hello")
+    assert section.old_path is None
+    assert section.similarity is None
 
 
 def test_binary_changed_markdown():
