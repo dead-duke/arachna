@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.0.0 — Agent API + structural diff
+
+- watch.py: public API for snapshots, diffs, store (create/list/update/delete/info/compute_diff/stats/gc)
+- collect_api.py: programmatic collection with query/mode support
+- api_types.py: SnapshotInfo, DiffStats, DiffSection, DiffResult, CollectResult, StoreStats, GCResult
+- api_errors.py: ArachnaError, SnapshotNotFoundError, SnapshotExistsError, ProfileNotFoundError
+- differ_structural.py: structural diff for Python (ast), C-like/script (regex), fallback difflib
+- --mode structural for --diff CLI
+- Repo-map fix: extract_signatures applied to raw text before markdown formatting
+- 816 tests, 92% coverage
+
 ## v1.8.0 — Headers, --query, repo-map mode
 
 - formatter.py: _generate_header extracts imports/exports (Python: ast, C-like: regex, Ruby/Elixir/Lua: regex)
