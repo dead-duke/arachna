@@ -1,4 +1,4 @@
-"""Tests for _write_diff_parts in collector.py (v1.6.4)."""
+"""Tests for _write_diff_parts in collector.py (v1.7.1)."""
 
 from arachna.collector import _write_diff_parts
 from arachna.differ import DiffSection
@@ -6,7 +6,7 @@ from arachna.tokenizer import count_tokens
 
 
 def test_write_diff_parts_single_file(tmp_path):
-    """_write_diff_parts writes single diff to chat-diff.md."""
+    """_write_diff_parts writes single diff to chat-diff_1.md (always numbered)."""
     out = tmp_path / "out"
     out.mkdir()
 
@@ -29,10 +29,7 @@ def test_write_diff_parts_single_file(tmp_path):
     )
 
     assert len(created) == 1
-    assert "chat-diff.md" in created[0]
-    content = (out / "chat-diff.md").read_text()
-    assert "DIFF from snap1" in content
-    assert "src/main.py" in content
+    assert "chat-diff_1.md" in created[0]
 
 
 def test_write_diff_parts_multiple_files(tmp_path):
@@ -108,7 +105,7 @@ def test_write_diff_parts_empty_content(tmp_path):
         count_tokens,
     )
 
-    content = (out / "chat-diff.md").read_text()
+    content = (out / "chat-diff_1.md").read_text()
     assert "real.py" in content
     assert "code" in content
     assert "ADDED lines" in content
@@ -142,7 +139,64 @@ def test_write_diff_parts_with_toc(tmp_path):
         count_tokens,
     )
 
-    content = (out / "chat-diff.md").read_text()
+    content = (out / "chat-diff_1.md").read_text()
     assert "Part 1 of 1" in content
     assert "main.py" in content
     assert "new.py" in content
+
+
+def test_write_diff_parts_with_snapshot_id(tmp_path):
+    """_write_diff_parts with snapshot_id uses snapshot name in filename."""
+    out = tmp_path / "out"
+    out.mkdir()
+
+    sections = [
+        DiffSection(
+            type="modified",
+            path="src/main.py",
+            content="### src/main.py\n\nREMOVED lines 1:\n    old\n",
+        ),
+    ]
+
+    created = _write_diff_parts(
+        sections,
+        out,
+        "chat-diff-cycle",
+        "# Test — DIFF from cycle (part {part} of {total})\n\n",
+        "Test",
+        32768,
+        count_tokens,
+        snapshot_id="cycle",
+    )
+
+    assert len(created) == 1
+    assert "chat-diff-cycle_1.md" in created[0]
+
+
+def test_write_diff_parts_with_cross_snapshot(tmp_path):
+    """_write_diff_parts with to_snapshot_id uses cross-snapshot naming."""
+    out = tmp_path / "out"
+    out.mkdir()
+
+    sections = [
+        DiffSection(
+            type="modified",
+            path="src/main.py",
+            content="### src/main.py\n\nREMOVED lines 1:\n    old\n",
+        ),
+    ]
+
+    created = _write_diff_parts(
+        sections,
+        out,
+        "chat-diff-v1-to-v2",
+        "# Test — DIFF from v1 to v2 (part {part} of {total})\n\n",
+        "Test",
+        32768,
+        count_tokens,
+        snapshot_id="v1",
+        to_snapshot_id="v2",
+    )
+
+    assert len(created) == 1
+    assert "chat-diff-v1-to-v2_1.md" in created[0]

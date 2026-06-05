@@ -29,7 +29,7 @@ def test_single_file(tmp_path, monkeypatch):
         "out",
     )
     assert len(created) == 1
-    assert "c.md" in created[0]
+    assert "c_1.md" in created[0]
 
 
 def test_multiple_parts(tmp_path, monkeypatch):

@@ -187,6 +187,10 @@ def _write_parts(
 ) -> tuple[list[str], dict[str, int]]:
     """Write token-limited parts to output files.
 
+    Always uses numbered filenames (name_1.md, name_2.md) —
+    no special case for single part. Single part is named name_1.md
+    with "Part 1 of 1" inside.
+
     Returns (created_files, tokens_by_file) tuple.
     """
     total_parts = len(parts)
@@ -196,12 +200,7 @@ def _write_parts(
     tokens_by_file = {}
     for i, part_content in enumerate(parts, start_num):
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
-        if total_parts == 1 and not merge:
-            filename = f"{name_tmpl}.md"
-        elif total_parts == 1 and merge:
-            filename = f"{name_tmpl}_{i}.md"
-        else:
-            filename = f"{name_tmpl}_{i}.md"
+        filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
         toc = _build_toc(named_sections, part_content, i, start_num + total_parts - 1)
@@ -225,11 +224,18 @@ def _write_diff_parts(
     project_name: str,
     max_tokens: int,
     tokenizer: Any,
+    snapshot_id: str | None = None,
+    to_snapshot_id: str | None = None,
 ) -> list[str]:
-    """Write diff sections to chat-diff_N.md files with token-based splitting.
+    """Write diff sections to chat-diff-{snapshot}_N.md files with token-based splitting.
 
     Uses split_sections for dense packing of diff content into
     token-limited parts.
+
+    Filename pattern:
+    - Single snapshot: chat-diff-{snapshot_id}_N.md
+    - Cross-snapshot: chat-diff-{snapshot_id}-to-{to_snapshot_id}_N.md
+    - Fallback (no snapshot_id): chat-diff_N.md
 
     Returns list of created file paths.
     """
@@ -252,7 +258,7 @@ def _write_diff_parts(
     total_parts = len(parts)
     for i, part_content in enumerate(parts, 1):
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
-        filename = f"{name_tmpl}.md" if total_parts == 1 else f"{name_tmpl}_{i}.md"
+        filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
         toc = _build_toc(named_sections, part_content, i, total_parts)

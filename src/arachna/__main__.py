@@ -279,11 +279,21 @@ def _cmd_clean(config: dict, out_path: Path):
             plain.unlink()
             cleaned += 1
             print(f"  Removed: {plain.name}")
-    # Also clean chat-diff files
-    for f in out_path.glob("chat-diff*.md"):
+    # Also clean chat-diff-* files (new naming with snapshot id)
+    for f in out_path.glob("chat-diff-*.md"):
         f.unlink()
         cleaned += 1
         print(f"  Removed: {f.name}")
+    # Legacy fallback: chat-diff without snapshot id (old naming)
+    for f in out_path.glob("chat-diff_*.md"):
+        f.unlink()
+        cleaned += 1
+        print(f"  Removed: {f.name}")
+    plain_diff = out_path / "chat-diff.md"
+    if plain_diff.exists():
+        plain_diff.unlink()
+        cleaned += 1
+        print("  Removed: chat-diff.md")
     print(f"Cleaned {cleaned} file(s).")
 
 
@@ -614,6 +624,9 @@ def _cmd_diff(argv: list[str]):
         arachna --diff --format xml          XML output
 
     Always writes output files to output_dir (not stdout).
+    Output filenames:
+        chat-diff-{snapshot_id}_N.md for single snapshot diff
+        chat-diff-{from}-to-{to}_N.md for cross-snapshot diff
     """
     from .store import list_snapshots, load_snapshot
     from .watcher import compute_diff
@@ -742,13 +755,15 @@ def _cmd_diff(argv: list[str]):
     tokenizer_spec = profile.get("tokenizer", "default")
     tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
 
-    name_tmpl = "chat-diff"
-    title_tmpl = f"# {project_name} — DIFF from {snapshot_id}"
+    # Build name_tmpl with snapshot id
     if to_snapshot_id:
-        title_tmpl += f" to {to_snapshot_id}"
-    title_tmpl += " (part {part} of {total})\n\n"
+        name_tmpl = f"chat-diff-{snapshot_id}-to-{to_snapshot_id}"
+        title_tmpl = f"# {project_name} — DIFF from {snapshot_id} to {to_snapshot_id} (part {{part}} of {{total}})\n\n"
+    else:
+        name_tmpl = f"chat-diff-{snapshot_id}"
+        title_tmpl = f"# {project_name} — DIFF from {snapshot_id} (part {{part}} of {{total}})\n\n"
 
-    # Clean old diff files
+    # Clean old diff files for this name pattern
     clean_manifest(out_path, name_tmpl)
 
     created = _write_diff_parts(
@@ -759,6 +774,8 @@ def _cmd_diff(argv: list[str]):
         project_name,
         max_tokens,
         tokenizer,
+        snapshot_id=snapshot_id,
+        to_snapshot_id=to_snapshot_id,
     )
 
     _print_collected(created)
