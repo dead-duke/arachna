@@ -9,7 +9,7 @@ import fnmatch
 import hashlib
 from pathlib import Path
 
-from .differ import DiffSection
+from .differ import DiffSection, compute_diff_stats
 from .differ import compute_diff as differ_compute_diff
 from .gatherer import _get_exclude_patterns, _scan_directories
 from .runner import run_command
@@ -253,13 +253,11 @@ def _detect_renames_and_moves(
     matched_deleted: set[str] = set()
     matched_added: set[str] = set()
 
-    # Build content hash map for deleted files
     deleted_by_hash: dict[str, list[str]] = {}
     for path, content in deleted.items():
         ch = _content_hash(content)
         deleted_by_hash.setdefault(ch, []).append(path)
 
-    # Build content hash map for added files
     added_by_hash: dict[str, list[str]] = {}
     for path, content in added.items():
         ch = _content_hash(content)
@@ -271,13 +269,11 @@ def _detect_renames_and_moves(
             continue
         add_paths = added_by_hash[ch]
 
-        # One-to-one exact match
         if len(del_paths) == 1 and len(add_paths) == 1:
             old_path = del_paths[0]
             new_path = add_paths[0]
 
             if old_path == new_path:
-                # Same path — not a rename/move, mark as matched
                 matched_deleted.add(old_path)
                 matched_added.add(new_path)
                 continue
@@ -321,13 +317,12 @@ def _detect_renames_and_moves(
             matched_deleted.add(old_path)
             matched_added.add(new_path)
         else:
-            # Ambiguous: multiple files with same hash → mark all as matched
             for p in del_paths:
                 matched_deleted.add(p)
             for p in add_paths:
                 matched_added.add(p)
 
-    # Phase 2: similarity detection for remaining files
+    # Phase 2: similarity detection
     remaining_deleted = {p: c for p, c in deleted.items() if p not in matched_deleted}
     remaining_added = {p: c for p, c in added.items() if p not in matched_added}
 
@@ -393,7 +388,6 @@ def _diff_file_sets(
     """
     sections: list[DiffSection] = []
 
-    # Find deleted and added files
     deleted = {}
     added = {}
     modified_old = {}
@@ -410,30 +404,115 @@ def _diff_file_sets(
         if path not in old_files:
             added[path] = new_content
 
-    # Run rename/move detection on deleted+added pairs
     rename_sections, matched_deleted, matched_added = _detect_renames_and_moves(deleted, added, fmt)
     sections.extend(rename_sections)
 
-    # Remaining deleted (not matched as rename/move)
     for path in deleted:
         if path not in matched_deleted:
             sections.append(
                 DiffSection(type="deleted", path=path, content=f"### {path}\n\n[DELETED]\n")
             )
 
-    # Remaining added (not matched as rename/move)
     for path, content in added.items():
         if path not in matched_added:
             diff_output = differ_compute_diff("", content, path, fmt=fmt)
             sections.append(DiffSection(type="added", path=path, content=diff_output))
 
-    # Modified files
     for path in modified_old:
         diff_output = differ_compute_diff(modified_old[path], modified_new[path], path, fmt=fmt)
         if diff_output:
             sections.append(DiffSection(type="modified", path=path, content=diff_output))
 
     return sections
+
+
+def _format_summary_header(stats: dict, from_id: str, to_id: str | None) -> str:
+    """Generate summary header for grouped diff output.
+
+    Args:
+        stats: dict from compute_diff_stats with renamed/moved/modified/added/deleted counts.
+        from_id: source snapshot ID.
+        to_id: target snapshot ID or None for current files.
+
+    Returns:
+        Summary header string.
+    """
+    parts = []
+    if stats["renamed"]:
+        parts.append(f"{stats['renamed']} renamed")
+    if stats["moved"]:
+        parts.append(f"{stats['moved']} moved")
+    if stats["modified"]:
+        parts.append(f"{stats['modified']} modified")
+    if stats["added"]:
+        parts.append(f"{stats['added']} added")
+    if stats["deleted"]:
+        parts.append(f"{stats['deleted']} deleted")
+
+    if not parts:
+        return "## No changes\n\n"
+
+    to_label = to_id if to_id else "current"
+    return f"## Changes from {from_id} to {to_label} ({', '.join(parts)})\n\n"
+
+
+def _group_diff_sections(
+    sections: list[DiffSection], from_id: str, to_id: str | None
+) -> list[DiffSection]:
+    """Group flat DiffSections by type with headers.
+
+    Order: renamed, moved, modified, added, deleted.
+    Adds a summary header at the beginning.
+
+    Args:
+        sections: flat list of DiffSections.
+        from_id: source snapshot ID.
+        to_id: target snapshot ID or None.
+
+    Returns:
+        Grouped list with header sections.
+    """
+    if not sections:
+        return sections
+
+    stats = compute_diff_stats(sections)
+    header = _format_summary_header(stats, from_id, to_id)
+
+    grouped: dict[str, list[DiffSection]] = {
+        "renamed": [],
+        "moved": [],
+        "modified": [],
+        "added": [],
+        "deleted": [],
+    }
+
+    for s in sections:
+        if s.type in grouped:
+            grouped[s.type].append(s)
+        else:
+            grouped["modified"].append(s)
+
+    result: list[DiffSection] = []
+
+    # Summary header as a synthetic section
+    result.append(DiffSection(type="header", path="", content=header))
+
+    section_headers = {
+        "renamed": "### Renamed\n",
+        "moved": "### Moved\n",
+        "modified": "### Modified\n",
+        "added": "### Added\n",
+        "deleted": "### Deleted\n",
+    }
+
+    for group_type in ["renamed", "moved", "modified", "added", "deleted"]:
+        group = grouped[group_type]
+        if not group:
+            continue
+        result.append(DiffSection(type=group_type, path="", content=section_headers[group_type]))
+        result.extend(group)
+
+    return result
 
 
 def compute_diff(
@@ -486,17 +565,14 @@ def compute_diff(
 
     # Build new file set — from second snapshot or from disk
     if to_snapshot_id is not None:
-        # Cross-snapshot mode: load snapshot B from store
         to_manifest = load_snapshot(to_snapshot_id)
         to_snapshot_files = to_manifest.get("files", {})
         new_files = {}
         for path, hash_spec in to_snapshot_files.items():
             new_files[path] = _get_content_from_manifest(path, hash_spec)
     else:
-        # Snapshot vs current files on disk
         new_files = _build_current_files(profile, exclude)
 
-        # Filter deleted files: only report if path still matches profile
         for path in list(old_files.keys()):
             if path not in new_files and not _path_matches_profile(path, profile):
                 del old_files[path]
@@ -568,6 +644,10 @@ def compute_diff(
         diff_output = differ_compute_diff("", current_cmd_output, "command output", fmt=fmt)
         sections.append(DiffSection(type="added", path="command output", content=diff_output))
 
+    # Group by type (default) or return flat
+    if not flat and sections:
+        sections = _group_diff_sections(sections, snapshot_id, to_snapshot_id)
+
     return sections
 
 
@@ -580,7 +660,6 @@ def _path_matches_profile(path: str, profile: dict) -> bool:
     file is gone -> genuinely deleted. If the path doesn't match the
     profile -> user changed config, ignore.
     """
-    # Check explicit files list
     if path in profile.get("files", []):
         return True
 
@@ -596,7 +675,6 @@ def _path_matches_profile(path: str, profile: dict) -> bool:
         except ValueError:
             continue
 
-        # Path is under this directory — check patterns
         for pat in patterns:
             if fnmatch.fnmatch(path_obj.name, pat):
                 return True

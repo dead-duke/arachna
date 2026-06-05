@@ -33,9 +33,10 @@ def test_cross_snapshot_diff_modified(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    assert len(diffs) == 1
-    assert diffs[0].type == "modified"
-    assert diffs[0].path == "src/main.py"
+    content_diffs = [d for d in diffs if d.type == "modified" and d.path]
+    assert len(content_diffs) == 1
+    assert content_diffs[0].type == "modified"
+    assert content_diffs[0].path == "src/main.py"
 
 
 def test_cross_snapshot_diff_added(tmp_path, monkeypatch):
@@ -52,9 +53,9 @@ def test_cross_snapshot_diff_added(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    types = [d.type for d in diffs]
-    assert "added" in types
-    added = [d for d in diffs if d.type == "added"]
+    content_diffs = [d for d in diffs if d.type == "added" and d.path]
+    assert len(content_diffs) >= 1
+    added = [d for d in content_diffs if d.type == "added"]
     assert any("b.py" in d.path for d in added)
 
 
@@ -72,12 +73,12 @@ def test_cross_snapshot_diff_deleted(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    types = [d.type for d in diffs]
-    assert "deleted" in types
+    content_diffs = [d for d in diffs if d.type == "deleted" and d.path]
+    assert len(content_diffs) >= 1
 
 
 def test_cross_snapshot_diff_unchanged(tmp_path, monkeypatch):
-    """Cross-snapshot diff of identical snapshots produces no diffs."""
+    """Cross-snapshot diff of identical snapshots produces no content diffs."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -88,11 +89,12 @@ def test_cross_snapshot_diff_unchanged(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    assert len(diffs) == 0
+    content_diffs = [d for d in diffs if d.path]
+    assert len(content_diffs) == 0
 
 
 def test_cross_snapshot_diff_same_snapshot(tmp_path, monkeypatch):
-    """Cross-snapshot diff from snapshot to itself produces no diffs."""
+    """Cross-snapshot diff from snapshot to itself produces no content diffs."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -102,7 +104,8 @@ def test_cross_snapshot_diff_same_snapshot(tmp_path, monkeypatch):
     sid = create_snapshot(profile, name="only")
 
     diffs = compute_diff(sid, profile, to_snapshot_id=sid)
-    assert len(diffs) == 0
+    content_diffs = [d for d in diffs if d.path]
+    assert len(content_diffs) == 0
 
 
 def test_get_content_from_manifest(tmp_path, monkeypatch):

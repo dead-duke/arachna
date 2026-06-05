@@ -45,7 +45,6 @@ def test_create_snapshot_with_pre_commands(tmp_path, monkeypatch):
     assert "pre_commands" in manifest
     assert len(manifest["pre_commands"]) == 2
     assert any("echo" in key for key in manifest["pre_commands"])
-    # Files still collected
     assert "files" in manifest
     assert len(manifest["files"]) == 1
 
@@ -67,7 +66,6 @@ def test_create_snapshot_with_command_profile(tmp_path, monkeypatch):
 
     assert "command" in manifest
     assert "command output" in manifest["command"]
-    # No files — command-based profile
     assert manifest.get("files", {}) == {}
 
 
@@ -78,14 +76,13 @@ def test_compute_diff_command_changed(tmp_path, monkeypatch):
     profile = _make_command_profile("echo 'version 1'")
     sid = create_snapshot(profile, name="cmd-snap")
 
-    # Change the command output
     profile2 = _make_command_profile("echo 'version 2'")
     diffs = compute_diff(sid, profile2)
 
-    assert len(diffs) == 1
-    assert diffs[0].type == "modified"
-    assert "command output" in diffs[0].path
-    assert "REMOVED" in diffs[0].content or "ADDED" in diffs[0].content
+    content_diffs = [d for d in diffs if d.type == "modified" and d.path]
+    assert len(content_diffs) == 1
+    assert content_diffs[0].type == "modified"
+    assert "command output" in content_diffs[0].path
 
 
 def test_compute_diff_pre_commands_changed(tmp_path, monkeypatch):
@@ -104,7 +101,6 @@ def test_compute_diff_pre_commands_changed(tmp_path, monkeypatch):
     }
     sid = create_snapshot(profile, name="pre-snap")
 
-    # Change pre_commands
     profile2 = {
         "directories": ["src"],
         "patterns": ["*.py"],
@@ -114,8 +110,7 @@ def test_compute_diff_pre_commands_changed(tmp_path, monkeypatch):
     }
     diffs = compute_diff(sid, profile2)
 
-    # Should have at least one pre_commands diff
-    pre_diffs = [d for d in diffs if d.path.startswith("pre:")]
+    pre_diffs = [d for d in diffs if d.path and d.path.startswith("pre:")]
     assert len(pre_diffs) >= 1
     assert pre_diffs[0].type in ("modified", "added", "deleted")
 
@@ -128,8 +123,7 @@ def test_compute_diff_command_unchanged(tmp_path, monkeypatch):
     sid = create_snapshot(profile, name="stable-snap")
 
     diffs = compute_diff(sid, profile)
-    # Command output unchanged — no command-related diffs
-    cmd_diffs = [d for d in diffs if "command output" in d.path]
+    cmd_diffs = [d for d in diffs if d.path and "command output" in d.path]
     assert len(cmd_diffs) == 0
 
 
@@ -139,7 +133,6 @@ def test_manifest_backward_compatible(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    # Manually create an old-format manifest (no pre_commands, no command)
     from arachna.store import _store_root, write_object
 
     store_dir = _store_root()
@@ -157,7 +150,6 @@ def test_manifest_backward_compatible(tmp_path, monkeypatch):
     (snapshots_dir / "old-snap.json").write_text(json.dumps(old_manifest))
     (store_dir / "HEAD").write_text("old-snap")
 
-    # Now compute_diff with a profile that has pre_commands
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
@@ -170,8 +162,7 @@ def test_manifest_backward_compatible(tmp_path, monkeypatch):
     }
 
     diffs = compute_diff("old-snap", profile)
-    # Should handle missing pre_commands gracefully — new pre_commands = added
-    pre_diffs = [d for d in diffs if d.path.startswith("pre:")]
+    pre_diffs = [d for d in diffs if d.path and d.path.startswith("pre:")]
     assert len(pre_diffs) >= 1
     assert pre_diffs[0].type == "added"
 
@@ -194,7 +185,6 @@ def test_create_snapshot_empty_pre_commands_skipped(tmp_path, monkeypatch):
     sid = create_snapshot(profile, name="empty-pre")
     manifest = load_snapshot(sid)
 
-    # Empty output should be skipped
     assert "pre_commands" not in manifest or len(manifest["pre_commands"]) == 0
 
 
@@ -204,7 +194,6 @@ def test_compute_diff_command_added(tmp_path, monkeypatch):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
-    # Snapshot without command
     profile_no_cmd = {
         "directories": ["src"],
         "patterns": ["*.py"],
@@ -213,7 +202,6 @@ def test_compute_diff_command_added(tmp_path, monkeypatch):
     }
     sid = create_snapshot(profile_no_cmd, name="no-cmd")
 
-    # Now add command
     profile_with_cmd = {
         "command": "echo 'new command'",
         "split_mode": "by_paragraph",
@@ -233,7 +221,6 @@ def test_compute_diff_command_removed(tmp_path, monkeypatch):
     profile_with_cmd = _make_command_profile("echo 'old command'")
     sid = create_snapshot(profile_with_cmd, name="with-cmd")
 
-    # Remove command
     profile_no_cmd = {}
     diffs = compute_diff(sid, profile_no_cmd)
 

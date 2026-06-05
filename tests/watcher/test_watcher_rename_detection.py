@@ -34,13 +34,11 @@ def test_rename_exact_same_content(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    types = [d.type for d in diffs]
-    assert "renamed" in types, f"Expected renamed in {types}"
-    renamed = [d for d in diffs if d.type == "renamed"]
-    assert len(renamed) == 1
-    assert renamed[0].old_path == "src/old_name.py"
-    assert renamed[0].path == "src/new_name.py"
-    assert renamed[0].similarity == 1.0
+    content_diffs = [d for d in diffs if d.type == "renamed" and d.path]
+    assert len(content_diffs) == 1, f"Expected 1 renamed, got {content_diffs}"
+    assert content_diffs[0].old_path == "src/old_name.py"
+    assert content_diffs[0].path == "src/new_name.py"
+    assert content_diffs[0].similarity == 1.0
 
 
 def test_move_exact_same_content(tmp_path, monkeypatch):
@@ -66,8 +64,8 @@ def test_move_exact_same_content(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile2, name="v2")
 
     diffs = compute_diff(sid1, profile2, to_snapshot_id=sid2)
-    types = [d.type for d in diffs]
-    assert "moved" in types, f"Expected moved in {types}"
+    content_diffs = [d for d in diffs if d.type == "moved" and d.path]
+    assert len(content_diffs) >= 1, f"Expected moved in {[d.type for d in diffs]}"
 
 
 def test_rename_similar_content(tmp_path, monkeypatch):
@@ -83,15 +81,14 @@ def test_rename_similar_content(tmp_path, monkeypatch):
     sid1 = create_snapshot(profile, name="v1")
 
     (src / "old.py").unlink()
-    # Change one line out of 10 = 90% similar
     (src / "new.py").write_text(
         "line1\nline2\nCHANGED\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
     )
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    types = [d.type for d in diffs]
-    assert "renamed" in types, f"Expected renamed in {types}"
+    content_diffs = [d for d in diffs if d.type == "renamed" and d.path]
+    assert len(content_diffs) >= 1, f"Expected renamed in {[d.type for d in diffs]}"
 
 
 def test_dissimilar_no_rename(tmp_path, monkeypatch):
@@ -109,7 +106,8 @@ def test_dissimilar_no_rename(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    types = [d.type for d in diffs]
+    content_diffs = [d for d in diffs if d.path]
+    types = [d.type for d in content_diffs]
     assert "deleted" in types
     assert "added" in types
     assert "renamed" not in types
@@ -130,9 +128,8 @@ def test_binary_no_similarity_check(tmp_path, monkeypatch):
     sid2 = create_snapshot(profile, name="v2")
 
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
-    types = [d.type for d in diffs]
-    # Same content → exact rename (hash match in Phase 1)
-    assert "renamed" in types
+    content_diffs = [d for d in diffs if d.type == "renamed" and d.path]
+    assert len(content_diffs) >= 1
 
 
 def test_is_binary_content():
@@ -170,7 +167,6 @@ def test_detect_renames_and_moves_multiple_same_hash():
     added = {"c.py": "same"}
 
     sections, matched_del, matched_add = _detect_renames_and_moves(deleted, added, "markdown")
-    # Ambiguous — no rename detected
     assert len(sections) == 0
 
 
