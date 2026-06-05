@@ -4,7 +4,9 @@ Walks project files, creates snapshots, and computes diffs
 against previously stored snapshots.
 """
 
+import difflib
 import fnmatch
+import hashlib
 from pathlib import Path
 
 from .differ import DiffSection
@@ -214,37 +216,222 @@ def _build_current_files(
     return current_files
 
 
+def _content_hash(content: str) -> str:
+    """Compute SHA256 hash of content string for exact match detection."""
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _is_binary_content(content: str) -> bool:
+    """Check if content appears to be binary (contains null bytes)."""
+    return "\x00" in content
+
+
+def _detect_renames_and_moves(
+    deleted: dict[str, str],
+    added: dict[str, str],
+    fmt: str,
+) -> tuple[list[DiffSection], set[str], set[str]]:
+    """Detect renames and moves between deleted and added files.
+
+    Algorithm:
+    1. Exact match by content hash:
+       - Same content, different filename → RENAMED (exact)
+       - Same content, different directory → MOVED (exact)
+       - Same content, different name AND directory → MOVED AND RENAMED
+       - Same path → skip (not a rename/move)
+       - Multiple files with same hash → ambiguous, skip all
+    2. Similarity match (SequenceMatcher > 0.7):
+       - Different filename → RENAMED AND MODIFIED
+       - Different directory → MOVED AND MODIFIED
+    3. Edge cases:
+       - Binary files → hash comparison only
+       - ratio <= 0.7 → separate delete + add
+
+    Returns (rename_sections, matched_deleted, matched_added).
+    """
+    rename_sections = []
+    matched_deleted: set[str] = set()
+    matched_added: set[str] = set()
+
+    # Build content hash map for deleted files
+    deleted_by_hash: dict[str, list[str]] = {}
+    for path, content in deleted.items():
+        ch = _content_hash(content)
+        deleted_by_hash.setdefault(ch, []).append(path)
+
+    # Build content hash map for added files
+    added_by_hash: dict[str, list[str]] = {}
+    for path, content in added.items():
+        ch = _content_hash(content)
+        added_by_hash.setdefault(ch, []).append(path)
+
+    # Phase 1: exact hash matches
+    for ch, del_paths in list(deleted_by_hash.items()):
+        if ch not in added_by_hash:
+            continue
+        add_paths = added_by_hash[ch]
+
+        # One-to-one exact match
+        if len(del_paths) == 1 and len(add_paths) == 1:
+            old_path = del_paths[0]
+            new_path = add_paths[0]
+
+            if old_path == new_path:
+                # Same path — not a rename/move, mark as matched
+                matched_deleted.add(old_path)
+                matched_added.add(new_path)
+                continue
+
+            old_dir = str(Path(old_path).parent)
+            new_dir = str(Path(new_path).parent)
+            old_name = Path(old_path).name
+            new_name = Path(new_path).name
+
+            if old_dir == new_dir and old_name != new_name:
+                rename_sections.append(
+                    DiffSection(
+                        type="renamed",
+                        path=new_path,
+                        old_path=old_path,
+                        similarity=1.0,
+                        content=f"RENAMED: {old_path} → {new_path}\n",
+                    )
+                )
+            elif old_dir != new_dir and old_name == new_name:
+                rename_sections.append(
+                    DiffSection(
+                        type="moved",
+                        path=new_path,
+                        old_path=old_path,
+                        similarity=1.0,
+                        content=f"MOVED: {old_path} → {new_path}\n",
+                    )
+                )
+            else:
+                rename_sections.append(
+                    DiffSection(
+                        type="renamed",
+                        path=new_path,
+                        old_path=old_path,
+                        similarity=1.0,
+                        content=f"MOVED AND RENAMED: {old_path} → {new_path}\n",
+                    )
+                )
+
+            matched_deleted.add(old_path)
+            matched_added.add(new_path)
+        else:
+            # Ambiguous: multiple files with same hash → mark all as matched
+            for p in del_paths:
+                matched_deleted.add(p)
+            for p in add_paths:
+                matched_added.add(p)
+
+    # Phase 2: similarity detection for remaining files
+    remaining_deleted = {p: c for p, c in deleted.items() if p not in matched_deleted}
+    remaining_added = {p: c for p, c in added.items() if p not in matched_added}
+
+    for del_path, del_content in remaining_deleted.items():
+        if _is_binary_content(del_content):
+            continue
+
+        for add_path, add_content in list(remaining_added.items()):
+            if _is_binary_content(add_content):
+                continue
+
+            ratio = difflib.SequenceMatcher(None, del_content, add_content).ratio()
+            if ratio > 0.7:
+                old_dir = str(Path(del_path).parent)
+                new_dir = str(Path(add_path).parent)
+                old_name = Path(del_path).name
+                new_name = Path(add_path).name
+
+                if old_dir == new_dir:
+                    action = f"RENAMED: {del_path} → {add_path} ({ratio:.0%} similar)"
+                    section_type = "renamed"
+                elif old_name == new_name:
+                    action = f"MOVED: {del_path} → {add_path} ({ratio:.0%} similar)"
+                    section_type = "moved"
+                else:
+                    action = f"MOVED AND RENAMED: {del_path} → {add_path} ({ratio:.0%} similar)"
+                    section_type = "renamed"
+
+                diff_output = differ_compute_diff(del_content, add_content, add_path, fmt=fmt)
+                content = f"{action}\n\n{diff_output}" if diff_output else f"{action}\n"
+
+                rename_sections.append(
+                    DiffSection(
+                        type=section_type,
+                        path=add_path,
+                        old_path=del_path,
+                        similarity=ratio,
+                        content=content,
+                    )
+                )
+                matched_deleted.add(del_path)
+                matched_added.add(add_path)
+                del remaining_added[add_path]
+                break
+
+    return rename_sections, matched_deleted, matched_added
+
+
 def _diff_file_sets(
     old_files: dict[str, str],
     new_files: dict[str, str],
     fmt: str,
 ) -> list[DiffSection]:
-    """Compare two file sets and return DiffSections.
+    """Compare two file sets and return DiffSections with rename/move detection.
 
     Args:
-        old_files: {path: content} from snapshot.
-        new_files: {path: content} from current state.
+        old_files: {path: content} from snapshot A.
+        new_files: {path: content} from snapshot B or current state.
         fmt: "markdown" or "xml".
 
     Returns:
         List of DiffSection objects (flat, ungrouped).
     """
-    sections = []
+    sections: list[DiffSection] = []
+
+    # Find deleted and added files
+    deleted = {}
+    added = {}
+    modified_old = {}
+    modified_new = {}
 
     for path, old_content in old_files.items():
         if path in new_files:
-            diff_output = differ_compute_diff(old_content, new_files[path], path, fmt=fmt)
-            if diff_output:
-                sections.append(DiffSection(type="modified", path=path, content=diff_output))
+            modified_old[path] = old_content
+            modified_new[path] = new_files[path]
         else:
+            deleted[path] = old_content
+
+    for path, new_content in new_files.items():
+        if path not in old_files:
+            added[path] = new_content
+
+    # Run rename/move detection on deleted+added pairs
+    rename_sections, matched_deleted, matched_added = _detect_renames_and_moves(deleted, added, fmt)
+    sections.extend(rename_sections)
+
+    # Remaining deleted (not matched as rename/move)
+    for path in deleted:
+        if path not in matched_deleted:
             sections.append(
                 DiffSection(type="deleted", path=path, content=f"### {path}\n\n[DELETED]\n")
             )
 
-    for path, content in new_files.items():
-        if path not in old_files:
+    # Remaining added (not matched as rename/move)
+    for path, content in added.items():
+        if path not in matched_added:
             diff_output = differ_compute_diff("", content, path, fmt=fmt)
             sections.append(DiffSection(type="added", path=path, content=diff_output))
+
+    # Modified files
+    for path in modified_old:
+        diff_output = differ_compute_diff(modified_old[path], modified_new[path], path, fmt=fmt)
+        if diff_output:
+            sections.append(DiffSection(type="modified", path=path, content=diff_output))
 
     return sections
 
