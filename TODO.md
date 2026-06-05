@@ -12,9 +12,9 @@
 - [x] add renamed and moved counts to compute_diff_stats
 
 ### watcher.py — cross-snapshot diff
-- [ ] add to_snapshot_id parameter to compute_diff (optional, default None)
-- [ ] cross-snapshot mode: load both manifests from store, compare hashes
-- [ ] cross-snapshot mode: read old content from store, new content from store
+- [x] add to_snapshot_id parameter to compute_diff (optional, default None)
+- [x] cross-snapshot mode: load both manifests from store, compare hashes
+- [x] cross-snapshot mode: read old content from store, new content from store
 
 ### watcher.py — rename/move detection
 - [ ] detect exact rename: same hash, different filename
