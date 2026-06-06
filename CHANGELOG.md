@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.3.0 — Watch improvements
+
+- Structural diff for pre_commands: line diff for tree/git tag, marker diff for git log
+- Repo-map diff reads full source from store, compares blocks with body hashes
+- BUG-001: tree command structural diff fixed
+- BUG-002: --diff --mode repo-map reads full source (not diff snippets)
+- 879 tests, 92% coverage
+
 ## v2.2.0 — Language presets expansion
 
 - 7 new presets: Go, Rust, Zig, Lua, Elixir, Haskell, Gleam (24 total)
