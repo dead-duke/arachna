@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.2.0 — Language presets expansion
+
+- 7 new presets: Go, Rust, Zig, Lua, Elixir, Haskell, Gleam (24 total)
+- formatter.py: add zig, lua, elixir, haskell, gleam to _EXT_LANG and _C_LIKE_LANGS
+- 17 new tests: detect + preset_to_profile for each language + extensions
+- 833 tests, 92% coverage
+
 ## v2.1.0 — Documentation & examples
 
 - docs/TUTORIAL.md: full Agent API tutorial with 8 code examples
