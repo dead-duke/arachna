@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.4.0 — Quality improvements
+
+- presets.py: fetch_presets(url) — download presets from remote URL
+- presets.py: merge_presets(builtin, remote, local) — three-way merge, local wins
+- __main__.py: --presets-update command with --url override
+- __main__.py: --diff --all for full project as diff (no snapshot needed)
+- --diff --all --mode repo-map/headers/structural support
+- --diff --all --query filtering and --compress support
+- tests/collector/test_merge_lock.py: fcntl + msvcrt (Windows) lock tests
+- 907 tests, 92% coverage
+
 ## v2.3.0 — Watch improvements
 
 - Structural diff for pre_commands: line diff for tree/git tag, marker diff for git log
@@ -357,3 +368,4 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
+

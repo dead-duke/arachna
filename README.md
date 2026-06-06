@@ -109,6 +109,11 @@ Creates arachna_context/ with .md files ready for AI.
     arachna --diff --from baseline
     # Sends only the diff, not the full project
 
+### Full project as diff (no snapshot needed)
+
+    arachna --diff --all --profile code
+    arachna --diff --all --profile code --mode repo-map
+
 ### Dry-run (preview without writing)
 
     arachna --all --dry-run
@@ -131,6 +136,7 @@ Creates arachna_context/ with .md files ready for AI.
     arachna --validate          check config for errors
     arachna --doctor            run full diagnostic
     arachna --install-hook      install post-commit git hook (optional)
+    arachna --presets-update    update presets from remote repository
 
 ### Watch commands
 
@@ -144,6 +150,7 @@ Creates arachna_context/ with .md files ready for AI.
     arachna --diff                              diff from single snapshot (auto)
     arachna --diff --from <id>                  diff from specific snapshot
     arachna --diff --from A --to B              cross-snapshot diff
+    arachna --diff --all --profile X            full project as diff (no snapshot)
     arachna --diff --stat                       stats only (no content)
     arachna --diff --flat                       flat output (no grouping)
     arachna --diff --format xml                 XML output
@@ -293,6 +300,10 @@ then send only changes (diff) in subsequent iterations.
 
     # Cross-snapshot diff (between two snapshots)
     arachna --diff --from v1 --to v2
+
+    # Full project as diff (no snapshot needed)
+    arachna --diff --all --profile code
+    arachna --diff --all --profile code --mode repo-map
 
     # Just the stats
     arachna --diff --from before-refactor --stat
@@ -482,7 +493,7 @@ the built-in estimate with safety margin is sufficient.
 
 ## Supported project types
 
-arachna --init auto-detects 17 project types:
+arachna --init auto-detects 24 project types:
 
 ### Languages
 - Python: src/, app/, lib/, pkg/, scripts/, *.py, pyproject.toml
@@ -493,6 +504,13 @@ arachna --init auto-detects 17 project types:
 - Kotlin/Java: src/, *.kt, *.java, build.gradle, pom.xml
 - Ruby: lib/, app/, *.rb, Gemfile
 - PHP: src/, app/, public/, *.php, composer.json
+- Go: *.go, go.mod, go.sum, main.go
+- Rust: src/, *.rs, Cargo.toml, Cargo.lock
+- Zig: src/, *.zig, build.zig, build.zig.zon
+- Lua: src/, lib/, *.lua, *.rockspec
+- Elixir: lib/, *.ex, *.exs, mix.exs
+- Haskell: src/, app/, *.hs, *.lhs, *.cabal, stack.yaml
+- Gleam: src/, *.gleam, gleam.toml, manifest.toml
 
 ### Engines
 - Godot: *.gd, *.tscn, *.tres, project.godot
@@ -527,11 +545,22 @@ Create presets.json in your project root to add or override presets:
 
 Use with: arachna --init --preset my_game
 
+### Presets update
+
+Fetch updated presets from the remote repository:
+
+    arachna --presets-update
+    # Merges with built-in presets, local presets.json never overwritten
+
+    arachna --presets-update --url https://example.com/presets.json
+    # Use custom URL
+
 ## Links
 
 - [GitHub Repository](https://github.com/dead-duke/arachna)
 - [Issue Tracker](https://github.com/dead-duke/arachna/issues)
 - [Changelog](https://github.com/dead-duke/arachna/blob/main/CHANGELOG.md)
+- [Architecture](https://github.com/dead-duke/arachna/blob/main/docs/ARCHITECTURE.md)
 
 ## License
 
@@ -546,3 +575,4 @@ forks. No closed modifications. What the community builds, the community
 keeps.
 
 See [LICENSE](LICENSE) for the full legal text.
+
