@@ -83,6 +83,17 @@ def _lang_from_shebang(first_line: str) -> str:
 
 
 def lang_for_path(path: Path) -> str:
+    """Detect programming language from file path.
+
+    Checks well-known filenames (Dockerfile, Makefile, .env),
+    then falls back to extension-based lookup.
+
+    Args:
+        path: File path to detect language for.
+
+    Returns:
+        Language string like "python", "javascript", or "" if unknown.
+    """
     name = path.name.lower()
     if name in _FILENAME_LANG:
         return _FILENAME_LANG[name]
@@ -206,11 +217,28 @@ _SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
 def _generate_header(path: Path, text: str, lang: str) -> str:
     """Generate a context header with dependencies and exports.
 
-    Returns empty string for unknown languages (no crash).
-    Format:
-        ### path
-        deps: dep1, dep2
-        exports: func1, func2
+    Uses language-specific parsers to extract imports and top-level
+    function/class names. Returns empty string for unknown languages
+    or files with no detectable structure.
+
+    Python: stdlib ast — handles imports, FunctionDef, ClassDef,
+    AsyncFunctionDef. Falls back to regex on SyntaxError.
+    C-like: regex for import/require/include and function/class
+    declarations.
+    Ruby/Elixir/Lua: regex for require/import/use and def/function.
+
+    Args:
+        path: File path (for the header label).
+        text: Full file content.
+        lang: Language from lang_for_path().
+
+    Returns:
+        Header string like:
+            ### src/utils/auth.py
+            deps: crypto, db/users
+            exports: validate_token, refresh_token
+
+        Or empty string if no deps or exports found.
     """
     deps: list[str] = []
     exports: list[str] = []
@@ -235,14 +263,24 @@ def _generate_header(path: Path, text: str, lang: str) -> str:
 
 
 def _parse_python(text: str) -> tuple[list[str], list[str]]:
-    """Extract imports and top-level function/class names from Python source."""
+    """Extract imports and top-level function/class names from Python source.
+
+    Uses stdlib ast for accurate parsing. Falls back to regex
+    for syntactically invalid Python.
+
+    Args:
+        text: Python source code.
+
+    Returns:
+        Tuple of (deps, exports) where deps are imported module names
+        and exports are top-level function/class names.
+    """
     deps: list[str] = []
     exports: list[str] = []
 
     try:
         tree = _ast.parse(text)
     except SyntaxError:
-        # Fall back to regex for syntactically invalid Python
         for m in _RE_PY_IMPORT.finditer(text):
             mod = m.group(1) or m.group(2)
             if mod:
@@ -263,7 +301,18 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
 
 
 def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
-    """Extract imports and exports from C-like languages via regex."""
+    """Extract imports and exports from C-like languages via regex.
+
+    Handles: JavaScript, TypeScript, Go, Rust, Java, C, C++,
+    C#, Swift, Kotlin, PHP.
+
+    Args:
+        text: Source code in a C-like language.
+
+    Returns:
+        Tuple of (deps, exports) from import/require/include
+        statements and function/class declarations.
+    """
     deps: list[str] = []
     exports: list[str] = []
 
@@ -281,7 +330,15 @@ def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
 
 
 def _parse_script(text: str) -> tuple[list[str], list[str]]:
-    """Extract imports and exports from Ruby/Elixir/Lua via regex."""
+    """Extract imports and exports from Ruby/Elixir/Lua via regex.
+
+    Args:
+        text: Source code in Ruby, Elixir, or Lua.
+
+    Returns:
+        Tuple of (deps, exports) from require/import/use statements
+        and def/function declarations.
+    """
     deps: list[str] = []
     exports: list[str] = []
 
@@ -310,7 +367,21 @@ def format_file_section(
     verbose: bool = False,
     include_header: bool = False,
 ) -> str:
-    """Read a file and format it as a section."""
+    """Read a file and format it as a markdown/xml/json section.
+
+    Args:
+        path: File path to read.
+        fmt: Output format — "markdown" (default), "xml", or "json".
+        include_binary: If True, binary files are base64-encoded.
+        binary_extensions: Whitelist of binary extensions to include.
+        binary_max_mb: Maximum binary file size in MB.
+        verbose: If True, prints skip reasons for excluded files.
+        include_header: If True, prepends a deps/exports header.
+
+    Returns:
+        Formatted section string, or empty string if the file
+        should be skipped.
+    """
     if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
         try:
             path.stat()
@@ -360,7 +431,6 @@ def format_file_section(
         first_line = text.split("\n")[0] if text else ""
         lang = _lang_from_shebang(first_line)
 
-    # Generate header if requested
     header = ""
     if include_header:
         header = _generate_header(path, text, lang)
@@ -416,6 +486,15 @@ def _format_json(path: Path, lang: str, text: str) -> str:
 
 
 def is_excluded(path: Path, exclude_patterns: list[str]) -> bool:
+    """Check if a file path matches any exclusion pattern.
+
+    Args:
+        path: File path to check.
+        exclude_patterns: List of glob patterns.
+
+    Returns:
+        True if the file should be excluded.
+    """
     path_str = str(path)
     for pat in exclude_patterns:
         if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):

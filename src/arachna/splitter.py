@@ -1,4 +1,4 @@
-"""Split content into token-limited parts."""
+"""Split content into token-limited parts + signature extraction."""
 
 import logging
 import re
@@ -50,6 +50,15 @@ def split_sections(
 
     Unlike split(), this takes already-separated sections and packs
     them densely into parts without parsing a marker from raw content.
+
+    Args:
+        sections: List of content strings to pack into parts.
+        max_tokens: Maximum tokens per part.
+        separator: String to join sections within a part.
+        tokenizer: Token counting function. Default: 4 chars ≈ 1 token.
+
+    Returns:
+        List of part content strings.
     """
     tk = tokenizer if tokenizer is not None else count_tokens
     return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
@@ -131,7 +140,6 @@ def _handle_single(
     if tokens <= max_tokens:
         return [text.strip()], False
 
-    # Truncate using tokenizer — iterative halving for accuracy
     lo, hi = 0, len(text)
     while lo < hi:
         mid = (lo + hi + 1) // 2
@@ -190,12 +198,20 @@ def extract_signatures(text: str, lang: str) -> str:
     Used for repo-map mode: gives AI an overview of the codebase
     without consuming tokens on implementation details.
 
+    Python: Uses stdlib ast. Strips function/class bodies, replaces
+    with '    ...'. Preserves decorators.
+    C-like (JS/TS/Go/Rust/Java/C/C++/C#/Swift/Kotlin/PHP):
+    Regex matches declarations up to opening brace.
+    Ruby/Elixir/Lua: Regex matches def/function declarations.
+    Unknown languages: Returns full text unchanged.
+
     Args:
-        text: full file content.
-        lang: language from lang_for_path().
+        text: Full file content (raw source, not markdown-formatted).
+        lang: Language from lang_for_path().
 
     Returns:
-        Signatures-only text, or full text if language is unknown.
+        Signatures-only text, or full text if language is unknown
+        or parsing fails.
     """
     if lang == "python":
         return _extract_python_signatures(text)
@@ -212,6 +228,7 @@ def _extract_python_signatures(text: str) -> str:
 
     Strips function/class bodies, replaces with '    ...'.
     Preserves decorators on the line before the definition.
+    Falls back to full text on SyntaxError.
     """
     import ast as _ast
 
@@ -226,18 +243,13 @@ def _extract_python_signatures(text: str) -> str:
     for node in _ast.iter_child_nodes(tree):
         if isinstance(node, (_ast.FunctionDef, _ast.ClassDef, _ast.AsyncFunctionDef)) and node.body:
             body_start = node.body[0].lineno - 1  # 0-indexed
-            # Mark body lines for removal (keep signature + decorators)
             for i in range(body_start, node.end_lineno):
                 keep[i] = False
-            # Keep the signature line itself
             keep[node.lineno - 1] = True
-            # Add placeholder after signature
             keep[body_start] = True
             lines[body_start] = "    ..."
-            # Keep decorators
             for decorator in node.decorator_list:
                 keep[decorator.lineno - 1] = True
-            # If there's a return type annotation on its own line, keep it (FunctionDef only)
             if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and node.returns:
                 keep[node.end_lineno - 1] = True
 
@@ -250,6 +262,7 @@ def _extract_c_like_signatures(text: str) -> str:
 
     Matches function/class/method/type declarations up to {.
     Handles multi-line signatures by capturing until the brace.
+    Falls back to full text if no signatures found.
     """
     sigs = []
     for m in _RE_C_LIKE_SIG.finditer(text):
@@ -263,7 +276,10 @@ def _extract_c_like_signatures(text: str) -> str:
 
 
 def _extract_script_signatures(text: str) -> str:
-    """Extract signatures from Ruby/Elixir/Lua via regex."""
+    """Extract signatures from Ruby/Elixir/Lua via regex.
+
+    Falls back to full text if no signatures found.
+    """
     sigs = []
     for m in _RE_SCRIPT_SIG.finditer(text):
         sig = m.group(1).strip()

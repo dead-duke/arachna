@@ -18,7 +18,12 @@ def _collect_pre_commands(
     profile: dict[str, Any],
     tokenizer: Callable[[str], int],
 ) -> list[tuple[str, str, int]]:
-    """Run pre_commands and return (label, output, tokens) tuples."""
+    """Run pre_commands and return (label, output, tokens) tuples.
+
+    Pre_commands are shell commands defined in the profile that run
+    before file collection (e.g. tree, git log). Their output is
+    included as named sections in the collected context.
+    """
     results = []
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
@@ -65,7 +70,11 @@ def _collect_specific_files(
     include_header: bool = False,
     mode: str = "full",
 ) -> list[tuple[str, str, int]]:
-    """Format specific files into (path, content, tokens) tuples."""
+    """Format specific files into (path, content, tokens) tuples.
+
+    For repo-map mode, reads raw text first, applies extract_signatures,
+    then formats only the signatures into the output format.
+    """
     results = []
     for filepath_str in file_paths:
         filepath = Path(filepath_str)
@@ -76,7 +85,6 @@ def _collect_specific_files(
         if is_excluded(filepath, exclude):
             continue
 
-        # Read raw text for repo-map before formatting
         raw_text = None
         if mode == "repo-map":
             with contextlib.suppress(OSError, UnicodeDecodeError):
@@ -92,7 +100,6 @@ def _collect_specific_files(
             include_header=include_header,
         )
         if section:
-            # Apply repo-map to raw text, then re-format just the signatures
             if mode == "repo-map" and raw_text is not None:
                 lang = lang_for_path(filepath)
                 sigs = extract_signatures(raw_text, lang)
@@ -122,10 +129,13 @@ def _format_scanned_files(
     include_header: bool = False,
     mode: str = "full",
 ) -> list[tuple[str, str, int]]:
-    """Format scanned files into (path, content, tokens) tuples."""
+    """Format scanned files into (path, content, tokens) tuples.
+
+    For repo-map mode, reads raw text first, applies extract_signatures,
+    then formats only the signatures.
+    """
     results = []
     for filepath in filepaths:
-        # Read raw text for repo-map before formatting
         raw_text = None
         if mode == "repo-map":
             with contextlib.suppress(OSError, UnicodeDecodeError):
@@ -141,7 +151,6 @@ def _format_scanned_files(
             include_header=include_header,
         )
         if section:
-            # Apply repo-map to raw text, then re-format just the signatures
             if mode == "repo-map" and raw_text is not None:
                 lang = lang_for_path(filepath)
                 sigs = extract_signatures(raw_text, lang)
@@ -269,7 +278,8 @@ def _collect_import_graph(
 ) -> dict[str, list[str]]:
     """Build {filepath: [imported_modules]} dict from section headers.
 
-    Parses header deps from each section to build the import graph.
+    Parses header deps from each section to build the import graph
+    used by _filter_by_query for import chain analysis.
     """
     graph: dict[str, list[str]] = {}
     for filepath, content, _tokens in named_sections:
@@ -295,17 +305,23 @@ def _filter_by_query(
 ) -> list[tuple[str, str, int]]:
     """Filter named_sections by query relevance.
 
-    Algorithm:
-    1. Tokenize query into words (lowercase)
-    2. For each file, compute relevance score:
-       - query word in filename: +10
-       - query word in exports (header): +8
-       - query word in imports (header deps): +5
-       - query word in file content: +3
-    3. Include files with score > 0
-    4. Include files imported by matched files (import chain, max depth 2)
+    Scoring algorithm:
+    - +10: query word in filename (e.g. "auth" matches auth.py)
+    - +8: query word in exports (function/class names from header)
+    - +5: query word in imports (dependencies from header)
+    - +3: query word in file content
 
-    Returns filtered list of (path, content, tokens) tuples.
+    Files with score > 0 are included. Files that import matched
+    files are also included via import chain (max depth 2).
+
+    Pre_commands sections (pre: ...) always pass through unfiltered.
+
+    Args:
+        named_sections: List of (path, content, tokens) tuples.
+        query: Space-separated query words.
+
+    Returns:
+        Filtered list preserving original order.
     """
     if not query or not query.strip():
         return named_sections
@@ -562,7 +578,18 @@ def dry_run(
     query: str | None = None,
     mode: str = "full",
 ) -> dict:
-    """Preview collection without writing files."""
+    """Preview collection without writing files.
+
+    Args:
+        profile: Profile dict with directories/patterns/files.
+        tokenizer: Token counting function. Default: 4 chars ≈ 1 token.
+        query: Optional query string to filter files.
+        mode: Collection mode — "full", "headers", or "repo-map".
+
+    Returns:
+        Dict with name_tmpl, max_tokens, and parts (list of part dicts
+        with part_num, sections, total_tokens).
+    """
     tk = tokenizer if tokenizer is not None else count_tokens
 
     exclude = _get_exclude_patterns(profile)
