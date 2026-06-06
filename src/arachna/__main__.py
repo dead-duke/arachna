@@ -31,17 +31,12 @@ def _list_profiles(config: dict) -> list[str]:
 
 
 def _collect_profile_names(config: dict, args) -> list[str]:
-    """Get list of profile names to process based on args."""
     if args.all:
         return _list_profiles(config)
     return [args.profile]
 
 
 def _apply_args_to_profile(profile: dict, args):
-    """Apply CLI args to profile dict (compress, format).
-
-    Returns a deep copy — does not mutate the original.
-    """
     profile = copy.deepcopy(profile)
     if args.compress:
         profile["compress"] = True
@@ -51,7 +46,6 @@ def _apply_args_to_profile(profile: dict, args):
 
 
 def _run_profile(name: str, config: dict, args, project_name: str, out_path: Path):
-    """Collect a single profile. Returns (created_files, tokens_by_file) tuple, or stats dict for dry-run."""
     try:
         profile = get_profile(name)
     except KeyError as e:
@@ -69,7 +63,6 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
 
     name_tmpl = profile.get("name_template", f"chat-{name}")
 
-    # In merge mode, don't clean old files
     if not args.merge:
         clean_manifest(out_path, name_tmpl)
 
@@ -87,13 +80,11 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
     if not args.all:
         prev = load_manifest(out_path)
         if args.merge:
-            # Keep all existing files, add new ones
             updated = list(prev)
             for f in created:
                 if f not in updated:
                     updated.append(f)
         else:
-            # Replace files for this profile
             updated = [f for f in prev if not f.startswith(name_tmpl)]
             updated.extend(created)
         save_manifest(out_path, updated)
@@ -102,7 +93,6 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
 
 
 def main():
-    # Handle --completion before argparse (requires interactive output)
     if "--completion" in sys.argv:
         from .completion import main as completion_main
 
@@ -112,17 +102,14 @@ def main():
         completion_main()
         return
 
-    # Handle --snapshot before argparse
     if "--snapshot" in sys.argv:
         _cmd_snapshot(sys.argv)
         return
 
-    # Handle --diff before argparse
     if "--diff" in sys.argv:
         _cmd_diff(sys.argv)
         return
 
-    # Handle --store before argparse
     if "--store" in sys.argv:
         _cmd_store(sys.argv)
         return
@@ -162,7 +149,7 @@ def main():
         "--mode",
         choices=["full", "headers", "repo-map"],
         default="full",
-        help="Output mode: full (default), headers (with deps/exports), repo-map (signatures only)",
+        help="Output mode: full (default), headers, repo-map (signatures only)",
     )
 
     args = parser.parse_args()
@@ -171,7 +158,6 @@ def main():
     output_dir = args.output_dir or config.get("output_dir", ".")
     out_path = Path(output_dir)
 
-    # Dispatch: determine action from args and call handler directly
     if args.init:
         _cmd_init(args, output_dir)
     elif args.list:
@@ -290,12 +276,10 @@ def _cmd_clean(config: dict, out_path: Path):
             plain.unlink()
             cleaned += 1
             print(f"  Removed: {plain.name}")
-    # Also clean chat-diff-* files (new naming with snapshot id)
     for f in out_path.glob("chat-diff-*.md"):
         f.unlink()
         cleaned += 1
         print(f"  Removed: {f.name}")
-    # Legacy fallback: chat-diff without snapshot id (old naming)
     for f in out_path.glob("chat-diff_*.md"):
         f.unlink()
         cleaned += 1
@@ -318,7 +302,6 @@ def _cmd_dry_run(config: dict, args):
 
 
 def _print_collected(created: list[str]):
-    """Print summary of collected output files."""
     if created:
         for f in created:
             content = Path(f).read_text(encoding="utf-8")
@@ -340,7 +323,6 @@ def _write_manifest(
         tokens = tokens_by_file.get(f, 0)
         lines.append(f"  {f} (~{tokens} tokens)")
     lines.append(f"\nTotal: {len(all_files)} file(s)\n")
-
     mf = out_path / "chat-manifest.md"
     mf.write_text("\n".join(lines))
     print(f"  chat-manifest.md ({len(all_files)} files)")
@@ -359,7 +341,6 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
             _print_collected(created)
         else:
             print("  No content collected.")
-
     _write_manifest(out_path, all_created, all_tokens, config)
     all_created.append("chat-manifest.md")
     save_manifest(out_path, all_created)
@@ -376,26 +357,12 @@ def _cmd_single(config: dict, args, project_name: str, out_path: Path):
 
 
 def _cmd_snapshot(argv: list[str]):
-    """Handle --snapshot commands.
-
-    Usage:
-        arachna --snapshot                     show usage hint
-        arachna --snapshot list                list all snapshots
-        arachna --snapshot info <id>           show snapshot details
-        arachna --snapshot info <id> --profile show profile only
-        arachna --snapshot info <id> --stats   show stats only
-        arachna --snapshot create --profile X --name Y   create named snapshot
-        arachna --snapshot update ID [--profile X]       update snapshot
-        arachna --snapshot delete ID           delete snapshot
-        arachna --snapshot rename <old> <new>  rename snapshot
-    """
     from .store import delete_snapshot, list_snapshots
     from .store import rename_snapshot as store_rename_snapshot
     from .store_errors import SnapshotExistsError
     from .watcher import create_snapshot as watch_create_snapshot
     from .watcher import update_snapshot as watch_update_snapshot
 
-    # --snapshot list
     if "list" in argv:
         snaps = list_snapshots()
         if not snaps:
@@ -408,7 +375,6 @@ def _cmd_snapshot(argv: list[str]):
             print(f"  {s['id']:30} {created:25} {file_count} files")
         return
 
-    # --snapshot info <id> [--profile | --stats]
     if "info" in argv:
         idx = argv.index("info")
         if idx + 1 >= len(argv):
@@ -417,9 +383,7 @@ def _cmd_snapshot(argv: list[str]):
         sid = argv[idx + 1]
         if sid.startswith("-"):
             print(f"Error: invalid snapshot ID '{sid}'")
-            print("Usage: arachna --snapshot info <id> [--profile | --stats]")
             sys.exit(1)
-
         try:
             manifest = list_snapshots()
             target = None
@@ -468,7 +432,6 @@ def _cmd_snapshot(argv: list[str]):
             print(f"Command: {cmd_count}")
             return
 
-        # Full info
         print(f"Snapshot: {target['id']}")
         print(f"Created: {target.get('created', '?')}")
         file_count = len(target.get("files", {}))
@@ -478,7 +441,6 @@ def _cmd_snapshot(argv: list[str]):
         print(f"Pre-commands: {pre_count}")
         print(f"Command: {'none' if not cmd else list(cmd.keys())}")
         print()
-
         prof = target.get("profile", {})
         if isinstance(prof, dict):
             print("Profile:")
@@ -500,7 +462,6 @@ def _cmd_snapshot(argv: list[str]):
             print(f"Profile: {prof} (legacy format)")
         return
 
-    # --snapshot rename <old> <new>
     if "rename" in argv:
         idx = argv.index("rename")
         if idx + 2 >= len(argv):
@@ -519,7 +480,6 @@ def _cmd_snapshot(argv: list[str]):
             sys.exit(1)
         return
 
-    # --snapshot delete <id>
     if "delete" in argv:
         idx = argv.index("delete")
         if idx + 1 < len(argv):
@@ -535,7 +495,6 @@ def _cmd_snapshot(argv: list[str]):
             sys.exit(1)
         return
 
-    # --snapshot create --profile X --name Y
     if "create" in argv:
         profile_name = None
         if "--profile" in argv:
@@ -545,7 +504,6 @@ def _cmd_snapshot(argv: list[str]):
             else:
                 print("Error: --profile requires a value")
                 sys.exit(1)
-
         name = None
         if "--name" in argv:
             idx = argv.index("--name")
@@ -554,12 +512,9 @@ def _cmd_snapshot(argv: list[str]):
             else:
                 print("Error: --name requires a value")
                 sys.exit(1)
-
         if not name:
-            print("Error: --name is required for 'create'. Usage:")
-            print("  arachna --snapshot create --profile X --name Y")
+            print("Error: --name is required for 'create'.")
             sys.exit(1)
-
         profile = get_profile(profile_name) if profile_name else get_profile("full")
         try:
             sid = watch_create_snapshot(profile, name=name)
@@ -569,7 +524,6 @@ def _cmd_snapshot(argv: list[str]):
             sys.exit(1)
         return
 
-    # --snapshot update <id> [--profile X]
     if "update" in argv:
         idx = argv.index("update")
         if idx + 1 >= len(argv):
@@ -578,9 +532,7 @@ def _cmd_snapshot(argv: list[str]):
         sid = argv[idx + 1]
         if sid.startswith("-"):
             print(f"Error: invalid snapshot ID '{sid}'")
-            print("Usage: arachna --snapshot update <id> [--profile X]")
             sys.exit(1)
-
         profile = None
         if "--profile" in argv:
             profile_idx = argv.index("--profile")
@@ -589,7 +541,6 @@ def _cmd_snapshot(argv: list[str]):
             else:
                 print("Error: --profile requires a value")
                 sys.exit(1)
-
         try:
             watch_update_snapshot(sid, profile=profile)
             print(f"Snapshot '{sid}' updated.")
@@ -598,7 +549,6 @@ def _cmd_snapshot(argv: list[str]):
             sys.exit(1)
         return
 
-    # --snapshot without subcommand → usage hint
     print("Usage: arachna --snapshot <command>")
     print()
     print("Commands:")
@@ -623,27 +573,10 @@ def _cmd_snapshot(argv: list[str]):
 
 
 def _cmd_diff(argv: list[str]):
-    """Handle --diff commands.
-
-    Usage:
-        arachna --diff                       auto-select snapshot or show hint
-        arachna --diff --from <id>           diff from specific snapshot
-        arachna --diff --from <id> --to <id> cross-snapshot diff
-        arachna --diff --from <id> --profile X  diff with explicit profile
-        arachna --diff --stat                show stats only
-        arachna --diff --flat                flat output (backward compatible)
-        arachna --diff --format xml          XML output
-        arachna --diff --mode structural     structural (block-level) diff
-
-    Always writes output files to output_dir (not stdout).
-    Output filenames:
-        chat-diff-{snapshot_id}_N.md for single snapshot diff
-        chat-diff-{from}-to-{to}_N.md for cross-snapshot diff
-    """
+    """Handle --diff commands."""
     from .store import list_snapshots, load_snapshot
     from .watcher import compute_diff
 
-    # Parse flags
     snapshot_id = None
     if "--from" in argv:
         idx = argv.index("--from")
@@ -683,18 +616,16 @@ def _cmd_diff(argv: list[str]):
     stat_only = "--stat" in argv
     flat_mode = "--flat" in argv
 
-    # Parse --mode for diff (structural, full, repo-map)
     diff_mode = "full"
     if "--mode" in argv:
         idx = argv.index("--mode")
         if idx + 1 < len(argv):
             diff_mode = argv[idx + 1]
 
-    # Resolve snapshot ID
     if snapshot_id is None:
         snaps = list_snapshots()
         if len(snaps) == 0:
-            print("Error: No snapshots found. Run 'arachna --snapshot create' first.")
+            print("Error: No snapshots found.")
             sys.exit(1)
         elif len(snaps) == 1:
             snapshot_id = snaps[0]["id"]
@@ -704,7 +635,6 @@ def _cmd_diff(argv: list[str]):
                 print(f"  arachna --diff --from {s['id']:20} # {s.get('name', s['id'])}")
             sys.exit(1)
 
-    # Get output dir
     config = load_config()
     output_dir = config.get("output_dir", ".")
     if "--output-dir" in argv:
@@ -720,30 +650,20 @@ def _cmd_diff(argv: list[str]):
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    # Resolve profile: explicit arg > manifest > error
     if profile is None:
         manifest = load_snapshot(snapshot_id)
         stored = manifest.get("profile", {})
         if isinstance(stored, dict):
             profile = stored
         else:
-            print(
-                f"Error: Snapshot '{snapshot_id}' was created with an older version "
-                f"and does not store the full profile. Use --profile to specify a profile."
-            )
+            print(f"Error: Snapshot '{snapshot_id}' has legacy format. Use --profile.")
             sys.exit(1)
 
-    # Apply compress flag
     if "--compress" in argv:
         profile["compress"] = True
 
-    # Compute diff
     sections = compute_diff(
-        snapshot_id,
-        profile,
-        fmt=fmt,
-        to_snapshot_id=to_snapshot_id,
-        flat=flat_mode,
+        snapshot_id, profile, fmt=fmt, to_snapshot_id=to_snapshot_id, flat=flat_mode
     )
 
     if stat_only:
@@ -762,36 +682,25 @@ def _cmd_diff(argv: list[str]):
         print("No changes since snapshot.")
         return
 
-    # Apply structural or repo-map mode to diff sections
+    # Apply diff mode using watch.py helpers (single source of truth)
     if diff_mode == "structural":
         from .differ_structural import structural_diff_sections
 
         sections = structural_diff_sections(sections, fmt)
     elif diff_mode == "repo-map":
-        from pathlib import Path as _Path
+        from .watch import _apply_repo_map_diff
 
-        from .formatter import lang_for_path as _lang_for_path
-        from .splitter import extract_signatures as _extract_signatures
+        sections = _apply_repo_map_diff(sections, snapshot_id, to_snapshot_id, profile)
 
-        for s in sections:
-            if s.type in ("header",) or not s.path:
-                continue
-            lang = _lang_for_path(_Path(s.path))
-            s.content = _extract_signatures(s.content, lang)
-
-    # For grouped output, sections include headers — extract content for file writing
     content_sections = [s for s in sections if s.content.strip()]
-
     if not content_sections:
         print("No changes since snapshot.")
         return
 
-    # Write diff to files
     max_tokens = profile.get("max_tokens", 16000)
     tokenizer_spec = profile.get("tokenizer", "default")
     tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
 
-    # Build name_tmpl with snapshot id
     if to_snapshot_id:
         name_tmpl = f"chat-diff-{snapshot_id}-to-{to_snapshot_id}"
         title_tmpl = f"# {project_name} — DIFF from {snapshot_id} to {to_snapshot_id} (part {{part}} of {{total}})\n\n"
@@ -799,9 +708,7 @@ def _cmd_diff(argv: list[str]):
         name_tmpl = f"chat-diff-{snapshot_id}"
         title_tmpl = f"# {project_name} — DIFF from {snapshot_id} (part {{part}} of {{total}})\n\n"
 
-    # Clean old diff files for this name pattern
     clean_manifest(out_path, name_tmpl)
-
     created = _write_diff_parts(
         content_sections,
         out_path,
@@ -813,10 +720,7 @@ def _cmd_diff(argv: list[str]):
         snapshot_id=snapshot_id,
         to_snapshot_id=to_snapshot_id,
     )
-
     _print_collected(created)
-
-    # Update manifest
     prev = load_manifest(out_path)
     updated = [f for f in prev if not f.startswith(name_tmpl)]
     updated.extend(created)
@@ -824,12 +728,6 @@ def _cmd_diff(argv: list[str]):
 
 
 def _cmd_store(argv: list[str]):
-    """Handle --store commands.
-
-    Usage:
-        arachna --store gc      garbage collect unreferenced objects
-        arachna --store stats   show store statistics
-    """
     from .store import gc, stats
 
     cmd = None
@@ -837,7 +735,6 @@ def _cmd_store(argv: list[str]):
         cmd = "gc"
     elif "stats" in argv:
         cmd = "stats"
-
     if cmd == "gc":
         result = gc()
         if result["removed"] == 0:
