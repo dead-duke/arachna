@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.1.0 — Documentation & examples
+
+- docs/TUTORIAL.md: full Agent API tutorial with 8 code examples
+- examples/delirium_agent.py: Delirium agent integration example
+- arachna.1: man page with all commands and options
+- README.md: Programmatic API section, collection modes, structural diff
+- Makefile: trailing-ws and fix-trailing-ws targets
+- pre-commit: trailing-ws hook
+- Comprehensive docstrings across all public API modules
+
 ## v2.0.0 — Agent API + structural diff
 
 - watch.py: public API for snapshots, diffs, store (create/list/update/delete/info/compute_diff/stats/gc)

@@ -1,0 +1,180 @@
+.TH ARACHNA 1 "2026-06-06" "arachna 2.0.0" "User Commands"
+.SH NAME
+arachna — context collector for AI
+.SH SYNOPSIS
+.B arachna
+[\fB\-\-profile\fR \fIname\fR]
+[\fB\-\-all\fR]
+[\fB\-\-snapshot\fR \fIcommand\fR]
+[\fB\-\-diff\fR]
+[\fIoptions\fR]
+.SH DESCRIPTION
+arachna collects project files into token-limited chunks ready to be
+sent to an AI. It understands tokens (not lines) and splits output
+smartly so nothing gets cut in the middle.
+.PP
+Supports multiple profiles for different AI tasks (code, tests, docs,
+git history), incremental collection with smart caching, content-
+addressable snapshots with diffs, and query-based file filtering.
+.SH COMMANDS
+.SS Collection
+.TP
+\fB\-\-init\fR
+Interactive setup wizard. Creates \fI.arachna.json\fR.
+.TP
+\fB\-\-init \-\-defaults\fR
+Auto-detect project type and create config.
+.TP
+\fB\-\-init \-\-preset\fR \fIname\fR
+Use specific preset (godot, unity, docker, etc.).
+.TP
+\fB\-\-all\fR
+Collect all profiles.
+.TP
+\fB\-\-profile\fR \fIname\fR
+Collect specific profile (code, tests, docs, git).
+.TP
+\fB\-\-list\fR
+Show available profiles.
+.TP
+\fB\-\-clean\fR
+Remove all collected files.
+.SS Watch (Snapshots and Diffs)
+.TP
+\fB\-\-snapshot\fR
+Show usage hint.
+.TP
+\fB\-\-snapshot list\fR
+List all snapshots.
+.TP
+\fB\-\-snapshot create \-\-profile\fR \fIname\fR \fB\-\-name\fR \fIid\fR
+Create a named snapshot.
+.TP
+\fB\-\-snapshot update\fR \fIid\fR
+Update an existing snapshot with current state.
+.TP
+\fB\-\-snapshot delete\fR \fIid\fR
+Delete a snapshot.
+.TP
+\fB\-\-snapshot info\fR \fIid\fR
+Show snapshot details.
+.TP
+\fB\-\-snapshot rename\fR \fIold\fR \fInew\fR
+Rename a snapshot.
+.TP
+\fB\-\-diff\fR
+Diff from single snapshot (auto-select).
+.TP
+\fB\-\-diff \-\-from\fR \fIid\fR
+Diff from specific snapshot.
+.TP
+\fB\-\-diff \-\-from\fR \fIA\fR \fB\-\-to\fR \fIB\fR
+Cross-snapshot diff between two snapshots.
+.TP
+\fB\-\-diff \-\-stat\fR
+Show statistics only (no content).
+.TP
+\fB\-\-diff \-\-flat\fR
+Flat output without grouping (backward compatible).
+.TP
+\fB\-\-diff \-\-mode structural\fR
+Structural diff — understands code blocks, not just lines.
+.SS Store
+.TP
+\fB\-\-store stats\fR
+Show store statistics (snapshots, objects, dedup).
+.TP
+\fB\-\-store gc\fR
+Garbage collect unreferenced objects.
+.SS Diagnostics
+.TP
+\fB\-\-validate\fR
+Check config for errors.
+.TP
+\fB\-\-doctor\fR
+Run full diagnostic.
+.TP
+\fB\-\-install\-hook\fR
+Install post-commit git hook.
+.SH OPTIONS
+.TP
+\fB\-\-output\-dir\fR \fIpath\fR
+Output directory (default: arachna_context/).
+.TP
+\fB\-\-verbose\fR
+Show skipped files.
+.TP
+\fB\-\-compress\fR
+Compress whitespace to save tokens.
+.TP
+\fB\-\-incremental\fR
+Only collect changed files.
+.TP
+\fB\-\-format\fR \fIxml|json\fR
+Output format (default: markdown).
+.TP
+\fB\-\-merge\fR
+Append to existing output instead of replacing.
+.TP
+\fB\-\-dry\-run\fR
+Preview without writing files.
+.TP
+\fB\-\-query\fR \fItext\fR
+Filter files by query (keyword scoring + import chain).
+.TP
+\fB\-\-mode\fR \fIfull|headers|repo\-map\fR
+Collection mode (default: full).
+.SH FILES
+.TP
+\fI.arachna.json\fR
+Project configuration (profiles, output directory, tokenizer).
+.TP
+\fIarachna_context/\fR
+Default output directory for collected context.
+.TP
+\fI.arachna/store/\fR
+Content-addressable store for snapshots (never committed).
+.TP
+\fI.arachna_cache.json\fR
+Incremental mode cache (mtime_ns + size + SHA256).
+.SH ENVIRONMENT
+arachna uses no environment variables. All configuration is in
+\fI.arachna.json\fR.
+.SH EXIT STATUS
+.TP
+0
+Success.
+.TP
+1
+Error (invalid config, missing profile, etc.).
+.SH EXAMPLES
+.PP
+Quick start:
+.nf
+    cd my\-project
+    arachna \-\-init
+    arachna \-\-all
+.fi
+.PP
+Agent workflow with snapshots:
+.nf
+    arachna \-\-snapshot create \-\-profile code \-\-name baseline
+    # ... AI makes changes ...
+    arachna \-\-diff \-\-from baseline
+.fi
+.PP
+Programmatic API (Python):
+.nf
+    from arachna import watch
+    sid = watch.create_snapshot(profile="full", name="baseline")
+    diff = watch.compute_diff(snapshot_id="baseline", mode="structural")
+.fi
+.SH SEE ALSO
+Full documentation: \fIhttps://github.com/dead\-duke/arachna\fR
+.br
+Tutorial: \fIdocs/TUTORIAL.md\fR in the repository.
+.SH AUTHOR
+Artem Terenin
+.SH LICENSE
+GNU Affero General Public License v3.0 (AGPL\-3.0)
+

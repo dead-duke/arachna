@@ -1,11 +1,5 @@
 # TODO
 
-## v2.1.0 — Documentation & ecosystem
-- [ ] API documentation: docstrings for all public functions in watch.py, collect_api.py
-- [ ] Tutorial: "Getting started with arachna Agent API" in docs/TUTORIAL.md
-- [ ] Example integration: Delirium agent using arachna watch API (examples/delirium_agent.py)
-- [ ] Man page (arachna.1) installed with pip
-
 ## v2.2.0 — Language presets expansion
 - [ ] Add Go preset: go.json (main.go, go.mod, go.sum, *.go)
 - [ ] Add Rust preset: rust.json (Cargo.toml, src/*.rs, *.rs)
@@ -25,3 +19,4 @@
 
 ## Backlog
 - [ ] Plugin system for custom formatters and tokenizers (v3.0)
+
