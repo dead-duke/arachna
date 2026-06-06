@@ -67,11 +67,9 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
             rel_path = _normalize_path(str(fp))
         files[rel_path] = content
 
-    # Add explicitly listed files from profile
     profile_files = _read_profile_files(profile)
     files.update(profile_files)
 
-    # Execute pre_commands and store output as named sections
     pre_commands_data = {}
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
@@ -80,7 +78,6 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
             obj_hash = write_object(output.encode("utf-8"))
             pre_commands_data[f"pre: {label}"] = f"sha256:{obj_hash}"
 
-    # Execute command (for command-based profiles) and store output
     command_data = {}
     cmd = profile.get("command")
     if cmd:
@@ -207,7 +204,6 @@ def _build_current_files(
             continue
         current_files[rel_path] = content
 
-    # Add explicitly listed files from profile
     profile_files = _read_profile_files(profile)
     for rel_path, content in profile_files.items():
         if rel_path not in current_files:
@@ -515,6 +511,102 @@ def _group_diff_sections(
     return result
 
 
+# ── Structural pre_commands diff helpers ───────────────────────────
+
+
+def _diff_pre_commands_line(
+    old_content: str,
+    new_content: str,
+    label: str,
+) -> str:
+    """Line-based diff for tree/git tag output.
+
+    Shows only added and deleted lines, no context.
+    """
+    old_lines = set(old_content.strip().split("\n"))
+    new_lines = set(new_content.strip().split("\n"))
+
+    added = sorted(new_lines - old_lines)
+    deleted = sorted(old_lines - new_lines)
+
+    if not added and not deleted:
+        return ""
+
+    parts = [f"### {label}\n"]
+    for line in deleted:
+        parts.append(f"- {line}\n")
+    for line in added:
+        parts.append(f"+ {line}\n")
+    return "".join(parts)
+
+
+def _diff_pre_commands_marker(
+    old_content: str,
+    new_content: str,
+    label: str,
+    marker: str,
+    fmt: str,
+) -> str:
+    """Section-based diff for git log output (marker-delimited)."""
+    from .splitter import _split_to_sections
+
+    old_sections = _split_to_sections(old_content, marker)
+    new_sections = _split_to_sections(new_content, marker)
+
+    # Compare sections
+    result_parts = []
+    min_len = min(len(old_sections), len(new_sections))
+    for i in range(min_len):
+        old_sec = old_sections[i]
+        new_sec = new_sections[i]
+        if old_sec != new_sec:
+            diff = differ_compute_diff(old_sec, new_sec, f"{label} section {i + 1}", fmt=fmt)
+            if diff.strip():
+                result_parts.append(diff)
+
+    # Extra sections in new
+    if len(new_sections) > len(old_sections):
+        for i in range(len(old_sections), len(new_sections)):
+            result_parts.append(
+                differ_compute_diff("", new_sections[i], f"{label} section {i + 1}", fmt=fmt)
+            )
+
+    # Extra sections in old
+    if len(old_sections) > len(new_sections):
+        for i in range(len(new_sections), len(old_sections)):
+            result_parts.append(f"### {label} section {i + 1}\n\n[DELETED]\n")
+
+    return "\n".join(result_parts)
+
+
+def _diff_pre_commands_structural(
+    old_content: str,
+    new_content: str,
+    label: str,
+    cmd: str,
+    fmt: str = "markdown",
+) -> str:
+    """Apply structural diff to pre_commands output based on command type.
+
+    - tree*/git tag* → line-based diff (only added/deleted lines)
+    - git log* → marker-based diff (section by section)
+    - everything else → text-based diff (unchanged)
+    """
+    cmd_start = cmd.strip().split()[0] if cmd.strip() else ""
+
+    if cmd_start in ("tree", "git") and "tag" in cmd:
+        return _diff_pre_commands_line(old_content, new_content, label)
+
+    if cmd_start == "git" and "log" in cmd:
+        return _diff_pre_commands_marker(old_content, new_content, label, "\n=== COMMIT:", fmt)
+
+    # Fallback: text-based diff
+    return differ_compute_diff(old_content, new_content, label, fmt=fmt)
+
+
+# ── End structural pre_commands diff ───────────────────────────────
+
+
 def compute_diff(
     snapshot_id: str,
     profile: dict | None = None,
@@ -596,10 +688,22 @@ def compute_diff(
                 label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
                 current_pre[label] = output
 
+    # Build map of command labels to original commands for structural diff detection
+    cmd_map: dict[str, str] = {}
+    for cmd in profile.get("pre_commands", []):
+        label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
+        cmd_map[label] = cmd
+
     for label, hash_spec in snapshot_pre.items():
         old_content = _get_content_from_manifest(label, hash_spec)
         if label in current_pre:
-            diff_output = differ_compute_diff(old_content, current_pre[label], label, fmt=fmt)
+            cmd = cmd_map.get(label, "")
+            if cmd:
+                diff_output = _diff_pre_commands_structural(
+                    old_content, current_pre[label], label, cmd, fmt
+                )
+            else:
+                diff_output = differ_compute_diff(old_content, current_pre[label], label, fmt=fmt)
             if diff_output:
                 sections.append(DiffSection(type="modified", path=label, content=diff_output))
         else:
@@ -609,7 +713,11 @@ def compute_diff(
 
     for label in current_pre:
         if label not in snapshot_pre:
-            diff_output = differ_compute_diff("", current_pre[label], label, fmt=fmt)
+            cmd = cmd_map.get(label, "")
+            if cmd:
+                diff_output = _diff_pre_commands_structural("", current_pre[label], label, cmd, fmt)
+            else:
+                diff_output = differ_compute_diff("", current_pre[label], label, fmt=fmt)
             sections.append(DiffSection(type="added", path=label, content=diff_output))
 
     # ── Diff command ───────────────────────────────────────────────
