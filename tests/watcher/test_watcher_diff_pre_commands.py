@@ -1,4 +1,4 @@
-"""Tests for _diff_pre_commands_* helpers in watcher.py (v2.3.0 coverage)."""
+"""Tests for _diff_pre_commands_* helpers in watcher.py."""
 
 from arachna.watcher import (
     _diff_pre_commands_line,
@@ -7,16 +7,6 @@ from arachna.watcher import (
     compute_diff,
     create_snapshot,
 )
-
-
-def _make_file_profile(directory: str, patterns=None) -> dict:
-    return {
-        "directories": [directory],
-        "patterns": patterns or ["*"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
-
 
 # ── _diff_pre_commands_line ──────────────────────────────────────
 
@@ -114,12 +104,12 @@ def test_diff_pre_commands_marker_unchanged():
 
 
 def test_diff_pre_commands_structural_tree_line_diff():
-    """tree command uses line-based diff."""
+    """tree command uses line-based diff (BUG-001 fixed)."""
     old = "src/main.py\nsrc/old.py\n"
     new = "src/main.py\nsrc/new.py\n"
     result = _diff_pre_commands_structural(old, new, "pre: tree src", "tree src")
-    assert "- src/old.py" in result
     assert "+ src/new.py" in result
+    assert "- src/old.py" in result
 
 
 def test_diff_pre_commands_structural_git_tag_line_diff():
@@ -139,7 +129,7 @@ def test_diff_pre_commands_structural_git_log_marker_diff():
     assert "REMOVED" in result or "ADDED" in result
 
 
-def test_diff_pre_commands_structural_unknown_command_fallback():
+def test_diff_pre_commands_structural_unknown_fallback():
     """Unknown command falls back to text diff."""
     old = "line1\nline2\nline3\n"
     new = "line1\nchanged\nline3\n"
@@ -164,7 +154,7 @@ def test_compute_diff_pre_commands_tree_changed(tmp_path, monkeypatch):
         "use_gitignore": False,
         "pre_commands": ["echo 'file1.py'"],
     }
-    sid = create_snapshot(profile1, name="tree-snap")
+    sid = create_snapshot(profile1, name="tree-int-snap")
 
     profile2 = {
         "directories": ["src"],
