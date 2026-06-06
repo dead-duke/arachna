@@ -553,7 +553,6 @@ def _diff_pre_commands_marker(
     old_sections = _split_to_sections(old_content, marker)
     new_sections = _split_to_sections(new_content, marker)
 
-    # Compare sections
     result_parts = []
     min_len = min(len(old_sections), len(new_sections))
     for i in range(min_len):
@@ -564,14 +563,12 @@ def _diff_pre_commands_marker(
             if diff.strip():
                 result_parts.append(diff)
 
-    # Extra sections in new
     if len(new_sections) > len(old_sections):
         for i in range(len(old_sections), len(new_sections)):
             result_parts.append(
                 differ_compute_diff("", new_sections[i], f"{label} section {i + 1}", fmt=fmt)
             )
 
-    # Extra sections in old
     if len(old_sections) > len(new_sections):
         for i in range(len(new_sections), len(old_sections)):
             result_parts.append(f"### {label} section {i + 1}\n\n[DELETED]\n")
@@ -588,13 +585,14 @@ def _diff_pre_commands_structural(
 ) -> str:
     """Apply structural diff to pre_commands output based on command type.
 
-    - tree*/git tag* → line-based diff (only added/deleted lines)
-    - git log* → marker-based diff (section by section)
+    - tree → line-based diff (only added/deleted lines)
+    - git tag → line-based diff (only added/deleted lines)
+    - git log → marker-based diff (section by section)
     - everything else → text-based diff (unchanged)
     """
     cmd_start = cmd.strip().split()[0] if cmd.strip() else ""
 
-    if cmd_start in ("tree", "git") and "tag" in cmd:
+    if cmd_start == "tree" or (cmd_start == "git" and "tag" in cmd):
         return _diff_pre_commands_line(old_content, new_content, label)
 
     if cmd_start == "git" and "log" in cmd:
