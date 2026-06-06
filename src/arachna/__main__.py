@@ -114,6 +114,10 @@ def main():
         _cmd_store(sys.argv)
         return
 
+    if "--presets-update" in sys.argv:
+        _cmd_presets_update(sys.argv)
+        return
+
     parser = argparse.ArgumentParser(description="arachna — context collector for AI")
     parser.add_argument("--version", action="version", version=f"arachna v{__version__}")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -573,9 +577,26 @@ def _cmd_snapshot(argv: list[str]):
 
 
 def _cmd_diff(argv: list[str]):
-    """Handle --diff commands."""
+    """Handle --diff commands.
+
+    Usage:
+        arachna --diff                          auto-select snapshot or show hint
+        arachna --diff --from <id>              diff from specific snapshot
+        arachna --diff --from <id> --to <id>    cross-snapshot diff
+        arachna --diff --from <id> --profile X  diff with explicit profile
+        arachna --diff --stat                   show stats only
+        arachna --diff --flat                   flat output (backward compatible)
+        arachna --diff --format xml             XML output
+        arachna --diff --mode structural        structural (block-level) diff
+        arachna --diff --all                    full project as diff (no snapshot needed)
+    """
     from .store import list_snapshots, load_snapshot
     from .watcher import compute_diff
+
+    # --diff --all: full project collection, no snapshot needed
+    if "--all" in argv:
+        _cmd_diff_all(argv)
+        return
 
     snapshot_id = None
     if "--from" in argv:
@@ -682,7 +703,6 @@ def _cmd_diff(argv: list[str]):
         print("No changes since snapshot.")
         return
 
-    # Apply diff mode using watch.py helpers (single source of truth)
     if diff_mode == "structural":
         from .differ_structural import structural_diff_sections
 
@@ -725,6 +745,126 @@ def _cmd_diff(argv: list[str]):
     updated = [f for f in prev if not f.startswith(name_tmpl)]
     updated.extend(created)
     save_manifest(out_path, updated)
+
+
+def _cmd_diff_all(argv: list[str]):
+    """Handle --diff --all: full project as diff (no snapshot needed).
+
+    Collects the project and writes it as diff output files.
+    Supports --mode, --profile, --format, --output-dir, --compress.
+    """
+    config = load_config()
+    project_name = config.get("project_name", "Project")
+    output_dir = config.get("output_dir", ".")
+    if "--output-dir" in argv:
+        idx = argv.index("--output-dir")
+        if idx + 1 < len(argv):
+            output_dir = argv[idx + 1]
+    elif "-o" in argv:
+        idx = argv.index("-o")
+        if idx + 1 < len(argv):
+            output_dir = argv[idx + 1]
+
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    profile_name = "full"
+    if "--profile" in argv:
+        idx = argv.index("--profile")
+        if idx + 1 < len(argv):
+            profile_name = argv[idx + 1]
+
+    diff_mode = "full"
+    if "--mode" in argv:
+        idx = argv.index("--mode")
+        if idx + 1 < len(argv):
+            diff_mode = argv[idx + 1]
+
+    query = None
+    if "--query" in argv:
+        idx = argv.index("--query")
+        if idx + 1 < len(argv):
+            query = argv[idx + 1]
+
+    compress = "--compress" in argv
+
+    profile = get_profile(profile_name)
+    if compress:
+        profile["compress"] = True
+
+    name_tmpl = "chat-diff-all"
+
+    clean_manifest(out_path, name_tmpl)
+
+    created, tokens_by_file = collect(
+        profile,
+        project_name,
+        str(out_path),
+        verbose=False,
+        incremental=False,
+        merge=False,
+        query=query,
+        mode=diff_mode,
+    )
+
+    if created:
+        # Rename output files to chat-diff-all_* pattern
+        renamed = []
+        for old_path_str in created:
+            old = Path(old_path_str)
+            # Replace name_tmpl from profile with chat-diff-all
+            orig_tmpl = profile.get("name_template", f"chat-{profile_name}")
+            new_name = old.name.replace(orig_tmpl, "chat-diff-all")
+            new_path = old.parent / new_name
+            if old != new_path:
+                old.rename(new_path)
+            renamed.append(str(new_path))
+        _print_collected(renamed)
+        prev = load_manifest(out_path)
+        updated = [f for f in prev if not f.startswith("chat-diff-all")]
+        updated.extend(renamed)
+        save_manifest(out_path, updated)
+    else:
+        print("  No content collected.")
+
+
+def _cmd_presets_update(argv: list[str]):
+    """Handle --presets-update: fetch remote presets and merge with local.
+
+    Usage:
+        arachna --presets-update [--url https://...]
+    """
+    from .presets import _load_builtin_presets, fetch_presets, load_presets_from_file, merge_presets
+
+    url = "https://raw.githubusercontent.com/dead-duke/arachna/main/presets.json"
+    if "--url" in argv:
+        idx = argv.index("--url")
+        if idx + 1 < len(argv):
+            url = argv[idx + 1]
+
+    print(f"Fetching presets from {url}...")
+    remote = fetch_presets(url)
+    if not remote:
+        print("No presets fetched. Check URL or network.")
+        sys.exit(1)
+
+    builtin = _load_builtin_presets()
+    local = load_presets_from_file("presets.json")
+
+    merged = merge_presets(builtin, remote, local)
+
+    # Write merged to presets.json
+    import json as _json
+
+    out = _json.dumps(merged, indent=2) + "\n"
+    Path("presets.json").write_text(out)
+
+    new_count = len(remote)
+    local_count = len(local)
+    print(
+        f"Presets updated: {len(merged)} total ({new_count} remote, {local_count} local preserved)."
+    )
+    print("Saved to presets.json")
 
 
 def _cmd_store(argv: list[str]):
