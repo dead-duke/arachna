@@ -1,0 +1,9 @@
+{
+  "dirs": ["src"],
+  "patterns": ["*.zig"],
+  "files": ["build.zig", "build.zig.zon"],
+  "pre_commands": ["tree src 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["build.zig", "build.zig.zon"]
+}

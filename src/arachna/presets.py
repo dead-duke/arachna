@@ -6,8 +6,6 @@ from pathlib import Path
 _SEPARATOR = "-" * 50
 DEFAULT_PRESETS_PATH = "presets.json"
 
-# ── Detection helpers ──────────────────────────────────────────────
-
 
 def _detect_dir(path: str) -> bool:
     p = Path(path)
@@ -17,8 +15,6 @@ def _detect_dir(path: str) -> bool:
 def _detect_file(path: str) -> bool:
     return Path(path).exists()
 
-
-# ── Valid preset keys ───────────────────────────────────────────────
 
 _VALID_PRESET_KEYS = {
     "dirs",
@@ -33,9 +29,6 @@ _VALID_PRESET_KEYS = {
 }
 
 _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
-
-
-# ── Built-in presets loading ───────────────────────────────────────
 
 
 def _load_builtin_presets() -> dict[str, dict]:
@@ -56,27 +49,13 @@ def _load_builtin_presets() -> dict[str, dict]:
     return result
 
 
-# ── External presets loading ────────────────────────────────────────
-
-
 def _is_safe_tokenizer(spec: str) -> bool:
-    """Check if a tokenizer spec is safe for use in presets.
-
-    Delegates to tokenizer._is_safe_tokenizer for consistent validation.
-    Only "default", whitelisted tokenizers (tiktoken, transformers),
-    or local .py files are allowed.
-    """
     from .tokenizer import _is_safe_tokenizer as _tok_safe
 
     return _tok_safe(spec)
 
 
 def load_presets_from_file(path: str | Path) -> dict[str, dict]:
-    """Load presets from a JSON file.
-
-    Returns dict of preset_name -> preset_dict.
-    Returns empty dict if file doesn't exist or is invalid.
-    """
     p = Path(path)
     if not p.exists():
         return {}
@@ -114,7 +93,6 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
             print(f"Warning: preset '{name}' max_tokens must be > 0, got {max_tokens}")
             continue
 
-        # Validate tokenizer safety for external presets
         tokenizer = preset.get("tokenizer", "default")
         if not _is_safe_tokenizer(tokenizer):
             print(
@@ -138,7 +116,6 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
 
 
 def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
-    """Get merged presets: built-in + external (external overrides built-in)."""
     if external_path is None:
         external_path = DEFAULT_PRESETS_PATH
 
@@ -148,23 +125,10 @@ def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
     return merged
 
 
-# ── Auto-detection ──────────────────────────────────────────────────
-
-
 def detect_presets(
     preset_name: str | None = None,
     external_path: str | Path | None = None,
 ) -> list[str]:
-    """Return names of presets detected in the current directory.
-
-    If preset_name is given, checks that the preset exists and its
-    detect-paths match the current project. Returns [preset_name] only
-    if the preset is compatible with the project.
-
-    All presets are treated equally — detect-paths are validated for
-    every preset that has them. Presets with empty detect list are
-    always allowed.
-    """
     all_presets = get_all_presets(external_path)
 
     if preset_name:
@@ -175,11 +139,9 @@ def detect_presets(
         preset = all_presets[preset_name]
         detect_paths = preset.get("detect", [])
 
-        # Presets with empty detect list are always allowed (e.g. config)
         if not detect_paths:
             return [preset_name]
 
-        # For all presets with detect paths, verify they match the project
         if not _detect_any(detect_paths):
             print(
                 f"Warning: preset '{preset_name}' doesn't match this project "
@@ -191,7 +153,6 @@ def detect_presets(
 
     detected: list[str] = []
 
-    # All presets with detect paths
     for name, preset in all_presets.items():
         detect_paths = preset.get("detect", [])
         if not detect_paths:
@@ -203,7 +164,6 @@ def detect_presets(
 
 
 def _detect_any(paths: list[str]) -> bool:
-    """Return True if any path (dir or file) exists."""
     cwd = Path.cwd()
     for p in paths:
         if "*" in p or "?" in p:
@@ -214,11 +174,7 @@ def _detect_any(paths: list[str]) -> bool:
     return False
 
 
-# ── Preset → profile helpers ────────────────────────────────────────
-
-
 def preset_to_profile(name: str, external_path: str | Path | None = None) -> dict | None:
-    """Convert a preset to a profile dict suitable for .arachna.json."""
     all_presets = get_all_presets(external_path)
     preset = all_presets.get(name)
     if preset is None:
@@ -229,7 +185,6 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
         "max_tokens": preset.get("max_tokens", 16000),
     }
 
-    # Propagate tokenizer if specified and safe
     tokenizer = preset.get("tokenizer", "default")
     if tokenizer != "default" and _is_safe_tokenizer(tokenizer):
         profile["tokenizer"] = tokenizer
@@ -254,7 +209,6 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
     if pre_commands:
         profile["pre_commands"] = pre_commands
 
-    # Git preset: convert to command-based profile
     if name == "git" and pre_commands:
         git_cmd = pre_commands[0]
         profile.pop("directories", None)
@@ -269,7 +223,6 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
 def get_detected_summary(
     external_path: str | Path | None = None,
 ) -> dict[str, dict]:
-    """Return {preset_name: preset_dict} for all detected presets."""
     all_presets = get_all_presets(external_path)
     detected_names = detect_presets(external_path=external_path)
     return {name: all_presets[name] for name in detected_names if name in all_presets}

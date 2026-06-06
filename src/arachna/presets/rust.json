@@ -1,0 +1,9 @@
+{
+  "dirs": ["src"],
+  "patterns": ["*.rs"],
+  "files": ["Cargo.toml", "Cargo.lock"],
+  "pre_commands": ["tree src 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["Cargo.toml"]
+}

@@ -1,0 +1,9 @@
+{
+  "dirs": ["src", "lib"],
+  "patterns": ["*.lua"],
+  "files": ["*.rockspec"],
+  "pre_commands": ["tree src lib 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["src", "lib"]
+}

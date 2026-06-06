@@ -1,0 +1,9 @@
+{
+  "dirs": ["."],
+  "patterns": ["*.go"],
+  "files": ["go.mod", "go.sum", "main.go"],
+  "pre_commands": ["tree -I 'vendor|node_modules' 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["go.mod", "main.go"]
+}

@@ -1,0 +1,9 @@
+{
+  "dirs": ["lib"],
+  "patterns": ["*.ex", "*.exs"],
+  "files": ["mix.exs"],
+  "pre_commands": ["tree lib 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["mix.exs"]
+}

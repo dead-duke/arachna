@@ -1,0 +1,9 @@
+{
+  "dirs": ["src"],
+  "patterns": ["*.gleam"],
+  "files": ["gleam.toml", "manifest.toml"],
+  "pre_commands": ["tree src 2>/dev/null || true"],
+  "max_tokens": 16000,
+  "split_mode": "by_file",
+  "detect": ["gleam.toml"]
+}

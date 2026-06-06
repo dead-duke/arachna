@@ -39,6 +39,13 @@ _EXT_LANG = {
     "dockerfile": "dockerfile",
     "makefile": "makefile",
     "gitignore": "gitignore",
+    "zig": "zig",
+    "lua": "lua",
+    "ex": "elixir",
+    "exs": "elixir",
+    "hs": "haskell",
+    "lhs": "haskell",
+    "gleam": "gleam",
 }
 
 _FILENAME_LANG = {
@@ -49,8 +56,6 @@ _FILENAME_LANG = {
     "vagrantfile": "ruby",
 }
 
-# Extensions that are known to be text-based (not binary).
-# Generated from _EXT_LANG — single source of truth for language extensions.
 _TEXT_EXTENSIONS = frozenset(f".{ext}" for ext in _EXT_LANG)
 
 _SHEBANG_MAP = {
@@ -83,17 +88,6 @@ def _lang_from_shebang(first_line: str) -> str:
 
 
 def lang_for_path(path: Path) -> str:
-    """Detect programming language from file path.
-
-    Checks well-known filenames (Dockerfile, Makefile, .env),
-    then falls back to extension-based lookup.
-
-    Args:
-        path: File path to detect language for.
-
-    Returns:
-        Language string like "python", "javascript", or "" if unknown.
-    """
     name = path.name.lower()
     if name in _FILENAME_LANG:
         return _FILENAME_LANG[name]
@@ -109,25 +103,14 @@ def _should_skip_binary(
     binary_extensions: list[str] | None,
     binary_max_mb: float,
 ) -> bool:
-    """Check if a binary file should be skipped before attempting read_text.
-
-    Text files (with known text extensions) are never skipped.
-    Files without extension are treated as potential text files
-    and not skipped, unless include_binary is True and they exceed
-    the size limit.
-    Binary files are skipped unless include_binary=True and they pass
-    the size and extension filters.
-    """
     if not path.exists():
         return True
 
     ext = path.suffix.lower()
 
-    # Text files by extension — never skipped
     if ext in _TEXT_EXTENSIONS:
         return False
 
-    # Files without extension — check size, treat as text if within limit
     if not ext:
         if not include_binary:
             return False
@@ -139,7 +122,6 @@ def _should_skip_binary(
             return True
         return bool(binary_extensions is not None and "" not in binary_extensions)
 
-    # Binary file handling
     try:
         size_mb = path.stat().st_size / (1024 * 1024)
     except OSError:
@@ -154,12 +136,8 @@ def _should_skip_binary(
 
 # ── Header generation ──────────────────────────────────────────────
 
-# Python: import X, from X import Y
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
 
-# C-like: import/require/include statements
-# Captures: import "pkg" (Go), import ... from '...' (JS/TS),
-# require('...') (JS), #include <...> (C/C++), using X; (C#)
 _RE_C_LIKE_IMPORT = re.compile(
     r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]"
     r"|import\s+['\"]([^'\"]+)['\"]"
@@ -169,7 +147,6 @@ _RE_C_LIKE_IMPORT = re.compile(
     re.MULTILINE,
 )
 
-# C-like exports: function/class/method/type signatures
 _RE_C_LIKE_EXPORT = re.compile(
     r"^\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
     r"type\s+|"
@@ -178,7 +155,6 @@ _RE_C_LIKE_EXPORT = re.compile(
     re.MULTILINE,
 )
 
-# Ruby/Elixir/Lua imports: require, import, use
 _RE_SCRIPT_IMPORT = re.compile(
     r"^\s*(?:require\s+['\"]([^'\"]+)['\"]"
     r"|import\s+['\"]([^'\"]+)['\"]"
@@ -186,7 +162,6 @@ _RE_SCRIPT_IMPORT = re.compile(
     re.MULTILINE,
 )
 
-# Ruby/Elixir/Lua exports: def, defmodule, defp, function
 _RE_SCRIPT_EXPORT = re.compile(
     r"^\s*(?:def\s+(?:self\.)?(\w+[?!]?)"
     r"|defmodule\s+([\w.]+)"
@@ -195,7 +170,6 @@ _RE_SCRIPT_EXPORT = re.compile(
     re.MULTILINE,
 )
 
-# Language sets for dispatch
 _C_LIKE_LANGS = frozenset(
     {
         "javascript",
@@ -209,37 +183,14 @@ _C_LIKE_LANGS = frozenset(
         "swift",
         "kotlin",
         "php",
+        "zig",
+        "gleam",
     }
 )
 _SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
 
 
 def _generate_header(path: Path, text: str, lang: str) -> str:
-    """Generate a context header with dependencies and exports.
-
-    Uses language-specific parsers to extract imports and top-level
-    function/class names. Returns empty string for unknown languages
-    or files with no detectable structure.
-
-    Python: stdlib ast — handles imports, FunctionDef, ClassDef,
-    AsyncFunctionDef. Falls back to regex on SyntaxError.
-    C-like: regex for import/require/include and function/class
-    declarations.
-    Ruby/Elixir/Lua: regex for require/import/use and def/function.
-
-    Args:
-        path: File path (for the header label).
-        text: Full file content.
-        lang: Language from lang_for_path().
-
-    Returns:
-        Header string like:
-            ### src/utils/auth.py
-            deps: crypto, db/users
-            exports: validate_token, refresh_token
-
-        Or empty string if no deps or exports found.
-    """
     deps: list[str] = []
     exports: list[str] = []
 
@@ -249,7 +200,6 @@ def _generate_header(path: Path, text: str, lang: str) -> str:
         deps, exports = _parse_c_like(text)
     elif lang in _SCRIPT_LANGS:
         deps, exports = _parse_script(text)
-    # Fallback: unknown language → empty header
 
     if not deps and not exports:
         return ""
@@ -263,18 +213,6 @@ def _generate_header(path: Path, text: str, lang: str) -> str:
 
 
 def _parse_python(text: str) -> tuple[list[str], list[str]]:
-    """Extract imports and top-level function/class names from Python source.
-
-    Uses stdlib ast for accurate parsing. Falls back to regex
-    for syntactically invalid Python.
-
-    Args:
-        text: Python source code.
-
-    Returns:
-        Tuple of (deps, exports) where deps are imported module names
-        and exports are top-level function/class names.
-    """
     deps: list[str] = []
     exports: list[str] = []
 
@@ -301,18 +239,6 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
 
 
 def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
-    """Extract imports and exports from C-like languages via regex.
-
-    Handles: JavaScript, TypeScript, Go, Rust, Java, C, C++,
-    C#, Swift, Kotlin, PHP.
-
-    Args:
-        text: Source code in a C-like language.
-
-    Returns:
-        Tuple of (deps, exports) from import/require/include
-        statements and function/class declarations.
-    """
     deps: list[str] = []
     exports: list[str] = []
 
@@ -330,15 +256,6 @@ def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
 
 
 def _parse_script(text: str) -> tuple[list[str], list[str]]:
-    """Extract imports and exports from Ruby/Elixir/Lua via regex.
-
-    Args:
-        text: Source code in Ruby, Elixir, or Lua.
-
-    Returns:
-        Tuple of (deps, exports) from require/import/use statements
-        and def/function declarations.
-    """
     deps: list[str] = []
     exports: list[str] = []
 
@@ -355,9 +272,6 @@ def _parse_script(text: str) -> tuple[list[str], list[str]]:
     return deps, exports
 
 
-# ── End header generation ──────────────────────────────────────────
-
-
 def format_file_section(
     path: Path,
     fmt: str = "markdown",
@@ -367,21 +281,6 @@ def format_file_section(
     verbose: bool = False,
     include_header: bool = False,
 ) -> str:
-    """Read a file and format it as a markdown/xml/json section.
-
-    Args:
-        path: File path to read.
-        fmt: Output format — "markdown" (default), "xml", or "json".
-        include_binary: If True, binary files are base64-encoded.
-        binary_extensions: Whitelist of binary extensions to include.
-        binary_max_mb: Maximum binary file size in MB.
-        verbose: If True, prints skip reasons for excluded files.
-        include_header: If True, prepends a deps/exports header.
-
-    Returns:
-        Formatted section string, or empty string if the file
-        should be skipped.
-    """
     if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
         try:
             path.stat()
@@ -486,15 +385,6 @@ def _format_json(path: Path, lang: str, text: str) -> str:
 
 
 def is_excluded(path: Path, exclude_patterns: list[str]) -> bool:
-    """Check if a file path matches any exclusion pattern.
-
-    Args:
-        path: File path to check.
-        exclude_patterns: List of glob patterns.
-
-    Returns:
-        True if the file should be excluded.
-    """
     path_str = str(path)
     for pat in exclude_patterns:
         if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):
