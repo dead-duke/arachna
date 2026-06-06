@@ -332,4 +332,3 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
-

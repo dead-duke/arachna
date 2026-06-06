@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc
+.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws
 
 VENV := venv
 VENV_BIN := $(VENV)/bin
@@ -16,10 +16,14 @@ help:
 	@echo "  make test-cov-html - run tests with coverage (HTML)"
 	@echo "  make lint          - ruff check"
 	@echo "  make format        - ruff format (auto-fix)"
-	@echo "  make check         - format + lint + test"
+	@echo "  make check         - format + lint + test + trailing-ws"
 	@echo "  make clean         - remove build artifacts and context files"
 	@echo "  make tree          - show project structure"
 	@echo "  make info          - show project info"
+	@echo ""
+	@echo "Quality:"
+	@echo "  make trailing-ws   - check for trailing whitespace and double blank lines at EOF"
+	@echo "  make fix-trailing-ws - automatically fix trailing whitespace and double blank lines"
 	@echo ""
 	@echo "arachna context:"
 	@echo "  make context       - collect full context for AI"
@@ -59,7 +63,25 @@ format:
 	ruff format src/ tests/
 	ruff check --fix src/ tests/
 
-check: format lint test
+trailing-ws:
+	@echo "Checking for trailing whitespace..."
+	@! grep -rn '[[:space:]]$$' README.md CHANGELOG.md TODO.md docs/ --include='*.md' || (echo "ERROR: Trailing whitespace found" && exit 1)
+	@echo "Checking for double blank lines at EOF..."
+	@for f in README.md CHANGELOG.md TODO.md $$(find docs -name '*.md' 2>/dev/null); do \
+		if [ -f "$$f" ] && [ $$(wc -l < "$$f") -gt 0 ]; then \
+			if [ "$$(tail -1 "$$f")" = "" ] && [ "$$(tail -2 "$$f" | head -1)" = "" ]; then \
+				echo "ERROR: $$f ends with double blank line"; exit 1; \
+			fi; \
+		fi; \
+	done
+	@echo "OK: no trailing whitespace or double blank lines"
+
+fix-trailing-ws:
+	@echo "Fixing trailing whitespace and double blank lines at EOF..."
+	@python3 -c 'import pathlib, sys; files = ["README.md", "CHANGELOG.md", "TODO.md"] + [str(p) for p in pathlib.Path("docs").rglob("*.md")]; [exec("p = pathlib.Path(f); c = p.read_text(); c = \"\\n\".join(l.rstrip() for l in c.split(\"\\n\")); c = c.rstrip(\"\\n\") + \"\\n\"; p.write_text(c)") or print(f"{f}: fixed") for f in files if pathlib.Path(f).exists()]'
+	@echo "Done."
+
+check: format lint test trailing-ws
 	@echo "[OK] All checks passed"
 
 clean:

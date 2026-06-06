@@ -7,6 +7,12 @@ repos:
       - id: ruff-format
   - repo: local
     hooks:
+      - id: trailing-ws
+        name: trailing whitespace
+        entry: make trailing-ws
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: unit-tests
         name: unit tests
         entry: python -m pytest tests/ -v

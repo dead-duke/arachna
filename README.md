@@ -71,16 +71,16 @@ Creates arachna_context/ with .md files ready for AI.
 ### Local model (Ollama)
 
     arachna --profile code
-    cat arachna_context/chat-code.md | ollama run qwen2.5:32b
+    cat arachna_context/chat-code_1.md | ollama run qwen2.5:32b
 
 ### Cloud API (OpenAI)
 
     arachna --profile code
-    # Then paste arachna_context/chat-code.md into chat.openai.com
+    # Then paste arachna_context/chat-code_1.md into chat.openai.com
     # Or use the API:
     curl https://api.openai.com/v1/chat/completions \
       -H "Authorization: Bearer $OPENAI_API_KEY" \
-      -d '{"messages": [{"role": "user", "content": "'"$(cat arachna_context/chat-code.md)"'"}]}'
+      -d '{"messages": [{"role": "user", "content": "'"$(cat arachna_context/chat-code_1.md)"'"}]}'
 
 ### Multiple profiles for different tasks
 
@@ -147,8 +147,16 @@ Creates arachna_context/ with .md files ready for AI.
     arachna --diff --stat                       stats only (no content)
     arachna --diff --flat                       flat output (no grouping)
     arachna --diff --format xml                 XML output
+    arachna --diff --mode structural            structural (block-level) diff
     arachna --store stats                       store statistics
     arachna --store gc                          garbage collect
+
+### Collection modes
+
+    arachna --all                               full content (default)
+    arachna --all --mode headers                with dependency/export headers
+    arachna --all --mode repo-map               signatures only (50-70% less tokens)
+    arachna --all --query "authentication"      filter files by query
 
 ## Options
 
@@ -162,6 +170,8 @@ Creates arachna_context/ with .md files ready for AI.
 | --merge | append to existing output instead of replacing |
 | --dry-run | preview without writing files |
 | --force | force overwrite with --install-hook |
+| --query "text" | filter files by query |
+| --mode full,headers,repo-map | collection mode |
 
 ## Profiles
 
@@ -235,12 +245,11 @@ Files go to arachna_context/ (configurable):
     arachna_context/
       .arachna_manifest.json
       chat-manifest.md          # summary of all files
-      chat-code.md
-      chat-tests.md
-      chat-docs.md
-      chat-git.md
-      chat-diff.md              # diff output
-      chat-diff_1.md            # diff parts when over token limit
+      chat-code_1.md
+      chat-tests_1.md
+      chat-docs_1.md
+      chat-git_1.md
+      chat-diff-cycle_1.md      # diff output (includes snapshot name)
 
 When content exceeds max_tokens, files are numbered: chat-code_1.md,
 chat-code_2.md...
@@ -292,6 +301,9 @@ then send only changes (diff) in subsequent iterations.
     # Flat output (old format, backward compatible)
     arachna --diff --from before-refactor --flat
 
+    # Structural diff (understands code blocks)
+    arachna --diff --from before-refactor --mode structural
+
 ### Rename and move detection
 
 arachna automatically detects renamed and moved files:
@@ -306,6 +318,21 @@ arachna automatically detects renamed and moved files:
     RENAMED: src/old.py → src/new.py (87% similar)
 
 No git needed — works on any project.
+
+### Headers, query, and repo-map
+
+arachna can add context headers showing dependencies and exports for each file.
+Use `--mode headers` or `--query` to auto-enable headers.
+
+    # Collect with dependency/export headers
+    arachna --all --mode headers
+
+    # Filter by query (keyword scoring + import chain)
+    arachna --all --query "authentication"
+
+    # Repo-map mode — signatures only, no bodies
+    arachna --all --mode repo-map
+    # 50-70% token savings for project overview
 
 ### Content-addressable store
 
@@ -342,6 +369,27 @@ content — only one copy stored.
 
     # Delete a snapshot (objects survive for other snapshots)
     arachna --snapshot delete before-refactor
+
+### Programmatic API (v2.0.0+)
+
+All Watch and collection features are available as a Python API:
+
+```python
+from arachna import watch
+from arachna.collect_api import collect
+
+# Create snapshot
+sid = watch.create_snapshot(profile="full", name="baseline")
+
+# Collect context
+result = collect(profile="full", mode="repo-map")
+
+# Compute diff
+diff = watch.compute_diff(snapshot_id="baseline", mode="structural")
+print(f"Modified: {diff.stats.modified}, Added: {diff.stats.added}")
+```
+
+See [TUTORIAL.md](docs/TUTORIAL.md) for full API documentation.
 
 ### Diff format
 
