@@ -10,7 +10,6 @@ from arachna.cache import _file_hash, get_changed_files, save_cache
 
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o000 does not prevent reads on Windows")
 def test_file_hash_os_error(tmp_path):
-    """_file_hash returns None when file raises OSError on stat."""
     f = tmp_path / "unreadable.py"
     f.write_text("hello")
     f.chmod(0o000)
@@ -21,7 +20,6 @@ def test_file_hash_os_error(tmp_path):
 
 
 def test_get_changed_files_both_none_hash(tmp_path):
-    """When both old and new hash are None, trust mtime change."""
     a = tmp_path / "a.py"
     a.write_text("original")
     cache = {str(a): {"mtime": 0.0, "hash": None}}
@@ -34,7 +32,6 @@ def test_get_changed_files_both_none_hash(tmp_path):
 
 
 def test_save_cache_fallback_direct_write(tmp_path, monkeypatch):
-    """save_cache falls back to direct write when tempfile.mkstemp fails."""
     import arachna.cache as cache_module
 
     def failing_mkstemp(*args, **kwargs):
@@ -46,7 +43,6 @@ def test_save_cache_fallback_direct_write(tmp_path, monkeypatch):
 
 
 def test_get_changed_files_old_hash_none(tmp_path):
-    """When old hash is None but new hash exists, treat as changed."""
     a = tmp_path / "a.py"
     a.write_text("hello")
     cache = {str(a): {"mtime": 0.0, "hash": None}}
@@ -55,7 +51,6 @@ def test_get_changed_files_old_hash_none(tmp_path):
 
 
 def test_get_changed_files_new_hash_none(tmp_path, monkeypatch):
-    """When new hash is None (large file), treat as changed."""
     a = tmp_path / "big.py"
     a.write_text("hello")
 
@@ -66,3 +61,20 @@ def test_get_changed_files_new_hash_none(tmp_path, monkeypatch):
     cache = {str(a): {"mtime": 0.0, "hash": "abc"}}
     changed, new, deleted = get_changed_files([a], cache)
     assert len(changed) == 1
+
+
+def test_file_hash_nonexistent():
+    from pathlib import Path
+
+    assert _file_hash(Path("/nonexistent/file.txt")) is None
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o000 does not prevent reads on Windows")
+def test_file_hash_permission_denied(tmp_path):
+    f = tmp_path / "secret.txt"
+    f.write_text("secret")
+    f.chmod(0o000)
+    try:
+        assert _file_hash(f) is None
+    finally:
+        f.chmod(0o644)
