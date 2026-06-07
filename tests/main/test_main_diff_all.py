@@ -1,8 +1,8 @@
-"""Tests for --diff --all CLI handler in __main__.py (v2.4.0)."""
+"""Tests for --diff --all CLI handler in cli_watch.py (v2.4.0)."""
 
 import json
 
-from arachna.__main__ import _cmd_diff_all
+from arachna.cli_watch import _cmd_diff_all
 
 
 def test_cmd_diff_all_full(tmp_path, monkeypatch):

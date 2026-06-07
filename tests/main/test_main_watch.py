@@ -1,10 +1,10 @@
-"""Tests for Watch CLI handlers in __main__.py."""
+"""Tests for Watch CLI handlers in cli_watch.py."""
 
 import json
 
 import pytest
 
-from arachna.__main__ import _cmd_diff, _cmd_snapshot, _cmd_store
+from arachna.cli_watch import _cmd_diff, _cmd_snapshot, _cmd_store
 
 
 def test_cmd_snapshot_usage_hint(tmp_path, monkeypatch):
@@ -347,7 +347,6 @@ def test_cmd_diff_single_snapshot_auto_select(tmp_path, monkeypatch):
     _cmd_diff(["arachna", "--diff"])
     sys.stdout = old
 
-    # With one snapshot, auto-selects — should print "No changes" (unchanged)
     assert "No changes" in out.getvalue()
 
 

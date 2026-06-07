@@ -1,10 +1,10 @@
-"""Tests for v1.7.0 Watch CLI handlers in __main__.py."""
+"""Tests for v1.7.0 Watch CLI handlers — now in cli_watch.py."""
 
 import json
 
 import pytest
 
-from arachna.__main__ import _cmd_diff, _cmd_snapshot
+from arachna.cli_watch import _cmd_diff, _cmd_snapshot
 
 
 def test_cmd_snapshot_info_full(tmp_path, monkeypatch):
@@ -88,7 +88,7 @@ def test_cmd_snapshot_info_profile_only(tmp_path, monkeypatch):
     output = out.getvalue()
     assert "Profile:" in output
     assert "max_tokens:" in output
-    assert "Snapshot:" not in output  # full header not shown
+    assert "Snapshot:" not in output
 
 
 def test_cmd_snapshot_info_stats_only(tmp_path, monkeypatch):
@@ -189,7 +189,6 @@ def test_cmd_snapshot_rename(tmp_path, monkeypatch):
 
     assert "renamed" in out.getvalue()
 
-    # Verify old name gone
     out2 = StringIO()
     sys.stdout = out2
     _cmd_snapshot(["arachna", "--snapshot", "list"])
@@ -262,7 +261,6 @@ def test_cmd_snapshot_list_no_duplicate_column(tmp_path, monkeypatch):
     output = out.getvalue()
     assert "Snapshots:" in output
     assert "list-snap" in output
-    # There should be exactly one "list-snap" in the output (not duplicated)
     assert output.count("list-snap") == 1
 
 

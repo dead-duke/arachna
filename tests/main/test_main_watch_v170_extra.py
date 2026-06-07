@@ -1,10 +1,10 @@
-"""Extra coverage for __main__.py Watch CLI — v1.7.0 edge cases."""
+"""Extra coverage for Watch CLI — edge cases, now in cli_watch.py."""
 
 import json
 
 import pytest
 
-from arachna.__main__ import _cmd_snapshot
+from arachna.cli_watch import _cmd_snapshot
 
 
 def test_cmd_snapshot_info_invalid_id_flag(tmp_path, monkeypatch):

@@ -1,10 +1,10 @@
-"""Tests for v1.6.4 Watch CLI handlers — new coverage gaps."""
+"""Tests for v1.6.4 Watch CLI handlers — now in cli_watch.py."""
 
 import json
 
 import pytest
 
-from arachna.__main__ import _cmd_diff, _cmd_snapshot
+from arachna.cli_watch import _cmd_diff, _cmd_snapshot
 
 
 def test_cmd_snapshot_update(tmp_path, monkeypatch):
@@ -114,11 +114,9 @@ def test_cmd_diff_compress_flag(tmp_path, monkeypatch):
     _cmd_diff(["arachna", "--diff", "--from", "cmpr-test", "--profile", "code", "--compress"])
     sys.stdout = old
 
-    # Should produce output file
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
     content = files[0].read_text()
-    # 4+ blank lines collapsed to 2
     assert "\n\n\n\n" not in content
 
 
@@ -146,27 +144,16 @@ def test_cmd_diff_with_output_dir_short_flag(tmp_path, monkeypatch):
     )
 
     _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "od-test"])
-    # Modify file so diff produces output
     (tmp_path / "src" / "main.py").write_text("modified for -o test")
 
     custom_dir = tmp_path / "custom_diff"
     _cmd_diff(
-        [
-            "arachna",
-            "--diff",
-            "--from",
-            "od-test",
-            "--profile",
-            "code",
-            "-o",
-            str(custom_dir),
-        ]
+        ["arachna", "--diff", "--from", "od-test", "--profile", "code", "-o", str(custom_dir)]
     )
 
     files = list(custom_dir.glob("chat-diff*"))
     assert len(files) >= 1
 
-    # Default dir should NOT have diff files
     default_files = list((tmp_path / "out").glob("chat-diff*"))
     assert len(default_files) == 0
 
@@ -195,7 +182,6 @@ def test_cmd_diff_output_dir_long_flag(tmp_path, monkeypatch):
     )
 
     _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "odl-test"])
-    # Modify file so diff produces output
     (tmp_path / "src" / "main.py").write_text("modified for --output-dir test")
 
     custom_dir = tmp_path / "custom_long"
