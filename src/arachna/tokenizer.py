@@ -4,16 +4,14 @@ Default: 4 chars ≈ 1 token (conservative, zero dependencies).
 Supports pluggable tokenizers via tokenizer spec string.
 """
 
+import ast as _ast
 import importlib
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
-# Whitelist of known safe tokenizer modules.
-# These are well-known libraries that provide token counting.
 _SAFE_TOKENIZERS = frozenset({"tiktoken", "transformers"})
 
-# Modules with suspicious names (common attack vectors) — always blocked.
 _SUSPICIOUS_MODULES = frozenset(
     {
         "os",
@@ -76,87 +74,74 @@ _SUSPICIOUS_MODULES = frozenset(
 
 
 def _is_safe_tokenizer(spec: str) -> bool:
-    """Check if a tokenizer spec is safe to import.
-
-    Safety check order (deny-by-default, each step gates the next):
-    1. "default" or empty → always safe (built-in)
-    2. Module name in _SAFE_TOKENIZERS whitelist → safe (tiktoken, transformers)
-    3. Module name in _SUSPICIOUS_MODULES → blocked (os, subprocess, ...)
-    4. Module name in sys.stdlib_module_names → blocked (json, pathlib, ...)
-    5. Module exists as local .py file in cwd or sys.path → safe
-       (user-provided tokenizer in the project)
-    6. Everything else → denied
-
-    No fallback to sys.modules — principle of "deny by default, allow explicitly."
-    """
     if not spec or spec == "default":
         return True
 
     module_name = spec.split(":", 1)[0]
 
-    # Step 2: whitelist check — known safe tokenizer libraries
     if module_name in _SAFE_TOKENIZERS:
         return True
 
-    # Step 3: block modules with suspicious names (common attack vectors)
     if module_name in _SUSPICIOUS_MODULES:
         return False
 
-    # Step 4: block stdlib modules — they shouldn't be used as tokenizers
     if module_name in sys.stdlib_module_names:
         return False
 
-    # Step 5: check if the module is a local file in cwd or sys.path
     paths_to_check = [Path.cwd()] + [Path(p) for p in sys.path if p]
+    local_path = None
     try:
         for base in paths_to_check:
-            local_path = base / f"{module_name}.py"
-            if local_path.is_file():
-                return True
-            local_pkg = base / module_name
-            if local_pkg.is_dir() and (local_pkg / "__init__.py").is_file():
-                return True
+            candidate = base / f"{module_name}.py"
+            if candidate.is_file():
+                local_path = candidate
+                break
+            candidate_pkg = base / module_name
+            if candidate_pkg.is_dir() and (candidate_pkg / "__init__.py").is_file():
+                local_path = candidate_pkg / "__init__.py"
+                break
     except OSError:
         pass
 
-    # Step 6: deny everything else
-    return False
+    if local_path is None:
+        return False
+
+    return _safe_local_imports(local_path)
+
+
+def _safe_local_imports(filepath: Path) -> bool:
+    try:
+        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        return False
+
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] in _SUSPICIOUS_MODULES:
+                    return False
+        elif (
+            isinstance(node, _ast.ImportFrom)
+            and node.module
+            and node.module.split(".")[0] in _SUSPICIOUS_MODULES
+        ):
+            return False
+
+    return True
 
 
 def count_tokens(text: str) -> int:
-    """Conservative estimate: 4 chars ≈ 1 token."""
     return max(1, len(text) // 4)
 
 
 def load_tokenizer(spec: str) -> Callable[[str], int]:
-    """Load tokenizer from spec string.
-
-    Spec formats:
-        "default" or ""  → built-in conservative estimate
-        "module:function" → importlib.import_module("module").function(text)
-        "module"          → importlib.import_module("module").count_tokens(text)
-
-    Only safe tokenizers are allowed:
-    - Built-in "default"
-    - Whitelisted: tiktoken, transformers
-    - Local .py files in the current directory or sys.path
-
-    Examples:
-        "default"
-        "tiktoken:cl100k_base"
-        "my_tokenizer"          # my_tokenizer.py in project root
-        "my_tokenizer:my_count"  # my_tokenizer.my_count(text)
-
-    Raises:
-        ValueError: if the tokenizer spec is not safe to import.
-    """
     if not spec or spec == "default":
         return count_tokens
 
     if not _is_safe_tokenizer(spec):
         raise ValueError(
             f"Unsafe tokenizer: '{spec}'. "
-            f"Only 'default', tiktoken, transformers, or local .py files are allowed."
+            f"Only 'default', tiktoken, transformers, or local .py files with safe imports are allowed."
         )
 
     if ":" in spec:

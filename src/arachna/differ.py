@@ -31,6 +31,7 @@ XML format (for programmatic processing, --format xml):
 
 import difflib
 from dataclasses import dataclass
+from xml.sax.saxutils import escape as _xml_escape
 
 from .tokenizer import count_tokens
 
@@ -129,20 +130,20 @@ def _format_xml_diff(
     removed_parts: list[str],
     added_parts: list[str],
 ) -> str:
-    """Format diff in XML."""
-    lines = [f'<file path="{path}">']
+    """Format diff in XML with proper escaping."""
+    escaped_path = _xml_escape(path)
+    lines = [f'<file path="{escaped_path}">']
     if removed_parts:
         lines.append("  <removed>")
         for part in removed_parts:
-            # Strip "lines N-M:\n" prefix, keep content
             content = part.split("\n", 1)[1] if "\n" in part else part
-            lines.append(f"    {content}")
+            lines.append(f"    {_xml_escape(content)}")
         lines.append("  </removed>")
     if added_parts:
         lines.append("  <added>")
         for part in added_parts:
             content = part.split("\n", 1)[1] if "\n" in part else part
-            lines.append(f"    {content}")
+            lines.append(f"    {_xml_escape(content)}")
         lines.append("  </added>")
     lines.append("</file>\n")
     return "\n".join(lines)
@@ -151,14 +152,16 @@ def _format_xml_diff(
 def _format_added(path: str, content: str, fmt: str) -> str:
     """Format a newly added file."""
     if fmt == "xml":
-        return f'<file path="{path}">\n  <added>\n    {content}\n  </added>\n</file>\n'
+        escaped_path = _xml_escape(path)
+        return f'<file path="{escaped_path}">\n  <added>\n    {_xml_escape(content)}\n  </added>\n</file>\n'
     return f"### {path}\n\nADDED (new file):\n\n```\n{content}\n```\n"
 
 
 def _format_deleted(path: str, fmt: str) -> str:
     """Format a deleted file."""
     if fmt == "xml":
-        return f'<file path="{path}">\n  <removed>\n    [DELETED]\n  </removed>\n</file>\n'
+        escaped_path = _xml_escape(path)
+        return f'<file path="{escaped_path}">\n  <removed>\n    [DELETED]\n  </removed>\n</file>\n'
     return f"### {path}\n\n[DELETED]\n"
 
 

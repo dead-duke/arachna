@@ -32,7 +32,6 @@ _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 
 
 def _load_builtin_presets() -> dict[str, dict]:
-    """Load built-in presets from presets/*.json files."""
     presets_dir = Path(__file__).parent / "presets"
     if not presets_dir.is_dir():
         return {}
@@ -82,7 +81,10 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
 
         split_mode = preset.get("split_mode", "by_file")
         if split_mode not in _VALID_SPLIT_MODES:
-            print(f"Warning: preset '{name}' has invalid split_mode '{split_mode}'")
+            print(
+                f"Warning: preset '{name}' has invalid split_mode '{split_mode}', "
+                f"must be one of {', '.join(sorted(_VALID_SPLIT_MODES))}"
+            )
             continue
 
         max_tokens = preset.get("max_tokens", 16000)
@@ -92,12 +94,19 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
 
         tokenizer = preset.get("tokenizer", "default")
         if not _is_safe_tokenizer(tokenizer):
-            print(f"Warning: preset '{name}' has unsafe tokenizer '{tokenizer}', using 'default'")
+            print(
+                f"Warning: preset '{name}' has unsafe tokenizer '{tokenizer}', "
+                f"using 'default' instead. Only 'default', 'tiktoken', 'transformers', "
+                f"or local .py files with safe imports are allowed."
+            )
             preset["tokenizer"] = "default"
 
         for list_field in ("dirs", "patterns", "files", "pre_commands", "detect"):
             if list_field in preset and not isinstance(preset[list_field], list):
-                print(f"Warning: preset '{name}' field '{list_field}' must be a list")
+                print(
+                    f"Warning: preset '{name}' field '{list_field}' must be a list, "
+                    f"got {type(preset[list_field]).__name__}"
+                )
                 preset[list_field] = []
 
         result[name] = preset
@@ -108,22 +117,13 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
 def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
     if external_path is None:
         external_path = DEFAULT_PRESETS_PATH
-
     merged = _load_builtin_presets()
     external = load_presets_from_file(external_path)
     merged.update(external)
     return merged
 
 
-# ── Presets update from remote ─────────────────────────────────────
-
-
 def fetch_presets(url: str) -> dict[str, dict]:
-    """Download presets from a remote URL.
-
-    Returns dict of preset_name -> preset_dict.
-    Returns empty dict on any error (network, invalid JSON, etc.).
-    """
     import contextlib
     import urllib.request
 
@@ -138,12 +138,10 @@ def fetch_presets(url: str) -> dict[str, dict]:
         print(f"Warning: {url} must contain a JSON object, got {type(data).__name__}")
         return {}
 
-    # Validate each preset
     result = {}
     for name, preset in data.items():
         if not isinstance(preset, dict):
             continue
-        # Basic validation
         if "detect" not in preset and "dirs" not in preset and "command" not in preset:
             continue
         result[name] = preset
@@ -152,35 +150,12 @@ def fetch_presets(url: str) -> dict[str, dict]:
 
 
 def merge_presets(builtin: dict, remote: dict, local: dict) -> dict:
-    """Three-way merge of presets.
-
-    Priority: local > remote > builtin.
-    Local user presets never overwritten by remote.
-    Remote adds new presets not in local.
-    Remote updates built-in presets not overridden by local.
-
-    Args:
-        builtin: Built-in presets (from package).
-        remote: Remote presets (from URL).
-        local: Local user presets (from presets.json).
-
-    Returns:
-        Merged dict of preset_name -> preset_dict.
-    """
     merged = dict(builtin)
-
-    # Remote overrides built-in (updates to built-in presets)
     for name, preset in remote.items():
         if name not in local:
             merged[name] = preset
-
-    # Local always wins
     merged.update(local)
-
     return merged
-
-
-# ── End presets update ─────────────────────────────────────────────
 
 
 def detect_presets(
@@ -201,13 +176,15 @@ def detect_presets(
             return [preset_name]
 
         if not _detect_any(detect_paths):
-            print(f"Warning: preset '{preset_name}' doesn't match this project")
+            print(
+                f"Warning: preset '{preset_name}' doesn't match this project "
+                f"(none of {detect_paths} found)"
+            )
             return []
 
         return [preset_name]
 
     detected: list[str] = []
-
     for name, preset in all_presets.items():
         detect_paths = preset.get("detect", [])
         if not detect_paths:
@@ -275,9 +252,7 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
     return profile
 
 
-def get_detected_summary(
-    external_path: str | Path | None = None,
-) -> dict[str, dict]:
+def get_detected_summary(external_path: str | Path | None = None) -> dict[str, dict]:
     all_presets = get_all_presets(external_path)
     detected_names = detect_presets(external_path=external_path)
     return {name: all_presets[name] for name in detected_names if name in all_presets}

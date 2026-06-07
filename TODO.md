@@ -1,18 +1,18 @@
 # TODO
 
 ## v2.5.0 — Security, architecture, watcher fixes
-- [ ] HIGH-01: Fix XML injection in _format_xml_diff, _format_added, _format_deleted (use xml.sax.saxutils.escape)
-- [ ] HIGH-02: _is_safe_tokenizer — add static import analysis via ast.parse for local .py files
-- [ ] HIGH-03: Extract Watch handlers from __main__.py into cli_watch.py
-- [ ] HIGH-04: Fix _cmd_diff_all — pass name_template to collect() instead of renaming after
-- [ ] MEDIUM-02: Error when --diff --all and --from are used together
-- [ ] MEDIUM-07: _normalize_path — collapse double slashes, strip ./ prefix
-- [ ] MEDIUM-08: _path_matches_profile — normalize paths before comparison
-- [ ] MEDIUM-09: _collect_snapshot_content — skip files outside cwd, warn instead of absolute paths
-- [ ] MEDIUM-10: _diff_pre_commands_line — use list comparison instead of set (preserve order)
-- [ ] LOW-14: _diff_pre_commands_structural — use os.path.basename for tree detection
-- [ ] MEDIUM-18: Restore informative warning messages in presets.py
-- [ ] MEDIUM-06: watcher._apply_repo_map_diff — log when falling back to text diff
+- [x] HIGH-01: Fix XML injection in _format_xml_diff, _format_added, _format_deleted (use xml.sax.saxutils.escape)
+- [x] HIGH-02: _is_safe_tokenizer — add static import analysis via ast.parse for local .py files
+- [x] HIGH-03: Extract Watch handlers from __main__.py into cli_watch.py
+- [x] HIGH-04: Fix _cmd_diff_all — pass name_template to collect() instead of renaming after
+- [x] MEDIUM-02: Error when --diff --all and --from are used together
+- [x] MEDIUM-07: _normalize_path — collapse double slashes, strip ./ prefix
+- [x] MEDIUM-08: _path_matches_profile — normalize paths before comparison
+- [x] MEDIUM-09: _collect_snapshot_content — skip files outside cwd, warn instead of absolute paths
+- [x] MEDIUM-10: _diff_pre_commands_line — use list comparison instead of set (preserve order)
+- [x] LOW-14: _diff_pre_commands_structural — use os.path.basename for tree detection
+- [x] MEDIUM-18: Restore informative warning messages in presets.py
+- [x] MEDIUM-06: watcher._apply_repo_map_diff — log when falling back to text diff
 
 ## v2.6.0 — Code quality, formatter, differ, test coverage
 - [ ] MEDIUM-03: Extract duplicated repo-map logic into _apply_repo_map_to_section
@@ -59,4 +59,3 @@
 
 ## Backlog
 - [ ] Plugin system for custom formatters and tokenizers (v3.0)
-

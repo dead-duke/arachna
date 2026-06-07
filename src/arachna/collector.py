@@ -22,11 +22,6 @@ from .tokenizer import count_tokens, load_tokenizer
 _MANIFEST = ".arachna_manifest.json"
 _MERGE_LOCK_FILE = ".arachna_merge.lock"
 
-# File locking for merge mode: prevents race condition when two
-# processes compute _find_next_part_num concurrently.
-# Uses fcntl.flock on Unix, msvcrt.locking on Windows,
-# falls back to threading.Lock (no cross-process safety, but
-# prevents thread races in single-process usage).
 try:
     import fcntl
 
@@ -60,15 +55,6 @@ except ImportError:
 
 @contextlib.contextmanager
 def _merge_lock(out_dir: Path):
-    """Acquire a file-based lock for merge mode operations.
-
-    Prevents race condition when two processes compute
-    _find_next_part_num concurrently.
-
-    On Unix: fcntl.flock (advisory, cross-process).
-    On Windows: msvcrt.locking.
-    Fallback: threading.Lock (same process only).
-    """
     lock_path = out_dir / _MERGE_LOCK_FILE
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
@@ -91,7 +77,6 @@ def load_manifest(out_dir: Path) -> list[str]:
 
 
 def save_manifest(out_dir: Path, files: list[str]):
-    """Atomically write manifest to disk."""
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / _MANIFEST
     fd, tmp_path = tempfile.mkstemp(dir=str(out_dir), prefix=".arachna_manifest_", suffix=".tmp")
@@ -121,14 +106,6 @@ def clean_manifest(out_dir: Path, name_tmpl: str = ""):
 
 
 def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
-    """Find the next available part number for merged output.
-
-    Scans existing files matching name_tmpl_*.md and returns max_num + 1.
-    Returns 1 if no existing files found.
-
-    Uses file-based lock to prevent race conditions when multiple
-    processes run merge mode concurrently.
-    """
     with _merge_lock(out_dir):
         max_num = 0
         pattern = re.compile(rf"^{re.escape(name_tmpl)}_(\d+)\.md$")
@@ -138,7 +115,6 @@ def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
                 num = int(m.group(1))
                 if num > max_num:
                     max_num = num
-        # Also check for the single-file case (name_tmpl.md)
         if (out_dir / f"{name_tmpl}.md").exists() and max_num == 0:
             max_num = 1
         return max_num + 1
@@ -150,16 +126,9 @@ def _build_toc(
     part_num: int,
     total_parts: int,
 ) -> str:
-    """Build table of contents for a part.
-
-    Uses named_sections to list files present in this part's content.
-    Works for all output formats — detects files by matching section
-    content strings, not markdown headers.
-    """
     files = []
     for name, content, _tokens in named_sections:
         if content.strip() in part_content:
-            # Extract filename from the name (may be "pre: ..." or full path)
             if name.startswith("pre: "):
                 files.append(name)
             else:
@@ -185,14 +154,6 @@ def _write_parts(
     tokenizer: Any,
     merge: bool = False,
 ) -> tuple[list[str], dict[str, int]]:
-    """Write token-limited parts to output files.
-
-    Always uses numbered filenames (name_1.md, name_2.md) —
-    no special case for single part. Single part is named name_1.md
-    with "Part 1 of 1" inside.
-
-    Returns (created_files, tokens_by_file) tuple.
-    """
     total_parts = len(parts)
     start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
 
@@ -227,31 +188,14 @@ def _write_diff_parts(
     snapshot_id: str | None = None,
     to_snapshot_id: str | None = None,
 ) -> list[str]:
-    """Write diff sections to chat-diff-{snapshot}_N.md files with token-based splitting.
-
-    Uses split_sections for dense packing of diff content into
-    token-limited parts.
-
-    Filename pattern:
-    - Single snapshot: chat-diff-{snapshot_id}_N.md
-    - Cross-snapshot: chat-diff-{snapshot_id}-to-{to_snapshot_id}_N.md
-    - Fallback (no snapshot_id): chat-diff_N.md
-
-    Returns list of created file paths.
-    """
-    # Build content strings from DiffSections
     contents = [s.content for s in diff_sections if s.content.strip()]
-
     if not contents:
         return []
 
-    # Split into token-limited parts
     parts = split_sections(contents, max_tokens, separator="\n\n", tokenizer=tokenizer)
-
     if not parts:
         return []
 
-    # Build named sections for TOC (path -> content mapping)
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
 
     created = []
@@ -274,7 +218,6 @@ def _write_diff_parts(
 
 
 def _run_post_commands(commands: list[str], verbose: bool = False):
-    """Execute post-collection commands."""
     for cmd in commands:
         output = run_command(cmd)
         if verbose and output.strip():
@@ -290,18 +233,22 @@ def collect(
     merge: bool = False,
     query: str | None = None,
     mode: str = "full",
+    name_template: str | None = None,
 ) -> tuple[list[str], dict[str, int]]:
     """Collect content and write output files.
 
+    Args:
+        name_template: Override the profile's name_template for output files.
+            If None, uses profile's name_template. Used by --diff --all
+            to produce chat-diff-all_*.md instead of chat-full_*.md.
+
     Returns (created_files, tokens_by_file) tuple.
-    tokens_by_file maps filename -> token count for manifest generation.
     """
-    name_tmpl = profile["name_template"]
+    name_tmpl = name_template if name_template is not None else profile["name_template"]
     title_tmpl = profile["title_template"]
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    # Load tokenizer if specified
     tokenizer_spec = profile.get("tokenizer", "default")
     tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
 
