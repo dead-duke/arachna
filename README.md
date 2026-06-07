@@ -7,6 +7,8 @@
 
 Context collector for AI — gathers project files into token-limited chunks.
 
+arachna is built with arachna — 970 tests, 93% coverage, 180+ commits.
+
 ## What I believe
 
 I'm a solo developer building tools for myself. arachna is an indie project —
@@ -400,7 +402,8 @@ diff = watch.compute_diff(snapshot_id="baseline", mode="structural")
 print(f"Modified: {diff.stats.modified}, Added: {diff.stats.added}")
 ```
 
-See [TUTORIAL.md](docs/TUTORIAL.md) for full API documentation.
+See [TUTORIAL.md](docs/TUTORIAL.md) for full API documentation
+and [LLM_INTEGRATION.md](docs/LLM_INTEGRATION.md) for LLM agent workflow.
 
 ### Diff format
 
@@ -561,6 +564,7 @@ Fetch updated presets from the remote repository:
 - [Issue Tracker](https://github.com/dead-duke/arachna/issues)
 - [Changelog](https://github.com/dead-duke/arachna/blob/main/CHANGELOG.md)
 - [Architecture](https://github.com/dead-duke/arachna/blob/main/docs/ARCHITECTURE.md)
+- [LLM Integration](https://github.com/dead-duke/arachna/blob/main/docs/LLM_INTEGRATION.md)
 
 ## License
 
@@ -575,4 +579,3 @@ forks. No closed modifications. What the community builds, the community
 keeps.
 
 See [LICENSE](LICENSE) for the full legal text.
-

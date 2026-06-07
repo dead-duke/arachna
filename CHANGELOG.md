@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.5.0 — Security, architecture, watcher fixes
+
+- HIGH-01: XML escaping in differ.py (xml.sax.saxutils.escape)
+- HIGH-02: Static import analysis for local tokenizer files (ast.parse)
+- HIGH-03: Watch CLI extracted from __main__.py into cli_watch.py (~470 lines)
+- HIGH-04: collect() accepts name_template parameter — _cmd_diff_all clean
+- MEDIUM-02: --diff --all and --from together now produce error
+- MEDIUM-06: watcher._apply_repo_map_diff logs fallback to text diff
+- MEDIUM-07: _normalize_path collapses double slashes
+- MEDIUM-08: _path_matches_profile normalizes paths with os.path.normpath
+- MEDIUM-09: _collect_snapshot_content skips files outside cwd with warning
+- MEDIUM-10: _diff_pre_commands_line uses difflib.SequenceMatcher (preserves order)
+- LOW-14: os.path.basename for tree detection in pre_commands diff
+- MEDIUM-18: Restored informative warning messages in presets.py
+- BUG-001: validate --profile and --name values don't start with -
+- docs/LLM_INTEGRATION.md: LLM agent workflow guide
+- 970 tests, 93% coverage
+
 ## v2.4.0 — Quality improvements
 
 - presets.py: fetch_presets(url) — download presets from remote URL
@@ -368,4 +386,3 @@
 ## v0.1.2 — Dry-run, renderer, pre-commit
 ## v0.1.1 — Tests + fixes
 ## v0.1.0 — MVP
-

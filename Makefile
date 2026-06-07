@@ -1,9 +1,96 @@
 .PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws
 
+PYTHON ?= python3
+PYTEST ?= $(PYTHON) -m pytest
+PIP ?= $(PYTHON) -m pip
+
 VENV := venv
 VENV_BIN := $(VENV)/bin
 SNAPSHOT ?= cycle
 PROFILE ?= full
+
+# ── Python Scripts ─────────────────────────────────────────────────
+
+define FIX_WS_PYTHON
+import pathlib
+
+EXCLUDE_DIRS = {'venv', '.venv', '.git', '__pycache__', '.tox', 'htmlcov', '.ruff_cache', 'arachna_context', 'build', 'dist', '.pytest_cache', '.coverage', 'node_modules'}
+EXTENSIONS = {'.py', '.md', '.txt', '.yml', '.yaml', '.sh', '.json', '.toml', '.cfg', '.ini', '.rst'}
+NO_EXT_FILES = {'Makefile', 'Dockerfile', 'LICENSE', 'MANIFEST.in'}
+
+def get_files():
+    for p in pathlib.Path('.').rglob('*'):
+        if p.is_file():
+            if any(part in EXCLUDE_DIRS for part in p.parts):
+                continue
+            if p.suffix in EXTENSIONS or p.name in NO_EXT_FILES or p.name.startswith('requirements'):
+                yield p
+
+fixed_count = 0
+for p in get_files():
+    try:
+        content = p.read_text()
+        if not content:
+            continue
+        lines = [line.rstrip() for line in content.split('\n')]
+        new_content = '\n'.join(lines)
+        # Убираем множественные пустые строки в конце, оставляя ровно один \n
+        new_content = new_content.rstrip('\n') + '\n'
+
+        if new_content != content:
+            p.write_text(new_content)
+            print(f'Fixed: {p}')
+            fixed_count += 1
+    except UnicodeDecodeError:
+        continue
+
+print(f'Total fixed: {fixed_count}')
+endef
+export FIX_WS_PYTHON
+
+define CHECK_WS_PYTHON
+import pathlib, sys
+
+EXCLUDE_DIRS = {'venv', '.venv', '.git', '__pycache__', '.tox', 'htmlcov', '.ruff_cache', 'arachna_context', 'build', 'dist', '.pytest_cache', '.coverage', 'node_modules'}
+EXTENSIONS = {'.py', '.md', '.txt', '.yml', '.yaml', '.sh', '.json', '.toml', '.cfg', '.ini', '.rst'}
+NO_EXT_FILES = {'Makefile', 'Dockerfile', 'LICENSE', 'MANIFEST.in'}
+
+def get_files():
+    for p in pathlib.Path('.').rglob('*'):
+        if p.is_file():
+            if any(part in EXCLUDE_DIRS for part in p.parts):
+                continue
+            if p.suffix in EXTENSIONS or p.name in NO_EXT_FILES or p.name.startswith('requirements'):
+                yield p
+
+has_error = False
+for p in get_files():
+    try:
+        content = p.read_text()
+        if not content:
+            continue
+
+        # Проверка пробелов в конце строк
+        for line in content.split('\n'):
+            if line != line.rstrip():
+                print(f'ERROR: {p} has trailing whitespace on line')
+                has_error = True
+                break
+
+        # Проверка двойных пустых строк в конце файла
+        if content.endswith('\n\n'):
+            print(f'ERROR: {p} ends with multiple blank lines')
+            has_error = True
+
+    except UnicodeDecodeError:
+        continue
+
+if has_error:
+    sys.exit(1)
+endef
+export CHECK_WS_PYTHON
+
+# ── Help & Setup ───────────────────────────────────────────────────
 
 help:
 	@echo "arachna — context collector for AI"
@@ -16,13 +103,13 @@ help:
 	@echo "  make test-cov-html - run tests with coverage (HTML)"
 	@echo "  make lint          - ruff check"
 	@echo "  make format        - ruff format (auto-fix)"
-	@echo "  make check         - format + lint + test + trailing-ws"
+	@echo "  make check         - format + lint + fix-trailing-ws + trailing-ws + test"
 	@echo "  make clean         - remove build artifacts and context files"
 	@echo "  make tree          - show project structure"
 	@echo "  make info          - show project info"
 	@echo ""
 	@echo "Quality:"
-	@echo "  make trailing-ws   - check for trailing whitespace and double blank lines at EOF"
+	@echo "  make trailing-ws     - check for trailing whitespace and double blank lines at EOF"
 	@echo "  make fix-trailing-ws - automatically fix trailing whitespace and double blank lines"
 	@echo ""
 	@echo "arachna context:"
@@ -39,21 +126,22 @@ help:
 	@echo "  make store-gc                       - garbage collect store"
 
 install:
-	pip install -e .
+	$(PIP) install -e .
 
-install-dev:
-	pip install -e .
-	pip install -r requirements-dev.txt
+install-dev: install
+	$(PIP) install -r requirements-dev.txt
 	pre-commit install
 
+# ── Testing & Linting ──────────────────────────────────────────────
+
 test:
-	python -m pytest tests/ -v
+	$(PYTEST) tests/ -v
 
 test-cov:
-	python -m pytest tests/ -v --cov=src/arachna --cov-report=term-missing
+	$(PYTEST) tests/ -v --cov=src/arachna --cov-report=term-missing
 
 test-cov-html:
-	python -m pytest tests/ --cov=src/arachna --cov-report=html
+	$(PYTEST) tests/ --cov=src/arachna --cov-report=html
 	@echo "[OK] Report: htmlcov/index.html"
 
 lint:
@@ -63,38 +151,36 @@ format:
 	ruff format src/ tests/
 	ruff check --fix src/ tests/
 
+# ── Quality & Whitespace ───────────────────────────────────────────
+
 trailing-ws:
-	@echo "Checking for trailing whitespace..."
-	@! grep -rn '[[:space:]]$$' README.md CHANGELOG.md TODO.md docs/ --include='*.md' || (echo "ERROR: Trailing whitespace found" && exit 1)
-	@echo "Checking for double blank lines at EOF..."
-	@for f in README.md CHANGELOG.md TODO.md $$(find docs -name '*.md' 2>/dev/null); do \
-		if [ -f "$$f" ] && [ $$(wc -l < "$$f") -gt 0 ]; then \
-			if [ "$$(tail -1 "$$f")" = "" ] && [ "$$(tail -2 "$$f" | head -1)" = "" ]; then \
-				echo "ERROR: $$f ends with double blank line"; exit 1; \
-			fi; \
-		fi; \
-	done
+	@echo "Checking for trailing whitespace and EOF issues across the entire project..."
+	@$(PYTHON) -c "$$CHECK_WS_PYTHON"
 	@echo "OK: no trailing whitespace or double blank lines"
 
 fix-trailing-ws:
 	@echo "Fixing trailing whitespace and double blank lines at EOF..."
-	@python3 -c 'import pathlib, sys; files = ["README.md", "CHANGELOG.md", "TODO.md"] + [str(p) for p in pathlib.Path("docs").rglob("*.md")]; [exec("p = pathlib.Path(f); c = p.read_text(); c = \"\\n\".join(l.rstrip() for l in c.split(\"\\n\")); c = c.rstrip(\"\\n\") + \"\\n\"; p.write_text(c)") or print(f"{f}: fixed") for f in files if pathlib.Path(f).exists()]'
+	@$(PYTHON) -c "$$FIX_WS_PYTHON"
 	@echo "Done."
 
-check: format lint test trailing-ws
+# Главная цель: сначала форматирует и линтит, затем ИСПРАВЛЯЕТ хвосты,
+# проверяет их, и только ПОТОМ запускает тесты.
+check: format lint fix-trailing-ws trailing-ws test
 	@echo "[OK] All checks passed"
+
+# ── Cleanup & Info ─────────────────────────────────────────────────
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
-	rm -rf .pytest_cache .coverage htmlcov .ruff_cache arachna_context
+	rm -rf .pytest_cache .coverage htmlcov .ruff_cache arachna_context build dist *.egg-info
 
 tree:
-	tree -I '__pycache__|*.pyc|*.egg-info|venv|.git|arachna_context' 2>/dev/null || ls -la
+	tree -I '__pycache__|*.pyc|*.egg-info|venv|.git|arachna_context|build|dist' 2>/dev/null || ls -la
 
 info:
-	@echo "arachna v$$(python3 -c "from src.arachna import __version__; print(__version__)")"
-	@echo "Python: $$(python3 --version)"
+	@echo "arachna v$$($(PYTHON) -c "from src.arachna import __version__; print(__version__)")"
+	@echo "Python: $$($(PYTHON) --version)"
 	@echo "Path: $$(pwd)"
 
 # ── arachna context ────────────────────────────────────────────────
@@ -127,4 +213,3 @@ store-stats:
 
 store-gc:
 	arachna --store gc
-
