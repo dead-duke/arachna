@@ -17,12 +17,11 @@
 - [ ] LOW-19: test_merge_lock_windows_msvcrt — mock on Unix
 - [ ] LOW-20: Test presets.json with UTF-16 encoding
 - [ ] LOW-21: Unicode edge case tests for tokenizer
+- [ ] Lazy loading for presets — cache _load_builtin_presets() with @lru_cache
 
 ## v2.7.0 — LOW fixes, store, packaging, polish
 - [ ] LOW-01: _get_audit_log_path — limit traversal depth
 - [ ] LOW-02: Symlink to .git — check is_symlink() before is_dir()
-- [ ] LOW-03: Makefile — remove ?= for SNAPSHOT, require explicit value
-- [ ] LOW-04: Makefile — fix python3 portability for Windows
 - [ ] LOW-05: _handle_single — replace binary search with direct calculation
 - [ ] LOW-06: _split_to_sections — fix inconsistent marker prefix on first element
 - [ ] LOW-07: store.gc — remove empty subdirectories in objects/
@@ -40,8 +39,7 @@
 - [ ] LOW-24: CHANGELOG.md — add descriptions for v0.1.4 and v0.1.5
 - [ ] LOW-25: _cmd_validate — add KeyError guard for get_profile
 - [ ] LOW-26: store.stats — reuse manifest list, don't glob twice
-- [ ] LOW-27: XML escaping in _format_added and _format_deleted (done with HIGH-01)
 - [ ] MEDIUM-01: _merge_lock — warn if both fcntl and msvcrt unavailable
 
 ## Backlog
-- [ ] Plugin system for custom formatters and tokenizers (v3.0)
+- [ ] Plugin system for custom formatters and tokenizers

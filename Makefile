@@ -1,12 +1,12 @@
 .PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws
 
-PYTHON ?= python3
+PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 PYTEST ?= $(PYTHON) -m pytest
 PIP ?= $(PYTHON) -m pip
 
 VENV := venv
 VENV_BIN := $(VENV)/bin
-SNAPSHOT ?= cycle
+SNAPSHOT := cycle
 PROFILE ?= full
 
 # ── Python Scripts ─────────────────────────────────────────────────
