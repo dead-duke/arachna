@@ -171,7 +171,11 @@ def _cmd_snapshot(argv: list[str]):
         if "--profile" in argv:
             idx = argv.index("--profile")
             if idx + 1 < len(argv):
-                profile_name = argv[idx + 1]
+                val = argv[idx + 1]
+                if val.startswith("-"):
+                    print("Error: --profile requires a value")
+                    sys.exit(1)
+                profile_name = val
             else:
                 print("Error: --profile requires a value")
                 sys.exit(1)
@@ -179,7 +183,11 @@ def _cmd_snapshot(argv: list[str]):
         if "--name" in argv:
             idx = argv.index("--name")
             if idx + 1 < len(argv):
-                name = argv[idx + 1]
+                val = argv[idx + 1]
+                if val.startswith("-"):
+                    print("Error: --name requires a value")
+                    sys.exit(1)
+                name = val
             else:
                 print("Error: --name requires a value")
                 sys.exit(1)
@@ -208,7 +216,11 @@ def _cmd_snapshot(argv: list[str]):
         if "--profile" in argv:
             profile_idx = argv.index("--profile")
             if profile_idx + 1 < len(argv):
-                profile = get_profile(argv[profile_idx + 1])
+                val = argv[profile_idx + 1]
+                if val.startswith("-"):
+                    print("Error: --profile requires a value")
+                    sys.exit(1)
+                profile = get_profile(val)
             else:
                 print("Error: --profile requires a value")
                 sys.exit(1)
