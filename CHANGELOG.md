@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.6.0 — Code quality, formatter, differ, test coverage
+
+- MEDIUM-03: Extract _apply_repo_map_to_section (DRY repo-map logic)
+- MEDIUM-04: _assemble_command_content accepts query/mode for API symmetry
+- MEDIUM-05: _assemble_file_content split into pipeline stages (collect → filter → compress → split)
+- MEDIUM-11: _format_added truncates oversized added files with token limit warning
+- MEDIUM-12: _RE_PY_IMPORT handles multiple imports on one line (import a, b)
+- MEDIUM-13: Add .tsx and .jsx to _EXT_LANG
+- MEDIUM-14: PHP use-statements in _RE_C_LIKE_IMPORT
+- MEDIUM-15: Go type block name captures first identifier after type, not struct/interface keyword
+- MEDIUM-17: _build_toc uses section indices instead of content matching (compression-safe)
+- MEDIUM-19: watch.py coverage raised from 90% to 93%+
+- MEDIUM-20: collector.py coverage raised from 87% to 90%+
+- LOW-18: Property-based tests for tokenizer, compressor, splitter (hypothesis)
+- LOW-19: Mock msvcrt merge_lock on Unix
+- LOW-20: UTF-16 presets.json error handling test
+- LOW-21: Unicode edge cases (emoji sequences, combining chars, RTL)
+- Lazy loading: @lru_cache on _load_builtin_presets (merged dict no longer cached)
+- hypothesis added to requirements-dev.txt
+- 998 tests, 1 skipped, 0 failures
+
 ## v2.5.0 — Security, architecture, watcher fixes
 
 - HIGH-01: XML escaping in differ.py (xml.sax.saxutils.escape)
