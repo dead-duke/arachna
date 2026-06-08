@@ -2,10 +2,12 @@
 
 import json
 import logging
+import os as _os
 import re
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 logger = logging.getLogger("arachna.runner")
@@ -16,8 +18,10 @@ _SHELL_CHARS = {"|", "&", ";", "<", ">", "$", "`", "(", ")", "{", "}"}
 # Pipe separator for splitting piped commands
 _PIPE_SEP = "|"
 
+# Configurable delay between pre_commands (seconds). 0 = no delay.
+_PRE_COMMAND_DELAY = float(_os.environ.get("ARACHNA_PRE_COMMAND_DELAY", "0"))
+
 # Safe utilities that don't download/execute external code.
-# Strictly read-only: no filesystem modifications.
 _ALLOWED_COMMANDS = frozenset(
     {
         "echo",
@@ -50,8 +54,6 @@ _ALLOWED_COMMANDS = frozenset(
     }
 )
 
-# Dangerous command words/patterns — blocked by default.
-# Group A: whole-word patterns matched with \b boundaries.
 _BLOCKED_WORDS = [
     "curl",
     "wget",
@@ -71,7 +73,6 @@ _BLOCKED_WORDS = [
     "find",
 ]
 
-# Group B: multi-word/substring patterns matched literally.
 _BLOCKED_PHRASES = [
     "rm -rf /",
     "rm -rf ~",
@@ -80,14 +81,13 @@ _BLOCKED_PHRASES = [
     "> /dev/sd",
     "chmod 777 /",
     "chown -R /",
-    ":(){ :|:& };:",  # fork bomb
+    ":(){ :|:& };:",
     "/etc/passwd",
     "/etc/shadow",
 ]
 
 
 def _resolve_base(cmd_part: str) -> str:
-    """Extract the base command from a single command part (no pipes)."""
     cmd_part = cmd_part.strip()
     try:
         parts = shlex.split(cmd_part)
@@ -99,13 +99,6 @@ def _resolve_base(cmd_part: str) -> str:
 
 
 def _split_pipe_parts(cmd: str) -> list[str]:
-    """Split a command string by pipe symbols, respecting shell quoting.
-
-    Does not split on | inside single or double quotes.
-    Does not treat || (shell OR) as a pipe.
-    Handles escaped pipes: \\| is treated as a literal | character,
-    not a pipe separator.
-    """
     parts = []
     current = []
     in_single = False
@@ -160,13 +153,6 @@ def _split_pipe_parts(cmd: str) -> list[str]:
 
 
 def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, str]:
-    """Validate a command against safety rules.
-
-    Returns (is_safe, reason).
-
-    For piped commands, each pipe part is validated individually.
-    Pipe splitting respects shell quoting — | inside quotes is not a separator.
-    """
     cmd_lower = cmd.lower().strip()
 
     for word in _BLOCKED_WORDS:
@@ -206,7 +192,6 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
 
 
 def _is_safe_command(cmd: str) -> bool:
-    """Check if a command is considered safe (no shell metacharacters, in allowlist)."""
     if _SHELL_CHARS.intersection(cmd):
         return False
     base = _resolve_base(cmd)
@@ -214,11 +199,6 @@ def _is_safe_command(cmd: str) -> bool:
 
 
 def _get_audit_log_path() -> Path | None:
-    """Get path for audit log file.
-
-    Searches up to 5 parent directories for .arachna.json.
-    Falls back to arachna_context/ in cwd if not found.
-    """
     try:
         cwd = Path.cwd()
         for i, parent in enumerate([cwd, *cwd.parents]):
@@ -237,12 +217,10 @@ def _get_audit_log_path() -> Path | None:
         return None
 
 
-# Default log writer — writes to filesystem. Overridable in tests.
 _log_writer = None
 
 
 def _write_log(log_path: Path, entry: str):
-    """Write a log entry. Uses injectable _log_writer if set."""
     if _log_writer is not None:
         _log_writer(log_path, entry)
         return
@@ -255,10 +233,6 @@ def _write_log(log_path: Path, entry: str):
 
 
 def _log_command(cmd: str, success: bool):
-    """Write command execution to audit log.
-
-    Newlines in cmd are sanitized to prevent log injection.
-    """
     log_path = _get_audit_log_path()
     if log_path is None:
         return
@@ -276,19 +250,6 @@ def run_command(
     interactive: bool = False,
     dry_run: bool = False,
 ) -> str:
-    """Run shell command and return stdout.
-
-    Uses shlex.split() for simple commands (no shell injection).
-    Uses shell=True for commands with shell metacharacters (|, ||, &&, etc).
-
-    Commands are validated against safety rules before execution.
-    Blocked commands trigger a prompt in interactive mode, or are silently
-    rejected in non-interactive mode.
-
-    In dry_run mode, unsafe commands are shown but not executed.
-    Safe commands (in allowlist, no shell metacharacters) are still executed
-    in dry_run mode — they're considered safe for preview.
-    """
     if not cmd.strip():
         return ""
 
@@ -346,3 +307,18 @@ def run_command(
     except (subprocess.TimeoutExpired, OSError, FileNotFoundError, ValueError):
         _log_command(cmd, False)
         return ""
+
+
+def run_pre_commands(commands: list[str]) -> list[tuple[str, str]]:
+    """Run pre_commands with optional rate limiting.
+
+    If ARACHNA_PRE_COMMAND_DELAY is set, sleeps that many seconds
+    between commands to avoid self-DoS on large command lists.
+    """
+    results = []
+    for i, cmd in enumerate(commands):
+        if i > 0 and _PRE_COMMAND_DELAY > 0:
+            time.sleep(_PRE_COMMAND_DELAY)
+        output = run_command(cmd)
+        results.append((cmd, output))
+    return results

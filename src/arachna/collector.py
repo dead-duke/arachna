@@ -11,11 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from .cache import load_cache, save_cache
-from .differ import DiffSection
-from .gatherer import (
-    _assemble_content,
-    _get_exclude_patterns,
-)
+from .differ import DiffSection, compute_diff_stats
+from .gatherer import _assemble_content, _get_exclude_patterns
 from .runner import run_command
 from .splitter import split_sections
 from .tokenizer import count_tokens, load_tokenizer
@@ -33,7 +30,6 @@ try:
 
     def _unlock_file(f):
         fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-
 except ImportError:
     try:
         import msvcrt
@@ -43,7 +39,6 @@ except ImportError:
 
         def _unlock_file(f):
             msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-
     except ImportError:
         import threading
 
@@ -56,8 +51,7 @@ except ImportError:
             _fallback_lock.release()
 
         logger.warning(
-            "Neither fcntl nor msvcrt available — using threading.Lock. "
-            "Merge mode will not be safe across multiple processes."
+            "Neither fcntl nor msvcrt available — using threading.Lock. Merge mode will not be safe across multiple processes."
         )
 
 
@@ -134,7 +128,6 @@ def _build_toc(
     part_num: int,
     total_parts: int,
 ) -> str:
-    """Build table of contents from section names using indices."""
     files = []
     for idx in part_section_indices:
         if idx < len(named_sections):
@@ -143,10 +136,8 @@ def _build_toc(
                 files.append(name)
             else:
                 files.append(Path(name).name if "/" in name or "\\" in name else name)
-
     if not files:
         return ""
-
     lines = [f"\nPart {part_num} of {total_parts}. Files in this part:\n"]
     for f in files:
         lines.append(f"  {f}")
@@ -166,8 +157,6 @@ def _write_parts(
 ) -> tuple[list[str], dict[str, int]]:
     total_parts = len(parts)
     start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
-
-    # Map each part to its section indices by content matching
     part_to_indices = []
     for part_content in parts:
         indices = []
@@ -175,7 +164,6 @@ def _write_parts(
             if content.strip() in part_content:
                 indices.append(idx)
         part_to_indices.append(indices)
-
     created = []
     tokens_by_file = {}
     for i, part_content in enumerate(parts, start_num):
@@ -183,23 +171,36 @@ def _write_parts(
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
-
         toc = _build_toc(
             named_sections,
             part_to_indices[part_idx] if part_idx < len(part_to_indices) else [],
             i,
             start_num + total_parts - 1,
         )
-
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
             f.write(toc)
             f.write(part_content)
-
         created.append(str(filepath))
         tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
-
     return created, tokens_by_file
+
+
+def _diff_part_header(stats: dict, part_num: int, total_parts: int) -> str:
+    """Build a summary header for a diff part showing change counts."""
+    parts = []
+    if stats["renamed"]:
+        parts.append(f"{stats['renamed']} renamed")
+    if stats["moved"]:
+        parts.append(f"{stats['moved']} moved")
+    if stats["modified"]:
+        parts.append(f"{stats['modified']} modified")
+    if stats["added"]:
+        parts.append(f"{stats['added']} added")
+    if stats["deleted"]:
+        parts.append(f"{stats['deleted']} deleted")
+    summary = ", ".join(parts) if parts else "no changes"
+    return f"Part {part_num} of {total_parts}. Changes: {summary}\n\n"
 
 
 def _write_diff_parts(
@@ -223,6 +224,7 @@ def _write_diff_parts(
 
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
 
+    # Build part-to-indices mapping for TOC
     part_to_indices = []
     for part_content in parts:
         indices = []
@@ -230,6 +232,12 @@ def _write_diff_parts(
             if content.strip() in part_content:
                 indices.append(idx)
         part_to_indices.append(indices)
+
+    # Build per-part stats
+    part_stats = []
+    for indices in part_to_indices:
+        part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
+        part_stats.append(compute_diff_stats(part_sections))
 
     created = []
     total_parts = len(parts)
@@ -244,9 +252,11 @@ def _write_diff_parts(
             i,
             total_parts,
         )
+        header = _diff_part_header(part_stats[i - 1], i, total_parts)
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
+            f.write(header)
             f.write(toc)
             f.write(part_content)
 
@@ -277,13 +287,10 @@ def collect(
     title_tmpl = profile["title_template"]
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
-
     tokenizer_spec = profile.get("tokenizer", "default")
     tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
-
     exclude = _get_exclude_patterns(profile)
     cache = load_cache(out_path) if incremental else None
-
     named_sections, parts, new_cache = _assemble_content(
         profile,
         exclude,
@@ -294,17 +301,19 @@ def collect(
         query=query,
         mode=mode,
     )
-
     if incremental:
         save_cache(out_path, new_cache)
-
     if not parts:
         return [], {}
-
     created, tokens_by_file = _write_parts(
-        parts, named_sections, out_path, name_tmpl, title_tmpl, project_name, tokenizer, merge=merge
+        parts,
+        named_sections,
+        out_path,
+        name_tmpl,
+        title_tmpl,
+        project_name,
+        tokenizer,
+        merge=merge,
     )
-
     _run_post_commands(profile.get("post_commands", []), verbose=verbose)
-
     return created, tokens_by_file

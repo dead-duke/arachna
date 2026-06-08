@@ -1,6 +1,5 @@
 """Language and engine presets for arachna init."""
 
-import functools
 import json
 from pathlib import Path
 
@@ -32,8 +31,8 @@ _VALID_PRESET_KEYS = {
 _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 
 
-@functools.lru_cache(maxsize=1)
-def _load_builtin_presets() -> dict[str, dict]:
+def _load_builtin_presets_raw() -> dict[str, dict]:
+    """Load built-in presets from JSON files without caching."""
     presets_dir = Path(__file__).parent / "presets"
     if not presets_dir.is_dir():
         return {}
@@ -48,6 +47,32 @@ def _load_builtin_presets() -> dict[str, dict]:
         if isinstance(data, dict):
             result[name] = data
     return result
+
+
+# Cache with mtime-based invalidation
+_builtin_cache: tuple[float, dict[str, dict]] | None = None
+
+
+def _load_builtin_presets() -> dict[str, dict]:
+    """Load built-in presets, invalidating cache when presets dir changes."""
+    global _builtin_cache
+    presets_dir = Path(__file__).parent / "presets"
+    if presets_dir.is_dir():
+        try:
+            dir_mtime = presets_dir.stat().st_mtime
+        except OSError:
+            dir_mtime = 0
+    else:
+        dir_mtime = 0
+
+    if _builtin_cache is not None:
+        cached_mtime, cached_data = _builtin_cache
+        if cached_mtime == dir_mtime:
+            return cached_data
+
+    data = _load_builtin_presets_raw()
+    _builtin_cache = (dir_mtime, data)
+    return data
 
 
 def _is_safe_tokenizer(spec: str) -> bool:
@@ -104,8 +129,7 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
         if not _is_safe_tokenizer(tokenizer):
             print(
                 f"Warning: preset '{name}' has unsafe tokenizer '{tokenizer}', "
-                f"using 'default' instead. Only 'default', 'tiktoken', 'transformers', "
-                f"or local .py files with safe imports are allowed."
+                f"using 'default' instead."
             )
             preset["tokenizer"] = "default"
 
@@ -123,15 +147,9 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
 
 
 def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
-    """Return merged built-in + external presets.
-
-    Built-in presets are cached (they never change at runtime).
-    External presets are loaded fresh on each call — they depend on cwd.
-    Returns a new dict so callers don't mutate the cache.
-    """
     if external_path is None:
         external_path = DEFAULT_PRESETS_PATH
-    merged = dict(_load_builtin_presets())  # shallow copy — preset dicts are not mutated
+    merged = dict(_load_builtin_presets())
     external = load_presets_from_file(external_path)
     merged.update(external)
     return merged

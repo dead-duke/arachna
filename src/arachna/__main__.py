@@ -25,8 +25,6 @@ from .validator import validate_profile
 
 @dataclass
 class _ProfileResult:
-    """Return type for _run_profile — files or stats, never both."""
-
     files: list[str]
     tokens_by_file: dict[str, int]
     stats: dict | None
@@ -64,6 +62,9 @@ def _run_profile(
         sys.exit(1)
 
     profile = _apply_args_to_profile(profile, args)
+
+    if getattr(args, "no_pre_commands", False) or getattr(args, "skip_pre_commands", False):
+        profile["pre_commands"] = []
 
     if args.dry_run:
         query = getattr(args, "query", None)
@@ -150,12 +151,15 @@ def main():
     parser.add_argument("--name", help="Snapshot name")
     parser.add_argument("--from", dest="from_snapshot", help="Snapshot ID to diff from")
     parser.add_argument("--stat", action="store_true", help="Show diff statistics only")
-    parser.add_argument("--query", help="Filter files by query (e.g. 'authentication')")
+    parser.add_argument("--query", help="Filter files by query")
+    parser.add_argument(
+        "--no-pre-commands", action="store_true", help="Skip pre_commands for this run"
+    )
     parser.add_argument(
         "--mode",
         choices=["full", "headers", "repo-map"],
         default="full",
-        help="Output mode: full (default), headers, repo-map (signatures only)",
+        help="Output mode: full (default), headers (full with dependency/export headers), repo-map (signatures only)",
     )
 
     args = parser.parse_args()
@@ -274,7 +278,6 @@ def _cmd_clean(config: dict, out_path: Path):
         cleaned += 1
         print(f"  Removed: {_MANIFEST}")
 
-    # Unified glob: all chat-* and chat-diff* patterns
     for pattern in ["chat-*_*.md", "chat-*.md", "chat-diff*.md", "chat-diff*_*.md"]:
         for f in out_path.glob(pattern):
             f.unlink()

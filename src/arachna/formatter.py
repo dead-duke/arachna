@@ -31,6 +31,7 @@ _EXT_LANG = {
     "cpp": "cpp",
     "c": "c",
     "h": "c",
+    "hpp": "cpp",
     "gd": "gdscript",
     "cs": "csharp",
     "swift": "swift",
@@ -41,6 +42,10 @@ _EXT_LANG = {
     "dockerfile": "dockerfile",
     "makefile": "makefile",
     "gitignore": "gitignore",
+    "cmake": "cmake",
+    "gradle": "groovy",
+    "lock": "text",
+    "conf": "ini",
     "zig": "zig",
     "lua": "lua",
     "ex": "elixir",
@@ -73,7 +78,6 @@ _SHEBANG_MAP = {
 }
 
 # Language sets for dispatch — single source of truth.
-# Used by formatter, differ_structural, splitter, and watch.
 C_LIKE_LANGS = frozenset(
     {
         "javascript",
@@ -126,56 +130,32 @@ def _should_skip_binary(
     binary_extensions: list[str] | None,
     binary_max_mb: float,
 ) -> bool:
-    """Check if a file should be skipped as binary.
-
-    Decision table:
-    - Does not exist → skip
-    - Has text extension (.py, .md, etc.) → never skip
-    - No extension:
-        - include_binary=False → check for null bytes → skip if binary
-        - include_binary=True:
-            - binary_extensions does not include "" → skip
-            - Size > binary_max_mb → skip
-            - Otherwise → don't skip
-    - Has extension:
-        - Size > binary_max_mb → skip
-        - binary_extensions given and extension not in list → skip
-        - include_binary=False → skip
-        - Otherwise → don't skip
-    """
+    """Check if a file should be skipped as binary — decision table."""
     if not path.exists():
         return True
 
     ext = path.suffix.lower()
-
-    # Text extensions are never binary
     if ext in _TEXT_EXTENSIONS:
         return False
 
-    # Get file size (fail → skip)
     try:
         size_mb = path.stat().st_size / (1024 * 1024)
     except OSError:
         return True
 
-    # Size too large → skip
     if size_mb > binary_max_mb:
         return True
 
-    # No extension
     if not ext:
         if not include_binary:
-            # Check for null bytes to detect binary
             try:
                 with open(path, "rb") as f:
                     chunk = f.read(1024)
                 return b"\x00" in chunk
             except OSError:
                 return True
-        # include_binary=True — check if "" is in binary_extensions
         return bool(binary_extensions is not None and "" not in binary_extensions)
 
-    # Has extension
     if binary_extensions is not None and ext not in binary_extensions:
         return True
     return not include_binary
@@ -183,10 +163,7 @@ def _should_skip_binary(
 
 # ── Header generation ──────────────────────────────────────────────
 
-# import a, b, c — captures the whole import list, then split by comma
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
-
-# Multi-line import: import (\n    a,\n    b\n) — matches imports with parentheses
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
 
 _RE_C_LIKE_IMPORT = re.compile(
@@ -252,7 +229,6 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
     try:
         tree = _ast.parse(text)
     except SyntaxError:
-        # Regex fallback — handles import a, b and multi-line imports
         for m in _RE_PY_IMPORT.finditer(text):
             mod = m.group(1)
             if mod:
@@ -263,7 +239,6 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
             mod = m.group(2)
             if mod:
                 deps.append(mod)
-        # Multi-line import ( ... )
         for m in _RE_PY_MULTILINE_IMPORT.finditer(text):
             inner = m.group(1)
             for part in inner.split(","):
@@ -390,16 +365,6 @@ def format_file_section(
 
 
 def _is_binary_allowed(path: Path, extensions: list[str] | None, max_mb: float) -> bool:
-    """Check if a binary file is allowed based on extension and size.
-
-    Args:
-        path: File path.
-        extensions: Whitelist of extensions, or None for all.
-        max_mb: Maximum file size in MB.
-
-    Returns:
-        True if the file should be included as base64.
-    """
     if not path.exists():
         return False
     if extensions is not None and path.suffix.lower() not in extensions:

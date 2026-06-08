@@ -6,11 +6,14 @@ Supports pluggable tokenizers via tokenizer spec string.
 
 import ast as _ast
 import importlib
+import os as _os
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
-_SAFE_TOKENIZERS = frozenset({"tiktoken", "transformers"})
+_SAFE_TOKENIZERS = frozenset(
+    _os.environ.get("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers").split(",")
+)
 
 _SUSPICIOUS_MODULES = frozenset(
     {
@@ -141,7 +144,8 @@ def load_tokenizer(spec: str) -> Callable[[str], int]:
     if not _is_safe_tokenizer(spec):
         raise ValueError(
             f"Unsafe tokenizer: '{spec}'. "
-            f"Only 'default', tiktoken, transformers, or local .py files with safe imports are allowed."
+            f"Only 'default', safe modules ({', '.join(sorted(_SAFE_TOKENIZERS))}), "
+            f"or local .py files with safe imports are allowed."
         )
 
     if ":" in spec:

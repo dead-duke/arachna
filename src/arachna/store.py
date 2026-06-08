@@ -6,13 +6,10 @@ Storage layout under .arachna/ (created lazily on first write):
       .gitignore          # "*" — never commit this directory
       store/
         objects/
-          ab/cd1234...    # zlib-compressed file content (if compression saves space)
+          ab/cd1234...    # zlib-compressed file content
         snapshots/
-          20260603T103000.json   # manifest: {path: hash, ...}
+          20260603T103000.json   # manifest
         HEAD                     # text file with latest snapshot ID
-
-Objects are stored by SHA256 hash. The hash is computed BEFORE optional
-zlib compression — so the hash identifies the content, not the encoding.
 """
 
 import contextlib
@@ -20,6 +17,7 @@ import hashlib
 import json
 import logging
 import os
+import tempfile
 import zlib
 from datetime import datetime
 from pathlib import Path
@@ -30,14 +28,6 @@ logger = logging.getLogger("arachna.store")
 
 
 def _store_root(root: Path | None = None) -> Path:
-    """Return .arachna/store/ directory, creating it lazily.
-
-    Args:
-        root: Project root path. If None, uses Path.cwd().
-
-    On first creation, writes .arachna/.gitignore with "*" to prevent
-    accidental commits of the store directory.
-    """
     if root is None:
         root = Path.cwd()
     arachna_dir = root / ".arachna"
@@ -45,7 +35,19 @@ def _store_root(root: Path | None = None) -> Path:
 
     if not arachna_dir.is_dir():
         arachna_dir.mkdir(parents=True, exist_ok=True)
-        gitignore.write_text("*\n")
+        # Atomic write for .gitignore — prevent race condition
+        try:
+            fd, tmp = tempfile.mkstemp(dir=str(arachna_dir), prefix=".gitignore_", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write("*\n")
+                os.replace(tmp, gitignore)
+            except Exception:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp)
+                raise
+        except OSError:
+            gitignore.write_text("*\n")
 
     store_dir = arachna_dir / "store"
     store_dir.mkdir(parents=True, exist_ok=True)
@@ -89,9 +91,7 @@ def read_object(object_hash: str, root: Path | None = None) -> bytes:
     actual_hash = hashlib.sha256(data).hexdigest()
     if actual_hash != object_hash:
         raise CorruptedStoreError(
-            f"Object {object_hash} is corrupted: expected hash {object_hash}, "
-            f"got {actual_hash}. The file may have been modified or is not "
-            f"a valid arachna object."
+            f"Object {object_hash} is corrupted: expected hash {object_hash}, got {actual_hash}."
         )
     return data
 
