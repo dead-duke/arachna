@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.8.2 — Design/UX + Final polish
+
+- --no-pre-commands CLI flag to skip pre_commands for quick collection
+- --mode headers help text clarified
+- _SAFE_TOKENIZERS configurable via ARACHNA_SAFE_TOKENIZERS env var
+- _EXT_LANG: add .hpp, .cmake, .gradle, .lock, .conf
+- ARACHNA_PRE_COMMAND_DELAY for rate limiting between pre_commands
+- Warn when pre_command/command produces no output in snapshot
+- _load_builtin_presets: mtime-based cache invalidation
+- store.py: atomic write for .arachna/.gitignore (race condition fix)
+- Cross-snapshot pre_commands diff: show removed lines with - prefix
+- Multi-part diff summary header with change counts per part
+- 1043 tests, 93% coverage, 0 bugs
+
 ## v2.8.1 — Code Quality + Testability
 
 - LOW: Decompose watcher.compute_diff — extract _diff_files_sections, _diff_pre_commands_sections, _diff_command_section

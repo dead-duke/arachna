@@ -7,7 +7,27 @@
 
 Context collector for AI — gathers project files into token-limited chunks.
 
-arachna is built with arachna — 970 tests, 93% coverage, 180+ commits.
+arachna is built with arachna — 1043 tests, 93% coverage, 200+ commits.
+
+## Who this is for
+
+arachna is for developers who work with AI on real projects — not demos,
+not tutorials, not single-file scripts.
+
+It's built for a cycle workflow. Here's an example: you give project
+context to a programmer AI and a tester AI, snapshot what they saw.
+The tester AI pulls the diff — only what the programmer changed. It
+writes tests. The programmer AI pulls the tester's diff — only new
+tests, no code resend. Each AI sees exactly what the other did, never
+the full project twice.
+
+This saves tokens on every exchange. Local models with limited context
+windows or slow prefill can handle large projects — instead of processing
+50K tokens of context before every response, they process a 500-token
+diff. Heavy prefill becomes a one-time cost, not a per-message tax.
+
+Two AIs or twenty — the pattern scales. Every AI gets full context once,
+then diffs forever.
 
 ## What I believe
 
@@ -35,6 +55,7 @@ your project for AI to understand. The rest is up to you.
 - [Examples](#examples)
 - [Commands](#commands)
 - [Options](#options)
+- [Environment variables](#environment-variables)
 - [Profiles](#profiles)
 - [Split modes](#split-modes)
 - [All config fields](#all-config-fields)
@@ -98,13 +119,17 @@ Creates arachna_context/ with .md files ready for AI.
     # Give git history for context
     arachna --profile git
 
+### Skip pre_commands for quick collection
+
+    arachna --profile code --no-pre-commands
+
 ### Incremental mode (only changed files)
 
     arachna --profile code --incremental
     # First run: collects everything
     # Second run: skips unchanged files, creates nothing
 
-### Agent workflow with snapshots (10-50x token savings)
+### Agent workflow with snapshots
 
     arachna --snapshot create --profile code --name "baseline"
     # ... AI makes changes to your project ...
@@ -181,6 +206,15 @@ Creates arachna_context/ with .md files ready for AI.
 | --force | force overwrite with --install-hook |
 | --query "text" | filter files by query |
 | --mode full,headers,repo-map | collection mode |
+| --no-pre-commands | skip pre_commands for this run |
+
+## Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| ARACHNA_MAX_HASH_SIZE | 10485760 | Max file size in bytes for SHA256 hashing |
+| ARACHNA_SAFE_TOKENIZERS | tiktoken,transformers | Comma-separated safe tokenizer modules |
+| ARACHNA_PRE_COMMAND_DELAY | 0 | Seconds to sleep between pre_commands (0 = no delay) |
 
 ## Profiles
 
@@ -500,11 +534,11 @@ arachna --init auto-detects 24 project types:
 
 ### Languages
 - Python: src/, app/, lib/, pkg/, scripts/, *.py, pyproject.toml
-- JavaScript/TypeScript: src/, app/, lib/, *.js, *.ts, package.json
-- C/C++: src/, include/, *.c, *.cpp, *.h, CMakeLists.txt
+- JavaScript/TypeScript: src/, app/, lib/, *.js, *.ts, *.jsx, *.tsx, package.json
+- C/C++: src/, include/, *.c, *.cpp, *.h, *.hpp, CMakeLists.txt
 - C#: *.cs, *.csproj, *.sln
 - Swift: Sources/, *.swift, Package.swift
-- Kotlin/Java: src/, *.kt, *.java, build.gradle, pom.xml
+- Kotlin/Java: src/, *.kt, *.java, build.gradle, build.gradle.kts, pom.xml
 - Ruby: lib/, app/, *.rb, Gemfile
 - PHP: src/, app/, public/, *.php, composer.json
 - Go: *.go, go.mod, go.sum, main.go
