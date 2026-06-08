@@ -1,180 +1,307 @@
-.TH ARACHNA 1 "2026-06-06" "arachna 2.0.0" "User Commands"
+.\" Man page for arachna
+.TH ARACHNA 1 "2026-06-09" "arachna 2.9.0" "User Commands"
 .SH NAME
-arachna — context collector for AI
+arachna \- context collector for AI
 .SH SYNOPSIS
 .B arachna
 [\fB\-\-profile\fR \fIname\fR]
 [\fB\-\-all\fR]
-[\fB\-\-snapshot\fR \fIcommand\fR]
-[\fB\-\-diff\fR]
-[\fIoptions\fR]
+[\fB\-\-clean\fR]
+[\fB\-\-list\fR]
+[\fB\-\-validate\fR]
+[\fB\-\-doctor\fR]
+[\fB\-\-init\fR]
+[\fB\-\-install\-hook\fR]
+[\fB\-\-presets\-update\fR]
+.br
+.B arachna \-\-completion
+.RI [ bash | zsh ]
+.br
+.B arachna \-\-version
+.br
+.B arachna \-\-snapshot
+.I command
+.RI [ options ]
+.br
+.B arachna \-\-diff
+.RI [ options ]
+.br
+.B arachna \-\-store
+.RI [ gc | stats ]
 .SH DESCRIPTION
-arachna collects project files into token-limited chunks ready to be
-sent to an AI. It understands tokens (not lines) and splits output
-smartly so nothing gets cut in the middle.
+arachna collects project files into token-limited chunks ready for AI consumption.
+It understands tokens (not lines) and splits output smartly so nothing gets cut
+in the middle.
 .PP
-Supports multiple profiles for different AI tasks (code, tests, docs,
-git history), incremental collection with smart caching, content-
-addressable snapshots with diffs, and query-based file filtering.
+It supports incremental diffs via snapshots: snapshot what an AI has seen,
+then send only what changed. Works across multiple chats, agents, and sessions.
 .SH COMMANDS
-.SS Collection
 .TP
-\fB\-\-init\fR
-Interactive setup wizard. Creates \fI.arachna.json\fR.
-.TP
-\fB\-\-init \-\-defaults\fR
-Auto-detect project type and create config.
-.TP
-\fB\-\-init \-\-preset\fR \fIname\fR
-Use specific preset (godot, unity, docker, etc.).
+\fB\-\-profile\fR \fIname\fR
+Collect a specific profile.
 .TP
 \fB\-\-all\fR
 Collect all profiles.
 .TP
-\fB\-\-profile\fR \fIname\fR
-Collect specific profile (code, tests, docs, git).
-.TP
-\fB\-\-list\fR
-Show available profiles.
-.TP
 \fB\-\-clean\fR
 Remove all collected files.
-.SS Watch (Snapshots and Diffs)
+.TP
+\fB\-\-list\fR
+List available profiles.
+.TP
+\fB\-\-validate\fR
+Validate configuration for errors. Exits 1 if problems found.
+.TP
+\fB\-\-doctor\fR
+Run full configuration diagnostic.
+.TP
+\fB\-\-init\fR
+Interactive .arachna.json bootstrap.
+.TP
+\fB\-\-init \-\-defaults\fR
+Auto-detect project type and create config non-interactively.
+.TP
+\fB\-\-init \-\-preset\fR \fIname\fR
+Use a specific preset for initialization.
+.TP
+\fB\-\-install\-hook\fR
+Install post-commit git hook.
+.TP
+\fB\-\-install\-hook \-\-force\fR
+Overwrite existing hook.
+.TP
+\fB\-\-presets\-update\fR
+Fetch and merge presets from remote repository.
+.TP
+\fB\-\-presets\-update \-\-url\fR \fIurl\fR
+Use custom URL for presets (must be http:// or https://).
+.TP
+\fB\-\-completion\fR \fIbash|zsh\fR
+Generate shell completion script. Usage:
+.RS
+.B source <(arachna \-\-completion bash)
+.RE
+.TP
+\fB\-\-version\fR
+Print version and exit.
+.SS Watch Commands
 .TP
 \fB\-\-snapshot\fR
-Show usage hint.
+Show usage hint for snapshot commands.
 .TP
 \fB\-\-snapshot list\fR
 List all snapshots.
 .TP
-\fB\-\-snapshot create \-\-profile\fR \fIname\fR \fB\-\-name\fR \fIid\fR
-Create a named snapshot.
+\fB\-\-snapshot create\fR \fB\-\-profile\fR \fIname\fR \fB\-\-name\fR \fIid\fR
+Create a named snapshot. \fIid\fR must match [\ew][\ew.\-]* (no path separators).
 .TP
-\fB\-\-snapshot update\fR \fIid\fR
-Update an existing snapshot with current state.
+\fB\-\-snapshot update\fR \fIid\fR [\fB\-\-profile\fR \fIname\fR]
+Update an existing snapshot. Optionally change the profile.
 .TP
 \fB\-\-snapshot delete\fR \fIid\fR
-Delete a snapshot.
+Delete a snapshot. Objects survive for other snapshots.
 .TP
 \fB\-\-snapshot info\fR \fIid\fR
 Show snapshot details.
+.TP
+\fB\-\-snapshot info\fR \fIid\fR \fB\-\-profile\fR
+Show stored profile only.
+.TP
+\fB\-\-snapshot info\fR \fIid\fR \fB\-\-stats\fR
+Show file and command counts only.
 .TP
 \fB\-\-snapshot rename\fR \fIold\fR \fInew\fR
 Rename a snapshot.
 .TP
 \fB\-\-diff\fR
-Diff from single snapshot (auto-select).
+Diff from the single available snapshot (auto-select).
 .TP
 \fB\-\-diff \-\-from\fR \fIid\fR
-Diff from specific snapshot.
+Diff from a specific snapshot against current state.
 .TP
 \fB\-\-diff \-\-from\fR \fIA\fR \fB\-\-to\fR \fIB\fR
 Cross-snapshot diff between two snapshots.
 .TP
+\fB\-\-diff \-\-all\fR \fB\-\-profile\fR \fIname\fR
+Full project as diff — no snapshot needed.
+.TP
 \fB\-\-diff \-\-stat\fR
-Show statistics only (no content).
+Show diff statistics only (counts, no content).
 .TP
 \fB\-\-diff \-\-flat\fR
-Flat output without grouping (backward compatible).
+Flat output without grouping headers.
 .TP
-\fB\-\-diff \-\-mode structural\fR
-Structural diff — understands code blocks, not just lines.
-.SS Store
+\fB\-\-diff \-\-format\fR \fIxml\fR
+XML output format.
+.TP
+\fB\-\-diff \-\-mode\fR \fIstructural\fR
+Block-level diff — understands code functions and classes.
+.TP
+\fB\-\-diff \-\-mode\fR \fIrepo\-map\fR
+Repo-map diff — signatures only with change markers.
+.TP
+\fB\-\-diff \-\-compress\fR
+Compress whitespace in diff output.
+.TP
+\fB\-\-diff \-\-output\-dir\fR \fIpath\fR
+Write diff files to a custom directory.
 .TP
 \fB\-\-store stats\fR
-Show store statistics (snapshots, objects, dedup).
+Show content-addressable store statistics (snapshots, objects, dedup).
 .TP
 \fB\-\-store gc\fR
-Garbage collect unreferenced objects.
-.SS Diagnostics
-.TP
-\fB\-\-validate\fR
-Check config for errors.
-.TP
-\fB\-\-doctor\fR
-Run full diagnostic.
-.TP
-\fB\-\-install\-hook\fR
-Install post-commit git hook.
+Garbage collect unreferenced objects from the store.
 .SH OPTIONS
 .TP
 \fB\-\-output\-dir\fR \fIpath\fR
-Output directory (default: arachna_context/).
+Directory for output files (default: arachna_context/).
 .TP
-\fB\-\-verbose\fR
-Show skipped files.
+\fB\-\-verbose\fR, \fB\-v\fR
+Show skipped files and compression stats.
 .TP
 \fB\-\-compress\fR
-Compress whitespace to save tokens.
+Compress whitespace to save tokens (collapses blank lines, strips trailing spaces).
+Does not modify indentation.
 .TP
 \fB\-\-incremental\fR
-Only collect changed files.
+Only collect files changed since last run. Uses smart hybrid cache
+(mtime_ns + size + SHA256).
 .TP
 \fB\-\-format\fR \fIxml|json\fR
-Output format (default: markdown).
+Output format. Default is markdown.
 .TP
 \fB\-\-merge\fR
 Append to existing output instead of replacing.
 .TP
 \fB\-\-dry\-run\fR
-Preview without writing files.
+Preview what will be collected without writing files.
+.TP
+\fB\-\-force\fR
+Force overwrite with \fB\-\-install\-hook\fR.
 .TP
 \fB\-\-query\fR \fItext\fR
-Filter files by query (keyword scoring + import chain).
+Filter files by query. Uses keyword scoring (+10 filename, +8 exports,
++5 imports, +3 content) and import chain (depth 2).
 .TP
 \fB\-\-mode\fR \fIfull|headers|repo\-map\fR
-Collection mode (default: full).
+Collection mode.
+.RS
+.TP
+full
+Complete file contents (default).
+.TP
+headers
+Full content with dependency/export headers.
+.TP
+repo\-map
+Function/class signatures only (50-70% token savings).
+.RE
+.TP
+\fB\-\-no\-pre\-commands\fR
+Skip pre_commands for this run.
+.SH SAFETY
+Commands in .arachna.json run with shell=True — pipes, redirection, and
+utilities like git, tree, and grep are available. You control the config
+file, you are responsible for its contents.
+.PP
+Internal operations use a restricted sandbox: 11 safe commands, no shell
+metacharacters, no file arguments. Protects against injection via snapshot
+names, preset URLs, and external input.
+.PP
+Snapshot IDs are validated against path traversal. Tokenizer files are
+checked for malicious code before import. Preset URLs are restricted to
+http:// and https://.
+.SH ENVIRONMENT
+.TP
+\fBARACHNA_MAX_HASH_SIZE\fR
+Maximum file size in bytes for SHA256 hashing during incremental collection.
+Default: 10485760 (10 MB).
+.TP
+\fBARACHNA_SAFE_TOKENIZERS\fR
+Comma-separated list of safe tokenizer module names. Default: tiktoken,transformers.
+.TP
+\fBARACHNA_PRE_COMMAND_DELAY\fR
+Seconds to sleep between pre_commands. Default: 0 (no delay).
+.SH EXAMPLES
+.PP
+Create a config with auto-detected profiles:
+.RS
+.B arachna \-\-init \-\-defaults
+.RE
+.PP
+Collect all profiles:
+.RS
+.B arachna \-\-all
+.RE
+.PP
+Collect code profile, skip git history:
+.RS
+.B arachna \-\-profile code \-\-no\-pre\-commands
+.RE
+.PP
+Create a snapshot and diff later:
+.RS
+.B arachna \-\-snapshot create \-\-profile full \-\-name baseline
+.br
+.I ... make changes ...
+.br
+.B arachna \-\-diff \-\-from baseline
+.RE
+.PP
+Full project as repo-map diff:
+.RS
+.B arachna \-\-diff \-\-all \-\-profile code \-\-mode repo\-map
+.RE
+.PP
+Filter by query:
+.RS
+.B arachna \-\-all \-\-query "authentication"
+.RE
+.PP
+Generate shell completion:
+.RS
+.B source <(arachna \-\-completion bash)
+.RE
+.PP
+Check configuration:
+.RS
+.B arachna \-\-validate
+.br
+.B arachna \-\-doctor
+.RE
+.PP
+Store management:
+.RS
+.B arachna \-\-store stats
+.br
+.B arachna \-\-store gc
+.RE
 .SH FILES
 .TP
 \fI.arachna.json\fR
-Project configuration (profiles, output directory, tokenizer).
+Project configuration with profiles.
 .TP
 \fIarachna_context/\fR
-Default output directory for collected context.
-.TP
-\fI.arachna/store/\fR
-Content-addressable store for snapshots (never committed).
+Default output directory for collected files.
 .TP
 \fI.arachna_cache.json\fR
 Incremental mode cache (mtime_ns + size + SHA256).
-.SH ENVIRONMENT
-arachna uses no environment variables. All configuration is in
-\fI.arachna.json\fR.
+.TP
+\fI.arachna_manifest.json\fR
+Manifest tracking all output files for cleanup.
+.TP
+\fI.arachna/\fR
+Content-addressable store for Watch snapshots (auto-gitignored).
 .SH EXIT STATUS
 .TP
 0
 Success.
 .TP
 1
-Error (invalid config, missing profile, etc.).
-.SH EXAMPLES
-.PP
-Quick start:
-.nf
-    cd my\-project
-    arachna \-\-init
-    arachna \-\-all
-.fi
-.PP
-Agent workflow with snapshots:
-.nf
-    arachna \-\-snapshot create \-\-profile code \-\-name baseline
-    # ... AI makes changes ...
-    arachna \-\-diff \-\-from baseline
-.fi
-.PP
-Programmatic API (Python):
-.nf
-    from arachna import watch
-    sid = watch.create_snapshot(profile="full", name="baseline")
-    diff = watch.compute_diff(snapshot_id="baseline", mode="structural")
-.fi
-.SH SEE ALSO
-Full documentation: \fIhttps://github.com/dead\-duke/arachna\fR
-.br
-Tutorial: \fIdocs/TUTORIAL.md\fR in the repository.
+Error (invalid config, missing profile, validation failure, blocked command).
 .SH AUTHOR
 Artem Terenin
+.SH SEE ALSO
+.BR https://github.com/dead-duke/arachna
 .SH LICENSE
-GNU Affero General Public License v3.0 (AGPL\-3.0)
-
+GNU Affero General Public License v3.0
