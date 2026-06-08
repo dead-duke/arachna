@@ -147,6 +147,7 @@ def _build_toc(
 
 def _write_parts(
     parts: list[str],
+    section_indices: list[list[int]],
     named_sections: list[tuple[str, str, int]],
     out_path: Path,
     name_tmpl: str,
@@ -157,13 +158,6 @@ def _write_parts(
 ) -> tuple[list[str], dict[str, int]]:
     total_parts = len(parts)
     start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
-    part_to_indices = []
-    for part_content in parts:
-        indices = []
-        for idx, (_name, content, _tokens) in enumerate(named_sections):
-            if content.strip() in part_content:
-                indices.append(idx)
-        part_to_indices.append(indices)
     created = []
     tokens_by_file = {}
     for i, part_content in enumerate(parts, start_num):
@@ -171,12 +165,8 @@ def _write_parts(
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
-        toc = _build_toc(
-            named_sections,
-            part_to_indices[part_idx] if part_idx < len(part_to_indices) else [],
-            i,
-            start_num + total_parts - 1,
-        )
+        indices = section_indices[part_idx] if part_idx < len(section_indices) else []
+        toc = _build_toc(named_sections, indices, i, start_num + total_parts - 1)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
             f.write(toc)
@@ -187,7 +177,6 @@ def _write_parts(
 
 
 def _diff_part_header(stats: dict, part_num: int, total_parts: int) -> str:
-    """Build a summary header for a diff part showing change counts."""
     parts = []
     if stats["renamed"]:
         parts.append(f"{stats['renamed']} renamed")
@@ -224,18 +213,15 @@ def _write_diff_parts(
 
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
 
-    # Build part-to-indices mapping for TOC
-    part_to_indices = []
+    # Build per-part section indices by matching content
+    section_indices = []
+    part_stats = []
     for part_content in parts:
         indices = []
         for idx, (_name, content, _tokens) in enumerate(named_sections):
             if content.strip() in part_content:
                 indices.append(idx)
-        part_to_indices.append(indices)
-
-    # Build per-part stats
-    part_stats = []
-    for indices in part_to_indices:
+        section_indices.append(indices)
         part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
         part_stats.append(compute_diff_stats(part_sections))
 
@@ -246,12 +232,8 @@ def _write_diff_parts(
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
-        toc = _build_toc(
-            named_sections,
-            part_to_indices[i - 1] if (i - 1) < len(part_to_indices) else [],
-            i,
-            total_parts,
-        )
+        indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
+        toc = _build_toc(named_sections, indices, i, total_parts)
         header = _diff_part_header(part_stats[i - 1], i, total_parts)
 
         with open(filepath, "w", encoding="utf-8") as f:
@@ -267,7 +249,7 @@ def _write_diff_parts(
 
 def _run_post_commands(commands: list[str], verbose: bool = False):
     for cmd in commands:
-        output = run_command(cmd)
+        output = run_command(cmd, allow_file_args=True)
         if verbose and output.strip():
             print(f"  post: {output.strip()}")
 
@@ -305,8 +287,19 @@ def collect(
         save_cache(out_path, new_cache)
     if not parts:
         return [], {}
+
+    # Build section indices by matching content
+    section_indices = []
+    for part_content in parts:
+        indices = []
+        for idx, (_name, content, _tokens) in enumerate(named_sections):
+            if content.strip() in part_content:
+                indices.append(idx)
+        section_indices.append(indices)
+
     created, tokens_by_file = _write_parts(
         parts,
+        section_indices,
         named_sections,
         out_path,
         name_tmpl,

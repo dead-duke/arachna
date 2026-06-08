@@ -358,6 +358,11 @@ def _cmd_presets_update(argv: list[str]):
         if idx + 1 < len(argv):
             url = argv[idx + 1]
 
+    if not url.startswith(("http://", "https://")):
+        print("Error: only http:// and https:// URLs are allowed for security reasons.")
+        print(f"  Got: {url}")
+        sys.exit(1)
+
     local = load_presets_from_file("presets.json")
     if local:
         print(f"Local presets.json: {len(local)} preset(s) — will be preserved.")

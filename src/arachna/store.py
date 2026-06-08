@@ -17,6 +17,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import tempfile
 import zlib
 from datetime import datetime
@@ -25,6 +26,21 @@ from pathlib import Path
 from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExistsError
 
 logger = logging.getLogger("arachna.store")
+
+_SNAPSHOT_ID_RE = re.compile(r"^[\w][\w.-]*$")
+
+
+def validate_snapshot_id(sid: str) -> None:
+    """Validate snapshot ID against safe pattern.
+
+    Raises ValueError if ID contains path traversal characters or is empty.
+    """
+    if not sid or not _SNAPSHOT_ID_RE.match(sid):
+        raise ValueError(
+            f"Invalid snapshot ID: '{sid}'. "
+            f"Must match pattern: letters, digits, underscore, dot, hyphen. "
+            f"Cannot be empty or contain path separators."
+        )
 
 
 def _store_root(root: Path | None = None) -> Path:
@@ -35,7 +51,6 @@ def _store_root(root: Path | None = None) -> Path:
 
     if not arachna_dir.is_dir():
         arachna_dir.mkdir(parents=True, exist_ok=True)
-        # Atomic write for .gitignore — prevent race condition
         try:
             fd, tmp = tempfile.mkstemp(dir=str(arachna_dir), prefix=".gitignore_", suffix=".tmp")
             try:
@@ -71,10 +86,20 @@ def write_object(data: bytes, root: Path | None = None) -> str:
     if path.exists():
         return object_hash
     compressed = zlib.compress(data)
-    if len(compressed) < len(data):
-        path.write_bytes(compressed)
-    else:
-        path.write_bytes(data)
+    content = compressed if len(compressed) < len(data) else data
+    # Atomic write via tempfile + os.replace
+    try:
+        fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".obj_", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(content)
+            os.replace(tmp, path)
+        except Exception:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp)
+            raise
+    except OSError:
+        path.write_bytes(content)
     return object_hash
 
 
@@ -105,6 +130,9 @@ def create_snapshot(
     command: dict[str, str] | None = None,
     root: Path | None = None,
 ) -> str:
+    if name is not None:
+        validate_snapshot_id(name)
+
     store_dir = _store_root(root)
     snapshots_dir = store_dir / "snapshots"
     snapshots_dir.mkdir(parents=True, exist_ok=True)
@@ -145,6 +173,7 @@ def update_snapshot(
     command: dict[str, str] | None = None,
     root: Path | None = None,
 ) -> str:
+    validate_snapshot_id(snapshot_id)
     manifest = load_snapshot(snapshot_id, root=root)
     file_hashes = {}
     for path, content in files.items():
@@ -176,6 +205,7 @@ def update_snapshot(
 
 
 def load_snapshot(snapshot_id: str, root: Path | None = None) -> dict:
+    validate_snapshot_id(snapshot_id)
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
     if not manifest_path.exists():
@@ -227,6 +257,7 @@ def _collect_referenced_hashes(manifests: list[dict]) -> set[str]:
 
 
 def delete_snapshot(snapshot_id: str, root: Path | None = None) -> None:
+    validate_snapshot_id(snapshot_id)
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
     if not manifest_path.exists():
@@ -242,6 +273,8 @@ def delete_snapshot(snapshot_id: str, root: Path | None = None) -> None:
 
 
 def rename_snapshot(old_id: str, new_id: str, root: Path | None = None) -> str:
+    validate_snapshot_id(old_id)
+    validate_snapshot_id(new_id)
     store_dir = _store_root(root)
     snapshots_dir = store_dir / "snapshots"
     old_path = snapshots_dir / f"{old_id}.json"

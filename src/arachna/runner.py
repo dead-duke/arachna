@@ -1,4 +1,14 @@
-"""Safe command execution with sandbox validation and audit logging."""
+"""Safe command execution with sandbox validation and audit logging.
+
+Two modes:
+- Restricted (allow_file_args=False): internal calls. 11 commands,
+  no shell metacharacters, no shell=True. Protects against injection
+  via snapshot names, preset URLs, and other external input.
+- Pre_commands (allow_file_args=True): user's .arachna.json. Extended
+  allowlist with read-only utilities, shell metacharacters allowed,
+  shell=True. User controls the config — they are responsible for
+  what's in it.
+"""
 
 import json
 import logging
@@ -12,47 +22,34 @@ from pathlib import Path
 
 logger = logging.getLogger("arachna.runner")
 
-# Shell metacharacters that require shell=True
 _SHELL_CHARS = {"|", "&", ";", "<", ">", "$", "`", "(", ")", "{", "}"}
-
-# Pipe separator for splitting piped commands
 _PIPE_SEP = "|"
-
-# Configurable delay between pre_commands (seconds). 0 = no delay.
 _PRE_COMMAND_DELAY = float(_os.environ.get("ARACHNA_PRE_COMMAND_DELAY", "0"))
 
-# Safe utilities that don't download/execute external code.
-_ALLOWED_COMMANDS = frozenset(
-    {
-        "echo",
-        "cat",
-        "ls",
-        "tree",
-        "grep",
-        "wc",
-        "sort",
-        "uniq",
-        "head",
-        "tail",
-        "cut",
-        "tr",
-        "git",
-        "date",
-        "pwd",
-        "whoami",
-        "id",
-        "uname",
-        "which",
-        "diff",
-        "comm",
-        "join",
-        "paste",
-        "true",
-        "false",
-        "test",
-        "[",
-    }
+# Restricted mode: commands without file arguments.
+_RESTRICTED_COMMANDS = frozenset(
+    {"echo", "date", "pwd", "whoami", "id", "uname", "which", "true", "false", "test", "["}
 )
+
+# Pre_commands mode: adds read-only utilities.
+_ALLOWED_COMMANDS = _RESTRICTED_COMMANDS | {
+    "cat",
+    "ls",
+    "tree",
+    "grep",
+    "wc",
+    "sort",
+    "uniq",
+    "head",
+    "tail",
+    "cut",
+    "tr",
+    "git",
+    "diff",
+    "comm",
+    "join",
+    "paste",
+}
 
 _BLOCKED_WORDS = [
     "curl",
@@ -93,9 +90,7 @@ def _resolve_base(cmd_part: str) -> str:
         parts = shlex.split(cmd_part)
     except ValueError:
         return ""
-    if not parts:
-        return ""
-    return parts[0]
+    return parts[0] if parts else ""
 
 
 def _split_pipe_parts(cmd: str) -> list[str]:
@@ -152,8 +147,11 @@ def _split_pipe_parts(cmd: str) -> list[str]:
     return parts
 
 
-def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, str]:
+def _validate_command(
+    cmd: str, allow_dangerous: bool = False, allow_file_args: bool = False
+) -> tuple[bool, str]:
     cmd_lower = cmd.lower().strip()
+    allowlist = _ALLOWED_COMMANDS if allow_file_args else _RESTRICTED_COMMANDS
 
     for word in _BLOCKED_WORDS:
         if re.search(r"\b" + re.escape(word) + r"\b", cmd_lower):
@@ -169,33 +167,46 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
                 return True, ""
             return False, f"blocked pattern: '{phrase}'"
 
+    # Restricted mode: no shell metacharacters
+    if not allow_file_args and _SHELL_CHARS.intersection(cmd):
+        if allow_dangerous:
+            logger.warning("Shell metacharacters allowed via flag: %s", cmd)
+            return True, ""
+        return False, "shell metacharacters not allowed in restricted mode"
+
+    # Pipe validation
     if _PIPE_SEP in cmd:
         pipe_parts = _split_pipe_parts(cmd)
         if len(pipe_parts) > 1:
             for part in pipe_parts:
                 base = _resolve_base(part)
-                if base and base not in _ALLOWED_COMMANDS:
+                if base and base not in allowlist:
                     if allow_dangerous:
                         logger.warning("Unknown command in pipe allowed via flag: %s", cmd)
                         return True, ""
                     return False, f"command in pipe not in allowlist: '{base}'"
             return True, ""
 
-    base = _resolve_base(cmd)
-    if base and not _SHELL_CHARS.intersection(cmd) and base not in _ALLOWED_COMMANDS:
-        if allow_dangerous:
-            logger.warning("Unknown command allowed via flag: %s", cmd)
-            return True, ""
-        return False, f"command not in allowlist: '{base}'"
+    # Single command validation (only for non-shell commands)
+    if not _SHELL_CHARS.intersection(cmd):
+        base = _resolve_base(cmd)
+        if base and base not in allowlist:
+            if allow_dangerous:
+                logger.warning("Unknown command allowed via flag: %s", cmd)
+                return True, ""
+            return False, f"command not in allowlist: '{base}'"
 
     return True, ""
 
 
-def _is_safe_command(cmd: str) -> bool:
+def _is_safe_command(cmd: str, allow_file_args: bool = False) -> bool:
     if _SHELL_CHARS.intersection(cmd):
         return False
     base = _resolve_base(cmd)
-    return base in _ALLOWED_COMMANDS if base else False
+    if not base:
+        return False
+    allowlist = _ALLOWED_COMMANDS if allow_file_args else _RESTRICTED_COMMANDS
+    return base in allowlist
 
 
 def _get_audit_log_path() -> Path | None:
@@ -249,11 +260,12 @@ def run_command(
     allow_dangerous: bool = False,
     interactive: bool = False,
     dry_run: bool = False,
+    allow_file_args: bool = False,
 ) -> str:
     if not cmd.strip():
         return ""
 
-    is_safe, reason = _validate_command(cmd, allow_dangerous)
+    is_safe, reason = _validate_command(cmd, allow_dangerous, allow_file_args=allow_file_args)
 
     if not is_safe:
         logger.warning("Blocked command: %s — %s", cmd, reason)
@@ -270,7 +282,7 @@ def run_command(
             return ""
 
     if dry_run:
-        if _is_safe_command(cmd):
+        if _is_safe_command(cmd, allow_file_args=allow_file_args):
             pass
         else:
             print(f"  [DRY-RUN] Would execute: {cmd}")
@@ -310,15 +322,10 @@ def run_command(
 
 
 def run_pre_commands(commands: list[str]) -> list[tuple[str, str]]:
-    """Run pre_commands with optional rate limiting.
-
-    If ARACHNA_PRE_COMMAND_DELAY is set, sleeps that many seconds
-    between commands to avoid self-DoS on large command lists.
-    """
     results = []
     for i, cmd in enumerate(commands):
         if i > 0 and _PRE_COMMAND_DELAY > 0:
             time.sleep(_PRE_COMMAND_DELAY)
-        output = run_command(cmd)
+        output = run_command(cmd, allow_file_args=True)
         results.append((cmd, output))
     return results

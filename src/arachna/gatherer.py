@@ -18,7 +18,6 @@ def _collect_pre_commands(
     profile: dict[str, Any],
     tokenizer: Callable[[str], int],
 ) -> list[tuple[str, str, int]]:
-    """Run pre_commands and return (label, output, tokens) tuples."""
     from .runner import run_pre_commands
 
     results = []
@@ -45,6 +44,9 @@ def _scan_directories(
             print(f"  Warning: skipping symlink directory: {dir_path}")
             continue
         for pattern in profile.get("patterns", ["*"]):
+            if ".." in pattern:
+                print(f"  Warning: skipping pattern with '..': {pattern}")
+                continue
             for filepath in sorted(dir_path.rglob(pattern)):
                 if not filepath.is_file():
                     continue
@@ -64,12 +66,12 @@ def _apply_repo_map_to_section(
     lang: str,
     fmt: str,
     include_header: bool,
+    header: str = "",
 ) -> str:
     if raw_text is None:
         return section
     sigs = extract_signatures(raw_text, lang)
-    header = ""
-    if include_header:
+    if not header and include_header:
         header = _generate_header(filepath, raw_text, lang)
     if fmt == "xml":
         return header + _format_xml_sigs(filepath, lang, sigs)
@@ -108,8 +110,17 @@ def _format_file_list(
         if section:
             if mode == "repo-map":
                 lang = lang_for_path(filepath)
+                pre_header = ""
+                if include_header and raw_text is not None:
+                    pre_header = _generate_header(filepath, raw_text, lang)
                 section = _apply_repo_map_to_section(
-                    filepath, section, raw_text, lang, fmt, include_header
+                    filepath,
+                    section,
+                    raw_text,
+                    lang,
+                    fmt,
+                    include_header,
+                    header=pre_header,
                 )
             tokens = tokenizer(section)
             results.append((str(filepath), section, tokens))
@@ -584,7 +595,7 @@ def gather_files(
 
 
 def gather_command(cmd: str) -> str:
-    return run_command(cmd)
+    return run_command(cmd, allow_file_args=True)
 
 
 def dry_run(

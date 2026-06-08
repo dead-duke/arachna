@@ -16,6 +16,7 @@ from .collector import (
 )
 from .config import get_profile, load_config
 from .differ import compute_diff_stats
+from .store import validate_snapshot_id
 from .tokenizer import count_tokens, load_tokenizer
 
 
@@ -34,7 +35,6 @@ def handle_watch_command(argv: list[str]) -> bool:
 
 
 def _parse_output_dir(argv: list[str], config: dict) -> str:
-    """Parse --output-dir / -o from argv, falling back to config default."""
     output_dir = config.get("output_dir", ".")
     if "--output-dir" in argv:
         idx = argv.index("--output-dir")
@@ -74,6 +74,11 @@ def _cmd_snapshot(argv: list[str]):
         sid = argv[idx + 1]
         if sid.startswith("-"):
             print(f"Error: invalid snapshot ID '{sid}'")
+            sys.exit(1)
+        try:
+            validate_snapshot_id(sid)
+        except ValueError as e:
+            print(f"Error: {e}")
             sys.exit(1)
         try:
             all_manifests = list_snapshots()
@@ -158,6 +163,12 @@ def _cmd_snapshot(argv: list[str]):
             print("Usage: arachna --snapshot rename <old> <new>")
             sys.exit(1)
         try:
+            validate_snapshot_id(old_id)
+            validate_snapshot_id(new_id)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        try:
             store_rename_snapshot(old_id, new_id)
             print(f"Snapshot '{old_id}' renamed to '{new_id}'.")
         except Exception as e:
@@ -169,6 +180,11 @@ def _cmd_snapshot(argv: list[str]):
         idx = argv.index("delete")
         if idx + 1 < len(argv):
             sid = argv[idx + 1]
+            try:
+                validate_snapshot_id(sid)
+            except ValueError as e:
+                print(f"Error: {e}")
+                sys.exit(1)
             try:
                 delete_snapshot(sid)
                 print(f"Snapshot '{sid}' deleted.")
@@ -208,6 +224,11 @@ def _cmd_snapshot(argv: list[str]):
         if not name:
             print("Error: --name is required for 'create'.")
             sys.exit(1)
+        try:
+            validate_snapshot_id(name)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
         profile = get_profile(profile_name) if profile_name else get_profile("full")
         try:
             sid = watch_create_snapshot(profile, name=name)
@@ -225,6 +246,11 @@ def _cmd_snapshot(argv: list[str]):
         sid = argv[idx + 1]
         if sid.startswith("-"):
             print(f"Error: invalid snapshot ID '{sid}'")
+            sys.exit(1)
+        try:
+            validate_snapshot_id(sid)
+        except ValueError as e:
+            print(f"Error: {e}")
             sys.exit(1)
         profile = None
         if "--profile" in argv:

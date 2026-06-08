@@ -95,7 +95,6 @@ def test_command_mode(tmp_path, monkeypatch):
 
 
 def test_merge_mode_single_part(tmp_path, monkeypatch):
-    """Merge mode appends to existing files."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -123,7 +122,6 @@ def test_merge_mode_single_part(tmp_path, monkeypatch):
 
 
 def test_merge_mode_multiple_parts(tmp_path, monkeypatch):
-    """Merge mode numbers correctly with small token limit."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -154,7 +152,6 @@ def test_merge_mode_multiple_parts(tmp_path, monkeypatch):
 
 
 def test_save_and_load_manifest(tmp_path):
-    """save_manifest atomically writes, load_manifest reads back."""
     out = tmp_path / "out"
     out.mkdir()
     save_manifest(out, ["a.md", "b.md"])
@@ -163,14 +160,12 @@ def test_save_and_load_manifest(tmp_path):
 
 
 def test_load_manifest_empty(tmp_path):
-    """load_manifest returns empty list when no manifest."""
     out = tmp_path / "out"
     out.mkdir()
     assert load_manifest(out) == []
 
 
 def test_load_manifest_corrupted(tmp_path):
-    """load_manifest handles corrupted JSON."""
     out = tmp_path / "out"
     out.mkdir()
     (out / ".arachna_manifest.json").write_text("not json")
@@ -178,7 +173,6 @@ def test_load_manifest_corrupted(tmp_path):
 
 
 def test_clean_manifest(tmp_path):
-    """clean_manifest removes tracked files."""
     out = tmp_path / "out"
     out.mkdir()
     (out / "chat-c_1.md").write_text("x")
@@ -191,14 +185,12 @@ def test_clean_manifest(tmp_path):
 
 
 def test_find_next_part_num_empty(tmp_path):
-    """_find_next_part_num returns 1 when no files exist."""
     out = tmp_path / "out"
     out.mkdir()
     assert _find_next_part_num(out, "chat-c") == 1
 
 
 def test_find_next_part_num_existing(tmp_path):
-    """_find_next_part_num returns max+1 for existing files."""
     out = tmp_path / "out"
     out.mkdir()
     (out / "chat-c_1.md").write_text("x")
@@ -207,7 +199,6 @@ def test_find_next_part_num_existing(tmp_path):
 
 
 def test_find_next_part_num_single_file(tmp_path):
-    """_find_next_part_num handles the single-file case."""
     out = tmp_path / "out"
     out.mkdir()
     (out / "chat-c.md").write_text("x")
@@ -215,7 +206,6 @@ def test_find_next_part_num_single_file(tmp_path):
 
 
 def test_find_next_part_num_mixed(tmp_path):
-    """_find_next_part_num with both single and numbered files."""
     out = tmp_path / "out"
     out.mkdir()
     (out / "chat-c.md").write_text("x")
@@ -224,7 +214,6 @@ def test_find_next_part_num_mixed(tmp_path):
 
 
 def test_post_commands_executed(tmp_path, monkeypatch):
-    """post_commands are run after collection."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -248,4 +237,4 @@ def test_post_commands_executed(tmp_path, monkeypatch):
             "P",
             "out",
         )
-        mock_run.assert_called_with("echo done")
+        mock_run.assert_called_with("echo done", allow_file_args=True)

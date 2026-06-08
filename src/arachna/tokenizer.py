@@ -75,6 +75,36 @@ _SUSPICIOUS_MODULES = frozenset(
     }
 )
 
+_ALLOWED_TOP_LEVEL = (
+    _ast.FunctionDef,
+    _ast.AsyncFunctionDef,
+    _ast.ClassDef,
+    _ast.Import,
+    _ast.ImportFrom,
+    _ast.Assign,
+)
+
+
+def _validate_top_level_statements(filepath: Path) -> bool:
+    try:
+        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        return False
+
+    for node in tree.body:
+        if not isinstance(node, _ALLOWED_TOP_LEVEL):
+            return False
+        if isinstance(node, _ast.Assign):
+            for child in _ast.walk(node.value):
+                if isinstance(child, _ast.Call):
+                    return False
+            for target in node.targets:
+                for child in _ast.walk(target):
+                    if isinstance(child, _ast.Call):
+                        return False
+
+    return True
+
 
 def _is_safe_tokenizer(spec: str) -> bool:
     if not spec or spec == "default":
@@ -113,6 +143,9 @@ def _is_safe_tokenizer(spec: str) -> bool:
 
 
 def _safe_local_imports(filepath: Path) -> bool:
+    if not _validate_top_level_statements(filepath):
+        return False
+
     try:
         tree = _ast.parse(filepath.read_text(encoding="utf-8"))
     except (SyntaxError, OSError, UnicodeDecodeError):

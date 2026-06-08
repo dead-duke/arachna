@@ -159,14 +159,14 @@ def test_is_safe_command_with_shell_chars():
 def test_run_command_shell_double_ampersand():
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = _completed_process(stdout="a\nb\n")
-        result = run_command("echo a && echo b")
+        result = run_command("echo a && echo b", allow_file_args=True)
         assert result == "a\nb\n"
 
 
 def test_run_command_shell_redirect():
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = _completed_process(stdout="")
-        result = run_command("echo hello > /dev/null")
+        result = run_command("echo hello > /dev/null", allow_file_args=True)
         assert result == ""
 
 
