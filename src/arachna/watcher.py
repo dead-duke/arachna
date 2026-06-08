@@ -67,7 +67,7 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
 
     pre_commands_data = {}
     for cmd in profile.get("pre_commands", []):
-        output = run_command(cmd)
+        output = run_command(cmd, allow_file_args=True)
         if output.strip():
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
             obj_hash = write_object(output.encode("utf-8"))
@@ -78,7 +78,7 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
     command_data = {}
     cmd = profile.get("command")
     if cmd:
-        output = run_command(cmd)
+        output = run_command(cmd, allow_file_args=True)
         if output.strip():
             obj_hash = write_object(output.encode("utf-8"))
             command_data["command output"] = f"sha256:{obj_hash}"
@@ -442,7 +442,7 @@ def _diff_pre_commands_sections(
             current_pre[label] = _get_content_from_manifest(label, hash_spec)
     else:
         for cmd in profile.get("pre_commands", []):
-            output = run_command(cmd)
+            output = run_command(cmd, allow_file_args=True)
             if output.strip():
                 label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
                 current_pre[label] = output
@@ -497,7 +497,7 @@ def _diff_command_section(
     else:
         cmd = profile.get("command")
         if cmd:
-            output = run_command(cmd)
+            output = run_command(cmd, allow_file_args=True)
             if output.strip():
                 current_cmd_output = output
     sections: list[DiffSection] = []
