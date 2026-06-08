@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.7.0 — LOW fixes, store, packaging, polish
+
+- LOW-01: limit _get_audit_log_path traversal to 5 parent levels
+- LOW-02: skip symlinked directories in gitignore and gatherer
+- LOW-05: O(1) truncation for default tokenizer in _handle_single
+- LOW-06: fix _split_to_sections marker prefix on first element
+- LOW-07: store.gc removes empty subdirectories in objects/
+- LOW-08: _hash_path mkdir only on write, not read
+- LOW-09: better error message for corrupted/non-zlib objects
+- LOW-10: explicit cache cleanup for deleted files in incremental mode
+- LOW-12: _should_skip_binary detects no-extension binaries via null bytes
+- LOW-13: multi-line import regex fallback for Python SyntaxError
+- LOW-15: _cmd_presets_update aborts on corrupted local presets.json
+- LOW-16: init.run_defaults warns when no profiles detected
+- LOW-17: _MAX_HASH_SIZE configurable via ARACHNA_MAX_HASH_SIZE env var
+- LOW-22: [project.optional-dependencies] added to pyproject.toml
+- LOW-23: license field updated to PEP 639 (license-files)
+- LOW-24: CHANGELOG descriptions for v0.1.4 and v0.1.5
+- LOW-25: KeyError guard for get_profile in _cmd_validate
+- LOW-26: _load_all_manifests shared by stats() and gc()
+- MEDIUM-01: warn when neither fcntl nor msvcrt available for merge lock
+- 998 tests, 1 skipped, 0 failures
+
 ## v2.6.0 — Code quality, formatter, differ, test coverage
 
 - MEDIUM-03: Extract _apply_repo_map_to_section (DRY repo-map logic)
@@ -403,32 +426,43 @@
 
 ## v0.1.5 — Shebang detection
 
-- formatter.py: detect language from shebang
+- formatter.py: detect language from shebang (#!python3, #!/bin/bash, etc.)
 - Supports: python, bash, node, ruby, perl
+- 5 new tests, 107 total, 66% coverage
 
 ## v0.1.4 — Tests, coverage, bugfixes
 
 - 102 tests (up from 46), 65% coverage (up from 25%)
-- gatherer.py: deduplicated with _collect_named_sections
+- gatherer.py: deduplicated with _collect_named_sections, 92% coverage
 - renderer.py: 100% coverage
 - formatter.py: binary file detection (null bytes)
 - gitignore.py: skip venv/.gitignore and hidden dirs
 
 ## v0.1.3 — Validate, gitignore, default profile, runner tests
 
-- validator.py: check split_mode, max_tokens, content source
+- validator.py: check split_mode, max_tokens, content source, split_marker
 - gitignore.py: parse .gitignore patterns for auto-exclusion
 - Default profile when .arachna.json has no profiles
+- CLI: --validate flag, exit code 1 on errors
+- test_validator.py: 10 tests
+- test_runner.py: 7 tests
 
 ## v0.1.2 — Dry-run, renderer, pre-commit, ruff
 
 - gatherer.dry_run: real split simulation with token tracking
-- renderer: aligned output
+- renderer: aligned output with section/part separators
+- --dry-run, --output-dir, --verbose CLI flags
+- Makefile: test, test-cov, lint, format, clean
+- pre-commit: ruff + unit tests
+- ruff config in pyproject.toml
 
 ## v0.1.1 — Tests + fixes
 
 - 29 tests: tokenizer, splitter, config, formatter
+- Fixed _split_to_sections: .strip() removed, preserves leading newlines
 
 ## v0.1.0 — MVP
 
 - tokenizer, runner, formatter, splitter, gatherer, collector, config, CLI
+- 4 split modes, exclude_patterns, _FILENAME_LANG
+- shlex.split() for safe command execution

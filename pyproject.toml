@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "2.5.0"
+version = "2.7.0"
 description = "Context collector for AI — gathers project files into token-limited chunks"
 readme = "README.md"
 license = "AGPL-3.0"
@@ -26,11 +26,6 @@ classifiers = [
     "Intended Audience :: Developers",
 ]
 
-[project.optional-dependencies]
-tiktoken = ["tiktoken"]
-transformers = ["transformers"]
-dev = ["pytest", "pytest-cov", "ruff", "pre-commit", "hypothesis"]
-
 [project.urls]
 Homepage = "https://github.com/dead-duke/arachna"
 Repository = "https://github.com/dead-duke/arachna"
@@ -45,6 +40,11 @@ where = ["src"]
 
 [tool.setuptools.data-files]
 "share/man/man1" = ["arachna.1"]
+
+[project.optional-dependencies]
+tiktoken = ["tiktoken"]
+transformers = ["transformers"]
+dev = ["pytest", "pytest-cov", "ruff", "pre-commit", "hypothesis"]
 
 [tool.ruff]
 line-length = 100
