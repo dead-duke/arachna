@@ -81,10 +81,12 @@ def test_split_sections_no_empty_parts(sections):
 
 
 @given(st.lists(st.text(min_size=1, max_size=100), min_size=1, max_size=10))
-def test_split_sections_count_at_least_one(sections):
-    """Non-empty sections produce at least one part."""
+def test_split_sections_count_at_least_one_if_any_non_empty(sections):
+    """If any section has non-whitespace content, at least one part produced."""
     parts = split_sections(sections, max_tokens=10000)
-    assert len(parts) >= 1
+    has_content = any(s.strip() for s in sections)
+    if has_content:
+        assert len(parts) >= 1
 
 
 @given(st.lists(st.text(min_size=1, max_size=100), min_size=1, max_size=10))

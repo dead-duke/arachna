@@ -41,4 +41,5 @@
 - [ ] MEDIUM-01: _merge_lock — warn if both fcntl and msvcrt unavailable
 
 ## Backlog
+- [ ] MEDIUM-16: Rust generics with braces in where-clauses — improve regex in _parse_c_like_blocks
 - [ ] Plugin system for custom formatters and tokenizers
