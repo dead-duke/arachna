@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.9.1 — Architecture + Code Quality fixes
+
+- MEDIUM ARCH-01: Strip strings/comments before brace matching in _extract_braced_block
+- LOW CQ-02: _collect_import_graph extracts deps from section content with _generate_header fallback
+- LOW CQ-04: _detect_renames_and_moves limits similarity check to files < 1MB
+- LOW CQ-06: split_sections truncates oversized sections like _handle_single
+- LOW CQ-07: _format_added accepts tokenizer param, uses binary search for accurate truncation
+- LOW CQ-08: cache.py get_changed_files documents cache mutation in docstring
+- LOW CQ-09: _parse_python_blocks returns None on SyntaxError for fallback to text diff
+- LOW CQ-10: store.py create_snapshot docstring documents non-atomic tradeoff
+- LOW CQ-11: gitignore.py docstring documents implementation limitations
+- LOW CQ-12: collector.py adds O_CREAT|O_EXCL fallback for merge lock
+- LOW CQ-13: splitter.py binary search adds max iterations guard
+- LOW CQ-14: init.py catches EOFError in _ask/_ask_yes, returns default
+- LOW CQ-15: presets.py fetch_presets uses ARACHNA_PRESETS_TIMEOUT env var
+- 1071 tests, 92% coverage, 0 bugs
+
 ## v2.9.0 — Security hardening
 
 - HIGH SEC-01: Two-level command allowlist — restricted mode (11 commands, no shell) for internal calls, pre_commands mode (extended allowlist, shell=True) for user config
