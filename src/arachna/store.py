@@ -306,6 +306,32 @@ def _load_all_manifests(store_dir: Path) -> list[dict]:
     return manifests
 
 
+def _collect_referenced_hashes(manifests: list[dict]) -> set[str]:
+    """Collect all referenced SHA256 hashes from manifests.
+
+    Extracts hashes from files, pre_commands, and command fields.
+    Shared by stats() and gc() to deduplicate hash collection logic.
+
+    Args:
+        manifests: List of manifest dicts from _load_all_manifests().
+
+    Returns:
+        Set of SHA256 hex digest strings (without "sha256:" prefix).
+    """
+    referenced: set[str] = set()
+    for manifest in manifests:
+        for hash_spec in manifest.get("files", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced.add(hash_spec[7:])
+        for hash_spec in manifest.get("pre_commands", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced.add(hash_spec[7:])
+        for hash_spec in manifest.get("command", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced.add(hash_spec[7:])
+    return referenced
+
+
 def delete_snapshot(snapshot_id: str) -> None:
     """Delete manifest file. Objects remain (cleaned by GC).
 
@@ -396,19 +422,9 @@ def gc() -> dict:
     if not objects_dir.is_dir():
         return {"removed": 0, "freed_bytes": 0}
 
-    # Collect all referenced hashes from all manifests (shared with stats)
+    # Collect all referenced hashes from all manifests
     manifests = _load_all_manifests(store_dir)
-    referenced = set()
-    for manifest in manifests:
-        for hash_spec in manifest.get("files", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced.add(hash_spec[7:])
-        for hash_spec in manifest.get("pre_commands", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced.add(hash_spec[7:])
-        for hash_spec in manifest.get("command", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced.add(hash_spec[7:])
+    referenced = _collect_referenced_hashes(manifests)
 
     # Delete unreferenced objects
     removed = 0
@@ -443,7 +459,7 @@ def stats() -> dict:
     store_dir = _store_root()
     objects_dir = store_dir / "objects"
 
-    # Load manifests once and share with gc() logic
+    # Load manifests once
     manifests = _load_all_manifests(store_dir)
     snapshots_count = len(manifests)
 
@@ -457,17 +473,7 @@ def stats() -> dict:
                     total_bytes += obj_file.stat().st_size
 
     # Collect referenced hashes from manifests
-    referenced_hashes = set()
-    for manifest in manifests:
-        for hash_spec in manifest.get("files", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced_hashes.add(hash_spec[7:])
-        for hash_spec in manifest.get("pre_commands", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced_hashes.add(hash_spec[7:])
-        for hash_spec in manifest.get("command", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced_hashes.add(hash_spec[7:])
+    referenced_hashes = _collect_referenced_hashes(manifests)
 
     unique_bytes = 0
     for obj_hash in referenced_hashes:

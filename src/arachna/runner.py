@@ -24,7 +24,6 @@ _ALLOWED_COMMANDS = frozenset(
         "cat",
         "ls",
         "tree",
-        "find",
         "grep",
         "wc",
         "sort",
@@ -34,10 +33,7 @@ _ALLOWED_COMMANDS = frozenset(
         "cut",
         "tr",
         "git",
-        "hg",
-        "svn",
         "date",
-        "env",
         "pwd",
         "whoami",
         "id",
@@ -72,6 +68,7 @@ _BLOCKED_WORDS = [
     "mkfs",
     "eval",
     "exec",
+    "find",
 ]
 
 # Group B: multi-word/substring patterns matched literally.
@@ -252,7 +249,10 @@ def _get_audit_log_path() -> Path | None:
 
 
 def _log_command(cmd: str, success: bool):
-    """Write command execution to audit log."""
+    """Write command execution to audit log.
+
+    Newlines in cmd are sanitized to prevent log injection.
+    """
     log_path = _get_audit_log_path()
     if log_path is None:
         return
@@ -262,8 +262,9 @@ def _log_command(cmd: str, success: bool):
 
         timestamp = datetime.now().isoformat()
         status = "OK" if success else "FAIL"
+        sanitized_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
         with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{timestamp}] {status}: {cmd}\n")
+            f.write(f"[{timestamp}] {status}: {sanitized_cmd}\n")
     except OSError:
         pass
 

@@ -1,4 +1,4 @@
-"""Coverage for watch.py — _apply_repo_map_diff, _format_repo_map_diff, compute_diff gaps."""
+"""Coverage for watch.py — _apply_repo_map_to_sections, _format_repo_map_diff, compute_diff gaps."""
 
 import json
 
@@ -6,16 +6,15 @@ import pytest
 
 from arachna.api_errors import ProfileNotFoundError, SnapshotNotFoundError
 from arachna.differ import DiffSection
-from arachna.watch import (
-    _apply_repo_map_diff,
+from arachna.gatherer import (
+    _apply_repo_map_to_sections,
     _format_repo_map_added,
     _format_repo_map_diff,
-    _parse_blocks,
+    _parse_blocks_dispatch,
     _read_file_from_disk,
     _read_file_from_store,
-    compute_diff,
-    create_snapshot,
 )
+from arachna.watch import compute_diff, create_snapshot
 
 
 def _make_profile(directory: str, patterns=None) -> dict:
@@ -84,10 +83,10 @@ def test_format_repo_map_added_empty():
     assert result == ""
 
 
-# ── _apply_repo_map_diff ──────────────────────────────────────────
+# ── _apply_repo_map_to_sections ───────────────────────────────────
 
 
-def test_apply_repo_map_diff_modified(tmp_path, monkeypatch):
+def test_apply_repo_map_to_sections_modified(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -104,12 +103,12 @@ def test_apply_repo_map_diff_modified(tmp_path, monkeypatch):
             content="### src/main.py\n\nREMOVED lines 1:\n    old\n\nADDED lines 1:\n    new\n",
         ),
     ]
-    result = _apply_repo_map_diff(sections, "rm-mod", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-mod", None, profile)
     assert len(result) == 1
     assert "foo" in result[0].content
 
 
-def test_apply_repo_map_diff_added(tmp_path, monkeypatch):
+def test_apply_repo_map_to_sections_added(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -125,12 +124,12 @@ def test_apply_repo_map_diff_added(tmp_path, monkeypatch):
             content="ADDED (new file):\n\n```\ndef new_func():\n    pass\n```\n",
         ),
     ]
-    result = _apply_repo_map_diff(sections, "rm-add", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-add", None, profile)
     assert len(result) == 1
     assert "new.py" in result[0].path or "new_func" in result[0].content
 
 
-def test_apply_repo_map_diff_header_passthrough(tmp_path, monkeypatch):
+def test_apply_repo_map_to_sections_header_passthrough(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -142,12 +141,12 @@ def test_apply_repo_map_diff_header_passthrough(tmp_path, monkeypatch):
     sections = [
         DiffSection(type="header", path="", content="## Changes\n"),
     ]
-    result = _apply_repo_map_diff(sections, "rm-header", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-header", None, profile)
     assert result[0].type == "header"
     assert result[0].content == "## Changes\n"
 
 
-def test_apply_repo_map_diff_deleted(tmp_path, monkeypatch):
+def test_apply_repo_map_to_sections_deleted(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -159,12 +158,12 @@ def test_apply_repo_map_diff_deleted(tmp_path, monkeypatch):
     sections = [
         DiffSection(type="deleted", path="src/main.py", content="[DELETED]\n"),
     ]
-    result = _apply_repo_map_diff(sections, "rm-del", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-del", None, profile)
     assert len(result) == 1
     assert "Removed signatures" in result[0].content or "DELETED" in result[0].content
 
 
-def test_apply_repo_map_diff_cannot_read_content(tmp_path, monkeypatch):
+def test_apply_repo_map_to_sections_cannot_read(tmp_path, monkeypatch):
     """Repo-map falls back to text diff when file content cannot be read from store."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
@@ -181,7 +180,7 @@ def test_apply_repo_map_diff_cannot_read_content(tmp_path, monkeypatch):
             content="### nonexistent.py\n\nREMOVED lines 1:\n    old\n",
         ),
     ]
-    result = _apply_repo_map_diff(sections, "rm-readfail", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-readfail", None, profile)
     assert len(result) == 1
     # Content unchanged — fallback, keeps text diff
     assert "REMOVED" in result[0].content
@@ -253,24 +252,24 @@ def test_read_file_from_disk_unreadable(tmp_path):
         f.chmod(0o644)
 
 
-# ── _parse_blocks coverage ────────────────────────────────────────
+# ── _parse_blocks_dispatch coverage ────────────────────────────────
 
 
-def test_parse_blocks_unknown_language():
-    """_parse_blocks returns empty dict for unknown languages."""
-    result = _parse_blocks("function foo() {}", "unknown_lang")
+def test_parse_blocks_dispatch_unknown_language():
+    """_parse_blocks_dispatch returns empty dict for unknown languages."""
+    result = _parse_blocks_dispatch("function foo() {}", "unknown_lang")
     assert result == {}
 
 
-def test_parse_blocks_c_like_go():
-    """_parse_blocks dispatches to C-like parser for Go."""
+def test_parse_blocks_dispatch_c_like_go():
+    """_parse_blocks_dispatch dispatches to C-like parser for Go."""
     text = "package main\n\nfunc main() {\n    return\n}\n"
-    result = _parse_blocks(text, "go")
+    result = _parse_blocks_dispatch(text, "go")
     assert "main" in result
 
 
-def test_parse_blocks_script_ruby():
-    """_parse_blocks dispatches to script parser for Ruby."""
+def test_parse_blocks_dispatch_script_ruby():
+    """_parse_blocks_dispatch dispatches to script parser for Ruby."""
     text = "def hello\n    puts 'hi'\nend\n"
-    result = _parse_blocks(text, "ruby")
+    result = _parse_blocks_dispatch(text, "ruby")
     assert "hello" in result

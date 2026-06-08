@@ -33,6 +33,23 @@ def handle_watch_command(argv: list[str]) -> bool:
     return False
 
 
+def _parse_output_dir(argv: list[str], config: dict) -> str:
+    """Parse --output-dir / -o from argv, falling back to config default.
+
+    Shared by _cmd_diff and _cmd_diff_all to deduplicate parsing logic.
+    """
+    output_dir = config.get("output_dir", ".")
+    if "--output-dir" in argv:
+        idx = argv.index("--output-dir")
+        if idx + 1 < len(argv):
+            output_dir = argv[idx + 1]
+    elif "-o" in argv:
+        idx = argv.index("-o")
+        if idx + 1 < len(argv):
+            output_dir = argv[idx + 1]
+    return output_dir
+
+
 def _cmd_snapshot(argv: list[str]):
     from .store import delete_snapshot, list_snapshots
     from .store import rename_snapshot as store_rename_snapshot
@@ -328,15 +345,7 @@ def _cmd_diff(argv: list[str]):
             sys.exit(1)
 
     config = load_config()
-    output_dir = config.get("output_dir", ".")
-    if "--output-dir" in argv:
-        idx = argv.index("--output-dir")
-        if idx + 1 < len(argv):
-            output_dir = argv[idx + 1]
-    elif "-o" in argv:
-        idx = argv.index("-o")
-        if idx + 1 < len(argv):
-            output_dir = argv[idx + 1]
+    output_dir = _parse_output_dir(argv, config)
 
     project_name = config.get("project_name", "Project")
     out_path = Path(output_dir)
@@ -379,9 +388,9 @@ def _cmd_diff(argv: list[str]):
 
         sections = structural_diff_sections(sections, fmt)
     elif diff_mode == "repo-map":
-        from .watch import _apply_repo_map_diff
+        from .gatherer import _apply_repo_map_to_sections
 
-        sections = _apply_repo_map_diff(sections, snapshot_id, to_snapshot_id, profile)
+        sections = _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile)
 
     content_sections = [s for s in sections if s.content.strip()]
     if not content_sections:
@@ -421,15 +430,7 @@ def _cmd_diff(argv: list[str]):
 def _cmd_diff_all(argv: list[str]):
     config = load_config()
     project_name = config.get("project_name", "Project")
-    output_dir = config.get("output_dir", ".")
-    if "--output-dir" in argv:
-        idx = argv.index("--output-dir")
-        if idx + 1 < len(argv):
-            output_dir = argv[idx + 1]
-    elif "-o" in argv:
-        idx = argv.index("-o")
-        if idx + 1 < len(argv):
-            output_dir = argv[idx + 1]
+    output_dir = _parse_output_dir(argv, config)
 
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)

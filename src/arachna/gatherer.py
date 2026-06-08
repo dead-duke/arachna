@@ -102,9 +102,8 @@ def _apply_repo_map_to_section(
         return header + _format_markdown_sigs(filepath, lang, sigs)
 
 
-def _collect_specific_files(
-    file_paths: list[str],
-    exclude: list[str],
+def _format_file_list(
+    filepaths: list[Path],
     tokenizer: Callable[[str], int],
     fmt: str = "markdown",
     include_binary: bool = False,
@@ -114,21 +113,28 @@ def _collect_specific_files(
     include_header: bool = False,
     mode: str = "full",
 ) -> list[tuple[str, str, int]]:
-    """Format specific files into (path, content, tokens) tuples.
+    """Format a list of file paths into (path, content, tokens) tuples.
 
+    Shared by _format_scanned_files and _collect_specific_files.
     For repo-map mode, reads raw text first, applies extract_signatures,
-    then formats only the signatures into the output format.
+    then formats only the signatures.
+
+    Args:
+        filepaths: List of Path objects to format.
+        tokenizer: Token counting function.
+        fmt: Output format — "markdown", "xml", or "json".
+        include_binary: Whether to include binary files as base64.
+        binary_extensions: Whitelist of binary extensions, or None for all.
+        binary_max_mb: Maximum binary file size in MB.
+        verbose: Whether to print skip reasons.
+        include_header: Whether to prepend dependency/export headers.
+        mode: Collection mode — "full", "headers", or "repo-map".
+
+    Returns:
+        List of (filepath_str, formatted_content, token_count) tuples.
     """
     results = []
-    for filepath_str in file_paths:
-        filepath = Path(filepath_str)
-        if not filepath.exists():
-            if verbose:
-                print(f"  Not found: {filepath}")
-            continue
-        if is_excluded(filepath, exclude):
-            continue
-
+    for filepath in filepaths:
         raw_text = None
         if mode == "repo-map":
             with contextlib.suppress(OSError, UnicodeDecodeError):
@@ -168,35 +174,19 @@ def _format_scanned_files(
 ) -> list[tuple[str, str, int]]:
     """Format scanned files into (path, content, tokens) tuples.
 
-    For repo-map mode, reads raw text first, applies extract_signatures,
-    then formats only the signatures.
+    Delegates to _format_file_list.
     """
-    results = []
-    for filepath in filepaths:
-        raw_text = None
-        if mode == "repo-map":
-            with contextlib.suppress(OSError, UnicodeDecodeError):
-                raw_text = filepath.read_text(encoding="utf-8")
-
-        section = format_file_section(
-            filepath,
-            fmt=fmt,
-            include_binary=include_binary,
-            binary_extensions=binary_extensions,
-            binary_max_mb=binary_max_mb,
-            verbose=verbose,
-            include_header=include_header,
-        )
-        if section:
-            if mode == "repo-map":
-                lang = lang_for_path(filepath)
-                section = _apply_repo_map_to_section(
-                    filepath, section, raw_text, lang, fmt, include_header
-                )
-
-            tokens = tokenizer(section)
-            results.append((str(filepath), section, tokens))
-    return results
+    return _format_file_list(
+        filepaths,
+        tokenizer,
+        fmt=fmt,
+        include_binary=include_binary,
+        binary_extensions=binary_extensions,
+        binary_max_mb=binary_max_mb,
+        verbose=verbose,
+        include_header=include_header,
+        mode=mode,
+    )
 
 
 # ── Repo-map formatting helpers ────────────────────────────────────
@@ -259,7 +249,7 @@ def _collect_directory_sections(
     else:
         target_files = seen_files
 
-    sections = _format_scanned_files(
+    sections = _format_file_list(
         target_files,
         tokenizer=tokenizer,
         fmt=fmt,
@@ -289,9 +279,20 @@ def _collect_file_sections(
     binary_extensions = profile.get("binary_extensions")
     binary_max_mb = profile.get("binary_max_mb", 1.0)
 
-    return _collect_specific_files(
-        profile.get("files", []),
-        exclude,
+    file_paths_str = profile.get("files", [])
+    filepaths = []
+    for filepath_str in file_paths_str:
+        filepath = Path(filepath_str)
+        if not filepath.exists():
+            if verbose:
+                print(f"  Not found: {filepath}")
+            continue
+        if is_excluded(filepath, exclude):
+            continue
+        filepaths.append(filepath)
+
+    return _format_file_list(
+        filepaths,
         tokenizer=tokenizer,
         fmt=fmt,
         include_binary=include_binary,
@@ -593,6 +594,165 @@ def _assemble_content(
         query=query,
         mode=mode,
     )
+
+
+def _apply_repo_map_to_sections(
+    sections: list,
+    snapshot_id: str,
+    to_snapshot_id: str | None,
+    profile: dict,
+) -> list:
+    """Apply repo-map diff transformation to a list of DiffSections.
+
+    Single shared pipeline for repo-map diff — used by watch.py,
+    differ_structural, and cli_watch.
+
+    Reads full source from store/disk, parses into named blocks,
+    and formats repo-map output (signatures + change markers).
+
+    Args:
+        sections: List of DiffSection from watcher.compute_diff().
+        snapshot_id: Source snapshot ID.
+        to_snapshot_id: Target snapshot ID, or None for current disk.
+        profile: Profile dict.
+
+    Returns:
+        List of DiffSection with repo-map formatted content.
+    """
+    from .formatter import lang_for_path
+    from .store import load_snapshot
+
+    manifest = load_snapshot(snapshot_id)
+    snapshot_files = manifest.get("files", {})
+    to_files = None
+    if to_snapshot_id:
+        to_manifest = load_snapshot(to_snapshot_id)
+        to_files = to_manifest.get("files", {})
+
+    result = []
+    for s in sections:
+        if s.type in ("header",) or not s.path:
+            result.append(s)
+            continue
+
+        lang = lang_for_path(Path(s.path))
+
+        if s.type == "modified":
+            old_content = _read_file_from_store(s.path, snapshot_files)
+            new_content = (
+                _read_file_from_disk(s.path)
+                if to_files is None
+                else _read_file_from_store(s.path, to_files)
+            )
+            if old_content is not None and new_content is not None:
+                old_blocks = _parse_blocks_dispatch(old_content, lang)
+                new_blocks = _parse_blocks_dispatch(new_content, lang)
+                s.content = _format_repo_map_diff(s.path, lang, old_blocks, new_blocks)
+        elif s.type == "added":
+            new_content = (
+                _read_file_from_disk(s.path)
+                if to_files is None
+                else _read_file_from_store(s.path, to_files)
+            )
+            if new_content is not None:
+                blocks = _parse_blocks_dispatch(new_content, lang)
+                s.content = _format_repo_map_added(s.path, lang, blocks)
+        elif s.type == "deleted":
+            old_content = _read_file_from_store(s.path, snapshot_files)
+            if old_content is not None:
+                blocks = _parse_blocks_dispatch(old_content, lang)
+                sig_lines = [f"  {sig}" for sig, _body in blocks.values()]
+                if sig_lines:
+                    s.content = (
+                        f"### {s.path}\n\n[DELETED]\n\nRemoved signatures:\n"
+                        + "\n".join(sig_lines)
+                        + "\n"
+                    )
+
+        result.append(s)
+    return result
+
+
+def _parse_blocks_dispatch(text: str, lang: str) -> dict[str, tuple[str, str]]:
+    """Parse source into named blocks — dispatches by language."""
+    from .differ_structural import _parse_c_like_blocks, _parse_python_blocks, _parse_script_blocks
+    from .formatter import C_LIKE_LANGS, SCRIPT_LANGS
+
+    if lang == "python":
+        return _parse_python_blocks(text)
+    elif lang in C_LIKE_LANGS or lang == "gdscript":
+        return _parse_c_like_blocks(text, lang)
+    elif lang in SCRIPT_LANGS:
+        return _parse_script_blocks(text)
+    return {}
+
+
+def _read_file_from_store(path: str, files: dict) -> str | None:
+    """Read file content from store by hash."""
+    from .store import read_object
+
+    for fpath, hash_spec in files.items():
+        if fpath == path:
+            obj_hash = hash_spec[7:]
+            try:
+                return read_object(obj_hash).decode("utf-8")
+            except Exception:
+                return None
+    return None
+
+
+def _read_file_from_disk(path: str) -> str | None:
+    """Read file content from disk."""
+    fp = Path(path)
+    if not fp.is_file():
+        return None
+    try:
+        return fp.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _format_repo_map_diff(
+    path: str,
+    lang: str,
+    old_blocks: dict[str, tuple[str, str]],
+    new_blocks: dict[str, tuple[str, str]],
+) -> str:
+    """Format repo-map diff with +/- markers."""
+    import hashlib
+
+    all_names = set(old_blocks.keys()) | set(new_blocks.keys())
+    parts = [f"### {path}\n"]
+    for name in sorted(all_names):
+        old = old_blocks.get(name)
+        new = new_blocks.get(name)
+        if old is None and new is not None:
+            sig, _body = new
+            parts.append(f"+ {sig}\n")
+        elif old is not None and new is None:
+            sig, _body = old
+            parts.append(f"- {sig}\n")
+        elif old is not None and new is not None:
+            old_sig, old_body = old
+            new_sig, new_body = new
+            sig_changed = old_sig != new_sig
+            body_changed = (
+                hashlib.sha256(old_body.encode()).hexdigest()
+                != hashlib.sha256(new_body.encode()).hexdigest()
+            )
+            if sig_changed:
+                parts.append(f"~ {old_sig}\n  -> {new_sig}\n")
+            elif body_changed:
+                parts.append(f"  {old_sig}  (body changed)\n")
+    return "".join(parts) if len(parts) > 1 else ""
+
+
+def _format_repo_map_added(path: str, lang: str, blocks: dict[str, tuple[str, str]]) -> str:
+    """Format repo-map for added files."""
+    parts = [f"### {path}\n"]
+    for _name, (sig, _body) in blocks.items():
+        parts.append(f"+ {sig}\n")
+    return "".join(parts) if len(parts) > 1 else ""
 
 
 def gather_files(

@@ -72,6 +72,27 @@ _SHEBANG_MAP = {
     "perl": "perl",
 }
 
+# Language sets for dispatch — single source of truth.
+# Used by formatter, differ_structural, splitter, and watch.
+C_LIKE_LANGS = frozenset(
+    {
+        "javascript",
+        "typescript",
+        "rust",
+        "go",
+        "java",
+        "cpp",
+        "c",
+        "csharp",
+        "swift",
+        "kotlin",
+        "php",
+        "zig",
+        "gleam",
+    }
+)
+SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
+
 
 def _lang_from_shebang(first_line: str) -> str:
     if not first_line.startswith("#!"):
@@ -185,25 +206,6 @@ _RE_SCRIPT_EXPORT = re.compile(
     re.MULTILINE,
 )
 
-_C_LIKE_LANGS = frozenset(
-    {
-        "javascript",
-        "typescript",
-        "rust",
-        "go",
-        "java",
-        "cpp",
-        "c",
-        "csharp",
-        "swift",
-        "kotlin",
-        "php",
-        "zig",
-        "gleam",
-    }
-)
-_SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
-
 
 def _generate_header(path: Path, text: str, lang: str) -> str:
     deps: list[str] = []
@@ -211,9 +213,9 @@ def _generate_header(path: Path, text: str, lang: str) -> str:
 
     if lang == "python":
         deps, exports = _parse_python(text)
-    elif lang in _C_LIKE_LANGS or lang == "gdscript":
+    elif lang in C_LIKE_LANGS or lang == "gdscript":
         deps, exports = _parse_c_like(text)
-    elif lang in _SCRIPT_LANGS:
+    elif lang in SCRIPT_LANGS:
         deps, exports = _parse_script(text)
 
     if not deps and not exports:

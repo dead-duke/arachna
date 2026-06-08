@@ -1,8 +1,6 @@
 """Public Watch API for arachna v2.0.0."""
 
-import hashlib
 import logging
-from pathlib import Path
 
 from .api_errors import (
     ProfileNotFoundError,
@@ -19,6 +17,7 @@ from .api_types import (
 )
 from .config import get_profile
 from .differ import compute_diff_stats
+from .gatherer import _apply_repo_map_to_sections
 from .store import (
     create_snapshot as _store_create,
 )
@@ -33,9 +32,6 @@ from .store import (
 )
 from .store import (
     load_snapshot as _store_load,
-)
-from .store import (
-    read_object,
 )
 from .store import (
     stats as _store_stats,
@@ -179,9 +175,11 @@ def compute_diff(
         snapshot_id, profile_dict, fmt=fmt, to_snapshot_id=to_snapshot_id, flat=flat
     )
     if mode == "structural" and sections:
-        sections = _apply_structural_diff(sections, fmt)
+        from .differ_structural import structural_diff_sections
+
+        sections = structural_diff_sections(sections, fmt)
     elif mode == "repo-map" and sections:
-        sections = _apply_repo_map_diff(sections, snapshot_id, to_snapshot_id, profile_dict)
+        sections = _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile_dict)
     api_sections = [
         DiffSection(
             type=s.type,
@@ -204,160 +202,6 @@ def compute_diff(
     return DiffResult(
         snapshot_id=snapshot_id, to_snapshot_id=to_snapshot_id, stats=stats, sections=api_sections
     )
-
-
-def _apply_structural_diff(sections: list, fmt: str) -> list:
-    from .differ_structural import structural_diff_sections
-
-    return structural_diff_sections(sections, fmt)
-
-
-def _apply_repo_map_diff(
-    sections: list, snapshot_id: str, to_snapshot_id: str | None, profile: dict
-) -> list:
-    from .formatter import lang_for_path
-
-    manifest = _store_load(snapshot_id)
-    snapshot_files = manifest.get("files", {})
-    to_files = None
-    if to_snapshot_id:
-        to_manifest = _store_load(to_snapshot_id)
-        to_files = to_manifest.get("files", {})
-
-    result = []
-    for s in sections:
-        if s.type in ("header",) or not s.path:
-            result.append(s)
-            continue
-        lang = lang_for_path(Path(s.path))
-        if s.type == "modified":
-            old_content = _read_file_from_store(s.path, snapshot_files)
-            new_content = (
-                _read_file_from_disk(s.path)
-                if to_files is None
-                else _read_file_from_store(s.path, to_files)
-            )
-            if old_content is not None and new_content is not None:
-                old_blocks = _parse_blocks(old_content, lang)
-                new_blocks = _parse_blocks(new_content, lang)
-                s.content = _format_repo_map_diff(s.path, lang, old_blocks, new_blocks)
-            else:
-                logger.warning("repo-map: cannot read content for %s, keeping text diff", s.path)
-        elif s.type == "added":
-            new_content = (
-                _read_file_from_disk(s.path)
-                if to_files is None
-                else _read_file_from_store(s.path, to_files)
-            )
-            if new_content is not None:
-                blocks = _parse_blocks(new_content, lang)
-                s.content = _format_repo_map_added(s.path, lang, blocks)
-        elif s.type == "deleted":
-            old_content = _read_file_from_store(s.path, snapshot_files)
-            if old_content is not None:
-                blocks = _parse_blocks(old_content, lang)
-                sig_lines = [f"  {sig}" for sig, _body in blocks.values()]
-                if sig_lines:
-                    s.content = (
-                        f"### {s.path}\n\n[DELETED]\n\nRemoved signatures:\n"
-                        + "\n".join(sig_lines)
-                        + "\n"
-                    )
-        result.append(s)
-    return result
-
-
-def _parse_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
-    from .differ_structural import _parse_c_like_blocks, _parse_python_blocks, _parse_script_blocks
-
-    if lang == "python":
-        return _parse_python_blocks(text)
-    elif lang in _C_LIKE_LANGS or lang == "gdscript":
-        return _parse_c_like_blocks(text, lang)
-    elif lang in _SCRIPT_LANGS:
-        return _parse_script_blocks(text)
-    return {}
-
-
-_C_LIKE_LANGS = frozenset(
-    {
-        "javascript",
-        "typescript",
-        "rust",
-        "go",
-        "java",
-        "cpp",
-        "c",
-        "csharp",
-        "swift",
-        "kotlin",
-        "php",
-        "zig",
-        "gleam",
-    }
-)
-_SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
-
-
-def _format_repo_map_diff(
-    path: str,
-    lang: str,
-    old_blocks: dict[str, tuple[str, str]],
-    new_blocks: dict[str, tuple[str, str]],
-) -> str:
-    all_names = set(old_blocks.keys()) | set(new_blocks.keys())
-    parts = [f"### {path}\n"]
-    for name in sorted(all_names):
-        old = old_blocks.get(name)
-        new = new_blocks.get(name)
-        if old is None and new is not None:
-            sig, _body = new
-            parts.append(f"+ {sig}\n")
-        elif old is not None and new is None:
-            sig, _body = old
-            parts.append(f"- {sig}\n")
-        elif old is not None and new is not None:
-            old_sig, old_body = old
-            new_sig, new_body = new
-            sig_changed = old_sig != new_sig
-            body_changed = _hash_body(old_body) != _hash_body(new_body)
-            if sig_changed:
-                parts.append(f"~ {old_sig}\n  -> {new_sig}\n")
-            elif body_changed:
-                parts.append(f"  {old_sig}  (body changed)\n")
-    return "".join(parts) if len(parts) > 1 else ""
-
-
-def _format_repo_map_added(path: str, lang: str, blocks: dict[str, tuple[str, str]]) -> str:
-    parts = [f"### {path}\n"]
-    for _name, (sig, _body) in blocks.items():
-        parts.append(f"+ {sig}\n")
-    return "".join(parts) if len(parts) > 1 else ""
-
-
-def _hash_body(body: str) -> str:
-    return hashlib.sha256(body.encode("utf-8")).hexdigest()
-
-
-def _read_file_from_store(path: str, files: dict) -> str | None:
-    for fpath, hash_spec in files.items():
-        if fpath == path:
-            obj_hash = hash_spec[7:]
-            try:
-                return read_object(obj_hash).decode("utf-8")
-            except Exception:
-                return None
-    return None
-
-
-def _read_file_from_disk(path: str) -> str | None:
-    fp = Path(path)
-    if not fp.is_file():
-        return None
-    try:
-        return fp.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return None
 
 
 def store_stats() -> StoreStats:

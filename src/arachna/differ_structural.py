@@ -2,7 +2,7 @@
 
 For Python: uses ast to parse source into named blocks (functions,
 classes, async functions) and compares them by name.
-For C-like languages (JS/TS/Go/Rust/Java/C/C++/C#/Swift/Kotlin/PHP):
+For C-like languages (JS/TS/Go/Rust/Java/C/C++/C#/Swift/Kotlin/PHP/Zig/Gleam):
 uses regex to find function/class/method declarations with brace
 matching for body extraction.
 For Ruby/Elixir/Lua: regex-based block parsing.
@@ -12,31 +12,14 @@ Used by --mode structural in --diff CLI and compute_diff() API.
 
 Main entry points:
     structural_diff_sections(sections, fmt) -> list[DiffSection]
+    structural_diff_for_lang(old, new, path, lang, fmt) -> str
     structural_diff(old, new, path, lang, fmt) -> str
 """
 
 import re
 from pathlib import Path
 
-from .formatter import lang_for_path
-
-# Language sets for dispatch — mirrors formatter.py and splitter.py
-_C_LIKE_LANGS = frozenset(
-    {
-        "javascript",
-        "typescript",
-        "rust",
-        "go",
-        "java",
-        "cpp",
-        "c",
-        "csharp",
-        "swift",
-        "kotlin",
-        "php",
-    }
-)
-_SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
+from .formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
 
 
 def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
@@ -66,12 +49,65 @@ def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
         lang = lang_for_path(Path(s.path))
         old_content, new_content = _extract_old_new_from_section(s.content)
         if old_content is not None and new_content is not None:
-            structural = structural_diff(old_content, new_content, s.path, lang, fmt)
+            structural = structural_diff_for_lang(old_content, new_content, s.path, lang, fmt)
             if structural.strip():
                 s.content = structural
 
         result.append(s)
     return result
+
+
+def structural_diff_for_lang(
+    old_content: str,
+    new_content: str,
+    path: str,
+    lang: str,
+    fmt: str = "markdown",
+) -> str:
+    """Compute block-level structural diff between two file versions.
+
+    Single dispatch entry point — used by both differ_structural and watch.py.
+    Dispatches to language-specific parsers based on the detected language.
+    Falls back to text-based difflib for unknown languages.
+
+    Args:
+        old_content: Original file content (from snapshot).
+        new_content: Modified file content (current version).
+        path: File path for the diff header.
+        lang: Programming language from lang_for_path().
+        fmt: Output format — "markdown" or "xml".
+
+    Returns:
+        Formatted structural diff string showing MODIFIED, ADDED,
+        and DELETED blocks at the function/class level.
+    """
+    if lang == "python":
+        blocks_old = _parse_python_blocks(old_content)
+        blocks_new = _parse_python_blocks(new_content)
+    elif lang in C_LIKE_LANGS or lang == "gdscript":
+        blocks_old = _parse_c_like_blocks(old_content, lang)
+        blocks_new = _parse_c_like_blocks(new_content, lang)
+    elif lang in SCRIPT_LANGS:
+        blocks_old = _parse_script_blocks(old_content)
+        blocks_new = _parse_script_blocks(new_content)
+    else:
+        return _fallback_diff(old_content, new_content, path, fmt)
+
+    return _format_block_diff(blocks_old, blocks_new, path, fmt)
+
+
+def structural_diff(
+    old_content: str,
+    new_content: str,
+    path: str,
+    lang: str,
+    fmt: str = "markdown",
+) -> str:
+    """Compute block-level structural diff between two file versions.
+
+    Deprecated: use structural_diff_for_lang() instead.
+    """
+    return structural_diff_for_lang(old_content, new_content, path, lang, fmt)
 
 
 def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]:
@@ -123,44 +159,6 @@ def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]
         return None, None
 
     return "\n".join(old_lines), "\n".join(new_lines)
-
-
-def structural_diff(
-    old_content: str,
-    new_content: str,
-    path: str,
-    lang: str,
-    fmt: str = "markdown",
-) -> str:
-    """Compute block-level structural diff between two file versions.
-
-    Dispatches to language-specific parsers based on the detected
-    language. Falls back to text-based difflib for unknown languages.
-
-    Args:
-        old_content: Original file content (from snapshot).
-        new_content: Modified file content (current version).
-        path: File path for the diff header.
-        lang: Programming language from lang_for_path().
-        fmt: Output format — "markdown" or "xml".
-
-    Returns:
-        Formatted structural diff string showing MODIFIED, ADDED,
-        and DELETED blocks at the function/class level.
-    """
-    if lang == "python":
-        blocks_old = _parse_python_blocks(old_content)
-        blocks_new = _parse_python_blocks(new_content)
-    elif lang in _C_LIKE_LANGS or lang == "gdscript":
-        blocks_old = _parse_c_like_blocks(old_content, lang)
-        blocks_new = _parse_c_like_blocks(new_content, lang)
-    elif lang in _SCRIPT_LANGS:
-        blocks_old = _parse_script_blocks(old_content)
-        blocks_new = _parse_script_blocks(new_content)
-    else:
-        return _fallback_diff(old_content, new_content, path, fmt)
-
-    return _format_block_diff(blocks_old, blocks_new, path, fmt)
 
 
 # ── Python block parsing (ast) ─────────────────────────────────────

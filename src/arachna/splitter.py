@@ -4,6 +4,7 @@ import logging
 import re
 from collections.abc import Callable
 
+from .formatter import C_LIKE_LANGS, SCRIPT_LANGS
 from .tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.splitter")
@@ -182,24 +183,6 @@ def _handle_single(
 
 # ── Repo-map: signature extraction ─────────────────────────────────
 
-# Language sets for dispatch — mirrors formatter.py
-_C_LIKE_LANGS = frozenset(
-    {
-        "javascript",
-        "typescript",
-        "rust",
-        "go",
-        "java",
-        "cpp",
-        "c",
-        "csharp",
-        "swift",
-        "kotlin",
-        "php",
-    }
-)
-_SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
-
 # C-like: match function/class/type signatures up to opening brace.
 # [^{]* allows zero chars before { (e.g. "type Handler struct {").
 _RE_C_LIKE_SIG = re.compile(
@@ -228,7 +211,7 @@ def extract_signatures(text: str, lang: str) -> str:
 
     Python: Uses stdlib ast. Strips function/class bodies, replaces
     with '    ...'. Preserves decorators.
-    C-like (JS/TS/Go/Rust/Java/C/C++/C#/Swift/Kotlin/PHP):
+    C-like (JS/TS/Go/Rust/Java/C/C++/C#/Swift/Kotlin/PHP/Zig/Gleam):
     Regex matches declarations up to opening brace.
     Ruby/Elixir/Lua: Regex matches def/function declarations.
     Unknown languages: Returns full text unchanged.
@@ -243,9 +226,9 @@ def extract_signatures(text: str, lang: str) -> str:
     """
     if lang == "python":
         return _extract_python_signatures(text)
-    elif lang in _C_LIKE_LANGS or lang == "gdscript":
+    elif lang in C_LIKE_LANGS or lang == "gdscript":
         return _extract_c_like_signatures(text)
-    elif lang in _SCRIPT_LANGS:
+    elif lang in SCRIPT_LANGS:
         return _extract_script_signatures(text)
     # Fallback: return full file for unknown languages
     return text

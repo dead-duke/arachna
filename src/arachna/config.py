@@ -1,5 +1,6 @@
 """Config loader — reads .arachna.json from project root."""
 
+import functools
 import json
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ DEFAULT_PATTERNS = ["*.py", "*.md", "*.yaml", "*.yml", "*.toml", "*.json", "*.cf
 
 
 def find_config() -> Path | None:
+    """Find .arachna.json by walking up from cwd."""
     cwd = Path.cwd()
     for parent in [cwd, *cwd.parents]:
         cfg = parent / ".arachna.json"
@@ -40,7 +42,9 @@ def find_config() -> Path | None:
     return None
 
 
+@functools.lru_cache(maxsize=1)
 def load_config() -> dict[str, Any]:
+    """Load config from .arachna.json. Cached per cwd — call cache_clear() if config changes."""
     cfg_path = find_config()
     if not cfg_path:
         return _default_config()
