@@ -40,18 +40,23 @@ except ImportError:
         def _unlock_file(f):
             msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
     except ImportError:
-        import threading
-
-        _fallback_lock = threading.Lock()
 
         def _lock_file(f):
-            _fallback_lock.acquire()
+            lock_path = Path(str(f.name) + ".lock")
+            try:
+                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                os.close(fd)
+                f._arachna_lock_path = str(lock_path)
+            except OSError:
+                raise
 
         def _unlock_file(f):
-            _fallback_lock.release()
+            if hasattr(f, "_arachna_lock_path"):
+                with contextlib.suppress(OSError):
+                    Path(f._arachna_lock_path).unlink()
 
         logger.warning(
-            "Neither fcntl nor msvcrt available — using threading.Lock. Merge mode will not be safe across multiple processes."
+            "Neither fcntl nor msvcrt available — using O_CREAT|O_EXCL file lock. Merge mode may have reduced concurrency."
         )
 
 
@@ -206,14 +211,10 @@ def _write_diff_parts(
     contents = [s.content for s in diff_sections if s.content.strip()]
     if not contents:
         return []
-
     parts = split_sections(contents, max_tokens, separator="\n\n", tokenizer=tokenizer)
     if not parts:
         return []
-
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
-
-    # Build per-part section indices by matching content
     section_indices = []
     part_stats = []
     for part_content in parts:
@@ -224,26 +225,21 @@ def _write_diff_parts(
         section_indices.append(indices)
         part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
         part_stats.append(compute_diff_stats(part_sections))
-
     created = []
     total_parts = len(parts)
     for i, part_content in enumerate(parts, 1):
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
-
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
         toc = _build_toc(named_sections, indices, i, total_parts)
         header = _diff_part_header(part_stats[i - 1], i, total_parts)
-
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
             f.write(header)
             f.write(toc)
             f.write(part_content)
-
         created.append(str(filepath))
-
     return created
 
 
@@ -287,8 +283,6 @@ def collect(
         save_cache(out_path, new_cache)
     if not parts:
         return [], {}
-
-    # Build section indices by matching content
     section_indices = []
     for part_content in parts:
         indices = []
@@ -296,7 +290,6 @@ def collect(
             if content.strip() in part_content:
                 indices.append(idx)
         section_indices.append(indices)
-
     created, tokens_by_file = _write_parts(
         parts,
         section_indices,

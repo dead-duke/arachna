@@ -14,6 +14,7 @@ def test_parse_python_blocks():
         "import os\n\ndef foo():\n    return 1\n\nclass Bar:\n    def method(self):\n        pass\n"
     )
     blocks = _parse_python_blocks(text)
+    assert blocks is not None
     assert "foo" in blocks
     assert "Bar" in blocks
     sig, body = blocks["foo"]
@@ -28,9 +29,9 @@ def test_parse_python_blocks_empty():
 
 
 def test_parse_python_blocks_syntax_error():
-    """Syntax error returns empty dict."""
+    """Syntax error returns None (for fallback to text diff)."""
     blocks = _parse_python_blocks("def foo(:\n    pass\n")
-    assert blocks == {}
+    assert blocks is None
 
 
 def test_structural_diff_python_modified():

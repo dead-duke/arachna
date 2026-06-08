@@ -2,18 +2,11 @@
 
 For Python: uses ast to parse source into named blocks (functions,
 classes, async functions) and compares them by name.
-For C-like languages (JS/TS/Go/Rust/Java/C/C++/C#/Swift/Kotlin/PHP/Zig/Gleam):
-uses regex to find function/class/method declarations with brace
-matching for body extraction.
+For C-like languages: uses regex to find declarations with brace
+matching for body extraction. Strings and comments are stripped
+before brace matching to handle braces in literals.
 For Ruby/Elixir/Lua: regex-based block parsing.
 For all other languages: falls back to text-based difflib.
-
-Used by --mode structural in --diff CLI and compute_diff() API.
-
-Main entry points:
-    structural_diff_sections(sections, fmt) -> list[DiffSection]
-    structural_diff_for_lang(old, new, path, lang, fmt) -> str
-    structural_diff(old, new, path, lang, fmt) -> str
 """
 
 import re
@@ -21,9 +14,19 @@ from pathlib import Path
 
 from .formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
 
+_RE_STRINGS = re.compile(r'"[^"]*"|\'[^\']*\'|`[^`]*`')
+_RE_SINGLE_COMMENT = re.compile(r"//[^\n]*")
+_RE_MULTI_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+
+
+def _strip_strings_and_comments(text: str) -> str:
+    text = _RE_STRINGS.sub(" ", text)
+    text = _RE_SINGLE_COMMENT.sub(" ", text)
+    text = _RE_MULTI_COMMENT.sub(" ", text)
+    return text
+
 
 def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
-    """Apply structural diff to a list of DiffSections from watcher."""
     result = []
     for s in sections:
         if s.type != "modified" or not s.path:
@@ -42,13 +45,11 @@ def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
 def structural_diff_for_lang(
     old_content: str, new_content: str, path: str, lang: str, fmt: str = "markdown"
 ) -> str:
-    """Compute block-level structural diff between two file versions.
-
-    Single dispatch entry point — used by both differ_structural and watch.py.
-    """
     if lang == "python":
         blocks_old = _parse_python_blocks(old_content)
         blocks_new = _parse_python_blocks(new_content)
+        if blocks_old is None or blocks_new is None:
+            return _fallback_diff(old_content, new_content, path, fmt)
     elif lang in C_LIKE_LANGS or lang == "gdscript":
         blocks_old = _parse_c_like_blocks(old_content, lang)
         blocks_new = _parse_c_like_blocks(new_content, lang)
@@ -63,12 +64,10 @@ def structural_diff_for_lang(
 def structural_diff(
     old_content: str, new_content: str, path: str, lang: str, fmt: str = "markdown"
 ) -> str:
-    """Deprecated: use structural_diff_for_lang() instead."""
     return structural_diff_for_lang(old_content, new_content, path, lang, fmt)
 
 
 def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]:
-    """Parse a markdown diff section into old and new content."""
     old_lines = []
     new_lines = []
     in_removed = False
@@ -99,17 +98,13 @@ def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]
     return "\n".join(old_lines), "\n".join(new_lines)
 
 
-# ── Python block parsing (ast) ─────────────────────────────────────
-
-
-def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]]:
-    """Parse Python source into {name: (signature, body)} blocks."""
+def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]] | None:
     import ast as _ast
 
     try:
         tree = _ast.parse(text)
     except SyntaxError:
-        return {}
+        return None
     lines = text.split("\n")
     blocks = {}
     for node in _ast.iter_child_nodes(tree):
@@ -129,8 +124,6 @@ def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]]:
     return blocks
 
 
-# ── C-like block parsing (regex with named groups) ─────────────────
-
 _RE_C_LIKE_BLOCK = re.compile(
     r"^("
     r"\s*(?:export\s+)?(?:async\s+)?function\s+(?P<name>\w+)[^{]*"
@@ -149,9 +142,9 @@ _RE_C_LIKE_BLOCK = re.compile(
     r"|"
     r"\s*(?:export\s+)?(?:async\s+)?impl\s+(?P<name8>\w+)[^{]*"
     r"|"
-    r"\s*type\s+(?P<name9>\w+)\s+\w+[^{]*"  # type Handler struct {
+    r"\s*type\s+(?P<name9>\w+)\s+\w+[^{]*"
     r"|"
-    r"\s*type\s+(?P<name10>\w+)[^{]*"  # type MyInt int
+    r"\s*type\s+(?P<name10>\w+)[^{]*"
     r"|"
     r"\s*public\s+class\s+(?P<name11>\w+)[^{]*"
     r"|"
@@ -166,27 +159,11 @@ _RE_C_LIKE_BLOCK = re.compile(
     re.MULTILINE,
 )
 
-# Map group index to name group key — name15 maps to "name15", etc.
-_C_LIKE_NAME_GROUPS = [f"name{i}" if i > 1 else "name" for i in range(1, 16)]
-_C_LIKE_NAME_GROUPS[0] = "name"  # group 1 uses "name"
-_C_LIKE_NAME_GROUPS[1] = "name2"  # group 2 uses "name2"
-# Actually: named groups are indexed by their position in the regex.
-# "name" is group 1, "name2" is group 2, ..., "name15" is group 15.
-# In Python re, named groups are numbered sequentially among all groups.
-# So: name=1, name2=2, name3=3, ..., name15=15.
-
 
 def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
-    """Parse C-like source into {name: (signature, body)} blocks.
-
-    Uses a single regex with named capture groups for each declaration type.
-    Sig = full match (group 0). Name = the one named group that matched.
-    Bodies are extracted via brace matching.
-    """
     blocks = {}
     for m in _RE_C_LIKE_BLOCK.finditer(text):
         sig = m.group(0).strip()
-        # Find which named group matched
         name = None
         for group_name in [
             "name",
@@ -211,10 +188,8 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
                     break
             except IndexError:
                 continue
-
         if name is None:
             continue
-
         body_start = m.end()
         if body_start < len(text) and text[body_start] == "{":
             body = _extract_braced_block(text, body_start)
@@ -225,27 +200,33 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
 
 
 def _extract_braced_block(text: str, start: int) -> str:
-    """Extract text from opening brace to matching closing brace."""
     if start >= len(text) or text[start] != "{":
         return ""
+    clean = _strip_strings_and_comments(text[start:])
     depth = 0
-    i = start
-    while i < len(text):
-        if text[i] == "{":
+    i = 0
+    while i < len(clean):
+        if clean[i] == "{":
             depth += 1
-        elif text[i] == "}":
+        elif clean[i] == "}":
             depth -= 1
             if depth == 0:
-                return text[start : i + 1]
+                orig_depth = 0
+                orig_i = start
+                while orig_i < len(text):
+                    if text[orig_i] == "{":
+                        orig_depth += 1
+                    elif text[orig_i] == "}":
+                        orig_depth -= 1
+                        if orig_depth == 0:
+                            return text[start : orig_i + 1]
+                    orig_i += 1
+                return text[start:]
         i += 1
     return text[start:]
 
 
-# ── Script block parsing (regex) ───────────────────────────────────
-
-
 def _parse_script_blocks(text: str) -> dict[str, tuple[str, str]]:
-    """Parse Ruby/Elixir/Lua source into {name: (signature, body)} blocks."""
     sig_pattern = re.compile(
         r"^(\s*(?:def\s+(?:self\.)?(\w+[?!]?).*|"
         r"defmodule\s+([\w.]+).*|"
@@ -263,11 +244,7 @@ def _parse_script_blocks(text: str) -> dict[str, tuple[str, str]]:
     return blocks
 
 
-# ── Diff formatting ────────────────────────────────────────────────
-
-
 def _format_block_diff(old_blocks: dict, new_blocks: dict, path: str, fmt: str) -> str:
-    """Compare two block dicts and produce formatted structural diff."""
     all_names = set(old_blocks.keys()) | set(new_blocks.keys())
     parts = [f"### {path}\n"]
     for name in sorted(all_names):
@@ -304,7 +281,6 @@ def _format_block_diff(old_blocks: dict, new_blocks: dict, path: str, fmt: str) 
 
 
 def _block_label(name: str, signature: str) -> str:
-    """Generate a human-readable label for a code block."""
     if signature.startswith("class ") or signature.startswith("interface "):
         return f"class {name}"
     elif (
@@ -319,7 +295,6 @@ def _block_label(name: str, signature: str) -> str:
 
 
 def _fallback_diff(old: str, new: str, path: str, fmt: str) -> str:
-    """Fallback to text-based difflib diff for unknown languages."""
     from .differ import compute_diff
 
     if not old and not new:

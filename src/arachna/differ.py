@@ -1,33 +1,4 @@
-"""LLM-optimized differ for Watch snapshots.
-
-Generates human-readable diffs instead of unified diff format.
-Uses difflib.SequenceMatcher to find changed blocks.
-
-Markdown format (default, for chat):
-
-    ### src/main.py
-
-    REMOVED lines 45-47:
-        total = 0
-        for item in items:
-            total += item.price
-
-    ADDED lines 45:
-        return sum(item.price for item in items)
-
-XML format (for programmatic processing, --format xml):
-
-    <file path="src/main.py">
-      <removed>
-        total = 0
-        for item in items:
-            total += item.price
-      </removed>
-      <added>
-        return sum(item.price for item in items)
-      </added>
-    </file>
-"""
+"""LLM-optimized differ for Watch snapshots."""
 
 import difflib
 import logging
@@ -41,13 +12,11 @@ logger = logging.getLogger("arachna.differ")
 
 @dataclass
 class DiffSection:
-    """A single file change in a diff."""
-
-    type: str  # "modified" | "added" | "deleted" | "renamed" | "moved"
+    type: str
     path: str
     content: str = ""
-    old_path: str | None = None  # for rename/move: previous path
-    similarity: float | None = None  # 0.0-1.0 for rename/move detection
+    old_path: str | None = None
+    similarity: float | None = None
 
 
 def compute_diff(
@@ -56,39 +25,24 @@ def compute_diff(
     path: str,
     fmt: str = "markdown",
     max_tokens: int | None = None,
+    tokenizer=None,
 ) -> str:
-    """Compute LLM-friendly diff between two file versions.
-
-    Args:
-        old_content: file content in the snapshot.
-        new_content: current file content.
-        path: file path for the header.
-        fmt: "markdown" or "xml".
-        max_tokens: optional token limit for added file content.
-            If set and new_content exceeds max_tokens, content is
-            truncated with a warning. Default: None (no limit).
-
-    Returns:
-        Formatted diff string, or empty string if unchanged.
-    """
     if old_content == new_content:
         return ""
+    tk = tokenizer if tokenizer is not None else count_tokens
 
     old_lines = old_content.splitlines(keepends=True)
     new_lines = new_content.splitlines(keepends=True)
 
     if not old_lines and new_lines:
-        return _format_added(path, new_content, fmt, max_tokens=max_tokens)
-
+        return _format_added(path, new_content, fmt, max_tokens=max_tokens, tokenizer=tk)
     if old_lines and not new_lines:
         return _format_deleted(path, fmt)
 
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
     blocks = matcher.get_opcodes()
-
     removed_parts = []
     added_parts = []
-
     for tag, i1, i2, j1, j2 in blocks:
         if tag == "replace":
             removed_parts.append(_format_line_range(i1, i2, old_lines))
@@ -97,17 +51,14 @@ def compute_diff(
             removed_parts.append(_format_line_range(i1, i2, old_lines))
         elif tag == "insert":
             added_parts.append(_format_line_range(j1, j2, new_lines))
-
     if not removed_parts and not added_parts:
         return ""
-
     if fmt == "xml":
         return _format_xml_diff(path, removed_parts, added_parts)
     return _format_markdown_diff(path, removed_parts, added_parts)
 
 
 def _format_line_range(start: int, end: int, lines: list[str]) -> str:
-    """Format a range of lines: 'lines 45-47:\\n    ...'"""
     if start == end:
         return ""
     line_nums = f"lines {start + 1}"
@@ -118,12 +69,7 @@ def _format_line_range(start: int, end: int, lines: list[str]) -> str:
     return f"{line_nums}:\n{indented}"
 
 
-def _format_markdown_diff(
-    path: str,
-    removed_parts: list[str],
-    added_parts: list[str],
-) -> str:
-    """Format diff in markdown."""
+def _format_markdown_diff(path: str, removed_parts: list[str], added_parts: list[str]) -> str:
     lines = [f"### {path}\n"]
     for part in removed_parts:
         lines.append(f"REMOVED {part}\n")
@@ -132,12 +78,7 @@ def _format_markdown_diff(
     return "\n".join(lines)
 
 
-def _format_xml_diff(
-    path: str,
-    removed_parts: list[str],
-    added_parts: list[str],
-) -> str:
-    """Format diff in XML with proper escaping."""
+def _format_xml_diff(path: str, removed_parts: list[str], added_parts: list[str]) -> str:
     escaped_path = _xml_escape(path)
     lines = [f'<file path="{escaped_path}">']
     if removed_parts:
@@ -161,31 +102,29 @@ def _format_added(
     content: str,
     fmt: str,
     max_tokens: int | None = None,
+    tokenizer=None,
 ) -> str:
-    """Format a newly added file.
-
-    If max_tokens is set and content exceeds it, content is truncated
-    with a warning message. Truncation message length is accounted for
-    so total output does not exceed max_tokens.
-    """
-    if max_tokens is not None and count_tokens(content) > max_tokens:
+    tk = tokenizer if tokenizer is not None else count_tokens
+    if max_tokens is not None and tk(content) > max_tokens:
         truncation_msg = "\n# ... truncated (exceeds token limit) ...\n"
-        msg_tokens = count_tokens(truncation_msg)
-        limit = max(0, (max_tokens - msg_tokens) * 4)
-        content = content[:limit] + truncation_msg
+        lo, hi = 0, len(content)
+        iterations = 0
+        while lo < hi and iterations < 100:
+            iterations += 1
+            mid = (lo + hi + 1) // 2
+            if tk(content[:mid] + truncation_msg) <= max_tokens:
+                lo = mid
+            else:
+                hi = mid - 1
+        content = content[:lo] + truncation_msg
         logger.warning("Added file %s exceeds max_tokens=%s — truncated", path, max_tokens)
-
     if fmt == "xml":
         escaped_path = _xml_escape(path)
-        return (
-            f'<file path="{escaped_path}">\n  <added>\n'
-            f"    {_xml_escape(content)}\n  </added>\n</file>\n"
-        )
+        return f'<file path="{escaped_path}">\n  <added>\n    {_xml_escape(content)}\n  </added>\n</file>\n'
     return f"### {path}\n\nADDED (new file):\n\n```\n{content}\n```\n"
 
 
 def _format_deleted(path: str, fmt: str) -> str:
-    """Format a deleted file."""
     if fmt == "xml":
         escaped_path = _xml_escape(path)
         return f'<file path="{escaped_path}">\n  <removed>\n    [DELETED]\n  </removed>\n</file>\n'
@@ -193,18 +132,7 @@ def _format_deleted(path: str, fmt: str) -> str:
 
 
 def compute_diff_stats(diffs: list[DiffSection]) -> dict:
-    """Return aggregate statistics for a list of DiffSections.
-
-    Returns:
-        {modified: N, added: N, deleted: N, renamed: N, moved: N, tokens: N}
-    """
-    modified = 0
-    added = 0
-    deleted = 0
-    renamed = 0
-    moved = 0
-    tokens = 0
-
+    modified = added = deleted = renamed = moved = tokens = 0
     for d in diffs:
         if d.type == "modified":
             modified += 1
@@ -217,7 +145,6 @@ def compute_diff_stats(diffs: list[DiffSection]) -> dict:
         elif d.type == "moved":
             moved += 1
         tokens += count_tokens(d.content)
-
     return {
         "modified": modified,
         "added": added,

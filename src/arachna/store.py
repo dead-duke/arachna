@@ -6,10 +6,15 @@ Storage layout under .arachna/ (created lazily on first write):
       .gitignore          # "*" — never commit this directory
       store/
         objects/
-          ab/cd1234...    # zlib-compressed file content
+          ab/cd1234...    # zlib-compressed file content (atomic write)
         snapshots/
           20260603T103000.json   # manifest
         HEAD                     # text file with latest snapshot ID
+
+Objects are stored by SHA256 hash. Atomic writes via tempfile + os.replace.
+Snapshots are NOT atomic: objects are written first, then manifest.
+If process crashes between object write and manifest write, orphan objects
+remain — gc() cleans them up.
 """
 
 import contextlib
@@ -31,15 +36,9 @@ _SNAPSHOT_ID_RE = re.compile(r"^[\w][\w.-]*$")
 
 
 def validate_snapshot_id(sid: str) -> None:
-    """Validate snapshot ID against safe pattern.
-
-    Raises ValueError if ID contains path traversal characters or is empty.
-    """
     if not sid or not _SNAPSHOT_ID_RE.match(sid):
         raise ValueError(
-            f"Invalid snapshot ID: '{sid}'. "
-            f"Must match pattern: letters, digits, underscore, dot, hyphen. "
-            f"Cannot be empty or contain path separators."
+            f"Invalid snapshot ID: '{sid}'. Must match pattern: letters, digits, underscore, dot, hyphen. Cannot be empty or contain path separators."
         )
 
 
@@ -48,7 +47,6 @@ def _store_root(root: Path | None = None) -> Path:
         root = Path.cwd()
     arachna_dir = root / ".arachna"
     gitignore = arachna_dir / ".gitignore"
-
     if not arachna_dir.is_dir():
         arachna_dir.mkdir(parents=True, exist_ok=True)
         try:
@@ -63,7 +61,6 @@ def _store_root(root: Path | None = None) -> Path:
                 raise
         except OSError:
             gitignore.write_text("*\n")
-
     store_dir = arachna_dir / "store"
     store_dir.mkdir(parents=True, exist_ok=True)
     return store_dir
@@ -87,7 +84,6 @@ def write_object(data: bytes, root: Path | None = None) -> str:
         return object_hash
     compressed = zlib.compress(data)
     content = compressed if len(compressed) < len(data) else data
-    # Atomic write via tempfile + os.replace
     try:
         fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".obj_", suffix=".tmp")
         try:
@@ -130,23 +126,24 @@ def create_snapshot(
     command: dict[str, str] | None = None,
     root: Path | None = None,
 ) -> str:
+    """Create a snapshot. Not atomic — objects written first, then manifest.
+
+    If process crashes between object writes and manifest write, orphan
+    objects remain in store/. Run gc() to clean them up.
+    """
     if name is not None:
         validate_snapshot_id(name)
-
     store_dir = _store_root(root)
     snapshots_dir = store_dir / "snapshots"
     snapshots_dir.mkdir(parents=True, exist_ok=True)
-
     snapshot_id = name if name else datetime.now().strftime("%Y%m%dT%H%M%S")
     manifest_path = snapshots_dir / f"{snapshot_id}.json"
     if name and manifest_path.exists():
         raise SnapshotExistsError(f"Snapshot '{name}' already exists.")
-
     file_hashes = {}
     for path, content in files.items():
         obj_hash = write_object(content.encode("utf-8"), root=root)
         file_hashes[path] = f"sha256:{obj_hash}"
-
     manifest = {
         "id": snapshot_id,
         "name": name,
@@ -158,7 +155,6 @@ def create_snapshot(
         manifest["pre_commands"] = pre_commands
     if command:
         manifest["command"] = command
-
     manifest_path.write_text(json.dumps(manifest, indent=2))
     head_path = store_dir / "HEAD"
     head_path.write_text(snapshot_id)
@@ -179,10 +175,8 @@ def update_snapshot(
     for path, content in files.items():
         obj_hash = write_object(content.encode("utf-8"), root=root)
         file_hashes[path] = f"sha256:{obj_hash}"
-
     manifest["files"] = file_hashes
     manifest["created"] = datetime.now().isoformat()
-
     if profile_dict is not None:
         manifest["profile"] = profile_dict
     if pre_commands is not None:
@@ -193,11 +187,9 @@ def update_snapshot(
         manifest["command"] = command
     elif "command" in manifest:
         del manifest["command"]
-
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
     manifest_path.write_text(json.dumps(manifest, indent=2))
-
     head_path = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
         head_path.write_text(snapshot_id)

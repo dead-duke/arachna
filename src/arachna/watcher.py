@@ -18,6 +18,8 @@ from .store import update_snapshot as store_update_snapshot
 
 logger = logging.getLogger("arachna.watcher")
 
+_MAX_SIMILARITY_SIZE = 1_048_576
+
 
 def _normalize_path(path: str) -> str:
     path = path.replace("\\", "/")
@@ -48,7 +50,6 @@ def _read_profile_files(profile: dict) -> dict[str, str]:
 def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
     exclude = _get_exclude_patterns(profile)
     filepaths = _scan_directories(profile, exclude)
-
     files = {}
     for fp in filepaths:
         try:
@@ -61,10 +62,8 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
             logger.warning("Skipping file outside project root: %s", fp)
             continue
         files[rel_path] = content
-
     profile_files = _read_profile_files(profile)
     files.update(profile_files)
-
     pre_commands_data = {}
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd, allow_file_args=True)
@@ -74,7 +73,6 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
             pre_commands_data[f"pre: {label}"] = f"sha256:{obj_hash}"
         else:
             logger.warning("pre_command produced no output: %s", cmd[:80])
-
     command_data = {}
     cmd = profile.get("command")
     if cmd:
@@ -84,7 +82,6 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
             command_data["command output"] = f"sha256:{obj_hash}"
         else:
             logger.warning("command produced no output: %s", cmd[:80])
-
     return files, pre_commands_data, command_data
 
 
@@ -227,13 +224,18 @@ def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
     remaining_added = {p: c for p, c in added.items() if p not in matched_added}
 
     for del_path, del_content in remaining_deleted.items():
-        if _is_binary_content(del_content):
+        if (
+            _is_binary_content(del_content)
+            or len(del_content.encode("utf-8")) > _MAX_SIMILARITY_SIZE
+        ):
             continue
         del_ext = Path(del_path).suffix
         candidates = {
             p: c
             for p, c in remaining_added.items()
-            if Path(p).suffix == del_ext and p not in matched_added
+            if Path(p).suffix == del_ext
+            and p not in matched_added
+            and len(c.encode("utf-8")) <= _MAX_SIMILARITY_SIZE
         }
         for add_path, add_content in list(candidates.items()):
             if _is_binary_content(add_content):

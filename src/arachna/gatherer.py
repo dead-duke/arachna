@@ -24,7 +24,6 @@ def _collect_pre_commands(
     commands = profile.get("pre_commands", [])
     if not commands:
         return results
-
     for cmd, output in run_pre_commands(commands):
         if output.strip():
             tokens = tokenizer(output)
@@ -33,10 +32,7 @@ def _collect_pre_commands(
     return results
 
 
-def _scan_directories(
-    profile: dict[str, Any],
-    exclude: list[str],
-) -> list[Path]:
+def _scan_directories(profile: dict[str, Any], exclude: list[str]) -> list[Path]:
     seen = []
     for directory in profile.get("directories", []):
         dir_path = Path(directory)
@@ -127,28 +123,8 @@ def _format_file_list(
     return results
 
 
-def _format_scanned_files(
-    filepaths: list[Path],
-    tokenizer: Callable[[str], int],
-    fmt: str = "markdown",
-    include_binary: bool = False,
-    binary_extensions: list[str] | None = None,
-    binary_max_mb: float = 1.0,
-    verbose: bool = False,
-    include_header: bool = False,
-    mode: str = "full",
-) -> list[tuple[str, str, int]]:
-    return _format_file_list(
-        filepaths,
-        tokenizer,
-        fmt=fmt,
-        include_binary=include_binary,
-        binary_extensions=binary_extensions,
-        binary_max_mb=binary_max_mb,
-        verbose=verbose,
-        include_header=include_header,
-        mode=mode,
-    )
+def _format_scanned_files(*args, **kwargs) -> list[tuple[str, str, int]]:
+    return _format_file_list(*args, **kwargs)
 
 
 def _format_markdown_sigs(filepath: Path, lang: str, sigs: str) -> str:
@@ -246,26 +222,31 @@ def _collect_file_sections(
 
 
 def _collect_import_graph(named_sections: list[tuple[str, str, int]]) -> dict[str, list[str]]:
-    return _build_import_graph(named_sections)
+    """Build {filepath: [imported_modules]} dict.
 
-
-def _build_import_graph(named_sections: list[tuple[str, str, int]]) -> dict[str, list[str]]:
+    First tries to extract deps from 'deps:' line in section content
+    (already formatted by format_file_section). Falls back to
+    _generate_header for sections without pre-formatted headers.
+    """
     graph: dict[str, list[str]] = {}
     for filepath, content, _tokens in named_sections:
-        lang = lang_for_path(Path(filepath))
-        header = _generate_header(Path(filepath), content, lang)
-        if not header:
-            graph[filepath] = []
-            continue
-        for line in header.split("\n"):
-            if line.startswith("deps: "):
-                deps_str = line[6:]
-                deps = [d.strip() for d in deps_str.split(",") if d.strip()]
-                graph[filepath] = deps
-                break
-        else:
-            graph[filepath] = []
+        deps = _extract_deps_from_content(content)
+        if deps is None:
+            # Fallback: parse with _generate_header
+            lang = lang_for_path(Path(filepath))
+            header = _generate_header(Path(filepath), content, lang)
+            deps = _extract_deps_from_content(header) or []
+        graph[filepath] = deps
     return graph
+
+
+def _extract_deps_from_content(content: str) -> list[str] | None:
+    """Extract deps from a 'deps: ...' line. Returns None if not found."""
+    for line in content.split("\n"):
+        if line.startswith("deps: "):
+            deps_str = line[6:]
+            return [d.strip() for d in deps_str.split(",") if d.strip()]
+    return None
 
 
 def _filter_by_query(
@@ -289,9 +270,7 @@ def _filter_by_query(
                 score += 10
             if word in content_lower:
                 score += 3
-        lang = lang_for_path(Path(filepath))
-        header = _generate_header(Path(filepath), content, lang)
-        for line in header.split("\n"):
+        for line in content.split("\n"):
             if line.startswith("exports: "):
                 exports_str = line[9:]
                 for word in query_words:
@@ -518,7 +497,8 @@ def _parse_blocks_dispatch(text: str, lang: str) -> dict[str, tuple[str, str]]:
     from .formatter import C_LIKE_LANGS, SCRIPT_LANGS
 
     if lang == "python":
-        return _parse_python_blocks(text)
+        blocks = _parse_python_blocks(text)
+        return blocks if blocks is not None else {}
     elif lang in C_LIKE_LANGS or lang == "gdscript":
         return _parse_c_like_blocks(text, lang)
     elif lang in SCRIPT_LANGS:

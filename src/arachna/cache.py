@@ -21,6 +21,9 @@ Smart hybrid algorithm:
        FALSE POSITIVE (git checkout, touch, etc.) — update mtime_ns, skip.
    If hash != cached.hash:
        REAL CHANGE — mark as modified.
+
+NOTE: get_changed_files mutates the cache dict to update mtime_ns
+for false positives. Callers must save the mutated cache after use.
 """
 
 import contextlib
@@ -31,27 +34,12 @@ import tempfile
 from pathlib import Path
 
 _CACHE_FILE = ".arachna_cache.json"
-
-# Cache format version — bumped on breaking changes.
 _VERSION = 2
-
-# 10 MB — баланс между скоростью хеширования и покрытием:
-# большинство исходных файлов в проектах меньше 10 MB.
-# Configurable via ARACHNA_MAX_HASH_SIZE env var (in bytes).
 _MAX_HASH_SIZE = int(os.environ.get("ARACHNA_MAX_HASH_SIZE", 10 * 1024 * 1024))
-
-# 1ms tolerance for mtime_ns comparison.
-# Filesystems with microsecond precision may have sub-microsecond
-# differences on repeated stat() calls. 1ms is safe: no real
-# modification happens within 1ms of the previous stat.
 _MTIME_NS_TOLERANCE = 1_000_000
 
 
 def _file_hash(filepath: Path) -> str | None:
-    """Compute SHA256 hash of file contents.
-
-    Returns None for files > _MAX_HASH_SIZE or unreadable files.
-    """
     try:
         if filepath.stat().st_size > _MAX_HASH_SIZE:
             return None
@@ -62,11 +50,6 @@ def _file_hash(filepath: Path) -> str | None:
 
 
 def load_cache(out_dir: Path) -> dict[str, dict]:
-    """Load {filepath: {mtime_ns, size, hash}} cache.
-
-    Automatically migrates from v1 format ({mtime, hash}) —
-    old entries are invalidated and recomputed.
-    """
     cf = out_dir / _CACHE_FILE
     if cf.exists():
         with contextlib.suppress(json.JSONDecodeError, OSError):
@@ -75,15 +58,12 @@ def load_cache(out_dir: Path) -> dict[str, dict]:
                 version = data.get("_version", 1)
                 files = data.get("files", {})
                 if version < _VERSION:
-                    # Migration from v1: old format {path: {mtime, hash}}
-                    # Invalidate all entries — they'll be recomputed.
                     return {}
                 return files
     return {}
 
 
 def save_cache(out_dir: Path, cache: dict[str, dict]):
-    """Atomically write cache to disk."""
     out_dir.mkdir(parents=True, exist_ok=True)
     cache_path = out_dir / _CACHE_FILE
     payload = {"_version": _VERSION, "files": cache}
@@ -98,7 +78,6 @@ def save_cache(out_dir: Path, cache: dict[str, dict]):
                 os.unlink(tmp_path)
             raise
     except OSError:
-        # Fallback: direct write
         cache_path.write_text(json.dumps(payload, indent=2))
 
 
@@ -109,17 +88,8 @@ def get_changed_files(
     """Compare files against cache using smart hybrid algorithm.
 
     Returns (changed, new, deleted) lists.
-
-    Algorithm for each file:
-    1. stat() → size, mtime_ns
-    2. If file NOT in cache → NEW
-    3. If size == cached.size AND abs(mtime_ns - cached.mtime_ns) < 1ms:
-       FAST PATH — file unchanged. Skip.
-    4. Else — compute SHA256.
-       If hash == cached.hash:
-           FALSE POSITIVE — update cached mtime_ns, skip.
-       If hash != cached.hash:
-           REAL CHANGE — marked as MODIFIED.
+    Mutates cache dict to update mtime_ns for false positives.
+    Callers must save the mutated cache after use.
     """
     changed = []
     new = []
@@ -130,7 +100,6 @@ def get_changed_files(
         seen.add(key)
         if not fp.exists():
             continue
-
         try:
             st = fp.stat()
         except OSError:
@@ -147,7 +116,6 @@ def get_changed_files(
         cached_size = entry.get("size")
         cached_mtime_ns = entry.get("mtime_ns")
 
-        # Fast path: size and mtime_ns match within tolerance
         if (
             cached_size is not None
             and cached_mtime_ns is not None
@@ -156,26 +124,20 @@ def get_changed_files(
         ):
             continue
 
-        # Slow path: compute SHA256 to check for real change
         old_hash = entry.get("hash")
         new_hash = _file_hash(fp)
 
         if new_hash is not None and old_hash is not None and new_hash == old_hash:
-            # False positive — content unchanged (git checkout, touch, etc.)
-            # Update mtime_ns to avoid re-hashing next time.
             cache[key]["mtime_ns"] = mtime_ns
             continue
 
-        # Real change (or can't compare hashes — trust mtime)
         changed.append(fp)
 
     deleted = [Path(k) for k in cache if k not in seen]
-
     return changed, new, deleted
 
 
 def update_cache(filepaths: list[Path], cache: dict[str, dict]) -> dict[str, dict]:
-    """Update cache with current mtime_ns, size, and content hashes."""
     for fp in filepaths:
         if fp.exists():
             try:
