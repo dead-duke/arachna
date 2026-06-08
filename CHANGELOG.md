@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.8.0 — Security + Architecture core
+
+- HIGH: Log injection fix — sanitize \n and \r in audit log
+- HIGH: Remove find, env, hg, svn from _ALLOWED_COMMANDS, add find to _BLOCKED_WORDS
+- MEDIUM: C_LIKE_LANGS and SCRIPT_LANGS as public constants — single source of truth in formatter.py
+- MEDIUM: Unify three repo-map implementations — _apply_repo_map_to_sections in gatherer.py
+- MEDIUM: Remove duplicate language sets, _parse_blocks, and repo-map helpers from watch.py
+- MEDIUM: Fix tokenizer passthrough in _cmd_diff → _write_diff_parts
+- MEDIUM: Extract _format_file_list — DRY _format_scanned_files and _collect_specific_files
+- MEDIUM: Extract _parse_output_dir helper in cli_watch.py
+- MEDIUM: Extract _collect_referenced_hashes shared by stats() and gc()
+- MEDIUM: @lru_cache on load_config with conftest cache_clear fixture
+- 1025 tests, 93% coverage, 0 bugs
+
 ## v2.7.0 — LOW fixes, store, packaging, polish
 
 - LOW-01: limit _get_audit_log_path traversal to 5 parent levels

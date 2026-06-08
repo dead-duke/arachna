@@ -1,19 +1,5 @@
 # TODO
 
-## v2.8.0 — Security + Architecture core (details: llm_docs/specs/spec-v2.8.0-security-architecture.md)
-- [x] HIGH: Log injection fix — sanitize \n in _log_command
-- [x] HIGH: RCE via find -exec — remove find from _ALLOWED_COMMANDS, remove env/hg/svn
-- [x] MEDIUM: Single source of truth for _C_LIKE_LANGS and _SCRIPT_LANGS — define in formatter.py, import in differ_structural.py, splitter.py, watch.py
-- [x] MEDIUM: Unify three repo-map implementations — single pipeline shared by gatherer, differ_structural, watch
-- [x] MEDIUM: Single compute_diff engine — watcher.compute_diff as engine, watch.compute_diff as wrapper
-- [x] MEDIUM: Fix tokenizer passthrough in _cmd_diff — pass tokenizer to _write_diff_parts
-- [x] MEDIUM: DRY _format_scanned_files and _collect_specific_files — extract _format_file_list
-- [x] MEDIUM: Deduplicate --output-dir / -o parsing in cli_watch.py
-- [x] MEDIUM: Deduplicate hash collection loop in stats() and gc() — extract _collect_referenced_hashes
-- [x] MEDIUM: watch.py _parse_blocks deduplication — use dispatch from differ_structural
-- [x] MEDIUM: Cache find_config with @lru_cache
-- [ ] Update CHANGELOG for v2.8.0
-
 ## v2.8.1 — Code Quality + Testability (details: llm_docs/specs/spec-v2.8.1-code-quality.md)
 - [ ] LOW: Decompose watcher.compute_diff — extract _diff_files, _diff_pre_commands, _diff_command
 - [ ] LOW: Unify _cmd_clean glob patterns — single pattern for all chat-diff formats
