@@ -227,10 +227,17 @@ def _is_safe_command(cmd: str) -> bool:
 
 
 def _get_audit_log_path() -> Path | None:
-    """Get path for audit log file."""
+    """Get path for audit log file.
+
+    Searches up to 5 parent directories for .arachna.json.
+    Falls back to arachna_context/ in cwd if not found.
+    """
     try:
         cwd = Path.cwd()
-        for parent in [cwd, *cwd.parents]:
+        # Limit traversal to 5 levels up from cwd
+        for i, parent in enumerate([cwd, *cwd.parents]):
+            if i > 5:
+                break
             cfg = parent / ".arachna.json"
             if cfg.exists():
                 try:

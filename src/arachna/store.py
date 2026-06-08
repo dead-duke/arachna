@@ -18,12 +18,15 @@ zlib compression — so the hash identifies the content, not the encoding.
 import contextlib
 import hashlib
 import json
+import logging
 import os
 import zlib
 from datetime import datetime
 from pathlib import Path
 
 from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExistsError
+
+logger = logging.getLogger("arachna.store")
 
 
 def _store_root() -> Path:
@@ -45,13 +48,20 @@ def _store_root() -> Path:
     return store_dir
 
 
-def _hash_path(store_dir: Path, object_hash: str) -> Path:
-    """Return path to object file: objects/ab/cd1234..."""
+def _hash_path(store_dir: Path, object_hash: str, mkdir: bool = False) -> Path:
+    """Return path to object file: objects/ab/cd1234...
+
+    Args:
+        store_dir: Store root directory.
+        object_hash: SHA256 hex digest.
+        mkdir: If True, create the prefix directory. Use False for reads.
+    """
     objects_dir = store_dir / "objects"
     prefix = object_hash[:2]
     rest = object_hash[2:]
     obj_dir = objects_dir / prefix
-    obj_dir.mkdir(parents=True, exist_ok=True)
+    if mkdir:
+        obj_dir.mkdir(parents=True, exist_ok=True)
     return obj_dir / rest
 
 
@@ -64,7 +74,7 @@ def write_object(data: bytes) -> str:
     """
     object_hash = hashlib.sha256(data).hexdigest()
     store_dir = _store_root()
-    path = _hash_path(store_dir, object_hash)
+    path = _hash_path(store_dir, object_hash, mkdir=True)
 
     if path.exists():
         return object_hash
@@ -89,7 +99,7 @@ def read_object(object_hash: str) -> bytes:
         CorruptedStoreError: content doesn't match hash.
     """
     store_dir = _store_root()
-    path = _hash_path(store_dir, object_hash)
+    path = _hash_path(store_dir, object_hash, mkdir=False)
 
     if not path.exists():
         raise ObjectNotFoundError(f"Object not found: {object_hash}")
@@ -106,7 +116,9 @@ def read_object(object_hash: str) -> bytes:
     actual_hash = hashlib.sha256(data).hexdigest()
     if actual_hash != object_hash:
         raise CorruptedStoreError(
-            f"Object {object_hash} is corrupted: expected {object_hash}, got {actual_hash}"
+            f"Object {object_hash} is corrupted: expected hash {object_hash}, "
+            f"got {actual_hash}. The file may have been modified or is not "
+            f"a valid arachna object."
         )
 
     return data
@@ -278,6 +290,22 @@ def list_snapshots() -> list[dict]:
     return manifests
 
 
+def _load_all_manifests(store_dir: Path) -> list[dict]:
+    """Load all manifest dicts from snapshots/. Shared by stats() and gc()."""
+    snapshots_dir = store_dir / "snapshots"
+    if not snapshots_dir.is_dir():
+        return []
+
+    manifests = []
+    for mf in sorted(snapshots_dir.glob("*.json")):
+        try:
+            manifests.append(json.loads(mf.read_text()))
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    return manifests
+
+
 def delete_snapshot(snapshot_id: str) -> None:
     """Delete manifest file. Objects remain (cleaned by GC).
 
@@ -353,39 +381,34 @@ def rename_snapshot(old_id: str, new_id: str) -> str:
 
 
 def gc() -> dict:
-    """Garbage collection: delete unreferenced objects.
+    """Garbage collection: delete unreferenced objects and empty dirs.
 
     Finds all hashes referenced across all manifests,
     deletes object files not in the referenced set.
+    Removes empty subdirectories in objects/ after cleanup.
 
     Returns:
         {removed: N, freed_bytes: M}
     """
     store_dir = _store_root()
     objects_dir = store_dir / "objects"
-    snapshots_dir = store_dir / "snapshots"
 
     if not objects_dir.is_dir():
         return {"removed": 0, "freed_bytes": 0}
 
-    # Collect all referenced hashes
+    # Collect all referenced hashes from all manifests (shared with stats)
+    manifests = _load_all_manifests(store_dir)
     referenced = set()
-    if snapshots_dir.is_dir():
-        for mf in snapshots_dir.glob("*.json"):
-            try:
-                manifest = json.loads(mf.read_text())
-                for hash_spec in manifest.get("files", {}).values():
-                    # Format: "sha256:abcdef..."
-                    if hash_spec.startswith("sha256:"):
-                        referenced.add(hash_spec[7:])
-                for hash_spec in manifest.get("pre_commands", {}).values():
-                    if hash_spec.startswith("sha256:"):
-                        referenced.add(hash_spec[7:])
-                for hash_spec in manifest.get("command", {}).values():
-                    if hash_spec.startswith("sha256:"):
-                        referenced.add(hash_spec[7:])
-            except (json.JSONDecodeError, OSError):
-                continue
+    for manifest in manifests:
+        for hash_spec in manifest.get("files", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced.add(hash_spec[7:])
+        for hash_spec in manifest.get("pre_commands", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced.add(hash_spec[7:])
+        for hash_spec in manifest.get("command", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced.add(hash_spec[7:])
 
     # Delete unreferenced objects
     removed = 0
@@ -402,6 +425,12 @@ def gc() -> dict:
             obj_file.unlink()
             removed += 1
 
+    # Clean up empty subdirectories
+    for subdir in sorted(objects_dir.glob("*"), reverse=True):
+        if subdir.is_dir():
+            with contextlib.suppress(OSError):
+                subdir.rmdir()
+
     return {"removed": removed, "freed_bytes": freed_bytes}
 
 
@@ -413,9 +442,10 @@ def stats() -> dict:
     """
     store_dir = _store_root()
     objects_dir = store_dir / "objects"
-    snapshots_dir = store_dir / "snapshots"
 
-    snapshots_count = len(list(snapshots_dir.glob("*.json"))) if snapshots_dir.is_dir() else 0
+    # Load manifests once and share with gc() logic
+    manifests = _load_all_manifests(store_dir)
+    snapshots_count = len(manifests)
 
     objects_count = 0
     total_bytes = 0
@@ -426,27 +456,22 @@ def stats() -> dict:
                 with contextlib.suppress(OSError):
                     total_bytes += obj_file.stat().st_size
 
-    # Unique bytes: sum of sizes of objects referenced by any snapshot
+    # Collect referenced hashes from manifests
     referenced_hashes = set()
-    if snapshots_dir.is_dir():
-        for mf in snapshots_dir.glob("*.json"):
-            try:
-                manifest = json.loads(mf.read_text())
-                for hash_spec in manifest.get("files", {}).values():
-                    if hash_spec.startswith("sha256:"):
-                        referenced_hashes.add(hash_spec[7:])
-                for hash_spec in manifest.get("pre_commands", {}).values():
-                    if hash_spec.startswith("sha256:"):
-                        referenced_hashes.add(hash_spec[7:])
-                for hash_spec in manifest.get("command", {}).values():
-                    if hash_spec.startswith("sha256:"):
-                        referenced_hashes.add(hash_spec[7:])
-            except (json.JSONDecodeError, OSError):
-                continue
+    for manifest in manifests:
+        for hash_spec in manifest.get("files", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced_hashes.add(hash_spec[7:])
+        for hash_spec in manifest.get("pre_commands", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced_hashes.add(hash_spec[7:])
+        for hash_spec in manifest.get("command", {}).values():
+            if hash_spec.startswith("sha256:"):
+                referenced_hashes.add(hash_spec[7:])
 
     unique_bytes = 0
     for obj_hash in referenced_hashes:
-        obj_path = _hash_path(store_dir, obj_hash)
+        obj_path = _hash_path(store_dir, obj_hash, mkdir=False)
         if obj_path.exists():
             with contextlib.suppress(OSError):
                 unique_bytes += obj_path.stat().st_size

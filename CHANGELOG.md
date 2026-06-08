@@ -401,9 +401,34 @@
 
 - chat-code.md, manifest, 129 tests, 90% coverage
 
-## v0.1.5 — Shebang Detection
-## v0.1.4 — Tests & Bugfixes
-## v0.1.3 — Validate & Gitignore
-## v0.1.2 — Dry-run, renderer, pre-commit
+## v0.1.5 — Shebang detection
+
+- formatter.py: detect language from shebang
+- Supports: python, bash, node, ruby, perl
+
+## v0.1.4 — Tests, coverage, bugfixes
+
+- 102 tests (up from 46), 65% coverage (up from 25%)
+- gatherer.py: deduplicated with _collect_named_sections
+- renderer.py: 100% coverage
+- formatter.py: binary file detection (null bytes)
+- gitignore.py: skip venv/.gitignore and hidden dirs
+
+## v0.1.3 — Validate, gitignore, default profile, runner tests
+
+- validator.py: check split_mode, max_tokens, content source
+- gitignore.py: parse .gitignore patterns for auto-exclusion
+- Default profile when .arachna.json has no profiles
+
+## v0.1.2 — Dry-run, renderer, pre-commit, ruff
+
+- gatherer.dry_run: real split simulation with token tracking
+- renderer: aligned output
+
 ## v0.1.1 — Tests + fixes
+
+- 29 tests: tokenizer, splitter, config, formatter
+
 ## v0.1.0 — MVP
+
+- tokenizer, runner, formatter, splitter, gatherer, collector, config, CLI

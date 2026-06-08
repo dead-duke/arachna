@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import logging
 import os
 import re
 import tempfile
@@ -18,6 +19,8 @@ from .gatherer import (
 from .runner import run_command
 from .splitter import split_sections
 from .tokenizer import count_tokens, load_tokenizer
+
+logger = logging.getLogger("arachna.collector")
 
 _MANIFEST = ".arachna_manifest.json"
 _MERGE_LOCK_FILE = ".arachna_merge.lock"
@@ -51,6 +54,11 @@ except ImportError:
 
         def _unlock_file(f):
             _fallback_lock.release()
+
+        logger.warning(
+            "Neither fcntl nor msvcrt available — using threading.Lock. "
+            "Merge mode will not be safe across multiple processes."
+        )
 
 
 @contextlib.contextmanager

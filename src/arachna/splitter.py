@@ -65,6 +65,24 @@ def split_sections(
 
 
 def _split_to_sections(text: str, marker: str) -> list[str]:
+    """Split text by marker, preserving marker on all but first chunk.
+
+    If text starts with marker, first chunk is empty — use marker
+    directly as the first section to avoid losing it.
+    """
+    if not text:
+        return []
+
+    if text.startswith(marker):
+        # Text starts with marker — split and keep empty first chunk
+        rest = text[len(marker) :]
+        chunks = rest.split(marker)
+        result = [marker + chunks[0]]
+        for chunk in chunks[1:]:
+            if chunk.strip():
+                result.append(marker + chunk)
+        return result
+
     chunks = text.split(marker)
     result = []
     for i, chunk in enumerate(chunks):
@@ -131,7 +149,10 @@ def _handle_single(
 ) -> tuple[list[str], bool]:
     """Split content into a single part, truncating if over limit.
 
-    Uses tokenizer for accurate truncation instead of character-based estimate.
+    Uses tokenizer for accurate truncation. For the default tokenizer
+    (4 chars ≈ 1 token), uses direct character calculation (O(1)).
+    For custom tokenizers, falls back to binary search.
+
     Returns (parts, was_truncated).
     """
     tk = tokenizer if tokenizer is not None else count_tokens
@@ -140,6 +161,13 @@ def _handle_single(
     if tokens <= max_tokens:
         return [text.strip()], False
 
+    # Fast path for default tokenizer: 4 chars ≈ 1 token
+    if tk is count_tokens:
+        limit = max_tokens * 4
+        text = text[:limit] + "\n\n# ... truncated ...\n"
+        return [text.strip()], True
+
+    # Custom tokenizer: binary search for truncation point
     lo, hi = 0, len(text)
     while lo < hi:
         mid = (lo + hi + 1) // 2

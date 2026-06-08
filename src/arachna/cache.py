@@ -37,7 +37,8 @@ _VERSION = 2
 
 # 10 MB — баланс между скоростью хеширования и покрытием:
 # большинство исходных файлов в проектах меньше 10 MB.
-_MAX_HASH_SIZE = 10 * 1024 * 1024
+# Configurable via ARACHNA_MAX_HASH_SIZE env var (in bytes).
+_MAX_HASH_SIZE = int(os.environ.get("ARACHNA_MAX_HASH_SIZE", 10 * 1024 * 1024))
 
 # 1ms tolerance for mtime_ns comparison.
 # Filesystems with microsecond precision may have sub-microsecond

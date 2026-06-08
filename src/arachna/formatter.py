@@ -115,6 +115,14 @@ def _should_skip_binary(
 
     if not ext:
         if not include_binary:
+            # No extension and include_binary=False: check if it looks like binary
+            try:
+                with open(path, "rb") as f:
+                    chunk = f.read(1024)
+                if b"\x00" in chunk:
+                    return True
+            except OSError:
+                return True
             return False
         try:
             size_mb = path.stat().st_size / (1024 * 1024)
@@ -140,6 +148,9 @@ def _should_skip_binary(
 
 # import a, b, c — captures the whole import list, then split by comma
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
+
+# Multi-line import: import (\n    a,\n    b\n) — matches imports with parentheses
+_RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
 
 _RE_C_LIKE_IMPORT = re.compile(
     r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]"
@@ -223,10 +234,10 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
     try:
         tree = _ast.parse(text)
     except SyntaxError:
+        # Regex fallback — handles import a, b and multi-line imports
         for m in _RE_PY_IMPORT.finditer(text):
             mod = m.group(1)
             if mod:
-                # Handle "import a, b, c" — split by comma
                 for part in mod.split(","):
                     part = part.strip()
                     if part:
@@ -234,6 +245,13 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
             mod = m.group(2)
             if mod:
                 deps.append(mod)
+        # Multi-line import ( ... )
+        for m in _RE_PY_MULTILINE_IMPORT.finditer(text):
+            inner = m.group(1)
+            for part in inner.split(","):
+                part = part.strip()
+                if part:
+                    deps.append(part)
         return deps, exports
 
     for node in _ast.iter_child_nodes(tree):

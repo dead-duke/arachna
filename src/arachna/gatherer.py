@@ -45,8 +45,12 @@ def _scan_directories(
     """
     seen = []
     for directory in profile.get("directories", []):
+        dir_path = Path(directory)
+        if dir_path.is_symlink():
+            print(f"  Warning: skipping symlink directory: {dir_path}")
+            continue
         for pattern in profile.get("patterns", ["*"]):
-            for filepath in sorted(Path(directory).rglob(pattern)):
+            for filepath in sorted(dir_path.rglob(pattern)):
                 if not filepath.is_file():
                     continue
                 if filepath.is_symlink():
@@ -247,6 +251,9 @@ def _collect_directory_sections(
     if incremental and cache is not None:
         changed, new, deleted = get_changed_files(seen_files, cache)
         target_files = changed + new
+        # Explicitly remove deleted files from cache
+        for del_path in deleted:
+            cache.pop(str(del_path), None)
         if deleted:
             print(f"  Deleted: {len(deleted)} file(s)")
     else:

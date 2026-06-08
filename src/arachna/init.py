@@ -30,13 +30,19 @@ def run_defaults(output_dir: str = ".", preset: str | None = None):
 
     detected = detect_presets(preset_name=preset)
 
+    if not detected:
+        print("Warning: no presets detected for this project.")
+        print("  You can create a custom preset in presets.json.")
+        print("  Run 'arachna --init' for interactive setup.")
+
     for name in detected:
         profile = preset_to_profile(name)
         if profile:
             config["profiles"][name] = profile
 
     _write_config(cwd, config, output_dir)
-    print(f"Profiles: {', '.join(config['profiles'].keys())}")
+    if detected:
+        print(f"Profiles: {', '.join(config['profiles'].keys())}")
 
 
 def run_interactive(output_dir: str = ".", preset: str | None = None):

@@ -201,7 +201,13 @@ def _cmd_validate(config: dict):
     if not profiles:
         profiles = {"default": get_profile("default")}
     else:
-        profiles = {name: get_profile(name) for name in profiles}
+        valid_profiles = {}
+        for name in profiles:
+            try:
+                valid_profiles[name] = get_profile(name)
+            except KeyError as e:
+                print(f"  ✗ Profile '{name}': {e}")
+        profiles = valid_profiles
     all_errors = 0
     all_warnings = 0
     for name, prof in profiles.items():
@@ -356,6 +362,15 @@ def _cmd_presets_update(argv: list[str]):
         if idx + 1 < len(argv):
             url = argv[idx + 1]
 
+    # Validate local presets.json before merge
+    local = load_presets_from_file("presets.json")
+    if local:
+        print(f"Local presets.json: {len(local)} preset(s) — will be preserved.")
+    elif Path("presets.json").exists():
+        print("Warning: local presets.json exists but could not be loaded. Aborting.")
+        print("  Fix or remove the file and try again.")
+        sys.exit(1)
+
     print(f"Fetching presets from {url}...")
     remote = fetch_presets(url)
     if not remote:
@@ -363,7 +378,6 @@ def _cmd_presets_update(argv: list[str]):
         sys.exit(1)
 
     builtin = _load_builtin_presets()
-    local = load_presets_from_file("presets.json")
     merged = merge_presets(builtin, remote, local)
 
     import json as _json

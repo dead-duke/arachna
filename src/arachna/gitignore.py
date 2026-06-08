@@ -17,6 +17,10 @@ def load_gitignore_patterns(root: Path) -> list[str]:
         if not gitignore_path.is_file():
             continue
 
+        # Skip gitignore files in symlinked directories
+        if gitignore_path.parent.is_symlink():
+            continue
+
         # Skip gitignore files in excluded directories
         try:
             parts = gitignore_path.parent.relative_to(root).parts

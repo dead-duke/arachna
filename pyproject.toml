@@ -4,10 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "2.6.0"
+version = "2.5.0"
 description = "Context collector for AI — gathers project files into token-limited chunks"
 readme = "README.md"
-license = {text = "AGPL-3.0"}
+license = "AGPL-3.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [
     {name = "Artem Terenin"}
@@ -24,6 +25,11 @@ classifiers = [
     "Topic :: Utilities",
     "Intended Audience :: Developers",
 ]
+
+[project.optional-dependencies]
+tiktoken = ["tiktoken"]
+transformers = ["transformers"]
+dev = ["pytest", "pytest-cov", "ruff", "pre-commit", "hypothesis"]
 
 [project.urls]
 Homepage = "https://github.com/dead-duke/arachna"
