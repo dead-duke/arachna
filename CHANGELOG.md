@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.8.1 — Code Quality + Testability
+
+- LOW: Decompose watcher.compute_diff — extract _diff_files_sections, _diff_pre_commands_sections, _diff_command_section
+- LOW: Unify _cmd_clean glob patterns — single loop for all chat-* formats
+- LOW: _RE_C_LIKE_BLOCK refactor — 15 named groups (?P<name>...) instead of fragile heuristic
+- LOW: _should_skip_binary refactor — decision table with explicit branches
+- LOW: Replace os.path.basename with pathlib in _diff_pre_commands_structural
+- LOW: _write_parts TOC — use section indices instead of content.strip() matching
+- LOW: split_sections — add was_truncated warning via logger
+- LOW: _filter_by_query — filter pre_commands by default, add include_pre_commands param
+- LOW: _detect_renames_and_moves O(N²) — limit similarity comparison to same-extension
+- LOW: _format_added — subtract truncation message length from token limit
+- LOW: _run_profile — use _ProfileResult dataclass instead of tuple
+- LOW: _read_file_from_store — build {path: hash_spec} dict once, O(1) lookup
+- LOW: _cmd_snapshot info — use list_snapshots result directly, avoid double manifest load
+- LOW: gatherer — warn when both command and directories present
+- LOW: runner._log_command — injectable _write_log for testability
+- LOW: _store_root — accept explicit root path parameter
+- 1025 tests, 93% coverage, 0 bugs
+
 ## v2.8.0 — Security + Architecture core
 
 - HIGH: Log injection fix — sanitize \n and \r in audit log
