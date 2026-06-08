@@ -1,6 +1,9 @@
 from unittest.mock import MagicMock
 
-from arachna.splitter import _build_parts
+from hypothesis import given
+from hypothesis import strategies as st
+
+from arachna.splitter import _build_parts, split_sections
 
 
 def test_single_section():
@@ -39,16 +42,12 @@ def test_mixed_sizes():
 
 
 def test_custom_tokenizer_called():
-    """Custom tokenizer is used instead of default count_tokens."""
     mock_tok = MagicMock(return_value=1)
     _build_parts(["a", "b", "c"], max_tokens=100, tokenizer=mock_tok)
     assert mock_tok.called
 
 
 def test_custom_tokenizer_small_limit():
-    """Custom tokenizer with small limit produces multiple parts."""
-    # Each section = 2 tokens. max_tokens=3 → aa(2) + bb(2)=4 > 3
-    # → part1=[aa], part2=[bb], part3=[cc] = 3 parts
     call_count = [0]
 
     def counting_tok(text):
@@ -58,3 +57,40 @@ def test_custom_tokenizer_small_limit():
     parts = _build_parts(["aa", "bb", "cc"], max_tokens=3, tokenizer=counting_tok)
     assert len(parts) == 3
     assert call_count[0] > 0
+
+
+# ── Property-based tests ──────────────────────────────────────────
+
+
+@given(st.lists(st.text(min_size=1, max_size=100), min_size=0, max_size=20))
+def test_split_sections_preserves_content(sections):
+    """All section content appears in at least one part."""
+    parts = split_sections(sections, max_tokens=10000)
+    all_text = "".join(parts)
+    for section in sections:
+        if section.strip():
+            assert section.strip() in all_text
+
+
+@given(st.lists(st.text(min_size=1, max_size=100), min_size=0, max_size=20))
+def test_split_sections_no_empty_parts(sections):
+    """No part is empty."""
+    parts = split_sections(sections, max_tokens=10000)
+    for part in parts:
+        assert part.strip() != ""
+
+
+@given(st.lists(st.text(min_size=1, max_size=100), min_size=1, max_size=10))
+def test_split_sections_count_at_least_one(sections):
+    """Non-empty sections produce at least one part."""
+    parts = split_sections(sections, max_tokens=10000)
+    assert len(parts) >= 1
+
+
+@given(st.lists(st.text(min_size=1, max_size=100), min_size=1, max_size=10))
+def test_split_sections_small_limit_many_parts(sections):
+    """With very small max_tokens, each section becomes its own part."""
+    parts = split_sections(sections, max_tokens=1)
+    non_empty = [s for s in sections if s.strip()]
+    if non_empty:
+        assert len(parts) >= len(non_empty)

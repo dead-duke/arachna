@@ -497,6 +497,24 @@ def test_load_presets_default_tokenizer_unchanged(tmp_path):
     assert result["ok"]["tokenizer"] == "default"
 
 
+def test_load_presets_utf16_encoded(tmp_path):
+    """UTF-16 encoded presets.json should not crash (LOW-20)."""
+    f = tmp_path / "presets.json"
+    content = json.dumps(
+        {
+            "my_preset": {
+                "dirs": ["src"],
+                "patterns": ["*.py"],
+                "max_tokens": 8000,
+                "split_mode": "by_file",
+            }
+        }
+    )
+    f.write_bytes(content.encode("utf-16"))
+    result = load_presets_from_file(f)
+    assert result == {}
+
+
 # ── get_all_presets ─────────────────────────────────────────────────
 
 

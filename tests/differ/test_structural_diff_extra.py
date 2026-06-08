@@ -51,6 +51,26 @@ def test_parse_c_like_blocks_go():
     assert "Handler" in blocks
 
 
+def test_parse_c_like_blocks_go_type_struct():
+    """Go type struct — block name is the type name, not 'struct' (MEDIUM-15)."""
+    text = (
+        "package main\n\n"
+        "type Handler struct {\n"
+        "    db *sql.DB\n"
+        "}\n"
+        "\n"
+        "type Server interface {\n"
+        "    Start() error\n"
+        "}\n"
+    )
+    blocks = _parse_c_like_blocks(text, "go")
+    assert "Handler" in blocks, f"Expected 'Handler' in blocks, got {list(blocks.keys())}"
+    assert "Server" in blocks, f"Expected 'Server' in blocks, got {list(blocks.keys())}"
+    sig, body = blocks["Handler"]
+    assert "type Handler struct" in sig
+    assert "db *sql.DB" in body
+
+
 def test_parse_script_blocks_ruby():
     """Parse Ruby source into named blocks."""
     text = (

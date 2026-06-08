@@ -58,6 +58,46 @@ def _scan_directories(
     return seen
 
 
+def _apply_repo_map_to_section(
+    filepath: Path,
+    section: str,
+    raw_text: str | None,
+    lang: str,
+    fmt: str,
+    include_header: bool,
+) -> str:
+    """Apply repo-map transformation to a formatted section.
+
+    Reads raw text, extracts signatures, and reformats as signature-only
+    output. If raw_text is None (could not be read), returns the original
+    section unchanged.
+
+    Args:
+        filepath: Path to the source file.
+        section: Already-formatted section string (markdown/xml/json).
+        raw_text: Raw file content, or None if unreadable.
+        lang: Detected language.
+        fmt: Output format.
+        include_header: Whether to include dependency/export headers.
+
+    Returns:
+        Repo-map formatted section, or original section if raw_text is None.
+    """
+    if raw_text is None:
+        return section
+
+    sigs = extract_signatures(raw_text, lang)
+    header = ""
+    if include_header:
+        header = _generate_header(filepath, raw_text, lang)
+    if fmt == "xml":
+        return header + _format_xml_sigs(filepath, lang, sigs)
+    elif fmt == "json":
+        return header + _format_json_sigs(filepath, lang, sigs)
+    else:
+        return header + _format_markdown_sigs(filepath, lang, sigs)
+
+
 def _collect_specific_files(
     file_paths: list[str],
     exclude: list[str],
@@ -100,18 +140,11 @@ def _collect_specific_files(
             include_header=include_header,
         )
         if section:
-            if mode == "repo-map" and raw_text is not None:
+            if mode == "repo-map":
                 lang = lang_for_path(filepath)
-                sigs = extract_signatures(raw_text, lang)
-                header = ""
-                if include_header:
-                    header = _generate_header(filepath, raw_text, lang)
-                if fmt == "xml":
-                    section = header + _format_xml_sigs(filepath, lang, sigs)
-                elif fmt == "json":
-                    section = header + _format_json_sigs(filepath, lang, sigs)
-                else:
-                    section = header + _format_markdown_sigs(filepath, lang, sigs)
+                section = _apply_repo_map_to_section(
+                    filepath, section, raw_text, lang, fmt, include_header
+                )
 
             tokens = tokenizer(section)
             results.append((str(filepath), section, tokens))
@@ -151,18 +184,11 @@ def _format_scanned_files(
             include_header=include_header,
         )
         if section:
-            if mode == "repo-map" and raw_text is not None:
+            if mode == "repo-map":
                 lang = lang_for_path(filepath)
-                sigs = extract_signatures(raw_text, lang)
-                header = ""
-                if include_header:
-                    header = _generate_header(filepath, raw_text, lang)
-                if fmt == "xml":
-                    section = header + _format_xml_sigs(filepath, lang, sigs)
-                elif fmt == "json":
-                    section = header + _format_json_sigs(filepath, lang, sigs)
-                else:
-                    section = header + _format_markdown_sigs(filepath, lang, sigs)
+                section = _apply_repo_map_to_section(
+                    filepath, section, raw_text, lang, fmt, include_header
+                )
 
             tokens = tokenizer(section)
             results.append((str(filepath), section, tokens))
@@ -449,8 +475,14 @@ def _collect_named_sections(
 def _assemble_command_content(
     profile: dict[str, Any],
     tokenizer: Callable[[str], int],
+    query: str | None = None,
+    mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
     """Assemble content from a command source.
+
+    Query and mode parameters are accepted for API symmetry with
+    _assemble_file_content but are not applied to command output
+    (command-based profiles produce a single section).
 
     Returns (named_sections, parts, empty_cache).
     """
@@ -480,8 +512,7 @@ def _assemble_file_content(
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
     """Assemble content from directories, files, and pre_commands.
 
-    All sections are collected into a single list and packed densely
-    via split_sections() for uniform part sizes.
+    Pipeline: collect sections → filter by query → compress → split.
 
     Returns (named_sections, parts, updated_cache).
     """
@@ -491,6 +522,7 @@ def _assemble_file_content(
     # Headers auto-enabled when query is used
     include_header = bool(query and query.strip()) or mode == "headers"
 
+    # Step 1: Collect all named sections
     named_sections, new_cache = _collect_named_sections(
         profile,
         exclude,
@@ -503,7 +535,7 @@ def _assemble_file_content(
         mode=mode,
     )
 
-    # Build list of section content strings
+    # Step 2: Build list of section content strings with optional compression
     sections = []
     for _name, content, _tokens in named_sections:
         if do_compress and content.strip():
@@ -511,6 +543,7 @@ def _assemble_file_content(
         else:
             sections.append(content)
 
+    # Step 3: Compression stats
     if verbose and do_compress:
         raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
         comp_tokens = sum(tokenizer(s) for s in sections)
@@ -518,7 +551,7 @@ def _assemble_file_content(
             pct = (raw_tokens - comp_tokens) / raw_tokens * 100
             print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
 
-    # Pack sections densely into token-limited parts
+    # Step 4: Pack sections densely into token-limited parts
     parts = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
 
     return named_sections, parts, new_cache
@@ -542,7 +575,7 @@ def _assemble_content(
     Returns (named_sections, parts, updated_cache).
     """
     if profile.get("command"):
-        return _assemble_command_content(profile, tokenizer)
+        return _assemble_command_content(profile, tokenizer, query=query, mode=mode)
     return _assemble_file_content(
         profile,
         exclude,

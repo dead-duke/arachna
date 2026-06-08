@@ -212,6 +212,40 @@ def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]]:
 
 # ── C-like block parsing (regex) ───────────────────────────────────
 
+# Matches function/class/type declarations.
+# Group 1: full signature (without body)
+# Group 2: block name — the first identifier (function name, class name, etc.)
+_RE_C_LIKE_BLOCK = re.compile(
+    r"^(\s*(?:export\s+)?(?:async\s+)?(?:function|def)\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*(?:export\s+)?(?:async\s+)?class\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*(?:export\s+)?(?:async\s+)?interface\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*(?:export\s+)?(?:async\s+)?enum\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*(?:export\s+)?(?:async\s+)?struct\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*(?:export\s+)?(?:async\s+)?trait\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*(?:export\s+)?(?:async\s+)?impl\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*type\s+(\w+)\s+\w+[^{]*"  # type Handler struct { — name is group 9
+    r"|"
+    r"^\s*type\s+(\w+)[^{]*"  # type MyInt int — name is group 10
+    r"|"
+    r"^\s*public\s+class\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*public\s+static\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*public\s+function\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*fn\s+(\w+)[^{]*"
+    r"|"
+    r"^\s*func\s+(\w+)[^{]*)",
+    re.MULTILINE,
+)
+
 
 def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
     """Parse C-like source into {name: (signature, body)} blocks.
@@ -220,6 +254,9 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
     Bodies are extracted via brace matching for languages that use
     curly braces.
 
+    Block name is the first meaningful identifier (function name,
+    class name, type name — not struct/interface keyword).
+
     Args:
         text: Source code in a C-like language.
         lang: Language identifier (unused, reserved for future use).
@@ -227,18 +264,20 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
     Returns:
         Dict mapping block names to (signature, body) tuples.
     """
-    sig_pattern = re.compile(
-        r"^(\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
-        r"type\s+\w+\s+\w+|type\s+|"
-        r"public\s+class|public\s+static|public\s+function|"
-        r"fn|func)\s+(\w+)[^{]*)",
-        re.MULTILINE,
-    )
-
     blocks = {}
-    for m in sig_pattern.finditer(text):
-        name = m.group(2)
+    for m in _RE_C_LIKE_BLOCK.finditer(text):
+        # Name is the last non-None group — the first identifier after keyword
+        groups = m.groups()
         sig = m.group(1).strip()
+        name = None
+        for g in groups[1:]:
+            if g is not None:
+                name = g
+                break
+
+        if name is None:
+            continue
+
         body_start = m.end()
         if body_start < len(text) and text[body_start] == "{":
             body = _extract_braced_block(text, body_start)

@@ -200,3 +200,37 @@ def test_write_diff_parts_with_cross_snapshot(tmp_path):
 
     assert len(created) == 1
     assert "chat-diff-v1-to-v2_1.md" in created[0]
+
+
+def test_write_diff_parts_toc_built_from_names(tmp_path):
+    """TOC is built from section names, not content matching (MEDIUM-17)."""
+    out = tmp_path / "out"
+    out.mkdir()
+
+    # Content with identical text but different file names
+    sections = [
+        DiffSection(
+            type="added",
+            path="src/auth.py",
+            content="### src/auth.py\n\nADDED (new file):\n\n```\nx = 1\n```\n",
+        ),
+        DiffSection(
+            type="added",
+            path="src/login.py",
+            content="### src/login.py\n\nADDED (new file):\n\n```\nx = 1\n```\n",
+        ),
+    ]
+
+    _write_diff_parts(
+        sections,
+        out,
+        "chat-diff",
+        "# Test (part {part} of {total})\n\n",
+        "Test",
+        32768,
+        count_tokens,
+    )
+
+    content = (out / "chat-diff_1.md").read_text()
+    assert "auth.py" in content
+    assert "login.py" in content

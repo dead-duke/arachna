@@ -1,23 +1,22 @@
 # TODO
 
 ## v2.6.0 — Code quality, formatter, differ, test coverage
-- [ ] MEDIUM-03: Extract duplicated repo-map logic into _apply_repo_map_to_section
-- [ ] MEDIUM-04: _assemble_command_content — accept query/mode parameters for symmetry
-- [ ] MEDIUM-05: _assemble_file_content — split into pipeline (collect -> filter -> compress -> split)
-- [ ] MEDIUM-11: Added files in diff — consider token limit awareness
-- [ ] MEDIUM-12: _RE_PY_IMPORT — handle multiple imports on one line (import a, b)
-- [ ] MEDIUM-13: Add .tsx and .jsx to _EXT_LANG
-- [ ] MEDIUM-14: PHP use-statements in _RE_C_LIKE_IMPORT
-- [ ] MEDIUM-15: Go type block name — capture first \w+ after type, not second
-- [ ] MEDIUM-16: Rust generics with braces — improve regex
-- [ ] MEDIUM-17: collector._build_toc — build from section names, not content matching
-- [ ] MEDIUM-19: watch.py — raise coverage from 90% to 93%+
-- [ ] MEDIUM-20: collector.py — raise coverage from 87% to 90%+
-- [ ] LOW-18: Add property-based tests for tokenizer, compressor, splitter
-- [ ] LOW-19: test_merge_lock_windows_msvcrt — mock on Unix
-- [ ] LOW-20: Test presets.json with UTF-16 encoding
-- [ ] LOW-21: Unicode edge case tests for tokenizer
-- [ ] Lazy loading for presets — cache _load_builtin_presets() with @lru_cache
+- [x] MEDIUM-03: Extract duplicated repo-map logic into _apply_repo_map_to_section
+- [x] MEDIUM-04: _assemble_command_content — accept query/mode parameters for symmetry
+- [x] MEDIUM-05: _assemble_file_content — split into pipeline (collect -> filter -> compress -> split)
+- [x] MEDIUM-11: Added files in diff — consider token limit awareness
+- [x] MEDIUM-12: _RE_PY_IMPORT — handle multiple imports on one line (import a, b)
+- [x] MEDIUM-13: Add .tsx and .jsx to _EXT_LANG
+- [x] MEDIUM-14: PHP use-statements in _RE_C_LIKE_IMPORT
+- [x] MEDIUM-15: Go type block name — capture first \w+ after type, not second
+- [x] MEDIUM-17: collector._build_toc — build from section names, not content matching
+- [x] MEDIUM-19: watch.py — raise coverage from 90% to 93%+
+- [x] MEDIUM-20: collector.py — raise coverage from 87% to 90%+
+- [x] LOW-18: Add property-based tests for tokenizer, compressor, splitter
+- [x] LOW-19: test_merge_lock_windows_msvcrt — mock on Unix
+- [x] LOW-20: Test presets.json with UTF-16 encoding
+- [x] LOW-21: Unicode edge case tests for tokenizer
+- [x] Lazy loading for presets — cache _load_builtin_presets() with @lru_cache
 
 ## v2.7.0 — LOW fixes, store, packaging, polish
 - [ ] LOW-01: _get_audit_log_path — limit traversal depth

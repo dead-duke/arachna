@@ -1,3 +1,6 @@
+from hypothesis import given
+from hypothesis import strategies as st
+
 from arachna.tokenizer import count_tokens
 
 
@@ -26,12 +29,10 @@ def test_emoji():
 
 
 def test_cjk():
-    # 6 CJK characters, 6 // 4 = 1 token
     assert count_tokens("日本語テスト") == 1
 
 
 def test_cjk_longer():
-    # 12 CJK characters, 12 // 4 = 3 tokens
     assert count_tokens("日本語テスト文章生成生成") == 3
 
 
@@ -41,3 +42,55 @@ def test_long_text():
 
 def test_newlines():
     assert count_tokens("a\nb\nc\nd") == 1
+
+
+def test_emoji_sequence():
+    family = "👨‍👩‍👧‍👦"
+    assert count_tokens(family) == 1
+
+
+def test_combining_characters():
+    text = "cafe\u0301"
+    assert count_tokens(text) == 1
+
+
+def test_rtl_text():
+    text = "مرحبا بالعالم"
+    assert count_tokens(text) == 3
+
+
+def test_mixed_unicode():
+    text = "Hello世界🚀"
+    assert count_tokens(text) == 2
+
+
+def test_zero_width_joiners():
+    text = "\u200d\u200d\u200d\u200d"
+    assert count_tokens(text) == 1
+
+
+# ── Property-based tests ──────────────────────────────────────────
+
+
+@given(st.text())
+def test_count_tokens_always_positive(text):
+    """count_tokens never returns less than 1."""
+    assert count_tokens(text) >= 1
+
+
+@given(st.text())
+def test_count_tokens_reasonable_upper_bound(text):
+    """count_tokens never exceeds len(text) + 1."""
+    assert count_tokens(text) <= len(text) + 1
+
+
+@given(st.text(min_size=4))
+def test_count_tokens_monotonic_approx(text):
+    """Longer text never has fewer tokens."""
+    assert count_tokens(text) >= count_tokens(text[: len(text) // 2])
+
+
+@given(st.text(), st.text())
+def test_count_tokens_concatenation_upper_bound(a, b):
+    """tokens(a + b) <= tokens(a) + tokens(b) + 1 (rounding)."""
+    assert count_tokens(a + b) <= count_tokens(a) + count_tokens(b) + 1

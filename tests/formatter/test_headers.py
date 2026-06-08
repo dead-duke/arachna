@@ -37,6 +37,17 @@ def test_header_python_syntax_error(tmp_path):
     assert isinstance(header, str)
 
 
+def test_header_python_import_comma(tmp_path):
+    """Python: 'import a, b' should capture both modules."""
+    f = tmp_path / "multi.py"
+    text = "import os, sys\nfrom pathlib import Path\n\ndef foo(): pass\n"
+    header = _generate_header(f, text, "python")
+    assert "deps:" in header
+    assert "os" in header
+    assert "sys" in header
+    assert "pathlib" in header
+
+
 def test_header_javascript(tmp_path):
     """JavaScript: regex extracts imports and exports."""
     f = tmp_path / "main.js"
@@ -85,6 +96,26 @@ def test_header_typescript(tmp_path):
     assert "exports:" in header
     assert "UserData" in header
     assert "loadUser" in header
+
+
+def test_header_php_use_statements(tmp_path):
+    """PHP: use statements are extracted as imports (MEDIUM-14)."""
+    f = tmp_path / "UserController.php"
+    text = (
+        "<?php\n\n"
+        "use App\\Models\\User;\n"
+        "use Illuminate\\Http\\Request;\n"
+        "use App\\Services\\AuthService;\n"
+        "\n"
+        "class UserController {\n"
+        "    public function show(Request $request) {}\n"
+        "}\n"
+    )
+    header = _generate_header(f, text, "php")
+    assert "deps:" in header
+    assert "App\\Models\\User" in header
+    assert "Illuminate\\Http\\Request" in header
+    assert "App\\Services\\AuthService" in header
 
 
 def test_header_ruby(tmp_path):

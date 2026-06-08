@@ -10,6 +10,7 @@ from arachna.watch import (
     _apply_repo_map_diff,
     _format_repo_map_added,
     _format_repo_map_diff,
+    _parse_blocks,
     _read_file_from_disk,
     _read_file_from_store,
     compute_diff,
@@ -163,6 +164,29 @@ def test_apply_repo_map_diff_deleted(tmp_path, monkeypatch):
     assert "Removed signatures" in result[0].content or "DELETED" in result[0].content
 
 
+def test_apply_repo_map_diff_cannot_read_content(tmp_path, monkeypatch):
+    """Repo-map falls back to text diff when file content cannot be read from store."""
+    monkeypatch.chdir(tmp_path)
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "main.py").write_text("def foo():\n    return 1\n")
+
+    profile = _make_profile("src")
+    create_snapshot(profile=profile, name="rm-readfail")
+
+    sections = [
+        DiffSection(
+            type="modified",
+            path="nonexistent.py",
+            content="### nonexistent.py\n\nREMOVED lines 1:\n    old\n",
+        ),
+    ]
+    result = _apply_repo_map_diff(sections, "rm-readfail", None, profile)
+    assert len(result) == 1
+    # Content unchanged — fallback, keeps text diff
+    assert "REMOVED" in result[0].content
+
+
 # ── compute_diff branches ────────────────────────────────────────
 
 
@@ -197,6 +221,12 @@ def test_read_file_from_store_not_found():
     assert result is None
 
 
+def test_read_file_from_store_invalid_hash():
+    """_read_file_from_store returns None when hash is invalid."""
+    result = _read_file_from_store("test.py", {"test.py": "sha256:invalidhash"})
+    assert result is None
+
+
 def test_read_file_from_disk_not_found(tmp_path):
     result = _read_file_from_disk(str(tmp_path / "ghost.py"))
     assert result is None
@@ -221,3 +251,26 @@ def test_read_file_from_disk_unreadable(tmp_path):
         assert result is None
     finally:
         f.chmod(0o644)
+
+
+# ── _parse_blocks coverage ────────────────────────────────────────
+
+
+def test_parse_blocks_unknown_language():
+    """_parse_blocks returns empty dict for unknown languages."""
+    result = _parse_blocks("function foo() {}", "unknown_lang")
+    assert result == {}
+
+
+def test_parse_blocks_c_like_go():
+    """_parse_blocks dispatches to C-like parser for Go."""
+    text = "package main\n\nfunc main() {\n    return\n}\n"
+    result = _parse_blocks(text, "go")
+    assert "main" in result
+
+
+def test_parse_blocks_script_ruby():
+    """_parse_blocks dispatches to script parser for Ruby."""
+    text = "def hello\n    puts 'hi'\nend\n"
+    result = _parse_blocks(text, "ruby")
+    assert "hello" in result

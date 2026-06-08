@@ -1,5 +1,6 @@
 """Language and engine presets for arachna init."""
 
+import functools
 import json
 from pathlib import Path
 
@@ -31,6 +32,7 @@ _VALID_PRESET_KEYS = {
 _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 
 
+@functools.lru_cache(maxsize=1)
 def _load_builtin_presets() -> dict[str, dict]:
     presets_dir = Path(__file__).parent / "presets"
     if not presets_dir.is_dir():
@@ -60,8 +62,14 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
         return {}
 
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as e:
+        raw = p.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"Warning: failed to read {path}: {e}")
+        return {}
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
         print(f"Warning: failed to load {path}: {e}")
         return {}
 
@@ -115,9 +123,15 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
 
 
 def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
+    """Return merged built-in + external presets.
+
+    Built-in presets are cached (they never change at runtime).
+    External presets are loaded fresh on each call — they depend on cwd.
+    Returns a new dict so callers don't mutate the cache.
+    """
     if external_path is None:
         external_path = DEFAULT_PRESETS_PATH
-    merged = _load_builtin_presets()
+    merged = dict(_load_builtin_presets())  # shallow copy — preset dicts are not mutated
     external = load_presets_from_file(external_path)
     merged.update(external)
     return merged

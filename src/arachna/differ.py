@@ -30,10 +30,13 @@ XML format (for programmatic processing, --format xml):
 """
 
 import difflib
+import logging
 from dataclasses import dataclass
 from xml.sax.saxutils import escape as _xml_escape
 
 from .tokenizer import count_tokens
+
+logger = logging.getLogger("arachna.differ")
 
 
 @dataclass
@@ -52,6 +55,7 @@ def compute_diff(
     new_content: str,
     path: str,
     fmt: str = "markdown",
+    max_tokens: int | None = None,
 ) -> str:
     """Compute LLM-friendly diff between two file versions.
 
@@ -60,6 +64,9 @@ def compute_diff(
         new_content: current file content.
         path: file path for the header.
         fmt: "markdown" or "xml".
+        max_tokens: optional token limit for added file content.
+            If set and new_content exceeds max_tokens, content is
+            truncated with a warning. Default: None (no limit).
 
     Returns:
         Formatted diff string, or empty string if unchanged.
@@ -71,7 +78,7 @@ def compute_diff(
     new_lines = new_content.splitlines(keepends=True)
 
     if not old_lines and new_lines:
-        return _format_added(path, new_content, fmt)
+        return _format_added(path, new_content, fmt, max_tokens=max_tokens)
 
     if old_lines and not new_lines:
         return _format_deleted(path, fmt)
@@ -149,11 +156,29 @@ def _format_xml_diff(
     return "\n".join(lines)
 
 
-def _format_added(path: str, content: str, fmt: str) -> str:
-    """Format a newly added file."""
+def _format_added(
+    path: str,
+    content: str,
+    fmt: str,
+    max_tokens: int | None = None,
+) -> str:
+    """Format a newly added file.
+
+    If max_tokens is set and content exceeds it, content is truncated
+    with a warning message.
+    """
+    if max_tokens is not None and count_tokens(content) > max_tokens:
+        # Truncate to roughly max_tokens characters (4 chars ≈ 1 token)
+        limit = max_tokens * 4
+        content = content[:limit] + "\n# ... truncated (exceeds token limit) ...\n"
+        logger.warning("Added file %s exceeds max_tokens=%s — truncated", path, max_tokens)
+
     if fmt == "xml":
         escaped_path = _xml_escape(path)
-        return f'<file path="{escaped_path}">\n  <added>\n    {_xml_escape(content)}\n  </added>\n</file>\n'
+        return (
+            f'<file path="{escaped_path}">\n  <added>\n'
+            f"    {_xml_escape(content)}\n  </added>\n</file>\n"
+        )
     return f"### {path}\n\nADDED (new file):\n\n```\n{content}\n```\n"
 
 

@@ -19,7 +19,9 @@ _EXT_LANG = {
     "ini": "ini",
     "txt": "text",
     "js": "javascript",
+    "jsx": "jsx",
     "ts": "typescript",
+    "tsx": "tsx",
     "html": "html",
     "css": "css",
     "sql": "sql",
@@ -136,14 +138,16 @@ def _should_skip_binary(
 
 # ── Header generation ──────────────────────────────────────────────
 
-_RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
+# import a, b, c — captures the whole import list, then split by comma
+_RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
 
 _RE_C_LIKE_IMPORT = re.compile(
     r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]"
     r"|import\s+['\"]([^'\"]+)['\"]"
     r"|(?:const|let|var)\s+[\w{},\s*]+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
     r"|#include\s*[<\"]([^>\"]+)[>\"]"
-    r"|using\s+([\w.]+)\s*;)",
+    r"|using\s+([\w.]+)\s*;"
+    r"|use\s+([\w\\]+)\s*;)",
     re.MULTILINE,
 )
 
@@ -220,7 +224,14 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
         tree = _ast.parse(text)
     except SyntaxError:
         for m in _RE_PY_IMPORT.finditer(text):
-            mod = m.group(1) or m.group(2)
+            mod = m.group(1)
+            if mod:
+                # Handle "import a, b, c" — split by comma
+                for part in mod.split(","):
+                    part = part.strip()
+                    if part:
+                        deps.append(part)
+            mod = m.group(2)
             if mod:
                 deps.append(mod)
         return deps, exports
@@ -243,7 +254,7 @@ def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
     exports: list[str] = []
 
     for m in _RE_C_LIKE_IMPORT.finditer(text):
-        dep = m.group(1) or m.group(2) or m.group(3) or m.group(4) or m.group(5)
+        dep = m.group(1) or m.group(2) or m.group(3) or m.group(4) or m.group(5) or m.group(6)
         if dep:
             deps.append(dep)
 

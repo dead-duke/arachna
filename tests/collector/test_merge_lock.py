@@ -2,9 +2,11 @@
 
 fcntl path: tested on macOS/Linux (always available).
 msvcrt path: tested on Windows CI (skipped on Unix).
+Mock path: msvcrt + sys.platform on Unix to cover the branch.
 """
 
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -43,3 +45,25 @@ def test_find_next_part_num_existing_with_lock(tmp_path):
     (out / "chat-c_1.md").write_text("x")
     (out / "chat-c_2.md").write_text("x")
     assert _find_next_part_num(out, "chat-c") == 3
+
+
+def test_merge_lock_msvcrt_on_unix_mocked(tmp_path):
+    """Mock msvcrt import on Unix to cover the Windows code path (LOW-19)."""
+    mock_msvcrt = MagicMock()
+    mock_msvcrt.LK_LOCK = 1
+    mock_msvcrt.LK_UNLCK = 2
+
+    with patch.dict(sys.modules, {"fcntl": None, "msvcrt": mock_msvcrt}):
+        # Re-import collector to trigger the msvcrt import path
+        import importlib
+
+        import arachna.collector as collector_module
+
+        importlib.reload(collector_module)
+
+        out = tmp_path / "out"
+        out.mkdir()
+        with collector_module._merge_lock(out):
+            (out / "test.txt").write_text("locked")
+
+        assert not (out / ".arachna_merge.lock").exists()

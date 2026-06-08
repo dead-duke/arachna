@@ -183,3 +183,11 @@ def test_formatter_extensions_new_languages():
     assert _EXT_LANG["hs"] == "haskell"
     assert _EXT_LANG["lhs"] == "haskell"
     assert _EXT_LANG["gleam"] == "gleam"
+
+
+def test_formatter_extensions_tsx_jsx():
+    """_EXT_LANG contains .tsx and .jsx extensions (MEDIUM-13)."""
+    from arachna.formatter import _EXT_LANG
+
+    assert _EXT_LANG["tsx"] == "tsx"
+    assert _EXT_LANG["jsx"] == "jsx"

@@ -122,17 +122,28 @@ def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
 
 def _build_toc(
     named_sections: list[tuple[str, str, int]],
-    part_content: str,
+    part_section_indices: list[int],
     part_num: int,
     total_parts: int,
 ) -> str:
+    """Build table of contents from section names.
+
+    Args:
+        named_sections: List of (name, content, tokens) tuples.
+        part_section_indices: Indices into named_sections for this part.
+        part_num: Current part number.
+        total_parts: Total number of parts.
+
+    Returns:
+        TOC string listing files in this part.
+    """
     files = []
-    for name, content, _tokens in named_sections:
-        if content.strip() in part_content:
-            if name.startswith("pre: "):
-                files.append(name)
-            else:
-                files.append(Path(name).name if "/" in name or "\\" in name else name)
+    for idx in part_section_indices:
+        name = named_sections[idx][0]
+        if name.startswith("pre: "):
+            files.append(name)
+        else:
+            files.append(Path(name).name if "/" in name or "\\" in name else name)
 
     if not files:
         return ""
@@ -157,14 +168,29 @@ def _write_parts(
     total_parts = len(parts)
     start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
 
+    # Map each part to its section indices by content matching
+    part_to_indices = []
+    for part_content in parts:
+        indices = []
+        for idx, (_name, content, _tokens) in enumerate(named_sections):
+            if content.strip() in part_content:
+                indices.append(idx)
+        part_to_indices.append(indices)
+
     created = []
     tokens_by_file = {}
     for i, part_content in enumerate(parts, start_num):
+        part_idx = i - start_num
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
-        toc = _build_toc(named_sections, part_content, i, start_num + total_parts - 1)
+        toc = _build_toc(
+            named_sections,
+            part_to_indices[part_idx] if part_idx < len(part_to_indices) else [],
+            i,
+            start_num + total_parts - 1,
+        )
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
@@ -198,6 +224,15 @@ def _write_diff_parts(
 
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
 
+    # Build part-to-indices mapping
+    part_to_indices = []
+    for part_content in parts:
+        indices = []
+        for idx, (_name, content, _tokens) in enumerate(named_sections):
+            if content.strip() in part_content:
+                indices.append(idx)
+        part_to_indices.append(indices)
+
     created = []
     total_parts = len(parts)
     for i, part_content in enumerate(parts, 1):
@@ -205,7 +240,12 @@ def _write_diff_parts(
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
 
-        toc = _build_toc(named_sections, part_content, i, total_parts)
+        toc = _build_toc(
+            named_sections,
+            part_to_indices[i - 1] if (i - 1) < len(part_to_indices) else [],
+            i,
+            total_parts,
+        )
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
