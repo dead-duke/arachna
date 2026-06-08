@@ -168,8 +168,8 @@ def test_run_profile_merge_no_clean(tmp_path, monkeypatch):
         all=False,
     )
 
-    created, _ = _run_profile("c", config, args, "Test", tmp_path / "out")
-    assert len(created) == 1
+    result = _run_profile("c", config, args, "Test", tmp_path / "out")
+    assert len(result.files) == 1
 
 
 def test_run_profile_dry_run(tmp_path, monkeypatch):
@@ -192,9 +192,10 @@ def test_run_profile_dry_run(tmp_path, monkeypatch):
         all=False,
     )
 
-    stats, tokens = _run_profile("c", config, args, "Test", tmp_path / "out")
-    assert stats["name"] == "c"
-    assert tokens == {}
+    result = _run_profile("c", config, args, "Test", tmp_path / "out")
+    assert result.stats is not None
+    assert result.stats["name"] == "c"
+    assert result.files == []
 
 
 def test_cmd_single_no_content(tmp_path, monkeypatch):

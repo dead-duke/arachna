@@ -165,12 +165,14 @@ def _format_added(
     """Format a newly added file.
 
     If max_tokens is set and content exceeds it, content is truncated
-    with a warning message.
+    with a warning message. Truncation message length is accounted for
+    so total output does not exceed max_tokens.
     """
     if max_tokens is not None and count_tokens(content) > max_tokens:
-        # Truncate to roughly max_tokens characters (4 chars ≈ 1 token)
-        limit = max_tokens * 4
-        content = content[:limit] + "\n# ... truncated (exceeds token limit) ...\n"
+        truncation_msg = "\n# ... truncated (exceeds token limit) ...\n"
+        msg_tokens = count_tokens(truncation_msg)
+        limit = max(0, (max_tokens - msg_tokens) * 4)
+        content = content[:limit] + truncation_msg
         logger.warning("Added file %s exceeds max_tokens=%s — truncated", path, max_tokens)
 
     if fmt == "xml":

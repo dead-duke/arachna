@@ -20,7 +20,10 @@ logger = logging.getLogger("arachna.watcher")
 
 
 def _normalize_path(path: str) -> str:
-    """Convert backslashes to forward slashes, collapse double slashes."""
+    """Convert backslashes to forward slashes, collapse double slashes.
+
+    Returns path relative to cwd when possible for cross-platform portability.
+    """
     path = path.replace("\\", "/")
     path = re.sub(r"/+", "/", path)
     return path
@@ -155,10 +158,17 @@ def _is_binary_content(content: str) -> bool:
 
 
 def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
+    """Detect renamed/moved files via exact hash match and similarity.
+
+    Phase 1: exact hash match (same content, different path).
+    Phase 2: similarity comparison — limited to files with same extension
+    to avoid O(N²) difflib on large refactors.
+    """
     rename_sections = []
     matched_deleted: set[str] = set()
     matched_added: set[str] = set()
 
+    # Phase 1: exact hash match
     deleted_by_hash: dict[str, list[str]] = {}
     for path, content in deleted.items():
         deleted_by_hash.setdefault(_content_hash(content), []).append(path)
@@ -220,13 +230,29 @@ def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
             for p in add_paths:
                 matched_added.add(p)
 
+    # Phase 2: similarity comparison — only same extension
     remaining_deleted = {p: c for p, c in deleted.items() if p not in matched_deleted}
     remaining_added = {p: c for p, c in added.items() if p not in matched_added}
+
+    # Group by extension for O(N*M) → O(N+M) with small constant
+    deleted_by_ext: dict[str, dict[str, str]] = {}
+    for path, content in remaining_deleted.items():
+        if _is_binary_content(content):
+            continue
+        ext = Path(path).suffix
+        deleted_by_ext.setdefault(ext, {})[path] = content
 
     for del_path, del_content in remaining_deleted.items():
         if _is_binary_content(del_content):
             continue
-        for add_path, add_content in list(remaining_added.items()):
+        del_ext = Path(del_path).suffix
+        # Only compare with added files of same extension
+        candidates = {
+            p: c
+            for p, c in remaining_added.items()
+            if Path(p).suffix == del_ext and p not in matched_added
+        }
+        for add_path, add_content in list(candidates.items()):
             if _is_binary_content(add_content):
                 continue
             ratio = difflib.SequenceMatcher(None, del_content, add_content).ratio()
@@ -264,6 +290,10 @@ def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
 
 
 def _diff_file_sets(old_files: dict, new_files: dict, fmt: str) -> list[DiffSection]:
+    """Compare two file dicts and return DiffSections.
+
+    Detects modified, added, deleted, renamed, and moved files.
+    """
     sections = []
     deleted = {}
     added = {}
@@ -392,7 +422,7 @@ def _diff_pre_commands_marker(
 def _diff_pre_commands_structural(
     old_content: str, new_content: str, label: str, cmd: str, fmt: str = "markdown"
 ) -> str:
-    cmd_basename = _os.path.basename(cmd.strip().split()[0]) if cmd.strip() else ""
+    cmd_basename = Path(cmd.strip().split()[0]).name if cmd.strip() else ""
     if cmd_basename == "tree" or (cmd_basename == "git" and "tag" in cmd):
         return _diff_pre_commands_line(old_content, new_content, label)
     if cmd_basename == "git" and "log" in cmd:
@@ -400,24 +430,26 @@ def _diff_pre_commands_structural(
     return differ_compute_diff(old_content, new_content, label, fmt=fmt)
 
 
-def compute_diff(
+def _build_snapshot_files_map(snapshot_files: dict) -> dict[str, str]:
+    """Build {path: hash_spec} dict for O(1) lookups."""
+    return dict(snapshot_files)
+
+
+def _diff_files_sections(
     snapshot_id: str,
-    profile: dict | None = None,
-    fmt: str = "markdown",
-    to_snapshot_id: str | None = None,
-    flat: bool = False,
+    profile: dict,
+    exclude: list[str],
+    to_snapshot_id: str | None,
+    fmt: str,
 ) -> list[DiffSection]:
     manifest = load_snapshot(snapshot_id)
-    if profile is None:
-        profile = _get_profile_from_manifest(manifest)
-        if profile is None:
-            raise ValueError(f"Snapshot '{snapshot_id}' has legacy format. Use --profile.")
     snapshot_files = manifest.get("files", {})
-    exclude = _get_exclude_patterns(profile)
+
     old_files = {
         path: _get_content_from_manifest(path, hash_spec)
         for path, hash_spec in snapshot_files.items()
     }
+
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id)
         to_snapshot_files = to_manifest.get("files", {})
@@ -430,9 +462,19 @@ def compute_diff(
         for path in list(old_files.keys()):
             if path not in new_files and not _path_matches_profile(path, profile):
                 del old_files[path]
-    sections = _diff_file_sets(old_files, new_files, fmt)
 
+    return _diff_file_sets(old_files, new_files, fmt)
+
+
+def _diff_pre_commands_sections(
+    snapshot_id: str,
+    profile: dict,
+    to_snapshot_id: str | None,
+    fmt: str,
+) -> list[DiffSection]:
+    manifest = load_snapshot(snapshot_id)
     snapshot_pre = manifest.get("pre_commands", {})
+
     current_pre: dict[str, str] = {}
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id)
@@ -451,6 +493,8 @@ def compute_diff(
         label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
         cmd_map[label] = cmd
 
+    sections: list[DiffSection] = []
+
     for label, hash_spec in snapshot_pre.items():
         old_content = _get_content_from_manifest(label, hash_spec)
         if label in current_pre:
@@ -466,6 +510,7 @@ def compute_diff(
             sections.append(
                 DiffSection(type="deleted", path=label, content=f"### {label}\n\n[DELETED]\n")
             )
+
     for label in current_pre:
         if label not in snapshot_pre:
             cmd = cmd_map.get(label, "")
@@ -476,7 +521,18 @@ def compute_diff(
             )
             sections.append(DiffSection(type="added", path=label, content=diff_output))
 
+    return sections
+
+
+def _diff_command_section(
+    snapshot_id: str,
+    profile: dict,
+    to_snapshot_id: str | None,
+    fmt: str,
+) -> list[DiffSection]:
+    manifest = load_snapshot(snapshot_id)
     snapshot_cmd = manifest.get("command", {})
+
     current_cmd_output = ""
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id)
@@ -489,6 +545,9 @@ def compute_diff(
             output = run_command(cmd)
             if output.strip():
                 current_cmd_output = output
+
+    sections: list[DiffSection] = []
+
     if snapshot_cmd and current_cmd_output:
         for label, hash_spec in snapshot_cmd.items():
             old_content = _get_content_from_manifest(label, hash_spec)
@@ -503,8 +562,32 @@ def compute_diff(
     elif not snapshot_cmd and current_cmd_output:
         diff_output = differ_compute_diff("", current_cmd_output, "command output", fmt=fmt)
         sections.append(DiffSection(type="added", path="command output", content=diff_output))
+
+    return sections
+
+
+def compute_diff(
+    snapshot_id: str,
+    profile: dict | None = None,
+    fmt: str = "markdown",
+    to_snapshot_id: str | None = None,
+    flat: bool = False,
+) -> list[DiffSection]:
+    manifest = load_snapshot(snapshot_id)
+    if profile is None:
+        profile = _get_profile_from_manifest(manifest)
+        if profile is None:
+            raise ValueError(f"Snapshot '{snapshot_id}' has legacy format. Use --profile.")
+
+    exclude = _get_exclude_patterns(profile)
+
+    sections = _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt)
+    sections.extend(_diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt))
+    sections.extend(_diff_command_section(snapshot_id, profile, to_snapshot_id, fmt))
+
     if not flat and sections:
         sections = _group_diff_sections(sections, snapshot_id, to_snapshot_id)
+
     return sections
 
 

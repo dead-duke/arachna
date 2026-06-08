@@ -126,40 +126,56 @@ def _should_skip_binary(
     binary_extensions: list[str] | None,
     binary_max_mb: float,
 ) -> bool:
+    """Check if a file should be skipped as binary.
+
+    Decision table:
+    - Does not exist → skip
+    - Has text extension (.py, .md, etc.) → never skip
+    - No extension:
+        - include_binary=False → check for null bytes → skip if binary
+        - include_binary=True:
+            - binary_extensions does not include "" → skip
+            - Size > binary_max_mb → skip
+            - Otherwise → don't skip
+    - Has extension:
+        - Size > binary_max_mb → skip
+        - binary_extensions given and extension not in list → skip
+        - include_binary=False → skip
+        - Otherwise → don't skip
+    """
     if not path.exists():
         return True
 
     ext = path.suffix.lower()
 
+    # Text extensions are never binary
     if ext in _TEXT_EXTENSIONS:
         return False
 
-    if not ext:
-        if not include_binary:
-            # No extension and include_binary=False: check if it looks like binary
-            try:
-                with open(path, "rb") as f:
-                    chunk = f.read(1024)
-                if b"\x00" in chunk:
-                    return True
-            except OSError:
-                return True
-            return False
-        try:
-            size_mb = path.stat().st_size / (1024 * 1024)
-        except OSError:
-            return True
-        if size_mb > binary_max_mb:
-            return True
-        return bool(binary_extensions is not None and "" not in binary_extensions)
-
+    # Get file size (fail → skip)
     try:
         size_mb = path.stat().st_size / (1024 * 1024)
     except OSError:
         return True
 
+    # Size too large → skip
     if size_mb > binary_max_mb:
         return True
+
+    # No extension
+    if not ext:
+        if not include_binary:
+            # Check for null bytes to detect binary
+            try:
+                with open(path, "rb") as f:
+                    chunk = f.read(1024)
+                return b"\x00" in chunk
+            except OSError:
+                return True
+        # include_binary=True — check if "" is in binary_extensions
+        return bool(binary_extensions is not None and "" not in binary_extensions)
+
+    # Has extension
     if binary_extensions is not None and ext not in binary_extensions:
         return True
     return not include_binary
@@ -374,11 +390,24 @@ def format_file_section(
 
 
 def _is_binary_allowed(path: Path, extensions: list[str] | None, max_mb: float) -> bool:
+    """Check if a binary file is allowed based on extension and size.
+
+    Args:
+        path: File path.
+        extensions: Whitelist of extensions, or None for all.
+        max_mb: Maximum file size in MB.
+
+    Returns:
+        True if the file should be included as base64.
+    """
     if not path.exists():
         return False
-    if extensions and path.suffix.lower() not in extensions:
+    if extensions is not None and path.suffix.lower() not in extensions:
         return False
-    size_mb = path.stat().st_size / (1024 * 1024)
+    try:
+        size_mb = path.stat().st_size / (1024 * 1024)
+    except OSError:
+        return False
     return size_mb <= max_mb
 
 

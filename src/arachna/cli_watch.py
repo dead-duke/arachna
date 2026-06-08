@@ -34,10 +34,7 @@ def handle_watch_command(argv: list[str]) -> bool:
 
 
 def _parse_output_dir(argv: list[str], config: dict) -> str:
-    """Parse --output-dir / -o from argv, falling back to config default.
-
-    Shared by _cmd_diff and _cmd_diff_all to deduplicate parsing logic.
-    """
+    """Parse --output-dir / -o from argv, falling back to config default."""
     output_dir = config.get("output_dir", ".")
     if "--output-dir" in argv:
         idx = argv.index("--output-dir")
@@ -79,9 +76,9 @@ def _cmd_snapshot(argv: list[str]):
             print(f"Error: invalid snapshot ID '{sid}'")
             sys.exit(1)
         try:
-            manifest = list_snapshots()
+            all_manifests = list_snapshots()
             target = None
-            for m in manifest:
+            for m in all_manifests:
                 if m["id"] == sid:
                     target = m
                     break

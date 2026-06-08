@@ -119,7 +119,6 @@ def _split_pipe_parts(cmd: str) -> list[str]:
                 in_single = False
         elif in_double:
             if ch == "\\" and i + 1 < len(cmd):
-                # Backslash in double quotes: escapes only $ ` " \ and newline
                 next_ch = cmd[i + 1]
                 if next_ch in ("$", "`", '"', "\\", "\n"):
                     current.append("\\")
@@ -132,10 +131,8 @@ def _split_pipe_parts(cmd: str) -> list[str]:
                 if ch == '"':
                     in_double = False
         elif ch == "\\" and i + 1 < len(cmd):
-            # Backslash outside quotes: escapes the next character
             next_ch = cmd[i + 1]
             if next_ch == "|":
-                # Escaped pipe: literal |, not a separator
                 current.append("|")
                 i += 1
             elif next_ch == "\\":
@@ -150,7 +147,6 @@ def _split_pipe_parts(cmd: str) -> list[str]:
             current.append(ch)
             in_double = True
         elif ch == "|" and i + 1 < len(cmd) and cmd[i + 1] == "|":
-            # || is shell OR, not a pipe — treat as literal
             current.append("||")
             i += 1
         elif ch == "|":
@@ -173,7 +169,6 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
     """
     cmd_lower = cmd.lower().strip()
 
-    # Check blocked word patterns (whole-word matching)
     for word in _BLOCKED_WORDS:
         if re.search(r"\b" + re.escape(word) + r"\b", cmd_lower):
             if allow_dangerous:
@@ -181,7 +176,6 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
                 return True, ""
             return False, f"blocked pattern: '{word}'"
 
-    # Check blocked phrase patterns (literal substring matching)
     for phrase in _BLOCKED_PHRASES:
         if phrase in cmd_lower:
             if allow_dangerous:
@@ -189,10 +183,7 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
                 return True, ""
             return False, f"blocked pattern: '{phrase}'"
 
-    # For piped commands, validate each pipe part separately
-    # Use quote-aware pipe splitting
     if _PIPE_SEP in cmd:
-        # Quick check: if all | are inside quotes, treat as no pipe
         pipe_parts = _split_pipe_parts(cmd)
         if len(pipe_parts) > 1:
             for part in pipe_parts:
@@ -204,7 +195,6 @@ def _validate_command(cmd: str, allow_dangerous: bool = False) -> tuple[bool, st
                     return False, f"command in pipe not in allowlist: '{base}'"
             return True, ""
 
-    # For non-piped commands without shell metacharacters, check against allowlist
     base = _resolve_base(cmd)
     if base and not _SHELL_CHARS.intersection(cmd) and base not in _ALLOWED_COMMANDS:
         if allow_dangerous:
@@ -231,7 +221,6 @@ def _get_audit_log_path() -> Path | None:
     """
     try:
         cwd = Path.cwd()
-        # Limit traversal to 5 levels up from cwd
         for i, parent in enumerate([cwd, *cwd.parents]):
             if i > 5:
                 break
@@ -248,6 +237,23 @@ def _get_audit_log_path() -> Path | None:
         return None
 
 
+# Default log writer — writes to filesystem. Overridable in tests.
+_log_writer = None
+
+
+def _write_log(log_path: Path, entry: str):
+    """Write a log entry. Uses injectable _log_writer if set."""
+    if _log_writer is not None:
+        _log_writer(log_path, entry)
+        return
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except OSError:
+        pass
+
+
 def _log_command(cmd: str, success: bool):
     """Write command execution to audit log.
 
@@ -256,17 +262,12 @@ def _log_command(cmd: str, success: bool):
     log_path = _get_audit_log_path()
     if log_path is None:
         return
-    try:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        from datetime import datetime
+    from datetime import datetime
 
-        timestamp = datetime.now().isoformat()
-        status = "OK" if success else "FAIL"
-        sanitized_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{timestamp}] {status}: {sanitized_cmd}\n")
-    except OSError:
-        pass
+    timestamp = datetime.now().isoformat()
+    status = "OK" if success else "FAIL"
+    sanitized_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
+    _write_log(log_path, f"[{timestamp}] {status}: {sanitized_cmd}\n")
 
 
 def run_command(
@@ -307,10 +308,8 @@ def run_command(
             _log_command(cmd, False)
             return ""
 
-    # Dry-run mode: show what would be executed, skip if unsafe
     if dry_run:
         if _is_safe_command(cmd):
-            # Safe commands are executed even in dry-run (e.g., echo for testing)
             pass
         else:
             print(f"  [DRY-RUN] Would execute: {cmd}")

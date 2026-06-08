@@ -52,6 +52,8 @@ def split_sections(
     Unlike split(), this takes already-separated sections and packs
     them densely into parts without parsing a marker from raw content.
 
+    Logs a warning when a section exceeds max_tokens and is written as-is.
+
     Args:
         sections: List of content strings to pack into parts.
         max_tokens: Maximum tokens per part.
@@ -62,7 +64,45 @@ def split_sections(
         List of part content strings.
     """
     tk = tokenizer if tokenizer is not None else count_tokens
-    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
+
+    parts = []
+    current = ""
+    current_tokens = 0
+
+    for section in sections:
+        section = section.strip()
+        if not section:
+            continue
+        section_tokens = tk(section)
+
+        if section_tokens > max_tokens:
+            if current:
+                parts.append(current.strip())
+                current = ""
+                current_tokens = 0
+            logger.warning(
+                "Section too large: %s tokens exceeds limit of %s tokens, writing as-is",
+                section_tokens,
+                max_tokens,
+            )
+            parts.append(section)
+            continue
+
+        if current_tokens + section_tokens > max_tokens:
+            parts.append(current.strip())
+            current = section
+            current_tokens = section_tokens
+        else:
+            if current:
+                current += separator + section
+            else:
+                current = section
+            current_tokens += section_tokens
+
+    if current.strip():
+        parts.append(current.strip())
+
+    return parts
 
 
 def _split_to_sections(text: str, marker: str) -> list[str]:
@@ -184,7 +224,6 @@ def _handle_single(
 # ── Repo-map: signature extraction ─────────────────────────────────
 
 # C-like: match function/class/type signatures up to opening brace.
-# [^{]* allows zero chars before { (e.g. "type Handler struct {").
 _RE_C_LIKE_SIG = re.compile(
     r"^(\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
     r"type\s+\w+\s+\w+|type\s+|"

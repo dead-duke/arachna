@@ -134,24 +134,15 @@ def _build_toc(
     part_num: int,
     total_parts: int,
 ) -> str:
-    """Build table of contents from section names.
-
-    Args:
-        named_sections: List of (name, content, tokens) tuples.
-        part_section_indices: Indices into named_sections for this part.
-        part_num: Current part number.
-        total_parts: Total number of parts.
-
-    Returns:
-        TOC string listing files in this part.
-    """
+    """Build table of contents from section names using indices."""
     files = []
     for idx in part_section_indices:
-        name = named_sections[idx][0]
-        if name.startswith("pre: "):
-            files.append(name)
-        else:
-            files.append(Path(name).name if "/" in name or "\\" in name else name)
+        if idx < len(named_sections):
+            name = named_sections[idx][0]
+            if name.startswith("pre: "):
+                files.append(name)
+            else:
+                files.append(Path(name).name if "/" in name or "\\" in name else name)
 
     if not files:
         return ""
@@ -232,7 +223,6 @@ def _write_diff_parts(
 
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
 
-    # Build part-to-indices mapping
     part_to_indices = []
     for part_content in parts:
         indices = []
@@ -283,15 +273,6 @@ def collect(
     mode: str = "full",
     name_template: str | None = None,
 ) -> tuple[list[str], dict[str, int]]:
-    """Collect content and write output files.
-
-    Args:
-        name_template: Override the profile's name_template for output files.
-            If None, uses profile's name_template. Used by --diff --all
-            to produce chat-diff-all_*.md instead of chat-full_*.md.
-
-    Returns (created_files, tokens_by_file) tuple.
-    """
     name_tmpl = name_template if name_template is not None else profile["name_template"]
     title_tmpl = profile["title_template"]
     out_path = Path(output_dir)

@@ -23,63 +23,28 @@ from .formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
 
 
 def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
-    """Apply structural diff to a list of DiffSections from watcher.
-
-    Iterates over sections and for each "modified" file, extracts
-    old and new content from the text-based diff, then applies
-    block-level structural comparison.
-
-    Sections of type "added", "deleted", "renamed", "moved", or
-    "header" are passed through unchanged.
-
-    Args:
-        sections: List of DiffSection from watcher.compute_diff().
-        fmt: Output format — "markdown" or "xml".
-
-    Returns:
-        List of DiffSection with structural diff content replacing
-        text-based content for modified files.
-    """
+    """Apply structural diff to a list of DiffSections from watcher."""
     result = []
     for s in sections:
         if s.type != "modified" or not s.path:
             result.append(s)
             continue
-
         lang = lang_for_path(Path(s.path))
         old_content, new_content = _extract_old_new_from_section(s.content)
         if old_content is not None and new_content is not None:
             structural = structural_diff_for_lang(old_content, new_content, s.path, lang, fmt)
             if structural.strip():
                 s.content = structural
-
         result.append(s)
     return result
 
 
 def structural_diff_for_lang(
-    old_content: str,
-    new_content: str,
-    path: str,
-    lang: str,
-    fmt: str = "markdown",
+    old_content: str, new_content: str, path: str, lang: str, fmt: str = "markdown"
 ) -> str:
     """Compute block-level structural diff between two file versions.
 
     Single dispatch entry point — used by both differ_structural and watch.py.
-    Dispatches to language-specific parsers based on the detected language.
-    Falls back to text-based difflib for unknown languages.
-
-    Args:
-        old_content: Original file content (from snapshot).
-        new_content: Modified file content (current version).
-        path: File path for the diff header.
-        lang: Programming language from lang_for_path().
-        fmt: Output format — "markdown" or "xml".
-
-    Returns:
-        Formatted structural diff string showing MODIFIED, ADDED,
-        and DELETED blocks at the function/class level.
     """
     if lang == "python":
         blocks_old = _parse_python_blocks(old_content)
@@ -92,51 +57,28 @@ def structural_diff_for_lang(
         blocks_new = _parse_script_blocks(new_content)
     else:
         return _fallback_diff(old_content, new_content, path, fmt)
-
     return _format_block_diff(blocks_old, blocks_new, path, fmt)
 
 
 def structural_diff(
-    old_content: str,
-    new_content: str,
-    path: str,
-    lang: str,
-    fmt: str = "markdown",
+    old_content: str, new_content: str, path: str, lang: str, fmt: str = "markdown"
 ) -> str:
-    """Compute block-level structural diff between two file versions.
-
-    Deprecated: use structural_diff_for_lang() instead.
-    """
+    """Deprecated: use structural_diff_for_lang() instead."""
     return structural_diff_for_lang(old_content, new_content, path, lang, fmt)
 
 
 def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]:
-    """Parse a markdown diff section into old and new content.
-
-    Reads REMOVED and ADDED blocks from the diff output, strips
-    4-space indentation, and returns the reconstructed old and new
-    file contents as separate strings.
-
-    Args:
-        content: Markdown diff section content.
-
-    Returns:
-        Tuple of (old_content, new_content) or (None, None) if
-        the section does not contain extractable content.
-    """
+    """Parse a markdown diff section into old and new content."""
     old_lines = []
     new_lines = []
     in_removed = False
     in_added = False
-
     for line in content.split("\n"):
         if line.startswith("REMOVED "):
-            in_removed = True
-            in_added = False
+            in_removed, in_added = True, False
             continue
         elif line.startswith("ADDED "):
-            in_removed = False
-            in_added = True
+            in_removed, in_added = False, True
             continue
         elif (
             line.startswith("### ")
@@ -144,20 +86,16 @@ def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]
             or line.startswith("RENAMED")
             or line.startswith("MOVED")
         ):
-            in_removed = False
-            in_added = False
+            in_removed, in_added = False, False
             continue
-
         if in_removed:
             stripped = line[4:] if line.startswith("    ") else line
             old_lines.append(stripped)
         elif in_added:
             stripped = line[4:] if line.startswith("    ") else line
             new_lines.append(stripped)
-
     if not old_lines and not new_lines:
         return None, None
-
     return "\n".join(old_lines), "\n".join(new_lines)
 
 
@@ -165,29 +103,15 @@ def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]
 
 
 def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]]:
-    """Parse Python source into {name: (signature, body)} blocks.
-
-    Uses stdlib ast module. Top-level FunctionDef, ClassDef, and
-    AsyncFunctionDef become named blocks. Decorators are preserved
-    as part of the signature.
-
-    Args:
-        text: Python source code.
-
-    Returns:
-        Dict mapping function/class names to (signature, body) tuples.
-        Empty dict on SyntaxError.
-    """
+    """Parse Python source into {name: (signature, body)} blocks."""
     import ast as _ast
 
     try:
         tree = _ast.parse(text)
     except SyntaxError:
         return {}
-
     lines = text.split("\n")
     blocks = {}
-
     for node in _ast.iter_child_nodes(tree):
         if isinstance(node, (_ast.FunctionDef, _ast.ClassDef, _ast.AsyncFunctionDef)):
             name = node.name
@@ -196,82 +120,97 @@ def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]]:
                 sig_start = node.decorator_list[0].lineno - 1
             sig_end = node.body[0].lineno - 1 if node.body else node.end_lineno
             signature = "\n".join(lines[sig_start:sig_end])
-
             if node.body:
                 body_start = node.body[0].lineno - 1
                 body = "\n".join(lines[body_start : node.end_lineno])
             else:
                 body = ""
-
             blocks[name] = (signature, body)
-
     return blocks
 
 
-# ── C-like block parsing (regex) ───────────────────────────────────
+# ── C-like block parsing (regex with named groups) ─────────────────
 
-# Matches function/class/type declarations.
-# Group 1: full signature (without body)
-# Group 2: block name — the first identifier (function name, class name, etc.)
 _RE_C_LIKE_BLOCK = re.compile(
-    r"^(\s*(?:export\s+)?(?:async\s+)?(?:function|def)\s+(\w+)[^{]*"
+    r"^("
+    r"\s*(?:export\s+)?(?:async\s+)?function\s+(?P<name>\w+)[^{]*"
     r"|"
-    r"^\s*(?:export\s+)?(?:async\s+)?class\s+(\w+)[^{]*"
+    r"\s*def\s+(?P<name2>\w+)[^{]*"
     r"|"
-    r"^\s*(?:export\s+)?(?:async\s+)?interface\s+(\w+)[^{]*"
+    r"\s*(?:export\s+)?(?:async\s+)?class\s+(?P<name3>\w+)[^{]*"
     r"|"
-    r"^\s*(?:export\s+)?(?:async\s+)?enum\s+(\w+)[^{]*"
+    r"\s*(?:export\s+)?(?:async\s+)?interface\s+(?P<name4>\w+)[^{]*"
     r"|"
-    r"^\s*(?:export\s+)?(?:async\s+)?struct\s+(\w+)[^{]*"
+    r"\s*(?:export\s+)?(?:async\s+)?enum\s+(?P<name5>\w+)[^{]*"
     r"|"
-    r"^\s*(?:export\s+)?(?:async\s+)?trait\s+(\w+)[^{]*"
+    r"\s*(?:export\s+)?(?:async\s+)?struct\s+(?P<name6>\w+)[^{]*"
     r"|"
-    r"^\s*(?:export\s+)?(?:async\s+)?impl\s+(\w+)[^{]*"
+    r"\s*(?:export\s+)?(?:async\s+)?trait\s+(?P<name7>\w+)[^{]*"
     r"|"
-    r"^\s*type\s+(\w+)\s+\w+[^{]*"  # type Handler struct { — name is group 9
+    r"\s*(?:export\s+)?(?:async\s+)?impl\s+(?P<name8>\w+)[^{]*"
     r"|"
-    r"^\s*type\s+(\w+)[^{]*"  # type MyInt int — name is group 10
+    r"\s*type\s+(?P<name9>\w+)\s+\w+[^{]*"  # type Handler struct {
     r"|"
-    r"^\s*public\s+class\s+(\w+)[^{]*"
+    r"\s*type\s+(?P<name10>\w+)[^{]*"  # type MyInt int
     r"|"
-    r"^\s*public\s+static\s+(\w+)[^{]*"
+    r"\s*public\s+class\s+(?P<name11>\w+)[^{]*"
     r"|"
-    r"^\s*public\s+function\s+(\w+)[^{]*"
+    r"\s*public\s+static\s+(?P<name12>\w+)[^{]*"
     r"|"
-    r"^\s*fn\s+(\w+)[^{]*"
+    r"\s*public\s+function\s+(?P<name13>\w+)[^{]*"
     r"|"
-    r"^\s*func\s+(\w+)[^{]*)",
+    r"\s*fn\s+(?P<name14>\w+)[^{]*"
+    r"|"
+    r"\s*func\s+(?P<name15>\w+)[^{]*"
+    r")",
     re.MULTILINE,
 )
+
+# Map group index to name group key — name15 maps to "name15", etc.
+_C_LIKE_NAME_GROUPS = [f"name{i}" if i > 1 else "name" for i in range(1, 16)]
+_C_LIKE_NAME_GROUPS[0] = "name"  # group 1 uses "name"
+_C_LIKE_NAME_GROUPS[1] = "name2"  # group 2 uses "name2"
+# Actually: named groups are indexed by their position in the regex.
+# "name" is group 1, "name2" is group 2, ..., "name15" is group 15.
+# In Python re, named groups are numbered sequentially among all groups.
+# So: name=1, name2=2, name3=3, ..., name15=15.
 
 
 def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
     """Parse C-like source into {name: (signature, body)} blocks.
 
-    Uses regex to find function, class, method, and type declarations.
-    Bodies are extracted via brace matching for languages that use
-    curly braces.
-
-    Block name is the first meaningful identifier (function name,
-    class name, type name — not struct/interface keyword).
-
-    Args:
-        text: Source code in a C-like language.
-        lang: Language identifier (unused, reserved for future use).
-
-    Returns:
-        Dict mapping block names to (signature, body) tuples.
+    Uses a single regex with named capture groups for each declaration type.
+    Sig = full match (group 0). Name = the one named group that matched.
+    Bodies are extracted via brace matching.
     """
     blocks = {}
     for m in _RE_C_LIKE_BLOCK.finditer(text):
-        # Name is the last non-None group — the first identifier after keyword
-        groups = m.groups()
-        sig = m.group(1).strip()
+        sig = m.group(0).strip()
+        # Find which named group matched
         name = None
-        for g in groups[1:]:
-            if g is not None:
-                name = g
-                break
+        for group_name in [
+            "name",
+            "name2",
+            "name3",
+            "name4",
+            "name5",
+            "name6",
+            "name7",
+            "name8",
+            "name9",
+            "name10",
+            "name11",
+            "name12",
+            "name13",
+            "name14",
+            "name15",
+        ]:
+            try:
+                name = m.group(group_name)
+                if name is not None:
+                    break
+            except IndexError:
+                continue
 
         if name is None:
             continue
@@ -282,27 +221,13 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
         else:
             body = ""
         blocks[name] = (sig, body)
-
     return blocks
 
 
 def _extract_braced_block(text: str, start: int) -> str:
-    """Extract text from an opening brace to its matching closing brace.
-
-    Handles nested braces correctly. Returns the content from '{'
-    to the matching '}', inclusive.
-
-    Args:
-        text: Full source text.
-        start: Index of the opening '{' character.
-
-    Returns:
-        Braced block content including the braces, or empty string
-        if start is out of range or not pointing to '{'.
-    """
+    """Extract text from opening brace to matching closing brace."""
     if start >= len(text) or text[start] != "{":
         return ""
-
     depth = 0
     i = start
     while i < len(text):
@@ -313,7 +238,6 @@ def _extract_braced_block(text: str, start: int) -> str:
             if depth == 0:
                 return text[start : i + 1]
         i += 1
-
     return text[start:]
 
 
@@ -321,17 +245,7 @@ def _extract_braced_block(text: str, start: int) -> str:
 
 
 def _parse_script_blocks(text: str) -> dict[str, tuple[str, str]]:
-    """Parse Ruby/Elixir/Lua source into {name: (signature, body)} blocks.
-
-    Uses regex to find def, defmodule, defp, and function declarations.
-    Bodies are everything after the signature line.
-
-    Args:
-        text: Source code in Ruby, Elixir, or Lua.
-
-    Returns:
-        Dict mapping block names to (signature, body) tuples.
-    """
+    """Parse Ruby/Elixir/Lua source into {name: (signature, body)} blocks."""
     sig_pattern = re.compile(
         r"^(\s*(?:def\s+(?:self\.)?(\w+[?!]?).*|"
         r"defmodule\s+([\w.]+).*|"
@@ -339,7 +253,6 @@ def _parse_script_blocks(text: str) -> dict[str, tuple[str, str]]:
         r"function\s+(\w+).*))",
         re.MULTILINE,
     )
-
     blocks = {}
     for m in sig_pattern.finditer(text):
         name = m.group(2) or m.group(3) or m.group(4) or m.group(5)
@@ -347,68 +260,38 @@ def _parse_script_blocks(text: str) -> dict[str, tuple[str, str]]:
         body_start = m.end()
         body = text[body_start:].strip()
         blocks[name] = (sig, body)
-
     return blocks
 
 
 # ── Diff formatting ────────────────────────────────────────────────
 
 
-def _format_block_diff(
-    old_blocks: dict[str, tuple[str, str]],
-    new_blocks: dict[str, tuple[str, str]],
-    path: str,
-    fmt: str,
-) -> str:
-    """Compare two block dicts and produce formatted structural diff.
-
-    Blocks present only in new_blocks are ADDED.
-    Blocks present only in old_blocks are DELETED.
-    Blocks in both are compared for signature and body changes.
-
-    Args:
-        old_blocks: Blocks from the old file version.
-        new_blocks: Blocks from the new file version.
-        path: File path for the header.
-        fmt: Output format — "markdown" or "xml".
-
-    Returns:
-        Formatted structural diff string with MODIFIED/ADDED/DELETED
-        sections.
-    """
+def _format_block_diff(old_blocks: dict, new_blocks: dict, path: str, fmt: str) -> str:
+    """Compare two block dicts and produce formatted structural diff."""
     all_names = set(old_blocks.keys()) | set(new_blocks.keys())
     parts = [f"### {path}\n"]
-
     for name in sorted(all_names):
         old = old_blocks.get(name)
         new = new_blocks.get(name)
-
         if old is None and new is not None:
             sig, body = new
             parts.append(f"ADDED: {_block_label(name, sig)}\n")
             parts.append(f"{sig}\n{body}\n\n")
-
         elif old is not None and new is None:
             sig, _body = old
             parts.append(f"DELETED: {_block_label(name, sig)}\n\n")
-
         elif old is not None and new is not None:
             old_sig, old_body = old
             new_sig, new_body = new
-
             sig_changed = old_sig != new_sig
             body_changed = old_body != new_body
-
             if not sig_changed and not body_changed:
                 continue
-
             parts.append(f"MODIFIED: {_block_label(name, old_sig)}\n")
-
             if sig_changed:
                 parts.append("  Signature changed:\n")
                 parts.append(f"    - {old_sig}\n")
                 parts.append(f"    + {new_sig}\n")
-
             if body_changed:
                 parts.append("  Body:\n")
                 body_diff = _fallback_diff(old_body, new_body, "", fmt)
@@ -416,49 +299,27 @@ def _format_block_diff(
                     for line in body_diff.split("\n"):
                         if line.strip():
                             parts.append(f"    {line}\n")
-
             parts.append("\n")
-
     return "".join(parts)
 
 
 def _block_label(name: str, signature: str) -> str:
-    """Generate a human-readable label for a code block.
-
-    Detects whether the block is a class or function from its
-    signature prefix.
-
-    Args:
-        name: Block name (function or class name).
-        signature: First line of the block declaration.
-
-    Returns:
-        Label like "function calculate_total" or "class ShoppingCart".
-    """
+    """Generate a human-readable label for a code block."""
     if signature.startswith("class ") or signature.startswith("interface "):
         return f"class {name}"
     elif (
         signature.startswith("def ")
         or signature.startswith("function ")
         or signature.startswith("func ")
-    ) or signature.startswith("fn "):
+        or signature.startswith("fn ")
+    ):
         return f"function {name}"
     else:
         return name
 
 
 def _fallback_diff(old: str, new: str, path: str, fmt: str) -> str:
-    """Fallback to text-based difflib diff for unknown languages.
-
-    Args:
-        old: Old file content.
-        new: New file content.
-        path: File path.
-        fmt: Output format.
-
-    Returns:
-        Formatted diff string from differ.compute_diff().
-    """
+    """Fallback to text-based difflib diff for unknown languages."""
     from .differ import compute_diff
 
     if not old and not new:

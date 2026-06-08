@@ -18,12 +18,7 @@ def _collect_pre_commands(
     profile: dict[str, Any],
     tokenizer: Callable[[str], int],
 ) -> list[tuple[str, str, int]]:
-    """Run pre_commands and return (label, output, tokens) tuples.
-
-    Pre_commands are shell commands defined in the profile that run
-    before file collection (e.g. tree, git log). Their output is
-    included as named sections in the collected context.
-    """
+    """Run pre_commands and return (label, output, tokens) tuples."""
     results = []
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd)
@@ -38,11 +33,7 @@ def _scan_directories(
     profile: dict[str, Any],
     exclude: list[str],
 ) -> list[Path]:
-    """Scan directories for matching files, return sorted Path list.
-
-    Symlinks are skipped with a warning to prevent path traversal
-    outside the project root.
-    """
+    """Scan directories for matching files, return sorted Path list."""
     seen = []
     for directory in profile.get("directories", []):
         dir_path = Path(directory)
@@ -70,23 +61,7 @@ def _apply_repo_map_to_section(
     fmt: str,
     include_header: bool,
 ) -> str:
-    """Apply repo-map transformation to a formatted section.
-
-    Reads raw text, extracts signatures, and reformats as signature-only
-    output. If raw_text is None (could not be read), returns the original
-    section unchanged.
-
-    Args:
-        filepath: Path to the source file.
-        section: Already-formatted section string (markdown/xml/json).
-        raw_text: Raw file content, or None if unreadable.
-        lang: Detected language.
-        fmt: Output format.
-        include_header: Whether to include dependency/export headers.
-
-    Returns:
-        Repo-map formatted section, or original section if raw_text is None.
-    """
+    """Apply repo-map transformation to a formatted section."""
     if raw_text is None:
         return section
 
@@ -113,26 +88,7 @@ def _format_file_list(
     include_header: bool = False,
     mode: str = "full",
 ) -> list[tuple[str, str, int]]:
-    """Format a list of file paths into (path, content, tokens) tuples.
-
-    Shared by _format_scanned_files and _collect_specific_files.
-    For repo-map mode, reads raw text first, applies extract_signatures,
-    then formats only the signatures.
-
-    Args:
-        filepaths: List of Path objects to format.
-        tokenizer: Token counting function.
-        fmt: Output format — "markdown", "xml", or "json".
-        include_binary: Whether to include binary files as base64.
-        binary_extensions: Whitelist of binary extensions, or None for all.
-        binary_max_mb: Maximum binary file size in MB.
-        verbose: Whether to print skip reasons.
-        include_header: Whether to prepend dependency/export headers.
-        mode: Collection mode — "full", "headers", or "repo-map".
-
-    Returns:
-        List of (filepath_str, formatted_content, token_count) tuples.
-    """
+    """Format a list of file paths into (path, content, tokens) tuples."""
     results = []
     for filepath in filepaths:
         raw_text = None
@@ -172,10 +128,7 @@ def _format_scanned_files(
     include_header: bool = False,
     mode: str = "full",
 ) -> list[tuple[str, str, int]]:
-    """Format scanned files into (path, content, tokens) tuples.
-
-    Delegates to _format_file_list.
-    """
+    """Format scanned files — delegates to _format_file_list."""
     return _format_file_list(
         filepaths,
         tokenizer,
@@ -189,32 +142,23 @@ def _format_scanned_files(
     )
 
 
-# ── Repo-map formatting helpers ────────────────────────────────────
-
-
 def _format_markdown_sigs(filepath: Path, lang: str, sigs: str) -> str:
-    """Format signatures as markdown code block."""
     fence_lang = lang if lang else ""
     return f"### {filepath}\n\n```{fence_lang}\n{sigs}\n```\n"
 
 
 def _format_xml_sigs(filepath: Path, lang: str, sigs: str) -> str:
-    """Format signatures as XML."""
     lang_attr = f' language="{lang}"' if lang else ""
     return f'<file path="{filepath}"{lang_attr}>\n<![CDATA[\n{sigs}\n]]>\n</file>\n'
 
 
 def _format_json_sigs(filepath: Path, lang: str, sigs: str) -> str:
-    """Format signatures as JSON."""
     import json
 
     obj = {"path": str(filepath), "content": sigs}
     if lang:
         obj["language"] = lang
     return json.dumps(obj, ensure_ascii=False) + "\n"
-
-
-# ── End repo-map formatting ────────────────────────────────────────
 
 
 def _collect_directory_sections(
@@ -227,10 +171,7 @@ def _collect_directory_sections(
     include_header: bool = False,
     mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], dict[str, float] | None]:
-    """Collect sections from directory scans with optional incremental logic.
-
-    Returns (sections, updated_cache).
-    """
+    """Collect sections from directory scans with optional incremental logic."""
     fmt = profile.get("section_format", "markdown")
     include_binary = profile.get("include_binary", False)
     binary_extensions = profile.get("binary_extensions")
@@ -241,7 +182,6 @@ def _collect_directory_sections(
     if incremental and cache is not None:
         changed, new, deleted = get_changed_files(seen_files, cache)
         target_files = changed + new
-        # Explicitly remove deleted files from cache
         for del_path in deleted:
             cache.pop(str(del_path), None)
         if deleted:
@@ -304,17 +244,17 @@ def _collect_file_sections(
     )
 
 
-# ── Query filtering ────────────────────────────────────────────────
-
-
 def _collect_import_graph(
     named_sections: list[tuple[str, str, int]],
 ) -> dict[str, list[str]]:
-    """Build {filepath: [imported_modules]} dict from section headers.
+    """Build {filepath: [imported_modules]} dict from section headers."""
+    return _build_import_graph(named_sections)
 
-    Parses header deps from each section to build the import graph
-    used by _filter_by_query for import chain analysis.
-    """
+
+def _build_import_graph(
+    named_sections: list[tuple[str, str, int]],
+) -> dict[str, list[str]]:
+    """Build import graph from named sections."""
     graph: dict[str, list[str]] = {}
     for filepath, content, _tokens in named_sections:
         lang = lang_for_path(Path(filepath))
@@ -336,26 +276,12 @@ def _collect_import_graph(
 def _filter_by_query(
     named_sections: list[tuple[str, str, int]],
     query: str,
+    include_pre_commands: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Filter named_sections by query relevance.
 
-    Scoring algorithm:
-    - +10: query word in filename (e.g. "auth" matches auth.py)
-    - +8: query word in exports (function/class names from header)
-    - +5: query word in imports (dependencies from header)
-    - +3: query word in file content
-
-    Files with score > 0 are included. Files that import matched
-    files are also included via import chain (max depth 2).
-
-    Pre_commands sections (pre: ...) always pass through unfiltered.
-
-    Args:
-        named_sections: List of (path, content, tokens) tuples.
-        query: Space-separated query words.
-
-    Returns:
-        Filtered list preserving original order.
+    By default, pre_commands sections (pre: ...) are filtered out
+    when a query is active. Use include_pre_commands=True to keep them.
     """
     if not query or not query.strip():
         return named_sections
@@ -420,12 +346,12 @@ def _filter_by_query(
 
     result = []
     for section in named_sections:
-        if section[0].startswith("pre: ") or section[0] in matched:
+        if section[0].startswith("pre: "):
+            if include_pre_commands:
+                result.append(section)
+        elif section[0] in matched:
             result.append(section)
     return result
-
-
-# ── End query filtering ────────────────────────────────────────────
 
 
 def _collect_named_sections(
@@ -439,16 +365,11 @@ def _collect_named_sections(
     query: str | None = None,
     mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], dict[str, float]]:
-    """Collect all named sections from pre_commands, directories, and files.
-
-    Returns (named_sections, updated_cache).
-    """
+    """Collect all named sections from pre_commands, directories, and files."""
     named_sections = []
 
-    # Pre-commands (never affected by repo-map)
     named_sections.extend(_collect_pre_commands(profile, tokenizer))
 
-    # Directories (with incremental logic, repo-map applied at format level)
     dir_sections, new_cache = _collect_directory_sections(
         profile,
         exclude,
@@ -461,7 +382,6 @@ def _collect_named_sections(
     )
     named_sections.extend(dir_sections)
 
-    # Specific files (repo-map applied at format level)
     named_sections.extend(
         _collect_file_sections(
             profile,
@@ -473,7 +393,6 @@ def _collect_named_sections(
         )
     )
 
-    # Apply query filtering if query is provided
     if query and query.strip():
         named_sections = _filter_by_query(named_sections, query)
 
@@ -486,14 +405,7 @@ def _assemble_command_content(
     query: str | None = None,
     mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
-    """Assemble content from a command source.
-
-    Query and mode parameters are accepted for API symmetry with
-    _assemble_file_content but are not applied to command output
-    (command-based profiles produce a single section).
-
-    Returns (named_sections, parts, empty_cache).
-    """
+    """Assemble content from a command source."""
     command = profile["command"]
     do_compress = profile.get("compress", False)
     split_mode = profile.get("split_mode", "by_file")
@@ -518,19 +430,12 @@ def _assemble_file_content(
     query: str | None = None,
     mode: str = "full",
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
-    """Assemble content from directories, files, and pre_commands.
-
-    Pipeline: collect sections → filter by query → compress → split.
-
-    Returns (named_sections, parts, updated_cache).
-    """
+    """Assemble content from directories, files, and pre_commands."""
     do_compress = profile.get("compress", False)
     max_tokens = profile.get("max_tokens", 16000)
 
-    # Headers auto-enabled when query is used
     include_header = bool(query and query.strip()) or mode == "headers"
 
-    # Step 1: Collect all named sections
     named_sections, new_cache = _collect_named_sections(
         profile,
         exclude,
@@ -543,7 +448,6 @@ def _assemble_file_content(
         mode=mode,
     )
 
-    # Step 2: Build list of section content strings with optional compression
     sections = []
     for _name, content, _tokens in named_sections:
         if do_compress and content.strip():
@@ -551,7 +455,6 @@ def _assemble_file_content(
         else:
             sections.append(content)
 
-    # Step 3: Compression stats
     if verbose and do_compress:
         raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
         comp_tokens = sum(tokenizer(s) for s in sections)
@@ -559,7 +462,6 @@ def _assemble_file_content(
             pct = (raw_tokens - comp_tokens) / raw_tokens * 100
             print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
 
-    # Step 4: Pack sections densely into token-limited parts
     parts = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
 
     return named_sections, parts, new_cache
@@ -577,12 +479,14 @@ def _assemble_content(
 ) -> tuple[list[tuple[str, str, int]], list[str], dict[str, float]]:
     """Assemble raw content from profile and split into token-limited parts.
 
-    Dispatches to _assemble_command_content for command-based profiles
-    or _assemble_file_content for directory/file-based profiles.
-
-    Returns (named_sections, parts, updated_cache).
+    Warns if both command and directories are present — command takes precedence.
     """
     if profile.get("command"):
+        if profile.get("directories") or profile.get("files"):
+            print(
+                "  Warning: profile has both 'command' and 'directories'/'files'. "
+                "Using 'command', ignoring directories and files."
+            )
         return _assemble_command_content(profile, tokenizer, query=query, mode=mode)
     return _assemble_file_content(
         profile,
@@ -602,23 +506,7 @@ def _apply_repo_map_to_sections(
     to_snapshot_id: str | None,
     profile: dict,
 ) -> list:
-    """Apply repo-map diff transformation to a list of DiffSections.
-
-    Single shared pipeline for repo-map diff — used by watch.py,
-    differ_structural, and cli_watch.
-
-    Reads full source from store/disk, parses into named blocks,
-    and formats repo-map output (signatures + change markers).
-
-    Args:
-        sections: List of DiffSection from watcher.compute_diff().
-        snapshot_id: Source snapshot ID.
-        to_snapshot_id: Target snapshot ID, or None for current disk.
-        profile: Profile dict.
-
-    Returns:
-        List of DiffSection with repo-map formatted content.
-    """
+    """Apply repo-map diff transformation to a list of DiffSections."""
     from .formatter import lang_for_path
     from .store import load_snapshot
 
@@ -778,18 +666,7 @@ def dry_run(
     query: str | None = None,
     mode: str = "full",
 ) -> dict:
-    """Preview collection without writing files.
-
-    Args:
-        profile: Profile dict with directories/patterns/files.
-        tokenizer: Token counting function. Default: 4 chars ≈ 1 token.
-        query: Optional query string to filter files.
-        mode: Collection mode — "full", "headers", or "repo-map".
-
-    Returns:
-        Dict with name_tmpl, max_tokens, and parts (list of part dicts
-        with part_num, sections, total_tokens).
-    """
+    """Preview collection without writing files."""
     tk = tokenizer if tokenizer is not None else count_tokens
 
     exclude = _get_exclude_patterns(profile)
@@ -807,7 +684,6 @@ def dry_run(
         mode=mode,
     )
 
-    # Build per-part section lists
     part_list = []
     for i, content in enumerate(parts, 1):
         part_sections = []

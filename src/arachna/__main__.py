@@ -4,6 +4,7 @@ import argparse
 import copy
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from . import __version__
@@ -20,6 +21,15 @@ from .gatherer import dry_run
 from .renderer import render_dry_run
 from .tokenizer import count_tokens
 from .validator import validate_profile
+
+
+@dataclass
+class _ProfileResult:
+    """Return type for _run_profile — files or stats, never both."""
+
+    files: list[str]
+    tokens_by_file: dict[str, int]
+    stats: dict | None
 
 
 def _list_profiles(config: dict) -> list[str]:
@@ -44,7 +54,9 @@ def _apply_args_to_profile(profile: dict, args):
     return profile
 
 
-def _run_profile(name: str, config: dict, args, project_name: str, out_path: Path):
+def _run_profile(
+    name: str, config: dict, args, project_name: str, out_path: Path
+) -> _ProfileResult:
     try:
         profile = get_profile(name)
     except KeyError as e:
@@ -58,7 +70,7 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
         mode = getattr(args, "mode", "full")
         stats = dry_run(profile, query=query, mode=mode)
         stats["name"] = name
-        return stats, {}
+        return _ProfileResult(files=[], tokens_by_file={}, stats=stats)
 
     name_tmpl = profile.get("name_template", f"chat-{name}")
 
@@ -88,7 +100,7 @@ def _run_profile(name: str, config: dict, args, project_name: str, out_path: Pat
             updated.extend(created)
         save_manifest(out_path, updated)
 
-    return created, tokens_by_file
+    return _ProfileResult(files=created, tokens_by_file=tokens_by_file, stats=None)
 
 
 def main():
@@ -261,34 +273,14 @@ def _cmd_clean(config: dict, out_path: Path):
         mf.unlink()
         cleaned += 1
         print(f"  Removed: {_MANIFEST}")
-    for name in _list_profiles(config):
-        try:
-            prof = get_profile(name)
-        except KeyError:
-            continue
-        tmpl = prof.get("name_template", f"chat-{name}")
-        for f in out_path.glob(f"{tmpl}_*.md"):
+
+    # Unified glob: all chat-* and chat-diff* patterns
+    for pattern in ["chat-*_*.md", "chat-*.md", "chat-diff*.md", "chat-diff*_*.md"]:
+        for f in out_path.glob(pattern):
             f.unlink()
             cleaned += 1
             print(f"  Removed: {f.name}")
-        plain = out_path / f"{tmpl}.md"
-        if plain.exists():
-            plain.unlink()
-            cleaned += 1
-            print(f"  Removed: {plain.name}")
-    for f in out_path.glob("chat-diff-*.md"):
-        f.unlink()
-        cleaned += 1
-        print(f"  Removed: {f.name}")
-    for f in out_path.glob("chat-diff_*.md"):
-        f.unlink()
-        cleaned += 1
-        print(f"  Removed: {f.name}")
-    plain_diff = out_path / "chat-diff.md"
-    if plain_diff.exists():
-        plain_diff.unlink()
-        cleaned += 1
-        print("  Removed: chat-diff.md")
+
     print(f"Cleaned {cleaned} file(s).")
 
 
@@ -296,8 +288,9 @@ def _cmd_dry_run(config: dict, args):
     profiles_to_run = _collect_profile_names(config, args)
     all_stats = []
     for name in profiles_to_run:
-        stats, _ = _run_profile(name, config, args, "", Path("."))
-        all_stats.append(stats)
+        result = _run_profile(name, config, args, "", Path("."))
+        if result.stats:
+            all_stats.append(result.stats)
     render_dry_run(all_stats)
 
 
@@ -334,11 +327,11 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
     all_tokens = {}
     for name in _list_profiles(config):
         print(f"[{name}] Collecting...")
-        created, tokens_by_file = _run_profile(name, config, args, project_name, out_path)
-        if created:
-            all_created.extend(created)
-            all_tokens.update(tokens_by_file)
-            _print_collected(created)
+        result = _run_profile(name, config, args, project_name, out_path)
+        if result.files:
+            all_created.extend(result.files)
+            all_tokens.update(result.tokens_by_file)
+            _print_collected(result.files)
         else:
             print("  No content collected.")
     _write_manifest(out_path, all_created, all_tokens, config)
@@ -349,8 +342,8 @@ def _cmd_all(config: dict, args, project_name: str, out_path: Path):
 def _cmd_single(config: dict, args, project_name: str, out_path: Path):
     name = args.profile
     print(f"[{name}] Collecting...")
-    created, tokens_by_file = _run_profile(name, config, args, project_name, out_path)
-    _print_collected(created)
+    result = _run_profile(name, config, args, project_name, out_path)
+    _print_collected(result.files)
 
 
 def _cmd_presets_update(argv: list[str]):
@@ -362,7 +355,6 @@ def _cmd_presets_update(argv: list[str]):
         if idx + 1 < len(argv):
             url = argv[idx + 1]
 
-    # Validate local presets.json before merge
     local = load_presets_from_file("presets.json")
     if local:
         print(f"Local presets.json: {len(local)} preset(s) — will be preserved.")
