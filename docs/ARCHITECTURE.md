@@ -18,7 +18,7 @@ splitter.py         Token-based splitting, repo-map signature extraction
 tokenizer.py        Token estimation (4 chars ~ 1 token) + pluggable tokenizers, configurable safe list
 compressor.py       Safe whitespace compression (blank lines, trailing ws)
 config.py           .arachna.json loader, profile resolution, defaults, @lru_cache
-runner.py           Sandboxed command execution, allowlist, audit log, injectable log writer
+runner.py           Sandboxed command execution, dual-mode allowlist, audit log, injectable log writer
 renderer.py         Dry-run output formatting
 validator.py        Profile validation (errors + warnings)
 doctor.py           Full configuration diagnostic
@@ -28,7 +28,7 @@ presets.py          Language/engine presets, auto-detection, external presets, m
 differ.py           LLM-optimized text diff (markdown + XML)
 differ_structural.py Structural diff (ast for Python, regex with named groups for C-like/script)
 watcher.py          Watch orchestration: snapshots + diffs, decomposed pipeline
-store.py            Content-addressable store (SHA256 + zlib, dedup, GC, atomic writes)
+store.py            Content-addressable store (SHA256 + zlib, dedup, GC, atomic writes, snapshot ID validation)
 completion.py       Bash and zsh shell completion
 cache.py            Smart hybrid incremental cache (mtime_ns + size + SHA256)
 gitignore.py        .gitignore parser for auto-exclusion
@@ -123,21 +123,34 @@ each output file fits the model's context window with a safety margin.
 ### 2. Dense packing via split_sections()
 
 All sections are collected into a single list and packed densely —
-every part except the last is >= 50% of max_tokens.
+every part except the last is >= 50% of max_tokens. Section indices
+returned for TOC generation without content matching.
 
 ### 3. Content-addressable store
 
 Watch snapshots use SHA256 hashing for deduplication. Multiple snapshots
 share identical file content. Garbage collection removes unreferenced
 objects. Store is auto-gitignored (.arachna/.gitignore contains "*").
-Atomic writes prevent race conditions on first creation.
+Atomic writes for both .gitignore and objects (tempfile + os.replace).
+Snapshot IDs validated against path traversal (regex ^[\w][\w.-]*$).
 
-### 4. Read-only command sandbox
+### 4. Dual-mode command sandbox
 
-All shell commands are validated against a strict allowlist. No interpreters
-(python, node, ruby), no filesystem modification (mkdir, chmod, rm),
-no find -exec (RCE vector). Commands with shell metacharacters run with
-shell=True after validation. Audit log with newline sanitization.
+Commands execute in two security levels:
+
+- **Restricted mode** (allow_file_args=False): internal calls from store,
+  watcher, gatherer. 11 commands: echo, pwd, date, whoami, id, uname,
+  which, true, false, test, [. No shell metacharacters, no shell=True.
+  Protects against injection via snapshot names, preset URLs, and other
+  external input.
+
+- **Pre_commands mode** (allow_file_args=True): user's .arachna.json.
+  Extended allowlist: cat, tree, git, grep, sort, wc, head, tail, diff,
+  find, and more. Shell=True with pipes and redirection allowed. User
+  controls the config — blocking 2>/dev/null would be theatre security.
+
+Audit log with newline sanitization. Blocked patterns for dangerous
+commands. No interpreters (python, node, ruby) in either mode.
 
 ### 5. Smart hybrid incremental cache
 
@@ -145,17 +158,19 @@ v2 cache format uses mtime_ns + size for fast path (99% of checks skip
 hashing). SHA256 fallback detects false positives (git checkout, touch).
 Configurable hash size limit via ARACHNA_MAX_HASH_SIZE env var.
 
-### 6. Pluggable tokenizer with deny-by-default security
+### 6. Pluggable tokenizer with defense-in-depth
 
-load_tokenizer() only allows: "default", safe modules (configurable via
-ARACHNA_SAFE_TOKENIZERS env var), or local .py files with AST-verified
-safe imports. Stdlib modules and suspicious names are blocked.
+load_tokenizer() validates through three layers: module name against
+safe list (configurable via ARACHNA_SAFE_TOKENIZERS env var), imports
+via ast.parse, and top-level statements — only FunctionDef, ClassDef,
+Import allowed. No sys.modules fallback. Deny by default.
 
 ### 7. Presets as data, not code
 
 Each preset is a JSON file in src/arachna/presets/. No hardcoded sets.
 External presets.json can override or add presets. fetch_presets() +
-merge_presets() enable remote updates. Cache invalidates on directory mtime.
+merge_presets() enable remote updates. URL validated (http/https only).
+Cache invalidates on directory mtime.
 
 ### 8. Single source of truth for language sets
 
@@ -166,20 +181,20 @@ language requires editing only one file.
 ### 9. Unified repo-map pipeline
 
 _apply_repo_map_to_sections in gatherer.py is the single repo-map diff
-pipeline, shared by collect, structural diff, and watch diff. Removed
-duplicate implementations from watch.py and differ_structural.py.
+pipeline, shared by collect, structural diff, and watch diff. Pre-generated
+headers avoid double ast.parse.
 
 ### 10. Decomposed watcher.compute_diff
 
 Split into three single-responsibility functions: _diff_files_sections,
 _diff_pre_commands_sections, _diff_command_section. Each handles one
-content type. Adding a new content type is now isolated.
+content type.
 
 ## Environment variables
 
 - ARACHNA_MAX_HASH_SIZE — max file size in bytes for SHA256 hashing (default: 10 MB)
-- ARACHNA_SAFE_TOKENIZERS — comma-separated list of safe tokenizer modules (default: tiktoken,transformers)
-- ARACHNA_PRE_COMMAND_DELAY — seconds to sleep between pre_commands (default: 0, no delay)
+- ARACHNA_SAFE_TOKENIZERS — comma-separated safe tokenizer modules (default: tiktoken,transformers)
+- ARACHNA_PRE_COMMAND_DELAY — seconds between pre_commands (default: 0, no delay)
 
 ## Dependencies
 
@@ -189,7 +204,7 @@ content type. Adding a new content type is now isolated.
 
 ## Testing
 
-1043 tests, 93% coverage. Tests use tmp_path + monkeypatch exclusively —
+1071 tests, 92% coverage. Tests use tmp_path + monkeypatch exclusively —
 no os.chdir, no system dependencies, no real git commands. Integration
 tests run arachna as a subprocess.
 
@@ -199,7 +214,7 @@ tests/
   collector/       Collector tests (collect, merge, lock, TOC, diff parts)
   completion/      Shell completion tests
   compressor/      Whitespace compression tests (property-based)
-  config/          Config loader + profile tests
+  config/          Config loader + profile tests (cached, isolated)
   differ/          Text + structural + XML diff tests
   doctor/          Diagnostic tests
   formatter/       Formatting tests (binary, headers, shebang, extensions)
@@ -208,13 +223,13 @@ tests/
   hook/            Git hook installer tests
   init/            Init + presets tests
   integration/     End-to-end CLI tests
-  main/            CLI handler tests (all commands, --no-pre-commands)
+  main/            CLI handler tests (all commands, --no-pre-commands, URL validation)
   presets/         Preset detection + fetch + merge tests
   renderer/        Dry-run output tests
-  runner/          Command execution + sandbox + run_pre_commands tests
+  runner/          Command execution + sandbox + restricted mode + pre_commands tests
   splitter/        Token splitter + signature tests (property-based)
-  store/           Content store + snapshots + rename + update tests
-  tokenizer/       Tokenizer safety + plugin + env tests (property-based)
+  store/           Content store + snapshots + validate_snapshot_id tests
+  tokenizer/       Tokenizer safety + top-level validation + plugin + env tests
   validator/       Profile validation tests
-  watcher/         Watcher orchestration + diff + rename + profile tests
+  watcher/         Watcher orchestration + diff + rename + pre_commands tests
 ```

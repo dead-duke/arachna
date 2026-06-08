@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.9.0 — Security hardening
+
+- HIGH SEC-01: Two-level command allowlist — restricted mode (11 commands, no shell) for internal calls, pre_commands mode (extended allowlist, shell=True) for user config
+- HIGH SEC-02: Shell redirection blocked in restricted mode, allowed in pre_commands — user controls .arachna.json
+- HIGH SEC-03: Path traversal protection — validate_snapshot_id() with regex ^[\w][\w.-]*$ across all store operations
+- HIGH SEC-04: Tokenizer top-level statement validation — only FunctionDef/ClassDef/Import allowed, no Call/Expr at top level
+- MEDIUM SEC-05: URL scheme validation in --presets-update — only http:// and https:// allowed
+- MEDIUM ARCH-02: TOC section indices from split_sections instead of content matching
+- LOW CQ-01: Pre-generated header passed to _apply_repo_map_to_section to avoid double ast.parse
+- LOW CQ-03: Reject patterns containing ".." with warning
+- LOW CQ-05: Atomic write_object via tempfile.mkstemp + os.replace
+- Fix: all pre_commands/command calls use allow_file_args=True
+- 1071 tests, 92% coverage, 0 bugs
+
 ## v2.8.2 — Design/UX + Final polish
 
 - --no-pre-commands CLI flag to skip pre_commands for quick collection

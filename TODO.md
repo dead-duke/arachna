@@ -1,17 +1,5 @@
 # TODO
 
-## v2.9.0 — Security hardening
-- [x] HIGH SEC-01: File read via allowed commands — add allow_file_args param to run_command, restrict internal calls
-- [x] HIGH SEC-02: File write via shell redirection — reject > and < in restricted mode, allow in pre_commands
-- [x] HIGH SEC-03: Path traversal via snapshot names — validate re.match(r'^[\w][\w.-]*$', snapshot_id)
-- [x] HIGH SEC-04: Dynamic import side effects — validate top-level statements in tokenizer files
-- [x] MEDIUM ARCH-02: TOC content matching — split_sections returns section_indices, _write_parts uses direct indexing
-- [x] MEDIUM SEC-05: Local file inclusion in --presets-update — validate url.startswith(('http://', 'https://'))
-- [x] LOW CQ-01: gatherer.py double header generation — pass pre-generated header to _apply_repo_map_to_section
-- [x] LOW CQ-03: gatherer.py pattern traversal — reject patterns containing ".."
-- [x] LOW CQ-05: store.py write_object race condition — atomic write via tempfile + os.replace
-- [ ] Update CHANGELOG for v2.9.0
-
 ## v2.9.1 — Architecture + Code Quality fixes
 - [ ] MEDIUM ARCH-01: differ_structural.py brace matching — strip strings/comments before _extract_braced_block
 - [ ] LOW CQ-02: gatherer.py _collect_import_graph re-parses — extract deps/exports from section content

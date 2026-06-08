@@ -7,7 +7,7 @@
 
 Context collector for AI — gathers project files into token-limited chunks.
 
-arachna is built with arachna — 1043 tests, 93% coverage, 200+ commits.
+arachna is built with arachna — 1071 tests, 92% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -456,8 +456,22 @@ Human-readable diff optimized for AI consumption:
 ## Safety
 
 Commands in .arachna.json (pre_commands, post_commands, command) are validated
-before execution. Unknown or dangerous commands are blocked. The command
-allowlist is strictly read-only — no interpreters, no filesystem modification.
+before execution. arachna uses two security levels:
+
+**Restricted mode** — for internal operations (snapshot names, preset URLs).
+Only 11 safe commands allowed: echo, pwd, date, whoami, id, uname, which,
+true, false, test, [. No shell metacharacters, no shell=True. This protects
+against injection via external input.
+
+**Pre_commands mode** — for your .arachna.json. Extended read-only allowlist:
+cat, tree, git, grep, sort, wc, head, tail, diff, and more. Shell=True with
+pipes (|, ||, &&) and redirection (>, <) allowed. You control your config —
+you are responsible for what's in it.
+
+Snapshot IDs are validated against path traversal (no ../). Tokenizer files
+are checked for malicious top-level code. Preset URLs are restricted to
+http:// and https:// only.
+
 Use --dry-run to preview what will be executed.
 
 ## Doctor

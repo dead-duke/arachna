@@ -60,13 +60,14 @@ The diff is not a raw unified diff. It's structured for AI consumption:
 - Move detection: `MOVED: src/utils.py -> lib/utils.py`
 - Structural diff: shows changed functions, not changed lines
 - Grouped output: renamed, moved, modified, added, deleted — each in its own section
+- Multi-part summaries: each part shows change counts in the header
 
 ## Collection modes
 
 Not every message needs full file contents:
 
 - `--mode full` (default): complete source code
-- `--mode headers`: imports and exports only — what depends on what
+- `--mode headers`: imports and exports — what depends on what
 - `--mode repo-map`: function/class signatures — project structure overview
 - `--query "authentication"`: filter files by keyword with import chain
 
@@ -174,6 +175,21 @@ arachna --store stats                # disk usage
 arachna --store gc                   # remove unreferenced objects
 ```
 
+## Security model
+
+arachna uses two command execution modes:
+
+- **Restricted mode** for internal operations — 11 safe commands, no shell.
+  Protects snapshot names, preset URLs, and other external input from injection.
+
+- **Pre_commands mode** for your `.arachna.json` — git, tree, grep, pipes,
+  redirection. Full shell available. You write the config, you own the security.
+
+Pre_commands run with `shell=True`. `2>/dev/null`, `&&`, `||` all work.
+This is by design — a config file you control doesn't need protection from
+yourself. Snapshot IDs, tokenizer files, and preset URLs are validated
+independently against path traversal and code injection.
+
 ## Tips for LLM agents
 
 1. **Start with repo-map.** Before reading any code, get the project structure.
@@ -191,5 +207,8 @@ arachna --store gc                   # remove unreferenced objects
 5. **Profiles for separation.** Don't send tests to the programmer agent.
    Don't send source to the tester agent. Use profiles.
 
-6. **Read the audit.** AUDIT_REPORT.md has security and architecture findings.
+6. **Skip pre_commands for speed.** `--no-pre-commands` skips git log
+   and tree output — useful when you only need source files.
+
+7. **Read the audit.** AUDIT_REPORT.md has security and architecture findings.
    Fix them before writing new code.
