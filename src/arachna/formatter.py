@@ -42,10 +42,6 @@ _EXT_LANG = {
     "dockerfile": "dockerfile",
     "makefile": "makefile",
     "gitignore": "gitignore",
-    "cmake": "cmake",
-    "gradle": "groovy",
-    "lock": "text",
-    "conf": "ini",
     "zig": "zig",
     "lua": "lua",
     "ex": "elixir",
@@ -53,6 +49,10 @@ _EXT_LANG = {
     "hs": "haskell",
     "lhs": "haskell",
     "gleam": "gleam",
+    "cmake": "cmake",
+    "gradle": "groovy",
+    "lock": "text",
+    "conf": "ini",
 }
 
 _FILENAME_LANG = {
@@ -78,6 +78,7 @@ _SHEBANG_MAP = {
 }
 
 # Language sets for dispatch — single source of truth.
+# Used by formatter, differ_structural, splitter, and watch.
 C_LIKE_LANGS = frozenset(
     {
         "javascript",
@@ -131,21 +132,22 @@ def _should_skip_binary(
     binary_max_mb: float,
 ) -> bool:
     """Check if a file should be skipped as binary — decision table."""
-    if not path.exists():
-        return True
-
+    # Text extensions are never binary
     ext = path.suffix.lower()
     if ext in _TEXT_EXTENSIONS:
         return False
 
+    # Get file size (fail → skip)
     try:
         size_mb = path.stat().st_size / (1024 * 1024)
     except OSError:
         return True
 
+    # Size too large → skip
     if size_mb > binary_max_mb:
         return True
 
+    # No extension
     if not ext:
         if not include_binary:
             try:
@@ -156,6 +158,7 @@ def _should_skip_binary(
                 return True
         return bool(binary_extensions is not None and "" not in binary_extensions)
 
+    # Has extension
     if binary_extensions is not None and ext not in binary_extensions:
         return True
     return not include_binary
@@ -365,8 +368,7 @@ def format_file_section(
 
 
 def _is_binary_allowed(path: Path, extensions: list[str] | None, max_mb: float) -> bool:
-    if not path.exists():
-        return False
+    """Check if a binary file is allowed based on extension and size."""
     if extensions is not None and path.suffix.lower() not in extensions:
         return False
     try:
