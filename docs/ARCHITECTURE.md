@@ -9,12 +9,13 @@ by token limits, and writes output files ready for AI consumption.
 
 ```
 __main__.py         CLI entry point, argparse subparsers (collect, snapshot, diff, store, plugins, presets, doctor, init, completion)
+plugins.py          Plugin system: environment detector, install/uninstall/list commands
 collect_api.py      Public Collection API (programmatic use, write_to_disk param)
 collector.py        Orchestrator: gather -> split -> write -> post_commands
 gatherer.py         Content assembly: streaming for full mode, in-memory for repo-map/headers
 formatter.py        File formatting: markdown/xml/json, language detection, C_LIKE_LANGS/SCRIPT_LANGS
 splitter.py         Token-based splitting, returns (parts, indices) tuple
-tokenizer.py        Token estimation with configurable chars_per_token, pluggable tokenizers
+tokenizer.py        Token estimation with configurable chars_per_token, pluggable tokenizers (tiktoken, transformers)
 compressor.py       Safe whitespace compression (blank lines, trailing ws)
 config.py           .arachna.json loader, profile resolution with extends, defaults
 runner.py           Popen-based command execution, dual-mode allowlist, output size limits
@@ -25,7 +26,7 @@ hook.py             Git post-commit hook installer
 init.py             Interactive .arachna.json bootstrap
 presets.py          Language/engine presets, auto-detection, external presets, mtime-based cache
 differ.py           LLM-optimized text diff (markdown + XML), tokenizer-aware truncation
-differ_structural.py Structural diff (ast for Python, regex with named groups for C-like/script)
+differ_structural.py Structural diff (ast for Python, regex for C-like/script, tree-sitter plugin support)
 watcher.py          Watch orchestration: snapshots + diffs, decomposed pipeline, relative paths
 store.py            Content-addressable store (SHA256 + zlib, dedup, GC, atomic writes, snapshot ID validation)
 completion.py       Bash and zsh shell completion
@@ -37,191 +38,49 @@ watch.py            Public Watch API (programmatic), thin wrapper over watcher +
 store_errors.py     Store subsystem exceptions
 ```
 
-## CLI structure (v3.0.0)
+## Plugin architecture (v3.1.0)
+
+Plugins are opt-in Python packages. Core stays zero-dep.
 
 ```
-arachna
-├── collect       # --profile, --all, --dry-run, --compress, --incremental, --merge, --format, --query, --mode, --no-pre-commands, --output-dir, --verbose
-├── snapshot
-│   ├── create    # --profile, --name
-│   ├── list
-│   ├── update    # <id> [--profile]
-│   ├── delete    # <id>
-│   ├── info      # <id> [--profile | --stats]
-│   └── rename    # <old> <new>
-├── diff          # --from, --to, --all, --profile, --stat, --flat, --format, --mode, --compress, --output-dir
-├── store
-│   ├── stats
-│   └── gc
-├── plugins       # list, install, uninstall (v3.1+)
-├── presets
-│   └── update    # [--url]
-├── doctor
-├── init           # [--defaults] [--preset X] [--install-hook] [--force]
-└── completion    # bash | zsh
+User installs: pip install arachna[javascript]
+                     │
+                     ▼
+              pyproject.toml extras
+              tree-sitter, tree-sitter-javascript
+                     │
+                     ▼
+         differ_structural._check_plugins()
+              try: import tree_sitter_javascript
+                     │
+              ┌──────┴──────┐
+              │              │
+         ImportError    Success
+              │              │
+         _HAS_TS_JS    _HAS_TS_JS
+         = False       = True
+              │              │
+              ▼              ▼
+         text diff    tree-sitter
+         (fallback)   structural diff
 ```
 
-## Data flow
-
-### Collection — full mode (streaming, v2.9.2)
-
-```
-User -> __main__.py -> collector.collect()
-                            |
-                            v
-                       gatherer._assemble_content()
-                            |
-                   +--------+--------+
-                   |                 |
-            _collect_pre_commands   _scan_directories
-            (run immediately)       (stat only, no read)
-                   |                 |
-                   v                 v
-              first part      _filter_filenames_by_query
-                   |                 |
-                   v                 v
-            pre_commands      _stream_full_mode()
-              output          for each file:
-                                  read -> format -> compress -> pack
-                                  flush part when max_tokens reached
-                                              |
-                                              v
-                                       _write_parts() -> files
-```
-
-### Watch (arachna snapshot / diff)
-
-```
-User -> __main__.py -> subparser handlers
-                            |
-            +---------------+---------------+
-            |                               |
-    _cmd_snapshot_create              _cmd_diff
-            |                               |
-    watcher.create_snapshot()      watcher.compute_diff()
-            |                               |
-    _collect_snapshot_content()     _diff_files_sections()
-            |                               |
-    +-------+-------+               _diff_pre_commands_sections()
-    |               |                       |
-    files       pre_commands        _diff_command_section()
-    |               |                       |
-    v               v                       v
-    store.create_snapshot()    differ.compute_diff()
-            |                         |
-            v                         v
-    .arachna/store/          _detect_renames_and_moves()
-    snapshots/<id>.json              |
-                                     v
-                              _group_diff_sections()
-                                     |
-                                     v
-                              _write_diff_parts()
-                                     |
-                                     v
-                              _diff_part_header() summary
-```
-
-## Key design decisions
-
-### 1. Token-based splitting, not line-based
-
-AI models charge by tokens, not lines. Splitting by tokens ensures
-each output file fits the model's context window with a safety margin.
-
-### 2. Streaming for full mode, in-memory for parsed modes
-
-Full mode streams: stat -> pack metadata -> read content incrementally.
-Memory O(max_tokens). Repo-map/headers stay in-memory — they need
-AST/regex parsing before token counting.
-
-### 3. Content-addressable store
-
-Watch snapshots use SHA256 hashing for deduplication. Multiple snapshots
-share identical file content. Garbage collection removes unreferenced
-objects. Paths stored relative to project root for cross-platform portability.
-
-### 4. Dual-mode command sandbox
-
-Restricted mode (11 commands, no shell) for internal calls. Pre_commands
-mode (extended allowlist, shell=True) for user config. Popen-based
-execution with max_output_size limits.
-
-### 5. Smart hybrid incremental cache
-
-v2 format: mtime_ns + size for fast path, SHA256 fallback for git checkout.
-
-### 6. Pluggable tokenizer with defense-in-depth
-
-Three validation layers: safe list, import check, top-level statements.
-
-### 7. Presets as data, not code
-
-JSON files in src/arachna/presets/. External presets.json supported.
-
-### 8. Single source of truth for language sets
-
-C_LIKE_LANGS and SCRIPT_LANGS in formatter.py, imported by other modules.
-
-### 9. Unified repo-map pipeline
-
-_apply_repo_map_to_sections in gatherer.py — single implementation.
-
-### 10. Decomposed watcher.compute_diff
-
-Three functions: _diff_files_sections, _diff_pre_commands_sections, _diff_command_section.
-
-### 11. Config inheritance with typed merge
-
-Scalars override, exclude lists append, source lists replace. Warnings on conflicts.
-
-### 12. Hierarchical CLI with argparse subparsers
-
-Clean command hierarchy, auto-generated help, no manual sys.argv parsing.
-
-## Environment variables
-
-- ARACHNA_MAX_HASH_SIZE — max file size for SHA256 (default: 10 MB)
-- ARACHNA_SAFE_TOKENIZERS — safe tokenizer modules (default: tiktoken,transformers)
-- ARACHNA_PRE_COMMAND_DELAY — seconds between pre_commands (default: 0)
-- ARACHNA_MAX_OUTPUT_SIZE — max stdout for sandbox commands (default: 10 MB)
-- ARACHNA_CHARS_PER_TOKEN — chars per token ratio (default: 4)
-- ARACHNA_PRESETS_TIMEOUT — presets fetch timeout (default: 10)
+Environment detector (plugins.py) recognizes: pipx, poetry, uv, conda, venv, system Python with PEP 668.
 
 ## Dependencies
 
 **Runtime:** Python 3.11+ stdlib only. Zero external dependencies.
-
-**Dev:** pytest, ruff, pre-commit, pdoc, pytest-cov, hypothesis.
+**Optional:** tree-sitter, tiktoken, transformers — installed by user via plugins.
+**Dev:** pytest, ruff, pre-commit, pdoc, pytest-cov, hypothesis, tree-sitter, tiktoken, transformers.
 
 ## Testing
 
-1188 tests, 92% coverage. Tests use tmp_path + monkeypatch exclusively.
-Integration tests run arachna as a subprocess.
+1233 tests, 92% coverage. Plugin code tested with real packages locally,
+fallback paths tested in CI without plugins.
 
 ```
 tests/
   benchmark/       Performance benchmarks (7 tests)
-  cache/           Cache tests (smart hybrid, SHA256 fallback)
-  collector/       Collector tests (collect, merge, lock, TOC, write_to_disk, coverage)
-  completion/      Shell completion tests
-  compressor/      Whitespace compression tests (property-based)
-  config/          Config loader + extends + profile tests
-  differ/          Text + structural + XML + tokenizer-aware diff tests
-  doctor/          Diagnostic tests
-  formatter/       Formatting tests (binary, headers, shebang, extensions, decision table)
-  gatherer/        Collection tests (streaming, query, repo-map, pre_commands, symlinks)
-  gitignore/       Gitignore parser tests
-  hook/            Git hook installer tests
-  init/            Init + presets tests
-  integration/     End-to-end CLI tests (v3.0 subparser syntax)
-  main/            CLI handler tests (collect, snapshot, diff, store, plugins, coverage)
-  presets/         Preset detection + fetch + timeout tests
-  renderer/        Dry-run output tests
-  runner/          Popen + sandbox + max_output_size + shell=True + property-based tests
-  splitter/        Token splitter + binary search tests (property-based)
-  store/           Content store + validate_snapshot_id tests
-  tokenizer/       Tokenizer safety + top-level validation + plugin + import tests
-  validator/       Profile validation tests
-  watcher/         Watcher orchestration + isolated + relative paths + rename + repo-map tests
+  plugins/         Plugin system tests (environment detector, install commands)
+  ...
 ```

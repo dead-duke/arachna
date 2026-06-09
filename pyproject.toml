@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "3.0.0"
+version = "3.1.0"
 description = "Context collector for AI — gathers project files into token-limited chunks"
 readme = "README.md"
 license = "AGPL-3.0"
@@ -41,6 +41,8 @@ where = ["src"]
 "share/man/man1" = ["arachna.1"]
 
 [project.optional-dependencies]
+tiktoken = ["tiktoken>=0.5.0"]
+transformers = ["transformers>=4.40.0"]
 tree-sitter = [
     "tree-sitter~=0.21.0",
     "tree-sitter-python~=0.21.0",
@@ -48,12 +50,10 @@ tree-sitter = [
     "tree-sitter-typescript~=0.21.0",
     "tree-sitter-go~=0.21.0",
 ]
-tiktoken = ["tiktoken"]
-transformers = ["transformers"]
 javascript = ["arachna[tree-sitter]"]
 typescript = ["arachna[tree-sitter]"]
 go = ["arachna[tree-sitter]"]
-all = ["arachna[tree-sitter,tiktoken]"]
+all = ["arachna[tree-sitter,tiktoken,transformers]"]
 dev = ["pytest", "pytest-cov", "ruff", "pre-commit", "hypothesis"]
 
 [tool.ruff]

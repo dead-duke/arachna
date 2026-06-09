@@ -26,77 +26,17 @@ for section in diff.sections:
         print(section.content)
 ```
 
-## Filtering by query
+## Installing plugins (v3.1.0+)
 
 ```python
-# Only collect files related to authentication
-result = collect(profile="full", query="auth token")
+# Install accurate structural diff for JavaScript
+import subprocess
+subprocess.run(["pip", "install", "arachna[javascript]"])
 
-# Query scoring:
-# +10: word in filename (auth.py)
-# +8: word in function/class names
-# +5: word in imports (dependencies)
-# +3: word in file content
-# Files importing matched files also included (import chain)
-```
-
-## Repo-map mode (signatures only)
-
-```python
-# Project overview — only function/class signatures
-result = collect(profile="full", mode="repo-map")
-# Saves 50-70% tokens compared to full mode
-```
-
-## Structural diff
-
-```python
-# Block-level diff — understands code structure
-diff = watch.compute_diff(snapshot_id="baseline", mode="structural")
-# Shows MODIFIED/DELETED/ADDED functions and classes
-# Not just line ranges
-```
-
-## Cross-snapshot diff
-
-```python
-# Diff between two historical snapshots
-diff = watch.compute_diff(
-    snapshot_id="v1",
-    to_snapshot_id="v2",
-    profile="full"
-)
-```
-
-## Snapshot management
-
-```python
-# List all snapshots
-snaps = watch.list_snapshots()
-for s in snaps:
-    print(f"{s.id}: {s.file_count} files")
-
-# Get snapshot details
-info = watch.snapshot_info("baseline")
-print(f"Profile dirs: {info.profile.get('directories', [])}")
-
-# Update snapshot (re-scan current state)
-watch.update_snapshot("baseline")
-
-# Delete snapshot
-watch.delete_snapshot("old-snapshot")
-```
-
-## Store management
-
-```python
-# Check disk usage
-stats = watch.store_stats()
-print(f"{stats.snapshots} snapshots, {stats.dedup_pct}% dedup")
-
-# Free space
-result = watch.store_gc()
-print(f"Freed {result.freed_bytes} bytes")
+# Or use the plugin manager
+from arachna.plugins import install_plugin
+result = install_plugin("javascript", execute=True)
+print(result)
 ```
 
 ## In-memory collection (v2.9.2+)

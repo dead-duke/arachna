@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.1.0 — Plugin system
+
+- Plugin system: environment detector (pipx, poetry, uv, conda, venv, system, PEP 668)
+- Plugin: tree-sitter structural diff for JavaScript, TypeScript, Go
+- Plugin: tiktoken/transformers token counting
+- pyproject.toml: per-language extras (arachna[javascript], arachna[go], etc.)
+- arachna plugins list/install/uninstall commands
+- Lazy import with fallback to text diff for uninstalled plugins
+- requirements-dev.txt: tree-sitter, tiktoken, transformers for local development
+- 1233 tests, 92% coverage, 0 bugs
+
 ## v3.0.0 — CLI redesign with argparse subparsers
 
 - BREAKING: Flat --flag CLI replaced with hierarchical subcommands

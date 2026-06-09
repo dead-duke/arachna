@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-09" "arachna 3.0.0" "User Commands"
+.TH ARACHNA 1 "2026-06-09" "arachna 3.1.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -15,6 +15,10 @@ in the middle.
 .PP
 It supports incremental diffs via snapshots: snapshot what an AI has seen,
 then send only what changed. Works across multiple chats, agents, and sessions.
+.PP
+Plugins add language-specific features: tree-sitter structural diff for
+JavaScript/TypeScript/Go, tiktoken/transformers for accurate token counting.
+Core stays zero-dependency.
 .SH COMMANDS
 .TP
 \fBcollect\fR
@@ -42,22 +46,16 @@ Manage snapshots.
 List all snapshots.
 .TP
 \fBsnapshot create \-\-profile\fR \fIname\fR \fB\-\-name\fR \fIid\fR
-Create a named snapshot. \fIid\fR must match [\ew][\ew.\-]* (no path separators).
+Create a named snapshot.
 .TP
 \fBsnapshot update\fR \fIid\fR [\fB\-\-profile\fR \fIname\fR]
-Update an existing snapshot. Optionally change the profile.
+Update an existing snapshot.
 .TP
 \fBsnapshot delete\fR \fIid\fR
-Delete a snapshot. Objects survive for other snapshots.
+Delete a snapshot.
 .TP
 \fBsnapshot info\fR \fIid\fR
 Show snapshot details.
-.TP
-\fBsnapshot info\fR \fIid\fR \fB\-\-profile\fR
-Show stored profile only.
-.TP
-\fBsnapshot info\fR \fIid\fR \fB\-\-stats\fR
-Show file and command counts only.
 .TP
 \fBsnapshot rename\fR \fIold\fR \fInew\fR
 Rename a snapshot.
@@ -66,58 +64,34 @@ Rename a snapshot.
 Diff from the single available snapshot (auto-select).
 .TP
 \fBdiff \-\-from\fR \fIid\fR
-Diff from a specific snapshot against current state.
+Diff from a specific snapshot.
 .TP
 \fBdiff \-\-from\fR \fIA\fR \fB\-\-to\fR \fIB\fR
-Cross-snapshot diff between two snapshots.
+Cross-snapshot diff.
 .TP
 \fBdiff \-\-all\fR \fB\-\-profile\fR \fIname\fR
-Full project as diff — no snapshot needed.
-.TP
-\fBdiff \-\-stat\fR
-Show diff statistics only (counts, no content).
-.TP
-\fBdiff \-\-flat\fR
-Flat output without grouping headers.
-.TP
-\fBdiff \-\-format\fR \fIxml\fR
-XML output format.
-.TP
-\fBdiff \-\-mode\fR \fIstructural\fR
-Block-level diff — understands code functions and classes.
-.TP
-\fBdiff \-\-mode\fR \fIrepo\-map\fR
-Repo-map diff — signatures only with change markers.
-.TP
-\fBdiff \-\-compress\fR
-Compress whitespace in diff output.
-.TP
-\fBdiff \-\-output\-dir\fR \fIpath\fR
-Write diff files to a custom directory.
-.TP
-\fBstore\fR
-Store management.
+Full project as diff.
 .TP
 \fBstore stats\fR
 Show content-addressable store statistics.
 .TP
 \fBstore gc\fR
-Garbage collect unreferenced objects from the store.
+Garbage collect unreferenced objects.
 .TP
 \fBplugins\fR
-Plugin management (v3.1+).
+Plugin management.
 .TP
 \fBplugins list\fR
 List available plugins and their status.
 .TP
 \fBplugins install\fR \fIlanguage\fR
-Install plugin for a language.
+Install plugin for a language (javascript, typescript, go, tiktoken).
+.TP
+\fBplugins install\fR \fIlanguage\fR \fB\-\-execute\fR
+Install and automatically execute the install command.
 .TP
 \fBplugins uninstall\fR \fIlanguage\fR
-Uninstall plugin for a language.
-.TP
-\fBpresets\fR
-Preset management.
+Show uninstall instructions for a plugin.
 .TP
 \fBpresets update\fR [\fB\-\-url\fR \fIurl\fR]
 Update presets from remote repository.
@@ -137,80 +111,25 @@ Use a specific preset for initialization.
 \fBinit \-\-install\-hook\fR
 Install post-commit git hook.
 .TP
-\fBinit \-\-install\-hook \-\-force\fR
-Overwrite existing hook.
-.TP
 \fBcompletion\fR \fIbash|zsh\fR
 Generate shell completion script.
-.SH OPTIONS
-.TP
-\fB\-\-output\-dir\fR \fIpath\fR
-Directory for output files (default: arachna_context/).
-.TP
-\fB\-\-verbose\fR, \fB\-v\fR
-Show skipped files and compression stats.
-.TP
-\fB\-\-compress\fR
-Compress whitespace to save tokens (collapses blank lines, strips trailing spaces).
-Does not modify indentation.
-.TP
-\fB\-\-incremental\fR
-Only collect files changed since last run. Uses smart hybrid cache
-(mtime_ns + size + SHA256).
-.TP
-\fB\-\-format\fR \fIxml|json\fR
-Output format. Default is markdown.
-.TP
-\fB\-\-merge\fR
-Append to existing output instead of replacing.
-.TP
-\fB\-\-dry\-run\fR
-Preview what will be collected without writing files.
-.TP
-\fB\-\-force\fR
-Force overwrite with \fB\-\-install\-hook\fR.
-.TP
-\fB\-\-query\fR \fItext\fR
-Filter files by query. Uses keyword scoring (+10 filename, +8 exports,
-+5 imports, +3 content) and import chain (depth 2).
-.TP
-\fB\-\-mode\fR \fIfull|headers|repo\-map\fR
-Collection mode.
-.TP
-\fB\-\-no\-pre\-commands\fR
-Skip pre_commands for this run.
-.SH SAFETY
-Commands in .arachna.json run with shell=True — pipes, redirection, and
-utilities like git, tree, and grep are available. You control the config
-file, you are responsible for its contents.
+.SH PLUGINS
+Plugins add language-specific features without adding dependencies to core.
+Install via pip extras or the plugin manager.
 .PP
-Internal operations use a restricted sandbox: 11 safe commands, no shell
-metacharacters, no file arguments. Protects against injection via snapshot
-names, preset URLs, and external input.
+Available plugins:
+.TS
+tab(;);
+l l.
+javascript;Tree-sitter structural diff for JavaScript
+typescript;Tree-sitter structural diff for TypeScript
+go;Tree-sitter structural diff for Go
+tiktoken;Accurate token counting for OpenAI models
+.TE
 .PP
-Snapshot IDs are validated against path traversal. Tokenizer files are
-checked for malicious code before import. Preset URLs are restricted to
-http:// and https://. Sandbox limits command output to 10MB by default.
-.SH ENVIRONMENT
-.TP
-\fBARACHNA_MAX_HASH_SIZE\fR
-Maximum file size in bytes for SHA256 hashing during incremental collection.
-Default: 10485760 (10 MB).
-.TP
-\fBARACHNA_SAFE_TOKENIZERS\fR
-Comma-separated list of safe tokenizer module names. Default: tiktoken,transformers.
-.TP
-\fBARACHNA_PRE_COMMAND_DELAY\fR
-Seconds to sleep between pre_commands. Default: 0 (no delay).
-.TP
-\fBARACHNA_MAX_OUTPUT_SIZE\fR
-Max stdout size for sandbox commands. Default: 10485760 (10 MB).
-.TP
-\fBARACHNA_CHARS_PER_TOKEN\fR
-Characters per token for default tokenizer. Default: 4.
-.TP
-\fBARACHNA_PRESETS_TIMEOUT\fR
-Timeout in seconds for presets update. Default: 10.
+Install: \fBpip install arachna[javascript]\fR
+.br
+Or: \fBarachna plugins install javascript \-\-execute\fR
 .SH EXAMPLES
 .PP
 Create a config with auto-detected profiles:
@@ -223,9 +142,9 @@ Collect all profiles:
 .B arachna collect \-\-all
 .RE
 .PP
-Collect code profile, skip git history:
+Install JavaScript plugin:
 .RS
-.B arachna collect \-\-profile code \-\-no\-pre\-commands
+.B arachna plugins install javascript \-\-execute
 .RE
 .PP
 Create a snapshot and diff later:
@@ -236,35 +155,6 @@ Create a snapshot and diff later:
 .br
 .B arachna diff \-\-from baseline
 .RE
-.PP
-Full project as repo-map diff:
-.RS
-.B arachna diff \-\-all \-\-profile code \-\-mode repo\-map
-.RE
-.PP
-Filter by query:
-.RS
-.B arachna collect \-\-all \-\-query authentication
-.RE
-.PP
-Generate shell completion:
-.RS
-.B source <(arachna completion bash)
-.RE
-.PP
-Check configuration:
-.RS
-.B arachna collect \-\-validate
-.br
-.B arachna doctor
-.RE
-.PP
-Store management:
-.RS
-.B arachna store stats
-.br
-.B arachna store gc
-.RE
 .SH FILES
 .TP
 \fI.arachna.json\fR
@@ -272,12 +162,6 @@ Project configuration with profiles.
 .TP
 \fIarachna_context/\fR
 Default output directory for collected files.
-.TP
-\fI.arachna_cache.json\fR
-Incremental mode cache (mtime_ns + size + SHA256).
-.TP
-\fI.arachna_manifest.json\fR
-Manifest tracking all output files for cleanup.
 .TP
 \fI.arachna/\fR
 Content-addressable store for Watch snapshots (auto-gitignored).
@@ -287,7 +171,7 @@ Content-addressable store for Watch snapshots (auto-gitignored).
 Success.
 .TP
 1
-Error (invalid config, missing profile, validation failure, blocked command).
+Error.
 .SH AUTHOR
 Artem Terenin
 .SH SEE ALSO

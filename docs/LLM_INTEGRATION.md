@@ -36,104 +36,24 @@ arachna collect --profile docs     # documentation
 arachna collect --profile git      # commit history
 ```
 
-## Why snapshots and diffs
+## Plugin system (v3.1.0+)
 
-The key insight: after the first message, most files don't change.
-Sending the full project again wastes tokens and dilutes attention.
-
-Instead:
-
-1. Create a snapshot once
-2. Work on the project — make changes, run tests, fix bugs
-3. See what changed
-4. Send only the diff to the LLM — 10-50x fewer tokens
+arachna core is zero-dependency. Language-specific features are opt-in plugins:
 
 ```bash
-arachna snapshot create --profile full --name baseline
-# ... work on the project ...
-arachna diff --from baseline
+# Install accurate structural diff for JavaScript
+pip install arachna[javascript]
+
+# Install accurate token counting for OpenAI models
+pip install arachna[tiktoken]
+
+# Or use the plugin manager
+arachna plugins list
+arachna plugins install javascript --execute
 ```
 
-The diff is not a raw unified diff. It's structured for AI consumption:
-
-- Rename detection: `RENAMED: src/old.py -> src/new.py` (not delete+add)
-- Move detection: `MOVED: src/utils.py -> lib/utils.py`
-- Structural diff: shows changed functions, not changed lines
-- Grouped output: renamed, moved, modified, added, deleted — each in its own section
-- Multi-part summaries: each part shows change counts in the header
-
-## Collection modes
-
-Not every message needs full file contents:
-
-- `--mode full` (default): complete source code
-- `--mode headers`: imports and exports — what depends on what
-- `--mode repo-map`: function/class signatures — project structure overview
-- `--query "authentication"`: filter files by keyword with import chain
-
-A typical session:
-
-```bash
-# First message: give the LLM a map of the project
-arachna collect --all --mode repo-map
-
-# Second message: focus on relevant files
-arachna collect --all --mode full --query "auth"
-
-# After changes: show what changed
-arachna diff --from baseline --mode structural
-```
-
-## Practical workflow example
-
-A bug is reported: "login fails with Unicode names."
-
-### Step 1: Understand the problem
-
-```bash
-arachna collect --all --query "login auth unicode" --mode repo-map
-```
-
-Send to LLM: "Here's the project structure around authentication.
-Where should I look for Unicode handling in login?"
-
-### Step 2: Deep dive
-
-```bash
-arachna collect --all --query "login auth" --mode full
-```
-
-Send to LLM: "Here are the relevant files. Find the Unicode bug."
-
-### Step 3: Apply the fix
-
-LLM suggests changes. You apply them.
-
-### Step 4: Verify
-
-```bash
-arachna diff --from baseline
-```
-
-Send to LLM: "Here's what I changed. Is this correct?
-Are there edge cases I missed?"
-
-### Step 5: Update baseline
-
-```bash
-arachna snapshot update baseline
-```
-
-### Step 6: Tests
-
-```bash
-arachna collect --profile tests
-```
-
-Send to LLM: "Write tests for the Unicode login fix."
-
-This cycle repeats. Each step sends minimal context.
-The LLM never sees the whole project at once — only what's relevant.
+Without plugins, arachna falls back to built-in alternatives (text diff,
+chars_per_token estimate). Plugins activate automatically when installed.
 
 ## Programmatic API
 
@@ -160,44 +80,13 @@ for section in diff.sections:
 watch.update_snapshot("before-fix")
 ```
 
-## Snapshot management
-
-Snapshots are stored in `.arachna/store/` (auto-gitignored).
-They are content-addressed with SHA256 deduplication.
-Multiple snapshots share identical files — only one copy stored.
-
-```bash
-arachna snapshot list              # list all snapshots
-arachna snapshot info baseline     # show details
-arachna snapshot rename old new    # rename
-arachna snapshot delete old        # clean up
-arachna store stats                # disk usage
-arachna store gc                   # remove unreferenced objects
-```
-
-## Security model
-
-arachna uses two command execution modes:
-
-- **Restricted mode** for internal operations — 11 safe commands, no shell.
-  Protects snapshot names, preset URLs, and other external input from injection.
-
-- **Pre_commands mode** for your `.arachna.json` — git, tree, grep, pipes,
-  redirection. Full shell available. You write the config, you own the security.
-
-Pre_commands run with `shell=True`. `2>/dev/null`, `&&`, `||` all work.
-This is by design — a config file you control doesn't need protection from
-yourself. Snapshot IDs, tokenizer files, and preset URLs are validated
-independently against path traversal and code injection.
-
-Sandbox limits command output to 10MB by default (`ARACHNA_MAX_OUTPUT_SIZE`).
-
-## Performance tips (v2.9.2+)
+## Performance tips
 
 - **Streaming mode** (full) keeps memory at O(max_tokens). Safe for 50K+ files.
 - **chars_per_token** for non-English code: `2.5` in profile for Russian/Cyrillic, `1.5` for CJK.
 - **write_to_disk=False** in collect_api for agent workflows — no filesystem I/O.
-- **Benchmarks** at [docs/BENCHMARKS.md](https://github.com/dead-duke/arachna/blob/main/docs/BENCHMARKS.md) — token savings and timings for all modes.
+- **Plugins** for non-Python languages — tree-sitter structural diff for JS/TS/Go.
+- **Benchmarks** at [docs/BENCHMARKS.md](https://github.com/dead-duke/arachna/blob/main/docs/BENCHMARKS.md).
 
 ## Tips for LLM agents
 
@@ -219,5 +108,5 @@ Sandbox limits command output to 10MB by default (`ARACHNA_MAX_OUTPUT_SIZE`).
 6. **Skip pre_commands for speed.** `--no-pre-commands` skips git log
    and tree output — useful when you only need source files.
 
-7. **Read the audit.** AUDIT_REPORT.md has security and architecture findings.
-   Fix them before writing new code.
+7. **Install plugins for non-Python code.** `pip install arachna[javascript]`
+   for accurate structural diff — AI sees changed functions, not changed lines.

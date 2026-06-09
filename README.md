@@ -7,7 +7,7 @@
 
 Context collector for AI — gathers project files into token-limited chunks.
 
-arachna is built with arachna — 1188 tests, 92% coverage, 200+ commits.
+arachna is built with arachna — 1233 tests, 92% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -63,6 +63,7 @@ your project for AI to understand. The rest is up to you.
 - [Manifest and cleanup](#manifest-and-cleanup)
 - [Incremental mode](#incremental-mode)
 - [Watch — snapshots and diffs](#watch--snapshots-and-diffs)
+- [Plugin system](#plugin-system)
 - [Safety](#safety)
 - [Performance](#performance)
 - [Known limitations](#known-limitations)
@@ -196,7 +197,7 @@ Creates arachna_context/ with .md files ready for AI.
     arachna collect --all --mode repo-map     signatures only (50-70% less tokens)
     arachna collect --all --query "auth"      filter files by query
 
-### Plugin management (v3.1+)
+### Plugin management
 
     arachna plugins list                      list available plugins
     arachna plugins install javascript        install language plugin
@@ -467,6 +468,50 @@ Human-readable diff optimized for AI consumption:
     ADDED lines 45:
         return sum(item.price for item in items)
 
+## Plugin system
+
+arachna core is zero-dependency. Language-specific features that need external
+packages are available as opt-in plugins.
+
+### Available plugins
+
+| Plugin | Description | Install |
+|--------|-------------|---------|
+| javascript | Tree-sitter structural diff | `pip install arachna[javascript]` |
+| typescript | Tree-sitter structural diff | `pip install arachna[typescript]` |
+| go | Tree-sitter structural diff | `pip install arachna[go]` |
+| tiktoken | Accurate token counting | `pip install arachna[tiktoken]` |
+
+### Managing plugins
+
+    # List plugins and their status
+    arachna plugins list
+
+    # Install a plugin
+    arachna plugins install javascript
+    # Shows the correct install command for your environment
+
+    # Install with automatic execution
+    arachna plugins install javascript --execute
+
+    # Uninstall a plugin
+    arachna plugins uninstall javascript
+
+### How it works
+
+Plugins are standard Python packages. arachna detects them at runtime via
+lazy import. If a plugin is installed, its features activate automatically.
+If not, arachna falls back to built-in alternatives:
+
+- **Structural diff:** with tree-sitter → accurate block-level diff.
+  Without → text diff (correct but less detailed).
+- **Token counting:** with tiktoken → exact token count.
+  Without → estimate via chars_per_token (configurable, default 4).
+
+The plugin installer detects your environment (venv, pipx, poetry, conda, uv,
+system Python) and shows the right command. No magic — just user-friendly
+wrappers over pip.
+
 ## Safety
 
 Commands in .arachna.json (pre_commands, post_commands, command) are validated
@@ -506,9 +551,8 @@ Full details: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). Run locally: `make bench
 
 ## Known limitations
 
-- **Structural diff for non-Python languages** requires plugins. JavaScript, TypeScript,
-  Go, Rust, and C/C++ use text diff by default. Install plugins for accurate
-  block-level diffs: `pip install arachna[javascript]` (available in v3.1+)
+- **Structural diff for non-Python languages** uses text diff by default.
+  Install plugins for accurate block-level diffs: `pip install arachna[javascript]`
 - **Incremental mode** works best on local machines. In CI/CD with fresh clones,
   all files get new timestamps — cache misses and falls back to full SHA256 hashing.
   Use without `--incremental` in CI.
@@ -578,7 +622,7 @@ Your module must export count_tokens(text) -> int:
 
 For exact token counts, install tiktoken:
 
-    pip install tiktoken
+    pip install arachna[tiktoken]
 
       "tokenizer": "tiktoken:cl100k_base"    # GPT-4, DeepSeek
       "tokenizer": "tiktoken:o200k_base"     # GPT-4o
@@ -587,7 +631,7 @@ For exact token counts, install tiktoken:
 
 For HuggingFace tokenizers, install transformers:
 
-    pip install transformers
+    pip install arachna[transformers]
 
       "tokenizer": "transformers:Qwen/Qwen2.5-7B-Instruct"
       "tokenizer": "transformers:mistralai/Mistral-7B-Instruct-v0.3"
