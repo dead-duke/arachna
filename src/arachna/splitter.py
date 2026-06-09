@@ -12,6 +12,102 @@ logger = logging.getLogger("arachna.splitter")
 _MAX_TRUNCATION_ITERATIONS = 100
 
 
+def _split_oversized_section(
+    section: str,
+    max_tokens: int,
+    tokenizer: Callable[[str], int],
+) -> list[str]:
+    """Split an oversized section into chunks that each fit max_tokens.
+
+    Fallback chain: paragraphs -> lines -> character boundary.
+    Returns: list of raw content chunks (without continuation markers).
+    Guarantees: len(chunks) >= 2, all chunks fit max_tokens (except single-line fallback).
+    """
+    chunks = []
+
+    # Level 1: Try splitting by paragraphs (double newlines)
+    paragraphs = section.split("\n\n")
+    if len(paragraphs) > 1:
+        current = ""
+        current_tokens = 0
+        for para in paragraphs:
+            para_tokens = tokenizer(para)
+            # If paragraph itself exceeds limit, flush current and add as chunk
+            if para_tokens > max_tokens:
+                if current:
+                    chunks.append(current)
+                    current = ""
+                    current_tokens = 0
+                chunks.append(para)
+                continue
+            if current_tokens + para_tokens > max_tokens and current:
+                chunks.append(current)
+                current = para
+                current_tokens = para_tokens
+            else:
+                if current:
+                    current += "\n\n" + para
+                else:
+                    current = para
+                current_tokens += para_tokens
+        if current:
+            chunks.append(current)
+        if len(chunks) > 1:
+            return chunks
+
+    # Level 2: Try splitting by lines (single newlines)
+    lines = section.split("\n")
+    if len(lines) > 1:
+        current = ""
+        current_tokens = 0
+        for line in lines:
+            line_tokens = tokenizer(line)
+            # If line itself exceeds limit, flush current and add as chunk
+            if line_tokens > max_tokens:
+                if current:
+                    chunks.append(current)
+                    current = ""
+                    current_tokens = 0
+                chunks.append(line)
+                continue
+            if current_tokens + line_tokens > max_tokens and current:
+                chunks.append(current)
+                current = line
+                current_tokens = line_tokens
+            else:
+                if current:
+                    current += "\n" + line
+                else:
+                    current = line
+                current_tokens += line_tokens
+        if current:
+            chunks.append(current)
+        if len(chunks) > 1:
+            return chunks
+
+    # Level 3: Character boundary fallback (single line or minified code)
+    logger.warning(
+        "Splitting oversized section at character boundary (no paragraph/line breaks found)"
+    )
+    remaining = section
+    while remaining:
+        if tokenizer(remaining) <= max_tokens:
+            chunks.append(remaining)
+            break
+        lo, hi = 0, len(remaining)
+        iterations = 0
+        while lo < hi and iterations < _MAX_TRUNCATION_ITERATIONS:
+            iterations += 1
+            mid = (lo + hi + 1) // 2
+            if tokenizer(remaining[:mid]) <= max_tokens:
+                lo = mid
+            else:
+                hi = mid - 1
+        chunks.append(remaining[:lo])
+        remaining = remaining[lo:]
+    return chunks
+
+
 def split(
     raw_content: str,
     max_tokens: int,
@@ -49,9 +145,11 @@ def split_sections(
 ) -> tuple[list[str], list[list[int]]]:
     """Split pre-built sections into token-limited parts.
 
+    Oversized sections are split via _split_oversized_section with
+    continuation markers. Each chunk shares the original section index.
+
     Returns (parts, indices) where indices[i] = list of section positions
-    packed into parts[i]. Indices refer to the ORIGINAL sections list,
-    preserving position even for empty/whitespace-only sections.
+    packed into parts[i]. Indices may contain duplicates for split sections.
     """
     tk = tokenizer if tokenizer is not None else count_tokens
     parts = []
@@ -67,20 +165,36 @@ def split_sections(
         section_tokens = tk(section)
 
         if section_tokens > max_tokens:
+            # Flush current part before splitting oversized section
             if current:
                 parts.append(current.strip())
                 indices.append(current_indices)
                 current = ""
                 current_tokens = 0
                 current_indices = []
-            truncated, _ = _handle_single(section, max_tokens, tokenizer=tk)
+
+            # Split oversized section
+            chunks = _split_oversized_section(section, max_tokens, tokenizer=tk)
             logger.warning(
-                "Section too large: %s tokens exceeds limit of %s tokens, truncated",
+                "Section too large: %s tokens exceeds limit of %s tokens, split into %s parts",
                 section_tokens,
                 max_tokens,
+                len(chunks),
             )
-            parts.extend(truncated)
-            for _ in truncated:
+
+            # Add continuation markers
+            for j, chunk in enumerate(chunks):
+                if len(chunks) > 1:
+                    if j == 0:
+                        chunk += f"\n\n> **[CONTINUES in part {len(parts) + 2}]**"
+                    elif j == len(chunks) - 1:
+                        chunk = f"> **[CONTINUED from part {len(parts)}]**\n\n{chunk}"
+                    else:
+                        chunk = (
+                            f"> **[CONTINUED from part {len(parts)}]**\n\n{chunk}"
+                            f"\n\n> **[CONTINUES in part {len(parts) + 2}]**"
+                        )
+                parts.append(chunk.strip())
                 indices.append([i])
             continue
 

@@ -56,7 +56,8 @@ except ImportError:
                     Path(f._arachna_lock_path).unlink()
 
         logger.warning(
-            "Neither fcntl nor msvcrt available — using O_CREAT|O_EXCL file lock. Merge mode may have reduced concurrency."
+            "Neither fcntl nor msvcrt available — using O_CREAT|O_EXCL file lock. "
+            "Merge mode may have reduced concurrency."
         )
 
 
@@ -132,15 +133,31 @@ def _build_toc(
     part_section_indices: list[int],
     part_num: int,
     total_parts: int,
+    all_indices: list[list[int]] | None = None,
 ) -> str:
+    """Build table of contents for a part.
+
+    Deduplicates indices within the part. If all_indices is provided,
+    appends [split across N parts] for sections split across multiple parts.
+    """
+    # Deduplicate indices within this part
+    unique_indices = list(dict.fromkeys(part_section_indices))
     files = []
-    for idx in part_section_indices:
+    for idx in unique_indices:
         if idx < len(named_sections):
             name = named_sections[idx][0]
             if name.startswith("pre: "):
-                files.append(name)
+                entry = name
             else:
-                files.append(Path(name).name if "/" in name or "\\" in name else name)
+                entry = Path(name).name if "/" in name or "\\" in name else name
+
+            # Check if this section is split across multiple parts
+            if all_indices is not None:
+                split_count = sum(1 for indices in all_indices if idx in indices)
+                if split_count > 1:
+                    entry += f" [split across {split_count} parts]"
+
+            files.append(entry)
     if not files:
         return ""
     lines = [f"\nPart {part_num} of {total_parts}. Files in this part:\n"]
@@ -171,7 +188,13 @@ def _write_parts(
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
         indices = section_indices[part_idx] if part_idx < len(section_indices) else []
-        toc = _build_toc(named_sections, indices, i, start_num + total_parts - 1)
+        toc = _build_toc(
+            named_sections,
+            indices,
+            i,
+            start_num + total_parts - 1,
+            all_indices=section_indices,
+        )
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
             f.write(toc)
@@ -228,7 +251,13 @@ def _write_diff_parts(
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
-        toc = _build_toc(named_sections, indices, i, total_parts)
+        toc = _build_toc(
+            named_sections,
+            indices,
+            i,
+            total_parts,
+            all_indices=section_indices,
+        )
         header = _diff_part_header(part_stats[i - 1], i, total_parts)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
