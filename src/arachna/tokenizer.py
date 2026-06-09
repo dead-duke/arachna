@@ -3,8 +3,6 @@
 Default: 4 chars ≈ 1 token (conservative, zero dependencies).
 Supports pluggable tokenizers via tokenizer spec string.
 chars_per_token configurable via profile field or ARACHNA_CHARS_PER_TOKEN env var.
-
-v3.1: tiktoken plugin support for accurate token counting.
 """
 
 import ast as _ast
@@ -17,8 +15,6 @@ from pathlib import Path
 _SAFE_TOKENIZERS = frozenset(
     _os.environ.get("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers").split(",")
 )
-
-_DEFAULT_CHARS_PER_TOKEN = int(_os.environ.get("ARACHNA_CHARS_PER_TOKEN", "4"))
 
 _SUSPICIOUS_MODULES = frozenset(
     {
@@ -80,6 +76,43 @@ _SUSPICIOUS_MODULES = frozenset(
     }
 )
 
+
+def _is_safe_tokenizer(spec: str) -> bool:
+    if not spec or spec == "default":
+        return True
+
+    module_name = spec.split(":", 1)[0]
+
+    if module_name in _SAFE_TOKENIZERS:
+        return True
+
+    if module_name in _SUSPICIOUS_MODULES:
+        return False
+
+    if module_name in sys.stdlib_module_names:
+        return False
+
+    paths_to_check = [Path.cwd()] + [Path(p) for p in sys.path if p]
+    local_path = None
+    try:
+        for base in paths_to_check:
+            candidate = base / f"{module_name}.py"
+            if candidate.is_file():
+                local_path = candidate
+                break
+            candidate_pkg = base / module_name
+            if candidate_pkg.is_dir() and (candidate_pkg / "__init__.py").is_file():
+                local_path = candidate_pkg / "__init__.py"
+                break
+    except OSError:
+        pass
+
+    if local_path is None:
+        return False
+
+    return _safe_local_imports(local_path)
+
+
 _ALLOWED_TOP_LEVEL = (
     _ast.FunctionDef,
     _ast.AsyncFunctionDef,
@@ -89,7 +122,50 @@ _ALLOWED_TOP_LEVEL = (
     _ast.Assign,
 )
 
-# ── Plugin detection ──────────────────────────────────────────────
+
+def _validate_top_level_statements(filepath: Path) -> bool:
+    try:
+        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        return False
+
+    for node in tree.body:
+        if not isinstance(node, _ALLOWED_TOP_LEVEL):
+            return False
+        if isinstance(node, _ast.Assign):
+            for child in _ast.walk(node.value):
+                if isinstance(child, _ast.Call):
+                    return False
+            for target in node.targets:
+                for child in _ast.walk(target):
+                    if isinstance(child, _ast.Call):
+                        return False
+
+    return True
+
+
+def _safe_local_imports(filepath: Path) -> bool:
+    try:
+        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
+    except (SyntaxError, OSError, UnicodeDecodeError):
+        return False
+
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] in _SUSPICIOUS_MODULES:
+                    return False
+        elif (
+            isinstance(node, _ast.ImportFrom)
+            and node.module
+            and node.module.split(".")[0] in _SUSPICIOUS_MODULES
+        ):
+            return False
+
+    return _validate_top_level_statements(filepath)
+
+
+# ── Plugin checks — lazy import with warning suppression ──────────
 
 _HAS_TIKTOKEN = False
 _HAS_TRANSFORMERS = False
@@ -102,12 +178,20 @@ def _check_tokenizer_plugins():
 
         _HAS_TIKTOKEN = True
     except ImportError:
-        _HAS_TIKTOKEN = False
+        pass
 
     try:
-        import transformers  # noqa: F401
+        import warnings
+
+        _prev = _os.environ.get("TRANSFORMERS_VERBOSITY")
+        _os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            import transformers  # noqa: F401
 
         _HAS_TRANSFORMERS = True
+        if _prev is not None:
+            _os.environ["TRANSFORMERS_VERBOSITY"] = _prev
     except ImportError:
         _HAS_TRANSFORMERS = False
 
@@ -123,73 +207,31 @@ def _has_transformers() -> bool:
     return _HAS_TRANSFORMERS
 
 
-def _validate_top_level_statements(filepath: Path) -> bool:
-    try:
-        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
-    except (SyntaxError, OSError, UnicodeDecodeError):
-        return False
-    for node in tree.body:
-        if not isinstance(node, _ALLOWED_TOP_LEVEL):
-            return False
-        if isinstance(node, _ast.Assign):
-            for child in _ast.walk(node.value):
-                if isinstance(child, _ast.Call):
-                    return False
-            for target in node.targets:
-                for child in _ast.walk(target):
-                    if isinstance(child, _ast.Call):
-                        return False
-    return True
+def _load_tiktoken(spec: str) -> Callable[[str], int]:
+    import tiktoken
+
+    encoding_name = spec.split(":", 1)[1] if ":" in spec else "cl100k_base"
+    enc = tiktoken.get_encoding(encoding_name)
+
+    def _count(text: str) -> int:
+        return len(enc.encode(text))
+
+    return _count
 
 
-def _is_safe_tokenizer(spec: str) -> bool:
-    if not spec or spec == "default":
-        return True
-    module_name = spec.split(":", 1)[0]
-    if module_name in _SAFE_TOKENIZERS:
-        return True
-    if module_name in _SUSPICIOUS_MODULES:
-        return False
-    if module_name in sys.stdlib_module_names:
-        return False
-    paths_to_check = [Path.cwd()] + [Path(p) for p in sys.path if p]
-    local_path = None
-    try:
-        for base in paths_to_check:
-            candidate = base / f"{module_name}.py"
-            if candidate.is_file():
-                local_path = candidate
-                break
-            candidate_pkg = base / module_name
-            if candidate_pkg.is_dir() and (candidate_pkg / "__init__.py").is_file():
-                local_path = candidate_pkg / "__init__.py"
-                break
-    except OSError:
-        pass
-    if local_path is None:
-        return False
-    return _safe_local_imports(local_path)
+def _load_transformers(spec: str) -> Callable[[str], int]:
+    from transformers import AutoTokenizer
+
+    model_name = spec.split(":", 1)[1] if ":" in spec else "bert-base-uncased"
+    tok = AutoTokenizer.from_pretrained(model_name)
+
+    def _count(text: str) -> int:
+        return len(tok.encode(text))
+
+    return _count
 
 
-def _safe_local_imports(filepath: Path) -> bool:
-    if not _validate_top_level_statements(filepath):
-        return False
-    try:
-        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
-    except (SyntaxError, OSError, UnicodeDecodeError):
-        return False
-    for node in _ast.walk(tree):
-        if isinstance(node, _ast.Import):
-            for alias in node.names:
-                if alias.name.split(".")[0] in _SUSPICIOUS_MODULES:
-                    return False
-        elif (
-            isinstance(node, _ast.ImportFrom)
-            and node.module
-            and node.module.split(".")[0] in _SUSPICIOUS_MODULES
-        ):
-            return False
-    return True
+_DEFAULT_CHARS_PER_TOKEN = int(_os.environ.get("ARACHNA_CHARS_PER_TOKEN", "4"))
 
 
 def count_tokens(text: str, chars_per_token: int | None = None) -> int:
@@ -205,61 +247,28 @@ def load_tokenizer(spec: str, chars_per_token: int | None = None) -> Callable[[s
         cpt = chars_per_token if chars_per_token is not None else _DEFAULT_CHARS_PER_TOKEN
         return lambda text: count_tokens(text, chars_per_token=cpt)
 
-    # Plugin-based tokenizers
-    if spec.startswith("tiktoken") and _has_tiktoken():
-        return _load_tiktoken(spec)
-    if spec.startswith("tiktoken") and not _has_tiktoken():
-        raise ValueError("tiktoken is not installed. Install: pip install arachna[tiktoken]")
-
-    if spec.startswith("transformers") and _has_transformers():
-        return _load_transformers(spec)
-    if spec.startswith("transformers") and not _has_transformers():
-        raise ValueError(
-            "transformers is not installed. Install: pip install arachna[transformers]"
-        )
-
     if not _is_safe_tokenizer(spec):
         raise ValueError(
             f"Unsafe tokenizer: '{spec}'. "
             f"Only 'default', safe modules ({', '.join(sorted(_SAFE_TOKENIZERS))}), "
             f"or local .py files with safe imports are allowed."
         )
+
+    if spec.startswith("tiktoken"):
+        if _has_tiktoken():
+            return _load_tiktoken(spec)
+        raise ValueError("tiktoken is not installed. Install it with: pip install tiktoken")
+
+    if spec.startswith("transformers"):
+        if _has_transformers():
+            return _load_transformers(spec)
+        raise ValueError("transformers is not installed. Install it with: pip install transformers")
+
     if ":" in spec:
         module_name, func_name = spec.split(":", 1)
     else:
         module_name = spec
         func_name = "count_tokens"
+
     mod = importlib.import_module(module_name)
     return getattr(mod, func_name)
-
-
-def _load_tiktoken(spec: str) -> Callable[[str], int]:
-    """Load tiktoken tokenizer. spec format: 'tiktoken' or 'tiktoken:cl100k_base'."""
-    import tiktoken
-
-    encoding_name = "cl100k_base"
-    if ":" in spec:
-        encoding_name = spec.split(":", 1)[1]
-
-    enc = tiktoken.get_encoding(encoding_name)
-
-    def _count(text: str) -> int:
-        return len(enc.encode(text))
-
-    return _count
-
-
-def _load_transformers(spec: str) -> Callable[[str], int]:
-    """Load transformers tokenizer. spec format: 'transformers:model_name'."""
-    from transformers import AutoTokenizer
-
-    model_name = "gpt2"
-    if ":" in spec:
-        model_name = spec.split(":", 1)[1]
-
-    tok = AutoTokenizer.from_pretrained(model_name)
-
-    def _count(text: str) -> int:
-        return len(tok.encode(text))
-
-    return _count
