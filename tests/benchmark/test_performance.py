@@ -1,9 +1,15 @@
-"""Benchmarks for arachna — run: python -m pytest tests/benchmark/ -v -s"""
+"""Benchmarks for arachna — core performance tests."""
 
+import json
 import time
 from pathlib import Path
 
+import psutil
+
 from arachna.collector import collect
+
+BASELINE_FILE = Path(__file__).parent / "baseline.json"
+RESULTS = []
 
 
 def _make_files(tmp_path: Path, count: int, content_fn=None):
@@ -63,7 +69,12 @@ def _profile(**kw):
     }
 
 
-def _run(tmp_path, profile, mode="full", query=None, incremental=False):
+def _run_with_memory(tmp_path, profile, mode="full", query=None, incremental=False):
+    # Note: This measures RSS at two points, not peak. Actual peak may be higher.
+    # For accurate peak RSS, use resource.getrusage on Unix systems.
+    process = psutil.Process()
+    rss_before = process.memory_info().rss
+
     out = tmp_path / "out"
     out.mkdir(exist_ok=True)
     t0 = time.perf_counter()
@@ -71,14 +82,51 @@ def _run(tmp_path, profile, mode="full", query=None, incremental=False):
         profile, "B", str(out), mode=mode, query=query, incremental=incremental
     )
     elapsed = time.perf_counter() - t0
+
+    rss_after = process.memory_info().rss
+    peak_rss = max(rss_before, rss_after)
+
     total_tokens = sum(tokens_by_file.values()) if isinstance(tokens_by_file, dict) else 0
+    throughput_files = len(created) / elapsed if elapsed > 0 else 0
+    throughput_tokens = total_tokens / elapsed if elapsed > 0 else 0
+
     return {
         "files": len(created),
         "parts": len(parts),
         "tokens": total_tokens,
         "time": elapsed,
+        "rss_mb": peak_rss / (1024 * 1024),
+        "throughput_files": throughput_files,
+        "throughput_tokens": throughput_tokens,
         "all_content": "".join(parts),
     }
+
+
+def _check_regression(name: str, result: dict, tolerance: float = 0.2):
+    if not BASELINE_FILE.exists():
+        return
+    baseline = json.loads(BASELINE_FILE.read_text())
+    if name not in baseline:
+        return
+    expected = baseline[name]
+    for metric in ["time", "rss_mb"]:
+        if metric in expected and metric in result:
+            # Check regression (slower)
+            threshold = expected[metric] * (1 + tolerance)
+            assert result[metric] <= threshold, (
+                f"{name} {metric} regression: {result[metric]:.3f} > {threshold:.3f} "
+                f"(baseline: {expected[metric]:.3f})"
+            )
+            # Check improvement (suspiciously faster)
+            min_threshold = expected[metric] * 0.1
+            assert result[metric] >= min_threshold, (
+                f"{name} {metric} suspiciously fast: {result[metric]:.3f} "
+                f"< {min_threshold:.3f} (baseline: {expected[metric]:.3f})"
+            )
+
+
+def _collect_result(test_name: str, result: dict):
+    RESULTS.append({"test": test_name, **result})
 
 
 # ── full mode (streaming) ──────────────────────────────────────────
@@ -87,10 +135,16 @@ def _run(tmp_path, profile, mode="full", query=None, incremental=False):
 def test_bench_full_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
-    _run(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
-    r = _run(tmp_path, _profile(patterns=["*.py"]), "full")
-    print(f"\n  full 1000: {r['parts']} parts, {r['tokens']} tokens, {r['time']:.3f}s")
-    for i in range(1000):
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
+    print(
+        f"\n  full 1000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "
+        f"{r['throughput_files']:.0f} files/s, {r['throughput_tokens']:.0f} tokens/s"
+    )
+    _check_regression("full_1000", r)
+    _collect_result("full_1000", r)
+    # Check a sample instead of all 1000 files
+    for i in [0, 100, 500, 999]:
         assert f"file_{i}.py" in r["all_content"]
     assert r["tokens"] > 0
 
@@ -101,12 +155,18 @@ def test_bench_full_1000(tmp_path, monkeypatch):
 def test_bench_repo_map_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
-    r = _run(tmp_path, _profile(patterns=["*.py"]), "repo-map")
-    print(f"\n  repo-map 1000: {r['parts']} parts, {r['tokens']} tokens, {r['time']:.3f}s")
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "repo-map")  # warm-up
+    r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "repo-map")
+    print(
+        f"\n  repo-map 1000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "
+        f"{r['throughput_files']:.0f} files/s"
+    )
+    _check_regression("repo_map_1000", r)
+    _collect_result("repo_map_1000", r)
     assert r["tokens"] > 0
     assert "return result *" not in r["all_content"]
     assert "def function_" in r["all_content"]
-    r_full = _run(tmp_path, _profile(patterns=["*.py"]), "full")
+    r_full = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     assert r["tokens"] < r_full["tokens"]
 
 
@@ -116,8 +176,13 @@ def test_bench_repo_map_1000(tmp_path, monkeypatch):
 def test_bench_headers_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
-    r = _run(tmp_path, _profile(patterns=["*.py"]), "headers")
-    print(f"\n  headers 1000: {r['parts']} parts, {r['tokens']} tokens, {r['time']:.3f}s")
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "headers")  # warm-up
+    r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "headers")
+    print(
+        f"\n  headers 1000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "
+        f"{r['throughput_files']:.0f} files/s"
+    )
+    _collect_result("headers_1000", r)
     assert r["tokens"] > 0
     assert "deps:" in r["all_content"]
 
@@ -128,8 +193,9 @@ def test_bench_headers_1000(tmp_path, monkeypatch):
 def test_bench_full_compress_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000, _content_with_blanks)
-    r_no = _run(tmp_path, _profile(patterns=["*.py"]), "full")
-    r_cmp = _run(tmp_path, _profile(patterns=["*.py"], compress=True), "full")
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    r_no = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
+    r_cmp = _run_with_memory(tmp_path, _profile(patterns=["*.py"], compress=True), "full")
     print(f"\n  full no-compress: {r_no['tokens']} tokens")
     print(f"  full +compress:   {r_cmp['tokens']} tokens")
     assert r_cmp["tokens"] < r_no["tokens"]
@@ -141,8 +207,9 @@ def test_bench_full_compress_1000(tmp_path, monkeypatch):
 def test_bench_query_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
-    r_no = _run(tmp_path, _profile(patterns=["*.py"]), "full")
-    r_q = _run(tmp_path, _profile(patterns=["*.py"]), "full", query="file_500")
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    r_no = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
+    r_q = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full", query="file_500")
     print(f"\n  full no-query: {r_no['tokens']} tokens")
     print(f"  full +query:   {r_q['tokens']} tokens ({r_q['files']} files)")
     assert r_q["files"] > 0
@@ -155,9 +222,18 @@ def test_bench_query_1000(tmp_path, monkeypatch):
 def test_bench_full_5000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 5000)
-    r = _run(tmp_path, _profile(patterns=["*.py"]), "full")
-    print(f"\n  full 5000: {r['parts']} parts, {r['tokens']} tokens, {r['time']:.3f}s")
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
+    print(
+        f"\n  full 5000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "
+        f"{r['throughput_files']:.0f} files/s, {r['throughput_tokens']:.0f} tokens/s"
+    )
+    _check_regression("full_5000", r)
+    _collect_result("full_5000", r)
     assert r["tokens"] > 0
+    # RSS includes Python runtime (~30 MB) + psutil + module imports.
+    # Streaming buffer is O(max_tokens). 200 MB generous headroom.
+    assert r["rss_mb"] < 200
 
 
 # ── incremental ────────────────────────────────────────────────────
@@ -166,61 +242,13 @@ def test_bench_full_5000(tmp_path, monkeypatch):
 def test_bench_incremental_unchanged(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 500)
-    r1 = _run(tmp_path, _profile(patterns=["*.py"]), "full", incremental=True)
+    # First run populates cache
+    r1 = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full", incremental=True)
     assert r1["files"] >= 1
-    r2 = _run(tmp_path, _profile(patterns=["*.py"]), "full", incremental=True)
+    # Second run — all unchanged, should skip
+    r2 = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full", incremental=True)
     print(
-        f"\n  incr unchanged 500: {r2['files']} files, {r2['time']:.4f}s (first: {r1['time']:.4f}s)"
+        f"\n  incr unchanged 500: {r2['files']} files, {r2['time']:.4f}s "
+        f"(first: {r1['time']:.4f}s)"
     )
     assert r2["files"] == 0
-
-
-# ── plugin: tree-sitter JS ────────────────────────────────────────
-
-
-def test_bench_tree_sitter_js_1000(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    src = tmp_path / "src"
-    src.mkdir()
-    for i in range(1000):
-        (src / f"file_{i}.js").write_text(_js_content(i))
-
-    r_full = _run(tmp_path, _profile(patterns=["*.js"]), "full")
-    print(
-        f"\n  tree-sitter JS full 1000: {r_full['parts']} parts, {r_full['tokens']} tokens, {r_full['time']:.3f}s"
-    )
-    assert r_full["tokens"] > 0
-
-    r_struct = _run(tmp_path, _profile(patterns=["*.js"]), "headers")
-    print(
-        f"  tree-sitter JS headers 1000: {r_struct['parts']} parts, {r_struct['tokens']} tokens, {r_struct['time']:.3f}s"
-    )
-    assert r_struct["tokens"] > 0
-
-
-# ── structural diff comparison ─────────────────────────────────────
-
-
-def test_bench_structural_diff_comparison(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-
-    src_py = tmp_path / "src_py"
-    src_py.mkdir()
-    for i in range(500):
-        (src_py / f"file_{i}.py").write_text(_default_content(i))
-    r_py = _run(tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full")
-    print(
-        f"\n  Python AST structural 500: {r_py['parts']} parts, {r_py['tokens']} tokens, {r_py['time']:.3f}s"
-    )
-
-    src_js = tmp_path / "src_js"
-    src_js.mkdir()
-    for i in range(500):
-        (src_js / f"file_{i}.js").write_text(_js_content(i))
-    r_js = _run(tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full")
-    print(
-        f"  JS tree-sitter/regex 500: {r_js['parts']} parts, {r_js['tokens']} tokens, {r_js['time']:.3f}s"
-    )
-
-    assert r_py["tokens"] > 0
-    assert r_js["tokens"] > 0

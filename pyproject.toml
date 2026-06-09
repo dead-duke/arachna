@@ -54,7 +54,7 @@ javascript = ["arachna[tree-sitter]"]
 typescript = ["arachna[tree-sitter]"]
 go = ["arachna[tree-sitter]"]
 all = ["arachna[tree-sitter,tiktoken,transformers]"]
-dev = ["pytest", "pytest-cov", "ruff", "pre-commit", "hypothesis"]
+dev = ["pytest", "pytest-cov", "ruff", "pre-commit", "hypothesis", "psutil>=5.9.0"]
 
 [tool.ruff]
 line-length = 100
@@ -72,3 +72,6 @@ indent-style = "space"
 minversion = "6.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
