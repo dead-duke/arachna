@@ -21,15 +21,35 @@ logger = logging.getLogger("arachna.watcher")
 _MAX_SIMILARITY_SIZE = 1_048_576
 
 
+def _project_root() -> Path | None:
+    """Find project root from .arachna.json location, fallback to cwd."""
+    from .config import find_config
+
+    cfg = find_config()
+    if cfg is not None:
+        return cfg.parent
+    return None
+
+
 def _normalize_path(path: str) -> str:
     path = path.replace("\\", "/")
     path = re.sub(r"/+", "/", path)
     return path
 
 
+def _rel_path(absolute_path: Path) -> str:
+    """Convert absolute path to project-relative, fallback to normalized absolute."""
+    root = _project_root()
+    if root is not None:
+        try:
+            return _normalize_path(str(absolute_path.resolve().relative_to(root)))
+        except ValueError:
+            pass
+    return _normalize_path(str(absolute_path))
+
+
 def _read_profile_files(profile: dict) -> dict[str, str]:
     result = {}
-    cwd = Path.cwd()
     for filepath_str in profile.get("files", []):
         fp = Path(filepath_str)
         if not fp.is_file():
@@ -38,12 +58,7 @@ def _read_profile_files(profile: dict) -> dict[str, str]:
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        try:
-            rel_path = _normalize_path(str(fp.resolve().relative_to(cwd)))
-        except ValueError:
-            logger.warning("Skipping file outside project root: %s", fp)
-            continue
-        result[rel_path] = content
+        result[_rel_path(fp.resolve())] = content
     return result
 
 
@@ -56,12 +71,7 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        try:
-            rel_path = _normalize_path(str(fp.resolve().relative_to(Path.cwd())))
-        except ValueError:
-            logger.warning("Skipping file outside project root: %s", fp)
-            continue
-        files[rel_path] = content
+        files[_rel_path(fp.resolve())] = content
     profile_files = _read_profile_files(profile)
     files.update(profile_files)
     pre_commands_data = {}
@@ -130,15 +140,10 @@ def _build_current_files(profile: dict, exclude: list[str]) -> dict[str, str]:
     current_files = {}
     for fp in current_filepaths:
         try:
-            rel_path = _normalize_path(str(fp.resolve().relative_to(Path.cwd())))
-        except ValueError:
-            logger.warning("Skipping file outside project root: %s", fp)
-            continue
-        try:
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        current_files[rel_path] = content
+        current_files[_rel_path(fp.resolve())] = content
     profile_files = _read_profile_files(profile)
     for rel_path, content in profile_files.items():
         if rel_path not in current_files:

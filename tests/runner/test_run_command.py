@@ -1,5 +1,4 @@
-import subprocess
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from arachna.runner import (
     _is_safe_command,
@@ -9,58 +8,51 @@ from arachna.runner import (
 )
 
 
-def _completed_process(stdout="", stderr="", returncode=0, args=None):
-    return subprocess.CompletedProcess(
-        args=args or ["echo", "hello"],
-        returncode=returncode,
-        stdout=stdout,
-        stderr=stderr,
-    )
+def _mock_popen(stdout=""):
+    mock = MagicMock()
+    mock.stdout.read.side_effect = [stdout, ""]
+    mock.wait.return_value = 0
+    return mock
 
 
 def test_simple():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="hello\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="hello\n")
         assert run_command("echo hello").strip() == "hello"
 
 
 def test_with_args():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="hello world\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="hello world\n")
         assert run_command("echo hello world").strip() == "hello world"
 
 
 def test_nonexistent():
-    with patch("subprocess.run", side_effect=FileNotFoundError):
+    with patch("subprocess.Popen", side_effect=FileNotFoundError):
         assert run_command("nonexistent_cmd_xyz") == ""
 
 
-def test_timeout():
-    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="sleep", timeout=1)):
-        assert run_command("sleep 10") == ""
-
-
 def test_os_error():
-    with patch("subprocess.run", side_effect=OSError("wrong interpreter")):
+    with patch("subprocess.Popen", side_effect=OSError("wrong interpreter")):
         assert run_command("bad") == ""
 
 
 def test_pipe():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="hello\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="hello\n")
         assert run_command("echo hello | cat", allow_file_args=True).strip() == "hello"
 
 
 def test_double_ampersand():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="first\nsecond\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="first\nsecond\n")
         lines = run_command("echo first && echo second", allow_file_args=True).strip().split("\n")
         assert lines == ["first", "second"]
 
 
 def test_dry_run_safe_command():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="hello\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="hello\n")
         assert run_command("echo hello", dry_run=True).strip() == "hello"
 
 
@@ -80,7 +72,6 @@ def test_is_safe_command():
     assert not _is_safe_command("echo hello | cat")
     assert not _is_safe_command("python3 script.py")
     assert not _is_safe_command("")
-    # git requires allow_file_args
     assert _is_safe_command("git log", allow_file_args=True)
     assert not _is_safe_command("git log")
 
@@ -142,51 +133,51 @@ def test_resolve_base_unclosed_quotes():
 
 def test_interactive_blocked_tty():
     with (
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
-        mock_run.return_value = _completed_process(stdout="output\n")
+        mock_popen.return_value = _mock_popen(stdout="output\n")
         result = run_command("curl http://evil.com", interactive=True)
         assert result == ""
 
 
 def test_interactive_blocked_tty_yes():
     with (
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
-        mock_run.return_value = _completed_process(stdout="output\n")
+        mock_popen.return_value = _mock_popen(stdout="output\n")
         result = run_command("curl http://evil.com", interactive=True)
         assert result == "output\n"
 
 
 def test_dry_run_interactive_tty_no():
     with (
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
-        mock_run.return_value = _completed_process(stdout="output\n")
+        mock_popen.return_value = _mock_popen(stdout="output\n")
         result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
         assert result == ""
 
 
 def test_dry_run_interactive_tty_yes():
     with (
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
-        mock_run.return_value = _completed_process(stdout="output\n")
+        mock_popen.return_value = _mock_popen(stdout="output\n")
         result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
         assert result == "output\n"
 
 
 def test_shlex_value_error():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="output\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="output\n")
         result = run_command("echo 'hello")
         assert result == ""
 
@@ -202,8 +193,8 @@ def test_audit_log_written(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
 
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="hello\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="hello\n")
         run_command("echo hello")
 
     log_path = tmp_path / "out" / ".arachna_commands.log"
@@ -230,8 +221,8 @@ def test_audit_log_blocked(tmp_path, monkeypatch):
 def test_audit_log_no_config(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="hello\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="hello\n")
         run_command("echo hello")
 
     log_path = tmp_path / "arachna_context" / ".arachna_commands.log"

@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-# Directories commonly excluded from all operations
 _COMMON_EXCLUDE_DIRS = frozenset(
     {
         ".git",
@@ -19,21 +18,18 @@ _COMMON_EXCLUDE_DIRS = frozenset(
     }
 )
 
-# Default exclude patterns — generated from _COMMON_EXCLUDE_DIRS plus file-specific patterns
-DEFAULT_EXCLUDE = [
-    "*__pycache__*",
-    "*.pyc",
-    "*.egg-info*",
-    ".DS_Store",
-]
+DEFAULT_EXCLUDE = ["*__pycache__*", "*.pyc", "*.egg-info*", ".DS_Store"]
 for _d in sorted(_COMMON_EXCLUDE_DIRS):
     DEFAULT_EXCLUDE.extend([_d, f"{_d}/*"])
 
 DEFAULT_PATTERNS = ["*.py", "*.md", "*.yaml", "*.yml", "*.toml", "*.json", "*.cfg", "*.ini"]
 
+_MERGE_APPEND = {"exclude_patterns", "patterns"}
+_MAX_EXTENDS_DEPTH = 5
 
+
+@functools.lru_cache(maxsize=1)
 def find_config() -> Path | None:
-    """Find .arachna.json by walking up from cwd."""
     cwd = Path.cwd()
     for parent in [cwd, *cwd.parents]:
         cfg = parent / ".arachna.json"
@@ -42,16 +38,12 @@ def find_config() -> Path | None:
     return None
 
 
-@functools.lru_cache(maxsize=1)
 def load_config() -> dict[str, Any]:
-    """Load config from .arachna.json. Cached per cwd — call cache_clear() if config changes."""
     cfg_path = find_config()
     if not cfg_path:
         return _default_config()
-
     with open(cfg_path, encoding="utf-8") as f:
         data = json.load(f)
-
     defaults = _default_config()
     defaults.update(data)
     return defaults
@@ -66,20 +58,46 @@ def _default_config() -> dict[str, Any]:
     }
 
 
+def _resolve_profile(name: str, profiles: dict, depth: int = 0) -> dict[str, Any]:
+    if depth > _MAX_EXTENDS_DEPTH:
+        raise ValueError(
+            f"Circular or too deep extends chain for profile '{name}' (max depth {_MAX_EXTENDS_DEPTH})"
+        )
+    if name not in profiles:
+        raise KeyError(f"Profile '{name}' not found. Available: {list(profiles.keys())}")
+    profile = dict(profiles[name])
+    if "extends" in profile:
+        parent_name = profile.pop("extends")
+        parent = _resolve_profile(parent_name, profiles, depth + 1)
+        profile = _merge_profiles(parent, profile)
+    return profile
+
+
+def _merge_profiles(base: dict, child: dict) -> dict:
+    merged = dict(base)
+    for key, value in child.items():
+        if key in _MERGE_APPEND and key in merged:
+            merged[key] = merged[key] + value
+        else:
+            if key in merged and key not in _MERGE_APPEND and merged[key] != value:
+                print(
+                    f"  Warning: profile field '{key}' overridden by child (parent: {merged[key]}, child: {value})"
+                )
+            merged[key] = value
+    return merged
+
+
 def get_profile(name: str) -> dict[str, Any]:
     config = load_config()
     profiles = config.get("profiles", {})
-
     if not profiles:
         return _default_profile()
-
     if name not in profiles:
         raise KeyError(f"Profile '{name}' not found. Available: {list(profiles.keys())}")
-    profile = profiles[name]
+    profile = _resolve_profile(name, profiles)
     profile.setdefault("name_template", f"chat-{name}")
     profile.setdefault(
-        "title_template",
-        f"# {config['project_name']} — {name.upper()} (part {{part}})\n\n",
+        "title_template", f"# {config['project_name']} — {name.upper()} (part {{part}})\n\n"
     )
     profile.setdefault("max_tokens", 16000)
     profile.setdefault("split_mode", "by_file")

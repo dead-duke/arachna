@@ -9,7 +9,6 @@ from arachna.collect_api import collect
 
 
 def test_collect_api_with_profile_dict(tmp_path, monkeypatch):
-    """collect() with profile dict returns CollectResult."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -33,7 +32,6 @@ def test_collect_api_with_profile_dict(tmp_path, monkeypatch):
 
 
 def test_collect_api_with_profile_name(tmp_path, monkeypatch):
-    """collect() with profile name looks up .arachna.json."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -61,7 +59,6 @@ def test_collect_api_with_profile_name(tmp_path, monkeypatch):
 
 
 def test_collect_api_profile_not_found(tmp_path, monkeypatch):
-    """collect() with unknown profile name raises ProfileNotFoundError."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
@@ -72,7 +69,6 @@ def test_collect_api_profile_not_found(tmp_path, monkeypatch):
 
 
 def test_collect_api_with_query(tmp_path, monkeypatch):
-    """collect() with query filters files."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -95,7 +91,6 @@ def test_collect_api_with_query(tmp_path, monkeypatch):
 
 
 def test_collect_api_with_mode_repo_map(tmp_path, monkeypatch):
-    """collect() with mode='repo-map' returns signatures only."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -118,7 +113,6 @@ def test_collect_api_with_mode_repo_map(tmp_path, monkeypatch):
 
 
 def test_collect_api_merge_mode(tmp_path, monkeypatch):
-    """collect() with merge=True appends files."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -141,7 +135,6 @@ def test_collect_api_merge_mode(tmp_path, monkeypatch):
 
 
 def test_collect_api_incremental(tmp_path, monkeypatch):
-    """collect() with incremental=True skips unchanged files."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()

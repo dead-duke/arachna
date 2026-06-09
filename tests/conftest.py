@@ -2,14 +2,14 @@
 
 import pytest
 
-from arachna.config import load_config
+from arachna.config import find_config
 
 
 @pytest.fixture(autouse=True)
-def _clear_config_cache():
-    """Clear load_config LRU cache before each test.
+def _clear_find_config_cache():
+    """Clear find_config LRU cache before each test.
 
-    Tests create .arachna.json dynamically in tmp_path — cached config
-    from a previous test's tmp_path would return wrong profiles.
+    Each test runs in its own tmp_path with its own .arachna.json.
+    Cached result from previous test would return wrong path.
     """
-    load_config.cache_clear()
+    find_config.cache_clear()

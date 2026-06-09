@@ -1,8 +1,4 @@
-"""Watch CLI handlers — extracted from __main__.py.
-
-Provides handle_watch_command(argv) -> bool entry point.
-Returns True if argv is a Watch command and was handled.
-"""
+"""Watch CLI handlers — extracted from __main__.py."""
 
 import sys
 from pathlib import Path
@@ -21,7 +17,6 @@ from .tokenizer import count_tokens, load_tokenizer
 
 
 def handle_watch_command(argv: list[str]) -> bool:
-    """Handle Watch commands from argv. Returns True if handled."""
     if "--snapshot" in argv:
         _cmd_snapshot(argv)
         return True
@@ -486,7 +481,7 @@ def _cmd_diff_all(argv: list[str]):
 
     clean_manifest(out_path, name_tmpl)
 
-    created, tokens_by_file = collect(
+    created, tokens_by_file, _parts = collect(
         profile,
         project_name,
         str(out_path),

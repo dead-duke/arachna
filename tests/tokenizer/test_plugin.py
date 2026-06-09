@@ -3,18 +3,17 @@ import sys
 import tempfile
 from pathlib import Path
 
-from arachna.tokenizer import count_tokens, load_tokenizer
+from arachna.tokenizer import load_tokenizer
 
 
 def test_load_default():
     tokenize = load_tokenizer("default")
-    assert tokenize is count_tokens
     assert tokenize("hello world") == 2
 
 
 def test_load_empty():
     tokenize = load_tokenizer("")
-    assert tokenize is count_tokens
+    assert tokenize("hello world") == 2
 
 
 def test_load_custom_module():
@@ -27,7 +26,6 @@ def test_load_custom_module():
             assert tokenize("anything") == 999
         finally:
             sys.path.pop(0)
-            # Clean module cache
             importlib.invalidate_caches()
             if "my_tok" in sys.modules:
                 del sys.modules["my_tok"]

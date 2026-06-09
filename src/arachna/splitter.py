@@ -46,13 +46,21 @@ def split_sections(
     max_tokens: int,
     separator: str = "\n\n",
     tokenizer: Callable[[str], int] | None = None,
-) -> list[str]:
+) -> tuple[list[str], list[list[int]]]:
+    """Split pre-built sections into token-limited parts.
+
+    Returns (parts, indices) where indices[i] = list of section positions
+    packed into parts[i]. Indices refer to the ORIGINAL sections list,
+    preserving position even for empty/whitespace-only sections.
+    """
     tk = tokenizer if tokenizer is not None else count_tokens
     parts = []
+    indices = []
     current = ""
     current_tokens = 0
+    current_indices = []
 
-    for section in sections:
+    for i, section in enumerate(sections):
         section = section.strip()
         if not section:
             continue
@@ -61,8 +69,10 @@ def split_sections(
         if section_tokens > max_tokens:
             if current:
                 parts.append(current.strip())
+                indices.append(current_indices)
                 current = ""
                 current_tokens = 0
+                current_indices = []
             truncated, _ = _handle_single(section, max_tokens, tokenizer=tk)
             logger.warning(
                 "Section too large: %s tokens exceeds limit of %s tokens, truncated",
@@ -70,23 +80,29 @@ def split_sections(
                 max_tokens,
             )
             parts.extend(truncated)
+            for _ in truncated:
+                indices.append([i])
             continue
 
         if current_tokens + section_tokens > max_tokens:
             parts.append(current.strip())
+            indices.append(current_indices)
             current = section
             current_tokens = section_tokens
+            current_indices = [i]
         else:
             if current:
                 current += separator + section
             else:
                 current = section
             current_tokens += section_tokens
+            current_indices.append(i)
 
     if current.strip():
         parts.append(current.strip())
+        indices.append(current_indices)
 
-    return parts
+    return parts, indices
 
 
 def _split_to_sections(text: str, marker: str) -> list[str]:

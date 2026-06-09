@@ -15,7 +15,7 @@ def test_command_mode_with_compress(tmp_path, monkeypatch):
         "compress": True,
     }
 
-    named_sections, parts, new_cache = _assemble_content(
+    named_sections, parts, _indices, new_cache = _assemble_content(
         profile,
         exclude=[],
         tokenizer=count_tokens,
@@ -25,7 +25,6 @@ def test_command_mode_with_compress(tmp_path, monkeypatch):
     )
 
     assert len(parts) == 1
-    # Blank lines collapsed: 3+ → 2
     assert "\n\n\n\n" not in parts[0]
 
 
@@ -40,7 +39,7 @@ def test_command_mode_without_compress(tmp_path, monkeypatch):
         "compress": False,
     }
 
-    named_sections, parts, new_cache = _assemble_content(
+    named_sections, parts, _indices, new_cache = _assemble_content(
         profile,
         exclude=[],
         tokenizer=count_tokens,
@@ -50,6 +49,5 @@ def test_command_mode_without_compress(tmp_path, monkeypatch):
     )
 
     assert len(parts) == 1
-    # 4 blank lines preserved (echo output may differ, check general)
     assert "hello" in parts[0]
     assert "world" in parts[0]

@@ -2,7 +2,6 @@ from arachna.collector import collect
 
 
 def test_collect_incremental_skips_unchanged(tmp_path, monkeypatch):
-    """Integration test: collect with incremental=True skips unchanged files."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -20,17 +19,14 @@ def test_collect_incremental_skips_unchanged(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    # First run — should collect the file
-    created1, _ = collect(profile, "P", "out", incremental=True)
+    created1, _, _ = collect(profile, "P", "out", incremental=True)
     assert len(created1) == 1
 
-    # Second run — file unchanged, should produce no output
-    created2, _ = collect(profile, "P", "out", incremental=True)
+    created2, _, _ = collect(profile, "P", "out", incremental=True)
     assert len(created2) == 0
 
 
 def test_collect_incremental_detects_modified(tmp_path, monkeypatch):
-    """Integration test: collect with incremental=True detects modified files."""
     import time
 
     monkeypatch.chdir(tmp_path)
@@ -51,23 +47,17 @@ def test_collect_incremental_detects_modified(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    # First run
-    created1, _ = collect(profile, "P", "out", incremental=True)
+    created1, _, _ = collect(profile, "P", "out", incremental=True)
     assert len(created1) == 1
 
-    # Ensure mtime_ns difference exceeds 1ms tolerance for smart hybrid
     time.sleep(0.01)
-    # Modify the file — different size ensures size check fails,
-    # guaranteeing the slow path triggers
     fp.write_text("modified content that is longer")
 
-    # Second run — should detect modification and collect again
-    created2, _ = collect(profile, "P", "out", incremental=True)
+    created2, _, _ = collect(profile, "P", "out", incremental=True)
     assert len(created2) == 1
 
 
 def test_collect_incremental_detects_new_file(tmp_path, monkeypatch):
-    """Integration test: collect with incremental=True detects newly added files."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -85,13 +75,10 @@ def test_collect_incremental_detects_new_file(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    # First run — collect a.py
-    created1, _ = collect(profile, "P", "out", incremental=True)
+    created1, _, _ = collect(profile, "P", "out", incremental=True)
     assert len(created1) == 1
 
-    # Add new file
     (src / "b.py").write_text("new file")
 
-    # Second run — should detect new file
-    created2, _ = collect(profile, "P", "out", incremental=True)
+    created2, _, _ = collect(profile, "P", "out", incremental=True)
     assert len(created2) == 1

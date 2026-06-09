@@ -78,7 +78,7 @@ def _run_profile(
     if not args.merge:
         clean_manifest(out_path, name_tmpl)
 
-    created, tokens_by_file = collect(
+    created, tokens_by_file, _parts = collect(
         profile,
         project_name,
         str(out_path),
@@ -132,35 +132,22 @@ def main():
     group.add_argument("--init", action="store_true", help="Create .arachna.json interactively")
     group.add_argument("--doctor", action="store_true", help="Run configuration diagnostic")
     group.add_argument("--install-hook", action="store_true", help="Install post-commit git hook")
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Show what will be collected without writing"
-    )
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--output-dir", "-o", help="Override output directory")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Show skipped files")
-    parser.add_argument(
-        "--compress", action="store_true", help="Compress whitespace to save tokens"
-    )
-    parser.add_argument("--incremental", action="store_true", help="Only collect changed files")
-    parser.add_argument("--format", choices=["markdown", "xml", "json"], help="Output format")
-    parser.add_argument("--defaults", action="store_true", help="Use defaults with --init")
-    parser.add_argument(
-        "--merge", action="store_true", help="Append to existing output instead of replacing"
-    )
-    parser.add_argument("--force", action="store_true", help="Force overwrite with --install-hook")
-    parser.add_argument("--preset", help="Use specific preset with --init (e.g. godot, unity)")
+    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--compress", action="store_true")
+    parser.add_argument("--incremental", action="store_true")
+    parser.add_argument("--format", choices=["markdown", "xml", "json"])
+    parser.add_argument("--defaults", action="store_true")
+    parser.add_argument("--merge", action="store_true")
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--preset", help="Use specific preset with --init")
     parser.add_argument("--name", help="Snapshot name")
-    parser.add_argument("--from", dest="from_snapshot", help="Snapshot ID to diff from")
-    parser.add_argument("--stat", action="store_true", help="Show diff statistics only")
+    parser.add_argument("--from", dest="from_snapshot")
+    parser.add_argument("--stat", action="store_true")
     parser.add_argument("--query", help="Filter files by query")
-    parser.add_argument(
-        "--no-pre-commands", action="store_true", help="Skip pre_commands for this run"
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["full", "headers", "repo-map"],
-        default="full",
-        help="Output mode: full (default), headers (full with dependency/export headers), repo-map (signatures only)",
-    )
+    parser.add_argument("--no-pre-commands", action="store_true")
+    parser.add_argument("--mode", choices=["full", "headers", "repo-map"], default="full")
 
     args = parser.parse_args()
     config = load_config()
@@ -277,13 +264,11 @@ def _cmd_clean(config: dict, out_path: Path):
         mf.unlink()
         cleaned += 1
         print(f"  Removed: {_MANIFEST}")
-
     for pattern in ["chat-*_*.md", "chat-*.md", "chat-diff*.md", "chat-diff*_*.md"]:
         for f in out_path.glob(pattern):
             f.unlink()
             cleaned += 1
             print(f"  Removed: {f.name}")
-
     print(f"Cleaned {cleaned} file(s).")
 
 
@@ -357,12 +342,10 @@ def _cmd_presets_update(argv: list[str]):
         idx = argv.index("--url")
         if idx + 1 < len(argv):
             url = argv[idx + 1]
-
     if not url.startswith(("http://", "https://")):
         print("Error: only http:// and https:// URLs are allowed for security reasons.")
         print(f"  Got: {url}")
         sys.exit(1)
-
     local = load_presets_from_file("presets.json")
     if local:
         print(f"Local presets.json: {len(local)} preset(s) — will be preserved.")
@@ -370,16 +353,13 @@ def _cmd_presets_update(argv: list[str]):
         print("Warning: local presets.json exists but could not be loaded. Aborting.")
         print("  Fix or remove the file and try again.")
         sys.exit(1)
-
     print(f"Fetching presets from {url}...")
     remote = fetch_presets(url)
     if not remote:
         print("No presets fetched. Check URL or network.")
         sys.exit(1)
-
     builtin = _load_builtin_presets()
     merged = merge_presets(builtin, remote, local)
-
     import json as _json
 
     out = _json.dumps(merged, indent=2) + "\n"

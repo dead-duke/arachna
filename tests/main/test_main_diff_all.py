@@ -6,7 +6,6 @@ from arachna.cli_watch import _cmd_diff_all
 
 
 def test_cmd_diff_all_full(tmp_path, monkeypatch):
-    """--diff --all collects full project and renames to chat-diff-all_*.md."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -40,7 +39,6 @@ def test_cmd_diff_all_full(tmp_path, monkeypatch):
 
 
 def test_cmd_diff_all_repo_map_mode(tmp_path, monkeypatch):
-    """--diff --all --mode repo-map produces signatures only."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -76,7 +74,6 @@ def test_cmd_diff_all_repo_map_mode(tmp_path, monkeypatch):
 
 
 def test_cmd_diff_all_with_query(tmp_path, monkeypatch):
-    """--diff --all --query filters files."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -112,7 +109,6 @@ def test_cmd_diff_all_with_query(tmp_path, monkeypatch):
 
 
 def test_cmd_diff_all_with_compress(tmp_path, monkeypatch):
-    """--diff --all --compress collapses blank lines."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -146,7 +142,6 @@ def test_cmd_diff_all_with_compress(tmp_path, monkeypatch):
 
 
 def test_cmd_diff_all_empty_project(tmp_path, monkeypatch):
-    """--diff --all with empty project prints 'No content collected'."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "empty").mkdir()
     out_dir = tmp_path / "out"
@@ -181,7 +176,6 @@ def test_cmd_diff_all_empty_project(tmp_path, monkeypatch):
 
 
 def test_cmd_diff_all_custom_output_dir(tmp_path, monkeypatch):
-    """--diff --all --output-dir writes to custom directory."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
@@ -222,7 +216,6 @@ def test_cmd_diff_all_custom_output_dir(tmp_path, monkeypatch):
 
 
 def test_cmd_diff_all_with_short_output_dir_flag(tmp_path, monkeypatch):
-    """--diff --all -o writes to custom directory."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()

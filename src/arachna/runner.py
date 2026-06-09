@@ -1,14 +1,4 @@
-"""Safe command execution with sandbox validation and audit logging.
-
-Two modes:
-- Restricted (allow_file_args=False): internal calls. 11 commands,
-  no shell metacharacters, no shell=True. Protects against injection
-  via snapshot names, preset URLs, and other external input.
-- Pre_commands (allow_file_args=True): user's .arachna.json. Extended
-  allowlist with read-only utilities, shell metacharacters allowed,
-  shell=True. User controls the config — they are responsible for
-  what's in it.
-"""
+"""Safe command execution with sandbox validation and audit logging."""
 
 import json
 import logging
@@ -25,13 +15,12 @@ logger = logging.getLogger("arachna.runner")
 _SHELL_CHARS = {"|", "&", ";", "<", ">", "$", "`", "(", ")", "{", "}"}
 _PIPE_SEP = "|"
 _PRE_COMMAND_DELAY = float(_os.environ.get("ARACHNA_PRE_COMMAND_DELAY", "0"))
+_MAX_OUTPUT_SIZE = int(_os.environ.get("ARACHNA_MAX_OUTPUT_SIZE", "10485760"))
 
-# Restricted mode: commands without file arguments.
 _RESTRICTED_COMMANDS = frozenset(
     {"echo", "date", "pwd", "whoami", "id", "uname", "which", "true", "false", "test", "["}
 )
 
-# Pre_commands mode: adds read-only utilities.
 _ALLOWED_COMMANDS = _RESTRICTED_COMMANDS | {
     "cat",
     "ls",
@@ -167,14 +156,12 @@ def _validate_command(
                 return True, ""
             return False, f"blocked pattern: '{phrase}'"
 
-    # Restricted mode: no shell metacharacters
     if not allow_file_args and _SHELL_CHARS.intersection(cmd):
         if allow_dangerous:
             logger.warning("Shell metacharacters allowed via flag: %s", cmd)
             return True, ""
         return False, "shell metacharacters not allowed in restricted mode"
 
-    # Pipe validation
     if _PIPE_SEP in cmd:
         pipe_parts = _split_pipe_parts(cmd)
         if len(pipe_parts) > 1:
@@ -187,7 +174,6 @@ def _validate_command(
                     return False, f"command in pipe not in allowlist: '{base}'"
             return True, ""
 
-    # Single command validation (only for non-shell commands)
     if not _SHELL_CHARS.intersection(cmd):
         base = _resolve_base(cmd)
         if base and base not in allowlist:
@@ -255,6 +241,41 @@ def _log_command(cmd: str, success: bool):
     _write_log(log_path, f"[{timestamp}] {status}: {sanitized_cmd}\n")
 
 
+def _run_popen(cmd: str, needs_shell: bool, max_output_size: int) -> tuple[str, bool]:
+    """Execute command via Popen with output size limit."""
+    try:
+        if needs_shell:
+            process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True
+            )
+        else:
+            args = shlex.split(cmd)
+            process = subprocess.Popen(
+                args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+            )
+
+        output_parts = []
+        total_size = 0
+        while True:
+            chunk = process.stdout.read(65536)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > max_output_size:
+                process.kill()
+                process.wait()
+                keep = max_output_size - (total_size - len(chunk))
+                truncated = "\n\n# ... output truncated (exceeds size limit) ...\n"
+                output_parts.append(chunk[:keep] + truncated)
+                return "".join(output_parts), True
+            output_parts.append(chunk)
+
+        process.wait()
+        return "".join(output_parts), False
+    except (OSError, FileNotFoundError, ValueError):
+        return "", False
+
+
 def run_command(
     cmd: str,
     allow_dangerous: bool = False,
@@ -298,27 +319,11 @@ def run_command(
                 return ""
 
     needs_shell = any(c in cmd for c in _SHELL_CHARS)
-
-    try:
-        if needs_shell:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-        else:
-            try:
-                args = shlex.split(cmd)
-            except ValueError as e:
-                logger.warning("Invalid shell syntax in command: %s — %s", cmd, e)
-                _log_command(cmd, False)
-                return ""
-            if not args:
-                logger.warning("Empty command after parsing: %s", cmd)
-                _log_command(cmd, False)
-                return ""
-            result = subprocess.run(args, capture_output=True, text=True, timeout=30)
-        _log_command(cmd, True)
-        return result.stdout
-    except (subprocess.TimeoutExpired, OSError, FileNotFoundError, ValueError):
-        _log_command(cmd, False)
-        return ""
+    output, was_truncated = _run_popen(cmd, needs_shell, _MAX_OUTPUT_SIZE)
+    if was_truncated:
+        logger.warning("Command output truncated: %s", cmd[:80])
+    _log_command(cmd, True)
+    return output
 
 
 def run_pre_commands(commands: list[str]) -> list[tuple[str, str]]:

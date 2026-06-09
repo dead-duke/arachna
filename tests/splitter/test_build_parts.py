@@ -65,7 +65,7 @@ def test_custom_tokenizer_small_limit():
 @given(st.lists(st.text(min_size=1, max_size=100), min_size=0, max_size=20))
 def test_split_sections_preserves_content(sections):
     """All section content appears in at least one part."""
-    parts = split_sections(sections, max_tokens=10000)
+    parts, _indices = split_sections(sections, max_tokens=10000)
     all_text = "".join(parts)
     for section in sections:
         if section.strip():
@@ -75,7 +75,7 @@ def test_split_sections_preserves_content(sections):
 @given(st.lists(st.text(min_size=1, max_size=100), min_size=0, max_size=20))
 def test_split_sections_no_empty_parts(sections):
     """No part is empty."""
-    parts = split_sections(sections, max_tokens=10000)
+    parts, _indices = split_sections(sections, max_tokens=10000)
     for part in parts:
         assert part.strip() != ""
 
@@ -83,7 +83,7 @@ def test_split_sections_no_empty_parts(sections):
 @given(st.lists(st.text(min_size=1, max_size=100), min_size=1, max_size=10))
 def test_split_sections_count_at_least_one_if_any_non_empty(sections):
     """If any section has non-whitespace content, at least one part produced."""
-    parts = split_sections(sections, max_tokens=10000)
+    parts, _indices = split_sections(sections, max_tokens=10000)
     has_content = any(s.strip() for s in sections)
     if has_content:
         assert len(parts) >= 1
@@ -92,7 +92,7 @@ def test_split_sections_count_at_least_one_if_any_non_empty(sections):
 @given(st.lists(st.text(min_size=1, max_size=100), min_size=1, max_size=10))
 def test_split_sections_small_limit_many_parts(sections):
     """With very small max_tokens, each section becomes its own part."""
-    parts = split_sections(sections, max_tokens=1)
+    parts, _indices = split_sections(sections, max_tokens=1)
     non_empty = [s for s in sections if s.strip()]
     if non_empty:
         assert len(parts) >= len(non_empty)

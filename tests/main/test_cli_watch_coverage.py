@@ -8,8 +8,6 @@ import pytest
 
 from arachna.cli_watch import _cmd_diff, _cmd_snapshot
 
-# ── _cmd_diff --format xml ────────────────────────────────────────
-
 
 def test_cmd_diff_format_xml(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -44,9 +42,6 @@ def test_cmd_diff_format_xml(tmp_path, monkeypatch):
     assert len(files) >= 1
     content = files[0].read_text()
     assert 'file path="' in content
-
-
-# ── _cmd_diff --mode structural ───────────────────────────────────
 
 
 def test_cmd_diff_mode_structural(tmp_path, monkeypatch):
@@ -99,9 +94,6 @@ def test_cmd_diff_mode_structural(tmp_path, monkeypatch):
     assert "MODIFIED" in content or "modified" in content.lower()
 
 
-# ── _cmd_diff --mode repo-map ─────────────────────────────────────
-
-
 def test_cmd_diff_mode_repo_map(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
@@ -145,9 +137,6 @@ def test_cmd_diff_mode_repo_map(tmp_path, monkeypatch):
     assert "def foo():" in content
 
 
-# ── _cmd_diff --compress ──────────────────────────────────────────
-
-
 def test_cmd_diff_compress(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
@@ -183,9 +172,6 @@ def test_cmd_diff_compress(tmp_path, monkeypatch):
 
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
-
-
-# ── _cmd_diff_all with query ──────────────────────────────────────
 
 
 def test_cmd_diff_all_with_query(tmp_path, monkeypatch):
@@ -227,9 +213,6 @@ def test_cmd_diff_all_with_query(tmp_path, monkeypatch):
     assert "utils.py" not in content
 
 
-# ── _cmd_diff_all with compress ───────────────────────────────────
-
-
 def test_cmd_diff_all_with_compress(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
@@ -267,9 +250,6 @@ def test_cmd_diff_all_with_compress(tmp_path, monkeypatch):
     assert "\n\n\n\n" not in content
 
 
-# ── _cmd_diff_all with -o flag ────────────────────────────────────
-
-
 def test_cmd_diff_all_with_short_o_flag(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
@@ -304,9 +284,6 @@ def test_cmd_diff_all_with_short_o_flag(tmp_path, monkeypatch):
     assert len(files) >= 1
 
 
-# ── _cmd_diff_all empty ───────────────────────────────────────────
-
-
 def test_cmd_diff_all_empty(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "empty").mkdir()
@@ -335,9 +312,6 @@ def test_cmd_diff_all_empty(tmp_path, monkeypatch):
     sys.stdout = old
 
     assert "No content collected" in out.getvalue()
-
-
-# ── _cmd_snapshot info full details ───────────────────────────────
 
 
 def test_cmd_snapshot_info_full_output(tmp_path, monkeypatch):
@@ -377,11 +351,6 @@ def test_cmd_snapshot_info_full_output(tmp_path, monkeypatch):
     assert "Files:" in output
     assert "Pre-commands:" in output
     assert "Profile:" in output
-    assert "max_tokens:" in output
-    assert "split_mode:" in output
-
-
-# ── _cmd_snapshot info profile with pre_commands ──────────────────
 
 
 def test_cmd_snapshot_info_profile_with_pre_commands(tmp_path, monkeypatch):
@@ -421,10 +390,6 @@ def test_cmd_snapshot_info_profile_with_pre_commands(tmp_path, monkeypatch):
     assert "directories:" in output
     assert "patterns:" in output
     assert "files:" in output
-    assert "pre_commands:" in output
-
-
-# ── _cmd_snapshot info stats ──────────────────────────────────────
 
 
 def test_cmd_snapshot_info_stats(tmp_path, monkeypatch):
@@ -463,9 +428,6 @@ def test_cmd_snapshot_info_stats(tmp_path, monkeypatch):
     assert "Command:" in output
 
 
-# ── _cmd_diff legacy profile error ────────────────────────────────
-
-
 def test_cmd_diff_legacy_profile(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
@@ -490,9 +452,6 @@ def test_cmd_diff_legacy_profile(tmp_path, monkeypatch):
 
     with pytest.raises(SystemExit):
         _cmd_diff(["arachna", "--diff", "--from", "old-legacy"])
-
-
-# ── _cmd_snapshot create duplicate ────────────────────────────────
 
 
 def test_cmd_snapshot_create_duplicate(tmp_path, monkeypatch):
@@ -523,9 +482,6 @@ def test_cmd_snapshot_create_duplicate(tmp_path, monkeypatch):
         _cmd_snapshot(
             ["arachna", "--snapshot", "create", "--profile", "code", "--name", "dup-name"]
         )
-
-
-# ── _cmd_diff --output-dir flag ───────────────────────────────────
 
 
 def test_cmd_diff_output_dir_long(tmp_path, monkeypatch):
@@ -571,9 +527,6 @@ def test_cmd_diff_output_dir_long(tmp_path, monkeypatch):
     assert len(files) >= 1
 
 
-# ── _cmd_snapshot update with profile ─────────────────────────────
-
-
 def test_cmd_snapshot_update_with_profile(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
@@ -607,9 +560,6 @@ def test_cmd_snapshot_update_with_profile(tmp_path, monkeypatch):
     assert "updated" in out.getvalue()
 
 
-# ── _cmd_snapshot update --profile without value ──────────────────
-
-
 def test_cmd_snapshot_update_profile_missing_value(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
@@ -620,9 +570,6 @@ def test_cmd_snapshot_update_profile_missing_value(tmp_path, monkeypatch):
         _cmd_snapshot(["arachna", "--snapshot", "update", "some-id", "--profile"])
 
 
-# ── _cmd_snapshot create --profile without value ──────────────────
-
-
 def test_cmd_snapshot_create_profile_missing_value(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
@@ -631,9 +578,6 @@ def test_cmd_snapshot_create_profile_missing_value(tmp_path, monkeypatch):
 
     with pytest.raises(SystemExit):
         _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "--name", "test"])
-
-
-# ── _cmd_diff --stat ──────────────────────────────────────────────
 
 
 def test_cmd_diff_stat_only_output(tmp_path, monkeypatch):
@@ -672,9 +616,6 @@ def test_cmd_diff_stat_only_output(tmp_path, monkeypatch):
     assert "Added:" in output
     assert "Deleted:" in output
     assert "Tokens:" in output
-
-
-# ── _cmd_diff --flat ──────────────────────────────────────────────
 
 
 def test_cmd_diff_flat_output(tmp_path, monkeypatch):

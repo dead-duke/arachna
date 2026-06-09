@@ -1,31 +1,25 @@
-"""TC-183: find_config is cached via load_config @lru_cache."""
+"""TC-183: find_config is cached via @lru_cache."""
 
 import json
 
-from arachna.config import load_config
+from arachna.config import find_config, load_config
 
 
-def test_load_config_cached(tmp_path, monkeypatch):
-    """Second call to load_config uses cache — no additional disk reads."""
+def test_find_config_cached(tmp_path, monkeypatch):
+    """Second call to find_config uses cache — same result, no disk I/O."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"project_name": "cached-test", "profiles": {}})
     )
 
-    # First call — loads from disk
-    cfg1 = load_config()
-    assert cfg1["project_name"] == "cached-test"
-
-    # Second call — uses cache (same object)
-    cfg2 = load_config()
-    assert cfg2 is cfg1  # Same object from cache
-
-    # Clear cache for subsequent tests
-    load_config.cache_clear()
+    cfg1 = find_config()
+    cfg2 = find_config()
+    assert cfg1 is not None
+    assert cfg2 is cfg1
 
 
-def test_load_config_cache_isolated(tmp_path, monkeypatch):
-    """Cache returns same config for same cwd."""
+def test_load_config_reads_file(tmp_path, monkeypatch):
+    """load_config reads .arachna.json each time (not cached)."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"project_name": "isolated", "profiles": {}})
@@ -34,6 +28,3 @@ def test_load_config_cache_isolated(tmp_path, monkeypatch):
     cfg1 = load_config()
     cfg2 = load_config()
     assert cfg1["project_name"] == cfg2["project_name"]
-    assert cfg1 is cfg2  # Same cached object
-
-    load_config.cache_clear()

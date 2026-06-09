@@ -211,18 +211,14 @@ def _write_diff_parts(
     contents = [s.content for s in diff_sections if s.content.strip()]
     if not contents:
         return []
-    parts = split_sections(contents, max_tokens, separator="\n\n", tokenizer=tokenizer)
+    parts, section_indices = split_sections(
+        contents, max_tokens, separator="\n\n", tokenizer=tokenizer
+    )
     if not parts:
         return []
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
-    section_indices = []
     part_stats = []
-    for part_content in parts:
-        indices = []
-        for idx, (_name, content, _tokens) in enumerate(named_sections):
-            if content.strip() in part_content:
-                indices.append(idx)
-        section_indices.append(indices)
+    for indices in section_indices:
         part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
         part_stats.append(compute_diff_stats(part_sections))
     created = []
@@ -260,16 +256,27 @@ def collect(
     query: str | None = None,
     mode: str = "full",
     name_template: str | None = None,
-) -> tuple[list[str], dict[str, int]]:
+) -> tuple[list[str], dict[str, int], list[str]]:
     name_tmpl = name_template if name_template is not None else profile["name_template"]
     title_tmpl = profile["title_template"]
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
+    chars_per_token = profile.get("chars_per_token")
     tokenizer_spec = profile.get("tokenizer", "default")
-    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
+    tokenizer = (
+        load_tokenizer(tokenizer_spec, chars_per_token=chars_per_token)
+        if tokenizer_spec != "default"
+        else (
+            lambda t: (
+                count_tokens(t, chars_per_token=chars_per_token)
+                if chars_per_token
+                else count_tokens(t)
+            )
+        )
+    )
     exclude = _get_exclude_patterns(profile)
     cache = load_cache(out_path) if incremental else None
-    named_sections, parts, new_cache = _assemble_content(
+    named_sections, parts, section_indices, new_cache = _assemble_content(
         profile,
         exclude,
         tokenizer,
@@ -282,14 +289,7 @@ def collect(
     if incremental:
         save_cache(out_path, new_cache)
     if not parts:
-        return [], {}
-    section_indices = []
-    for part_content in parts:
-        indices = []
-        for idx, (_name, content, _tokens) in enumerate(named_sections):
-            if content.strip() in part_content:
-                indices.append(idx)
-        section_indices.append(indices)
+        return [], [], []
     created, tokens_by_file = _write_parts(
         parts,
         section_indices,
@@ -302,4 +302,4 @@ def collect(
         merge=merge,
     )
     _run_post_commands(profile.get("post_commands", []), verbose=verbose)
-    return created, tokens_by_file
+    return created, tokens_by_file, parts

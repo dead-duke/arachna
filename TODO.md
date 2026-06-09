@@ -1,36 +1,36 @@
 # TODO
 
 ## v2.9.2 — Zero-dep fixes (details: llm_docs/specs/spec-v2.9.2-zero-dep-fixes.md)
-- [ ] Fix: collect_api double I/O — return parts from memory, add write_to_disk=False param
-- [ ] Fix: TOC substring matching — split_sections returns indices relative to original input list, not filtered
-- [ ] Fix: config inheritance — add "extends" field (scalars override, exclude lists append, source lists override)
-- [ ] Fix: config inheritance UX — warning on field conflicts between parent and child
-- [ ] Fix: snapshot paths — store relative paths from project root, handle find_config()==None fallback
-- [ ] Fix: max_output_size in sandbox — Popen with binary stdout, chunked read, decode at end, truncation marker in output
-- [ ] Fix: chars_per_token in profile — replace hardcoded 4 with configurable value
-- [ ] Fix: run_command always returns str with truncation marker, not a tuple
-- [ ] Fix: update all internal callers of collector.collect() for new 3-tuple return (files, tokens, parts)
-- [ ] Fix: streaming for full mode — stat+estimate tokens, pack, then stream content. Repo-map/headers stay in-memory (need parsing)
+- [x] Fix: collect_api double I/O — return parts from memory, add write_to_disk=False param
+- [x] Fix: TOC substring matching — split_sections returns indices relative to original input list, not filtered
+- [x] Fix: config inheritance — add "extends" field (scalars override, exclude lists append, source lists override)
+- [x] Fix: config inheritance UX — warning on field conflicts between parent and child
+- [x] Fix: snapshot paths — store relative paths from project root, handle find_config()==None fallback
+- [x] Fix: max_output_size in sandbox — Popen with binary stdout, chunked read, decode at end, truncation marker in output
+- [x] Fix: chars_per_token in profile — replace hardcoded 4 with configurable value
+- [x] Fix: run_command always returns str with truncation marker, not a tuple
+- [x] Fix: update all internal callers of collector.collect() for new 3-tuple return (files, tokens, parts)
+- [x] Fix: streaming for full mode — stat+estimate tokens, pack, then stream content. Repo-map/headers stay in-memory (need parsing)
 - [ ] Doc: add "Known limitations" section to README (structural diff needs plugins, incremental in CI, config inheritance semantics)
 - [ ] Doc: ARCHITECTURE.md data flow diagrams, module responsibilities, extension points
-- [ ] Benchmark: simple performance test — collect 1000 files baseline, save to docs/BENCHMARKS.md
-- [ ] Test: streaming pipeline — test_streaming_1000_files_no_oom
-- [ ] Test: streaming repo-map — test_streaming_repo_map_stays_in_memory
-- [ ] Test: config inheritance — test_config_extends_scalar, test_config_extends_exclude_append, test_config_extends_source_override, test_config_extends_circular
-- [ ] Test: max_output_size — test_max_output_size_truncation, test_max_output_size_within_limit
-- [ ] Test: snapshot relative paths — test_snapshot_relative_paths
-- [ ] Test: collect_api write_to_disk — test_collect_api_write_to_disk_false, test_collect_api_parts_match_files
-- [ ] LOW TEST-01: runner.py shell=True not verified — add assert_called_with(shell=True)
-- [ ] LOW TEST-02: watcher.py _diff_file_sets isolated unit tests
-- [ ] LOW TEST-03: gatherer.py _collect_import_graph edge case tests
-- [ ] LOW TEST-04: splitter.py binary search custom tokenizer tests
-- [ ] LOW TEST-05: presets.py fetch_presets timeout test
-- [ ] LOW: gatherer.py include_header naming — document behavior clearly
-- [ ] LOW: watcher.py isolated tests — add unit tests for helper functions
-- [ ] LOW: presets.py timeout not tested — add slow network mock test
-- [ ] LOW: gatherer.py _collect_import_graph caching — cache per file list
-- [ ] LOW: formatter.py _is_binary_allowed — add direct unit tests
-- [ ] LOW: cache.py SHA256 fallback path — add explicit test for mtime within tolerance + size differs
+- [x] Benchmark: simple performance test — collect 1000 files baseline, save to docs/BENCHMARKS.md
+- [x] Test: streaming pipeline — test_streaming_1000_files_no_oom
+- [x] Test: streaming repo-map — test_streaming_repo_map_stays_in_memory
+- [x] Test: config inheritance — test_config_extends_scalar, test_config_extends_exclude_append, test_config_extends_source_override, test_config_extends_circular
+- [x] Test: max_output_size — test_max_output_size_truncation, test_max_output_size_within_limit
+- [x] Test: snapshot relative paths — test_snapshot_relative_paths
+- [x] Test: collect_api write_to_disk — test_collect_api_write_to_disk_false, test_collect_api_parts_match_files
+- [x] LOW TEST-01: runner.py shell=True not verified — add assert_called_with(shell=True)
+- [x] LOW TEST-02: watcher.py _diff_file_sets isolated unit tests
+- [x] LOW TEST-03: gatherer.py _collect_import_graph edge case tests
+- [x] LOW TEST-04: splitter.py binary search custom tokenizer tests
+- [x] LOW TEST-05: presets.py fetch_presets timeout test
+- [x] LOW: gatherer.py include_header naming — document behavior clearly
+- [x] LOW: watcher.py isolated tests — add unit tests for helper functions
+- [x] LOW: presets.py timeout not tested — add slow network mock test
+- [x] LOW: gatherer.py _collect_import_graph caching — cache per file list
+- [x] LOW: formatter.py _is_binary_allowed — add direct unit tests
+- [x] LOW: cache.py SHA256 fallback path — add explicit test for mtime within tolerance + size differs
 - [ ] Version bump: __init__.py → 2.9.2
 - [ ] Version bump: pyproject.toml → 2.9.2
 - [ ] Update TEST_REPORT.md with new test counts

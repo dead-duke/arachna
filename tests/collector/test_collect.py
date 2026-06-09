@@ -16,7 +16,7 @@ def test_single_file(tmp_path, monkeypatch):
     (src / "main.py").write_text("print('hi')")
     out = tmp_path / "out"
     out.mkdir()
-    created, tokens_by_file = collect(
+    created, tokens_by_file, _parts = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -40,7 +40,7 @@ def test_multiple_parts(tmp_path, monkeypatch):
     (src / "b.py").write_text("y" * 2000)
     out = tmp_path / "out"
     out.mkdir()
-    created, tokens_by_file = collect(
+    created, tokens_by_file, _parts = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -61,7 +61,7 @@ def test_empty(tmp_path, monkeypatch):
     src.mkdir()
     out = tmp_path / "out"
     out.mkdir()
-    created, tokens_by_file = collect(
+    created, tokens_by_file, _parts = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -80,7 +80,7 @@ def test_command_mode(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     out = tmp_path / "out"
     out.mkdir()
-    created, tokens_by_file = collect(
+    created, tokens_by_file, _parts = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -112,11 +112,11 @@ def test_merge_mode_single_part(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    created1, _ = collect(profile, "P", "out", merge=True)
+    created1, _, _ = collect(profile, "P", "out", merge=True)
     assert len(created1) == 1
     assert "c_1.md" in created1[0]
 
-    created2, _ = collect(profile, "P", "out", merge=True)
+    created2, _, _ = collect(profile, "P", "out", merge=True)
     assert len(created2) == 1
     assert "c_2.md" in created2[0]
 
@@ -140,12 +140,12 @@ def test_merge_mode_multiple_parts(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    created1, _ = collect(profile, "P", "out", merge=True)
+    created1, _, _ = collect(profile, "P", "out", merge=True)
     assert len(created1) == 2
     assert any("c_1.md" in f for f in created1)
     assert any("c_2.md" in f for f in created1)
 
-    created2, _ = collect(profile, "P", "out", merge=True)
+    created2, _, _ = collect(profile, "P", "out", merge=True)
     assert len(created2) == 2
     assert any("c_3.md" in f for f in created2)
     assert any("c_4.md" in f for f in created2)

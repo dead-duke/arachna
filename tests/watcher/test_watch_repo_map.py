@@ -26,7 +26,11 @@ def _make_profile(directory: str, patterns=None) -> dict:
     }
 
 
-# ── _format_repo_map_diff ─────────────────────────────────────────
+def _setup_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
+    )
 
 
 def test_format_repo_map_diff_sig_changed():
@@ -65,9 +69,6 @@ def test_format_repo_map_diff_empty():
     assert result == ""
 
 
-# ── _format_repo_map_added ────────────────────────────────────────
-
-
 def test_format_repo_map_added_with_blocks():
     blocks = {
         "foo": ("def foo():", "    pass"),
@@ -83,11 +84,8 @@ def test_format_repo_map_added_empty():
     assert result == ""
 
 
-# ── _apply_repo_map_to_sections ───────────────────────────────────
-
-
 def test_apply_repo_map_to_sections_modified(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+    _setup_config(tmp_path, monkeypatch)
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
@@ -109,7 +107,7 @@ def test_apply_repo_map_to_sections_modified(tmp_path, monkeypatch):
 
 
 def test_apply_repo_map_to_sections_added(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+    _setup_config(tmp_path, monkeypatch)
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
@@ -130,7 +128,7 @@ def test_apply_repo_map_to_sections_added(tmp_path, monkeypatch):
 
 
 def test_apply_repo_map_to_sections_header_passthrough(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+    _setup_config(tmp_path, monkeypatch)
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
@@ -147,7 +145,7 @@ def test_apply_repo_map_to_sections_header_passthrough(tmp_path, monkeypatch):
 
 
 def test_apply_repo_map_to_sections_deleted(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+    _setup_config(tmp_path, monkeypatch)
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
@@ -164,8 +162,7 @@ def test_apply_repo_map_to_sections_deleted(tmp_path, monkeypatch):
 
 
 def test_apply_repo_map_to_sections_cannot_read(tmp_path, monkeypatch):
-    """Repo-map falls back to text diff when file content cannot be read from store."""
-    monkeypatch.chdir(tmp_path)
+    _setup_config(tmp_path, monkeypatch)
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
@@ -182,11 +179,7 @@ def test_apply_repo_map_to_sections_cannot_read(tmp_path, monkeypatch):
     ]
     result = _apply_repo_map_to_sections(sections, "rm-readfail", None, profile)
     assert len(result) == 1
-    # Content unchanged — fallback, keeps text diff
     assert "REMOVED" in result[0].content
-
-
-# ── compute_diff branches ────────────────────────────────────────
 
 
 def test_compute_diff_profile_not_found(tmp_path, monkeypatch):
@@ -212,16 +205,12 @@ def test_compute_diff_snapshot_not_found(tmp_path, monkeypatch):
         compute_diff(profile=profile)
 
 
-# ── _read_file_from_store / _read_file_from_disk ──────────────────
-
-
 def test_read_file_from_store_not_found():
     result = _read_file_from_store("nonexistent.py", {"other.py": "sha256:abc123"})
     assert result is None
 
 
 def test_read_file_from_store_invalid_hash():
-    """_read_file_from_store returns None when hash is invalid."""
     result = _read_file_from_store("test.py", {"test.py": "sha256:invalidhash"})
     assert result is None
 
@@ -252,24 +241,18 @@ def test_read_file_from_disk_unreadable(tmp_path):
         f.chmod(0o644)
 
 
-# ── _parse_blocks_dispatch coverage ────────────────────────────────
-
-
 def test_parse_blocks_dispatch_unknown_language():
-    """_parse_blocks_dispatch returns empty dict for unknown languages."""
     result = _parse_blocks_dispatch("function foo() {}", "unknown_lang")
     assert result == {}
 
 
 def test_parse_blocks_dispatch_c_like_go():
-    """_parse_blocks_dispatch dispatches to C-like parser for Go."""
     text = "package main\n\nfunc main() {\n    return\n}\n"
     result = _parse_blocks_dispatch(text, "go")
     assert "main" in result
 
 
 def test_parse_blocks_dispatch_script_ruby():
-    """_parse_blocks_dispatch dispatches to script parser for Ruby."""
     text = "def hello\n    puts 'hi'\nend\n"
     result = _parse_blocks_dispatch(text, "ruby")
     assert "hello" in result

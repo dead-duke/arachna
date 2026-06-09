@@ -1,8 +1,7 @@
 """Tests for uncovered branches in runner.py."""
 
 import json
-import subprocess
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from arachna.runner import (
     _get_audit_log_path,
@@ -13,13 +12,11 @@ from arachna.runner import (
 )
 
 
-def _completed_process(stdout="", stderr="", returncode=0, args=None):
-    return subprocess.CompletedProcess(
-        args=args or ["echo", "hello"],
-        returncode=returncode,
-        stdout=stdout,
-        stderr=stderr,
-    )
+def _mock_popen(stdout=""):
+    mock = MagicMock()
+    mock.stdout.read.side_effect = [stdout, ""]
+    mock.wait.return_value = 0
+    return mock
 
 
 def test_dry_run_unsafe_non_interactive():
@@ -52,11 +49,11 @@ def test_dry_run_shell_metachar_interactive_no():
 
 def test_dry_run_shell_metachar_interactive_yes():
     with (
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="y"),
     ):
-        mock_run.return_value = _completed_process(stdout="hello\n")
+        mock_popen.return_value = _mock_popen(stdout="hello\n")
         result = run_command("echo hello > /tmp/out", dry_run=True, interactive=True)
         assert result == "hello\n"
 
@@ -102,15 +99,15 @@ def test_validate_command_allow_dangerous_pipe_unknown():
 
 
 def test_run_command_allow_dangerous_curl():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="output\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="output\n")
         result = run_command("curl http://example.com", allow_dangerous=True)
         assert result == "output\n"
 
 
 def test_run_command_allow_dangerous_rm():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="")
         result = run_command("rm -rf /", allow_dangerous=True)
         assert result == ""
 
@@ -133,13 +130,13 @@ def test_run_command_empty_after_strip():
 
 
 def test_run_command_os_error_on_execution():
-    with patch("subprocess.run", side_effect=OSError("bad interpreter")):
+    with patch("subprocess.Popen", side_effect=OSError("bad interpreter")):
         result = run_command("some_broken_cmd")
         assert result == ""
 
 
 def test_run_command_value_error_on_execution():
-    with patch("subprocess.run", side_effect=ValueError("invalid argument")):
+    with patch("subprocess.Popen", side_effect=ValueError("invalid argument")):
         result = run_command("some_cmd")
         assert result == ""
 
@@ -157,15 +154,15 @@ def test_is_safe_command_with_shell_chars():
 
 
 def test_run_command_shell_double_ampersand():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="a\nb\n")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="a\nb\n")
         result = run_command("echo a && echo b", allow_file_args=True)
         assert result == "a\nb\n"
 
 
 def test_run_command_shell_redirect():
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = _completed_process(stdout="")
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _mock_popen(stdout="")
         result = run_command("echo hello > /dev/null", allow_file_args=True)
         assert result == ""
 
