@@ -6,6 +6,7 @@ from .test_performance import _make_files, _profile, _run_with_memory
 
 
 @pytest.mark.slow
+@pytest.mark.benchmark
 def test_bench_full_50000(tmp_path, monkeypatch):
     """Stress test: 50K files — streaming must handle without OOM."""
     monkeypatch.chdir(tmp_path)
@@ -16,25 +17,25 @@ def test_bench_full_50000(tmp_path, monkeypatch):
         f"\n  full 50000: {r['parts']} parts, {r['tokens']} tokens, "
         f"{r['time']:.3f}s, {r['rss_mb']:.1f} MB"
     )
-    # RSS includes Python runtime + module imports. 250 MB generous headroom.
     assert r["rss_mb"] < 250, f"Streaming failed: {r['rss_mb']:.1f} MB (expected < 250 MB)"
 
 
+@pytest.mark.benchmark
 def test_bench_large_files(tmp_path, monkeypatch):
     """10 files, each 1MB — test memory efficiency."""
     monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
     for i in range(10):
-        (src / f"file_{i}.py").write_text("x" * (1024 * 1024))
+        (src / f"file_{i}.py").write_text("x" * (1024 * 1024), encoding="utf-8")
     _run_with_memory(tmp_path, _profile(patterns=["*.py"], max_tokens=8192), "full")  # warm-up
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"], max_tokens=8192), "full")
     print(f"\n  Large files (10 x 1MB): {r['parts']} parts, {r['time']:.3f}s, {r['rss_mb']:.1f} MB")
     assert r["parts"] > 1
-    # 10 MB of files read + Python runtime + psutil overhead = ~250 MB acceptable
     assert r["rss_mb"] < 250
 
 
+@pytest.mark.benchmark
 def test_bench_unicode(tmp_path, monkeypatch):
     """Files with unicode content — test tokenizer accuracy."""
     monkeypatch.chdir(tmp_path)
@@ -42,10 +43,14 @@ def test_bench_unicode(tmp_path, monkeypatch):
     src.mkdir()
     for i in range(100):
         (src / f"cyrillic_{i}.py").write_text(
-            f"# Модуль {i}\ndef функция_{i}():\n    return 'Привет мир'\n"
+            f"# Модуль {i}\ndef функция_{i}():\n    return 'Привет мир'\n",
+            encoding="utf-8",
         )
     for i in range(100):
-        (src / f"cjk_{i}.py").write_text(f"# 模块 {i}\ndef 函数_{i}():\n    return '你好世界'\n")
+        (src / f"cjk_{i}.py").write_text(
+            f"# 模块 {i}\ndef 函数_{i}():\n    return '你好世界'\n",
+            encoding="utf-8",
+        )
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     print(f"\n  Unicode (100 Cyrillic + 100 CJK): {r['tokens']} tokens, {r['time']:.3f}s")

@@ -9,6 +9,7 @@ from arachna.differ_structural import structural_diff_for_lang
 from .test_performance import _default_content, _js_content, _profile, _run_with_memory
 
 
+@pytest.mark.benchmark
 def test_bench_structural_diff_performance():
     """Compare structural diff speed: Python AST vs JS tree-sitter vs regex."""
     old_py = _default_content(0)
@@ -38,6 +39,7 @@ def test_bench_structural_diff_performance():
         print("  JS tree-sitter not installed — skipping")
 
 
+@pytest.mark.benchmark
 def test_bench_tree_sitter_js_1000(tmp_path, monkeypatch):
     """Test JS collection with tree-sitter plugin for repo-map reduction."""
     try:
@@ -49,7 +51,7 @@ def test_bench_tree_sitter_js_1000(tmp_path, monkeypatch):
     src = tmp_path / "src"
     src.mkdir()
     for i in range(1000):
-        (src / f"file_{i}.js").write_text(_js_content(i))
+        (src / f"file_{i}.js").write_text(_js_content(i), encoding="utf-8")
 
     _run_with_memory(tmp_path, _profile(patterns=["*.js"]), "full")  # warm-up
     r_full = _run_with_memory(tmp_path, _profile(patterns=["*.js"]), "full")
@@ -68,6 +70,7 @@ def test_bench_tree_sitter_js_1000(tmp_path, monkeypatch):
     assert r_repo["tokens"] < r_full["tokens"]
 
 
+@pytest.mark.benchmark
 def test_bench_collection_python_vs_js(tmp_path, monkeypatch):
     """Compare collection performance: Python files vs JS files."""
     monkeypatch.chdir(tmp_path)
@@ -75,7 +78,7 @@ def test_bench_collection_python_vs_js(tmp_path, monkeypatch):
     src_py = tmp_path / "src_py"
     src_py.mkdir()
     for i in range(500):
-        (src_py / f"file_{i}.py").write_text(_default_content(i))
+        (src_py / f"file_{i}.py").write_text(_default_content(i), encoding="utf-8")
     _run_with_memory(
         tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full"
     )  # warm-up
@@ -88,7 +91,7 @@ def test_bench_collection_python_vs_js(tmp_path, monkeypatch):
     src_js = tmp_path / "src_js"
     src_js.mkdir()
     for i in range(500):
-        (src_js / f"file_{i}.js").write_text(_js_content(i))
+        (src_js / f"file_{i}.js").write_text(_js_content(i), encoding="utf-8")
     _run_with_memory(
         tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full"
     )  # warm-up

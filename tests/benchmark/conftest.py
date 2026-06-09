@@ -7,6 +7,11 @@ from pathlib import Path
 BASELINE_FILE = Path(__file__).parent / "baseline.json"
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: marks tests as slow")
+    config.addinivalue_line("markers", "benchmark: marks tests as benchmarks (not for CI)")
+
+
 def pytest_sessionfinish(session, exitstatus):
     if os.environ.get("UPDATE_BASELINE") and exitstatus == 0:
         from .test_performance import RESULTS

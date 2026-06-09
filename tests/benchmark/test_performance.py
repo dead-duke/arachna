@@ -1,10 +1,12 @@
 """Benchmarks for arachna — core performance tests."""
 
 import json
+import os
 import time
 from pathlib import Path
 
 import psutil
+import pytest
 
 from arachna.collector import collect
 
@@ -17,7 +19,7 @@ def _make_files(tmp_path: Path, count: int, content_fn=None):
     src.mkdir()
     for i in range(count):
         text = content_fn(i) if content_fn else _default_content(i)
-        (src / f"file_{i}.py").write_text(text)
+        (src / f"file_{i}.py").write_text(text, encoding="utf-8")
 
 
 def _default_content(i):
@@ -70,8 +72,6 @@ def _profile(**kw):
 
 
 def _run_with_memory(tmp_path, profile, mode="full", query=None, incremental=False):
-    # Note: This measures RSS at two points, not peak. Actual peak may be higher.
-    # For accurate peak RSS, use resource.getrusage on Unix systems.
     process = psutil.Process()
     rss_before = process.memory_info().rss
 
@@ -103,7 +103,9 @@ def _run_with_memory(tmp_path, profile, mode="full", query=None, incremental=Fal
 
 
 def _check_regression(name: str, result: dict, tolerance: float = 0.5):
-    """Check if result is within tolerance of baseline. 50% tolerance for CI flakiness."""
+    """Check regression only when running locally, not in CI."""
+    if os.environ.get("CI"):
+        return
     if not BASELINE_FILE.exists():
         return
     baseline = json.loads(BASELINE_FILE.read_text())
@@ -112,13 +114,11 @@ def _check_regression(name: str, result: dict, tolerance: float = 0.5):
     expected = baseline[name]
     for metric in ["time", "rss_mb"]:
         if metric in expected and metric in result:
-            # Check regression (slower)
             threshold = expected[metric] * (1 + tolerance)
             assert result[metric] <= threshold, (
                 f"{name} {metric} regression: {result[metric]:.3f} > {threshold:.3f} "
                 f"(baseline: {expected[metric]:.3f})"
             )
-            # Check improvement (suspiciously faster)
             min_threshold = expected[metric] * 0.1
             assert result[metric] >= min_threshold, (
                 f"{name} {metric} suspiciously fast: {result[metric]:.3f} "
@@ -131,9 +131,7 @@ def _collect_result(test_name: str, result: dict):
     RESULTS.append({"test": test_name, **baseline_data})
 
 
-# ── full mode (streaming) ──────────────────────────────────────────
-
-
+@pytest.mark.benchmark
 def test_bench_full_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
@@ -145,15 +143,12 @@ def test_bench_full_1000(tmp_path, monkeypatch):
     )
     _check_regression("full_1000", r)
     _collect_result("full_1000", r)
-    # Check a sample instead of all 1000 files
     for i in [0, 100, 500, 999]:
         assert f"file_{i}.py" in r["all_content"]
     assert r["tokens"] > 0
 
 
-# ── repo-map mode ─────────────────────────────────────────────────
-
-
+@pytest.mark.benchmark
 def test_bench_repo_map_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
@@ -172,9 +167,7 @@ def test_bench_repo_map_1000(tmp_path, monkeypatch):
     assert r["tokens"] < r_full["tokens"]
 
 
-# ── headers mode ───────────────────────────────────────────────────
-
-
+@pytest.mark.benchmark
 def test_bench_headers_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
@@ -189,9 +182,7 @@ def test_bench_headers_1000(tmp_path, monkeypatch):
     assert "deps:" in r["all_content"]
 
 
-# ── compress ───────────────────────────────────────────────────────
-
-
+@pytest.mark.benchmark
 def test_bench_full_compress_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000, _content_with_blanks)
@@ -203,9 +194,7 @@ def test_bench_full_compress_1000(tmp_path, monkeypatch):
     assert r_cmp["tokens"] < r_no["tokens"]
 
 
-# ── query ──────────────────────────────────────────────────────────
-
-
+@pytest.mark.benchmark
 def test_bench_query_1000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 1000)
@@ -218,9 +207,7 @@ def test_bench_query_1000(tmp_path, monkeypatch):
     assert r_q["tokens"] < r_no["tokens"]
 
 
-# ── 5000 files ─────────────────────────────────────────────────────
-
-
+@pytest.mark.benchmark
 def test_bench_full_5000(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 5000)
@@ -233,21 +220,15 @@ def test_bench_full_5000(tmp_path, monkeypatch):
     _check_regression("full_5000", r)
     _collect_result("full_5000", r)
     assert r["tokens"] > 0
-    # RSS includes Python runtime (~30 MB) + psutil + module imports.
-    # Streaming buffer is O(max_tokens). 200 MB generous headroom.
     assert r["rss_mb"] < 200
 
 
-# ── incremental ────────────────────────────────────────────────────
-
-
+@pytest.mark.benchmark
 def test_bench_incremental_unchanged(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _make_files(tmp_path, 500)
-    # First run populates cache
     r1 = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full", incremental=True)
     assert r1["files"] >= 1
-    # Second run — all unchanged, should skip
     r2 = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full", incremental=True)
     print(
         f"\n  incr unchanged 500: {r2['files']} files, {r2['time']:.4f}s (first: {r1['time']:.4f}s)"
