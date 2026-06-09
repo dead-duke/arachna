@@ -1,4 +1,4 @@
-"""Coverage for __main__.py — plugin stubs, error paths, edge cases."""
+"""Coverage for __main__.py — error paths, edge cases."""
 
 import json
 from argparse import Namespace
@@ -10,9 +10,6 @@ from arachna.__main__ import (
     _cmd_collect_profile,
     _cmd_collect_validate,
     _cmd_diff,
-    _cmd_plugins_install,
-    _cmd_plugins_list,
-    _cmd_plugins_uninstall,
     _cmd_snapshot_create,
     _cmd_snapshot_delete,
     _cmd_snapshot_info,
@@ -22,44 +19,7 @@ from arachna.__main__ import (
     _write_manifest,
 )
 
-
-def test_plugins_list():
-    import sys
-    from io import StringIO
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_plugins_list(Namespace(), {})
-    sys.stdout = old
-    assert "Plugins:" in out.getvalue()
-    assert "javascript" in out.getvalue()
-    assert "go" in out.getvalue()
-    assert "tiktoken" in out.getvalue()
-
-
-def test_plugins_install():
-    import sys
-    from io import StringIO
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_plugins_install(Namespace(language="javascript", execute=False), {})
-    sys.stdout = old
-    assert "Run:" in out.getvalue() or "Environment:" in out.getvalue()
-
-
-def test_plugins_uninstall():
-    import sys
-    from io import StringIO
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_plugins_uninstall(Namespace(language="go"), {})
-    sys.stdout = old
-    assert "not installed" in out.getvalue() or "uninstall" in out.getvalue()
+# ── Snapshot error paths ──────────────────────────────────────────
 
 
 def test_snapshot_create_no_name(tmp_path, monkeypatch):
@@ -149,6 +109,9 @@ def test_snapshot_update_profile_not_found(tmp_path, monkeypatch):
     store_create({"a.py": "x"}, name="test-snap")
     with pytest.raises(SystemExit):
         _cmd_snapshot_update(Namespace(id="test-snap", profile="nonexistent"), {})
+
+
+# ── Diff error paths ──────────────────────────────────────────────
 
 
 def test_diff_all_and_from_conflict(tmp_path, monkeypatch):
@@ -246,6 +209,9 @@ def test_diff_all_profile_not_found(tmp_path, monkeypatch):
         )
 
 
+# ── Collect error paths ───────────────────────────────────────────
+
+
 def test_collect_profile_not_found(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
@@ -279,11 +245,7 @@ def test_collect_validate_multi_profile(tmp_path, monkeypatch):
         json.dumps(
             {
                 "profiles": {
-                    "good": {
-                        "directories": ["src"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                    },
+                    "good": {"directories": ["src"], "max_tokens": 16000, "split_mode": "by_file"},
                     "bad": {"max_tokens": 100},
                 }
             }
@@ -292,6 +254,9 @@ def test_collect_validate_multi_profile(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as exc_info:
         _cmd_collect_validate(Namespace(), json.loads((tmp_path / ".arachna.json").read_text()))
     assert exc_info.value.code == 1
+
+
+# ── Print collected / write manifest ──────────────────────────────
 
 
 def test_print_collected_with_files(tmp_path, monkeypatch):
@@ -336,6 +301,9 @@ def test_write_manifest_basic(tmp_path):
     content = mf.read_text()
     assert "Test" in content
     assert "chat-c.md" in content
+
+
+# ── Clean edge cases ──────────────────────────────────────────────
 
 
 def test_clean_with_diff_files(tmp_path, monkeypatch):

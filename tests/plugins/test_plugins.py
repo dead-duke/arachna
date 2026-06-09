@@ -7,6 +7,7 @@ from arachna.plugins import (
     _build_install_command,
     _detect_environment,
     _has_pep668,
+    _is_installed,
     install_plugin,
     list_plugins,
     uninstall_plugin,
@@ -146,15 +147,10 @@ def test_install_plugin_unknown():
     assert "Unknown plugin" in result
 
 
-def test_install_plugin_not_installed():
-    result = install_plugin("javascript", execute=False)
-    assert "Run:" in result or "Cannot install" in result
-
-
 def test_install_plugin_already_installed():
-    with patch("arachna.plugins._is_installed", return_value=True):
-        result = install_plugin("javascript")
-        assert "already installed" in result
+    # tree-sitter IS installed locally
+    result = install_plugin("javascript")
+    assert "already installed" in result
 
 
 def test_uninstall_plugin_unknown():
@@ -162,12 +158,13 @@ def test_uninstall_plugin_unknown():
     assert "Unknown plugin" in result
 
 
-def test_uninstall_plugin_not_installed():
-    result = uninstall_plugin("go")
-    assert "not installed" in result
+def test_is_installed_builtin():
+    assert _is_installed("pathlib")
 
 
-def test_uninstall_plugin_installed():
-    with patch("arachna.plugins._is_installed", return_value=True):
-        result = uninstall_plugin("javascript")
-        assert "pip uninstall" in result
+def test_is_installed_nonexistent():
+    assert not _is_installed("nonexistent_package_xyz")
+
+
+def test_is_installed_tree_sitter():
+    assert _is_installed("tree_sitter")

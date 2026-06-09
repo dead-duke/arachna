@@ -148,8 +148,8 @@ def _structural_diff_tree_sitter(
         else:
             return _fallback_diff(old_content, new_content, path, fmt)
 
-        parser = tree_sitter.Parser()
-        parser.set_language(ts_lang.language())
+        ts_language = tree_sitter.Language(ts_lang.language())
+        parser = tree_sitter.Parser(ts_language)
 
         old_tree = parser.parse(old_content.encode("utf-8"))
         new_tree = parser.parse(new_content.encode("utf-8"))
