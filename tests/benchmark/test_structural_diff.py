@@ -6,7 +6,7 @@ import pytest
 
 from arachna.differ_structural import structural_diff_for_lang
 
-from .test_performance import _default_content, _js_content, _make_files, _profile, _run_with_memory
+from .test_performance import _default_content, _js_content, _profile, _run_with_memory
 
 
 def test_bench_structural_diff_performance():
@@ -23,6 +23,7 @@ def test_bench_structural_diff_performance():
 
     try:
         import tree_sitter_javascript  # noqa: F401
+
         old_js = _js_content(0)
         new_js = old_js.replace("useState", "useReducer")
 
@@ -78,9 +79,7 @@ def test_bench_collection_python_vs_js(tmp_path, monkeypatch):
     _run_with_memory(
         tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full"
     )  # warm-up
-    r_py = _run_with_memory(
-        tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full"
-    )
+    r_py = _run_with_memory(tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full")
     print(
         f"\n  Python collection 500: {r_py['parts']} parts, {r_py['tokens']} tokens, "
         f"{r_py['time']:.3f}s"
@@ -93,12 +92,9 @@ def test_bench_collection_python_vs_js(tmp_path, monkeypatch):
     _run_with_memory(
         tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full"
     )  # warm-up
-    r_js = _run_with_memory(
-        tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full"
-    )
+    r_js = _run_with_memory(tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full")
     print(
-        f"  JS collection 500: {r_js['parts']} parts, {r_js['tokens']} tokens, "
-        f"{r_js['time']:.3f}s"
+        f"  JS collection 500: {r_js['parts']} parts, {r_js['tokens']} tokens, {r_js['time']:.3f}s"
     )
 
     assert r_py["tokens"] > 0
