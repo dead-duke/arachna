@@ -1,5 +1,3 @@
-"""Tests for --no-pre-commands CLI flag (v2.8.2)."""
-
 import json
 from unittest.mock import patch
 
@@ -7,7 +5,6 @@ from arachna.__main__ import main
 
 
 def test_no_pre_commands_flag(tmp_path, monkeypatch):
-    """--no-pre-commands skips pre_commands in collected output."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
@@ -30,7 +27,7 @@ def test_no_pre_commands_flag(tmp_path, monkeypatch):
         )
     )
 
-    with patch("sys.argv", ["arachna", "--profile", "code", "--no-pre-commands"]):
+    with patch("sys.argv", ["arachna", "collect", "--profile", "code", "--no-pre-commands"]):
         main()
 
     out_dir = tmp_path / "out"
@@ -42,7 +39,6 @@ def test_no_pre_commands_flag(tmp_path, monkeypatch):
 
 
 def test_no_pre_commands_without_flag_shows_output(tmp_path, monkeypatch):
-    """Without --no-pre-commands, pre_commands are included."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
@@ -65,7 +61,7 @@ def test_no_pre_commands_without_flag_shows_output(tmp_path, monkeypatch):
         )
     )
 
-    with patch("sys.argv", ["arachna", "--profile", "code"]):
+    with patch("sys.argv", ["arachna", "collect", "--profile", "code"]):
         main()
 
     out_dir = tmp_path / "out"

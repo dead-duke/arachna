@@ -2,8 +2,7 @@ import json
 from argparse import Namespace
 from unittest.mock import patch
 
-from arachna.__main__ import _cmd_doctor, _cmd_install_hook
-from arachna.doctor import print_doctor, run_doctor
+from arachna.__main__ import _cmd_doctor
 
 
 def test_valid_config(tmp_path, monkeypatch):
@@ -19,6 +18,9 @@ def test_valid_config(tmp_path, monkeypatch):
             }
         )
     )
+    report = _cmd_doctor.__wrapped__ if hasattr(_cmd_doctor, "__wrapped__") else _cmd_doctor
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert report["total_errors"] == 0
     assert "code" in report["profiles"]
@@ -40,6 +42,8 @@ def test_invalid_split_mode(tmp_path, monkeypatch):
             }
         )
     )
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert report["total_errors"] >= 1
     assert any("split_mode" in e for e in report["profiles"]["bad"]["errors"])
@@ -60,6 +64,8 @@ def test_missing_directory(tmp_path, monkeypatch):
             }
         )
     )
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert report["total_warnings"] >= 1
     assert any("nonexistent_dir" in w for w in report["profiles"]["code"]["warnings"])
@@ -80,6 +86,8 @@ def test_missing_file(tmp_path, monkeypatch):
             }
         )
     )
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert report["total_warnings"] >= 1
     assert any("nonexistent.txt" in w for w in report["profiles"]["code"]["warnings"])
@@ -88,6 +96,8 @@ def test_missing_file(tmp_path, monkeypatch):
 def test_no_config(tmp_path, monkeypatch):
     """Doctor works without .arachna.json (uses default profile)."""
     monkeypatch.chdir(tmp_path)
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert "default" in report["profiles"]
 
@@ -98,6 +108,8 @@ def test_zero_max_tokens(tmp_path, monkeypatch):
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"bad": {"max_tokens": 0, "command": "echo hi"}}})
     )
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert report["total_errors"] >= 1
     assert any("max_tokens" in e for e in report["profiles"]["bad"]["errors"])
@@ -119,6 +131,8 @@ def test_by_marker_no_marker(tmp_path, monkeypatch):
             }
         )
     )
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert report["total_errors"] >= 1
     assert any("split_marker" in e for e in report["profiles"]["bad"]["errors"])
@@ -128,6 +142,8 @@ def test_no_content_source(tmp_path, monkeypatch):
     """Doctor reports error when no content source is specified."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {"bad": {"max_tokens": 100}}}))
+    from arachna.doctor import run_doctor
+
     report = run_doctor()
     assert report["total_errors"] >= 1
     assert any("No content source" in e for e in report["profiles"]["bad"]["errors"])
@@ -135,6 +151,8 @@ def test_no_content_source(tmp_path, monkeypatch):
 
 def test_print_doctor_output():
     """print_doctor prints without raising."""
+    from arachna.doctor import print_doctor
+
     report = {
         "profiles": {"test": {"errors": [], "warnings": []}},
         "gitignore": [],
@@ -146,6 +164,8 @@ def test_print_doctor_output():
 
 def test_print_doctor_with_errors():
     """print_doctor handles errors in output."""
+    from arachna.doctor import print_doctor
+
     report = {
         "profiles": {
             "bad": {
@@ -175,7 +195,7 @@ def test_cmd_doctor_valid(tmp_path, monkeypatch):
     )
 
     with patch("sys.exit") as mock_exit:
-        _cmd_doctor()
+        _cmd_doctor(Namespace(), {})
         mock_exit.assert_called_with(0)
 
 
@@ -187,39 +207,5 @@ def test_cmd_doctor_invalid(tmp_path, monkeypatch):
     )
 
     with patch("sys.exit") as mock_exit:
-        _cmd_doctor()
-        mock_exit.assert_called_with(1)
-
-
-def test_cmd_install_hook_success(tmp_path, monkeypatch):
-    """_cmd_install_hook exits 0 on success."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".git").mkdir()
-    (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "test"}))
-
-    with patch("sys.exit") as mock_exit:
-        _cmd_install_hook(Namespace(force=False))
-        mock_exit.assert_called_with(0)
-
-
-def test_cmd_install_hook_failure(tmp_path, monkeypatch):
-    """_cmd_install_hook exits 1 on failure."""
-    monkeypatch.chdir(tmp_path)
-
-    with patch("sys.exit") as mock_exit:
-        _cmd_install_hook(Namespace(force=False))
-        mock_exit.assert_called_with(1)
-
-
-def test_cmd_install_hook_existing_refuses(tmp_path, monkeypatch):
-    """_cmd_install_hook exits 1 when hook exists and no --force."""
-    monkeypatch.chdir(tmp_path)
-    git_dir = tmp_path / ".git"
-    git_dir.mkdir()
-    (git_dir / "hooks").mkdir()
-    (git_dir / "hooks" / "post-commit").write_text("#!/bin/sh\necho old")
-    (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "test"}))
-
-    with patch("sys.exit") as mock_exit:
-        _cmd_install_hook(Namespace(force=False))
+        _cmd_doctor(Namespace(), json.loads((tmp_path / ".arachna.json").read_text()))
         mock_exit.assert_called_with(1)

@@ -11,7 +11,7 @@ def test_clean_numbered(tmp_path, monkeypatch):
     ctx = tmp_path / "arachna_context"
     ctx.mkdir()
     (ctx / "chat-c_1.md").write_text("x")
-    with patch("sys.argv", ["arachna", "--clean"]):
+    with patch("sys.argv", ["arachna", "collect", "--clean"]):
         main()
     assert not (ctx / "chat-c_1.md").exists()
 
@@ -23,7 +23,7 @@ def test_clean_plain(tmp_path, monkeypatch):
     ctx = tmp_path / "arachna_context"
     ctx.mkdir()
     (ctx / "chat-c.md").write_text("x")
-    with patch("sys.argv", ["arachna", "--clean"]):
+    with patch("sys.argv", ["arachna", "collect", "--clean"]):
         main()
     assert not (ctx / "chat-c.md").exists()
 
@@ -35,11 +35,10 @@ def test_clean_via_manifest(tmp_path, monkeypatch):
     (tmp_path / ".arachna.json").write_text(json.dumps(cfg))
     ctx = tmp_path / "arachna_context"
     ctx.mkdir()
-    # Create a file tracked by manifest
     mf = ctx / ".arachna_manifest.json"
     mf.write_text(json.dumps({"files": ["chat-x.md"]}))
     (ctx / "chat-x.md").write_text("data")
-    with patch("sys.argv", ["arachna", "--clean"]):
+    with patch("sys.argv", ["arachna", "collect", "--clean"]):
         main()
     assert not (ctx / "chat-x.md").exists()
     assert not mf.exists()

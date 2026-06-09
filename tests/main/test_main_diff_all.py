@@ -1,8 +1,16 @@
-"""Tests for --diff --all CLI handler in cli_watch.py (v2.4.0)."""
+"""Tests for diff --all CLI handler — updated for v3.0 (imports from __main__)."""
 
 import json
 
-from arachna.cli_watch import _cmd_diff_all
+from arachna.__main__ import _cmd_diff_all
+
+
+def _make_args(profile="code", mode=None, query=None, compress=False, output_dir=None):
+    from argparse import Namespace
+
+    return Namespace(
+        profile=profile, mode=mode, query=query, compress=compress, output_dir=output_dir
+    )
 
 
 def test_cmd_diff_all_full(tmp_path, monkeypatch):
@@ -30,10 +38,11 @@ def test_cmd_diff_all_full(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_diff_all(["arachna", "--diff", "--all", "--profile", "code"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_diff_all(_make_args(), config)
 
     files = list(out_dir.glob("chat-diff-all*"))
-    assert len(files) >= 1, f"No chat-diff-all files found in {list(out_dir.iterdir())}"
+    assert len(files) >= 1
     content = files[0].read_text()
     assert "main.py" in content
 
@@ -63,7 +72,8 @@ def test_cmd_diff_all_repo_map_mode(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_diff_all(["arachna", "--diff", "--all", "--profile", "code", "--mode", "repo-map"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_diff_all(_make_args(mode="repo-map"), config)
 
     files = list(out_dir.glob("chat-diff-all*"))
     assert len(files) >= 1
@@ -99,7 +109,8 @@ def test_cmd_diff_all_with_query(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_diff_all(["arachna", "--diff", "--all", "--profile", "code", "--query", "auth"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_diff_all(_make_args(query="auth"), config)
 
     files = list(out_dir.glob("chat-diff-all*"))
     assert len(files) >= 1
@@ -133,7 +144,8 @@ def test_cmd_diff_all_with_compress(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_diff_all(["arachna", "--diff", "--all", "--profile", "code", "--compress"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_diff_all(_make_args(compress=True), config)
 
     files = list(out_dir.glob("chat-diff-all*"))
     assert len(files) >= 1
@@ -164,13 +176,14 @@ def test_cmd_diff_all_empty_project(tmp_path, monkeypatch):
         )
     )
 
+    config = json.loads((tmp_path / ".arachna.json").read_text())
     import sys
     from io import StringIO
 
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _cmd_diff_all(["arachna", "--diff", "--all", "--profile", "code"])
+    _cmd_diff_all(_make_args(), config)
     sys.stdout = old
     assert "No content collected" in out.getvalue()
 
@@ -199,47 +212,8 @@ def test_cmd_diff_all_custom_output_dir(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_diff_all(
-        [
-            "arachna",
-            "--diff",
-            "--all",
-            "--profile",
-            "code",
-            "--output-dir",
-            str(custom_dir),
-        ]
-    )
-
-    files = list(custom_dir.glob("chat-diff-all*"))
-    assert len(files) >= 1
-
-
-def test_cmd_diff_all_with_short_output_dir_flag(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    src = tmp_path / "src"
-    src.mkdir()
-    (src / "main.py").write_text("print('hello')")
-    custom_dir = tmp_path / "short_custom"
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    _cmd_diff_all(["arachna", "--diff", "--all", "--profile", "code", "-o", str(custom_dir)])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_diff_all(_make_args(output_dir=str(custom_dir)), config)
 
     files = list(custom_dir.glob("chat-diff-all*"))
     assert len(files) >= 1

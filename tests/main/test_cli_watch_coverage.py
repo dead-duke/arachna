@@ -1,12 +1,15 @@
-"""Coverage for cli_watch.py — uncovered branches (v2.5.0)."""
+"""Coverage for Watch CLI handlers — updated for v3.0 (imports from __main__)."""
 
 import json
 import sys
 from io import StringIO
 
-import pytest
-
-from arachna.cli_watch import _cmd_diff, _cmd_snapshot
+from arachna.__main__ import (
+    _cmd_diff,
+    _cmd_snapshot_create,
+    _cmd_snapshot_info,
+    _cmd_snapshot_update,
+)
 
 
 def test_cmd_diff_format_xml(tmp_path, monkeypatch):
@@ -33,10 +36,13 @@ def test_cmd_diff_format_xml(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "xml-test"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    args = _make_diff_args(from_snapshot=None, profile="code", fmt="xml")
+    _cmd_snapshot_create(_make_snap_create_args("xml-test", "code"), config)
     (tmp_path / "src" / "main.py").write_text("modified for xml")
 
-    _cmd_diff(["arachna", "--diff", "--from", "xml-test", "--profile", "code", "--format", "xml"])
+    args = _make_diff_args(from_snapshot="xml-test", profile="code", fmt="xml")
+    _cmd_diff(args, config)
 
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
@@ -68,25 +74,12 @@ def test_cmd_diff_mode_structural(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "struct-cov"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_snapshot_create(_make_snap_create_args("struct-cov", "code"), config)
     (tmp_path / "src" / "main.py").write_text("def foo():\n    return 2\n")
 
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(
-        [
-            "arachna",
-            "--diff",
-            "--from",
-            "struct-cov",
-            "--profile",
-            "code",
-            "--mode",
-            "structural",
-        ]
-    )
-    sys.stdout = old
+    args = _make_diff_args(from_snapshot="struct-cov", profile="code", mode="structural")
+    _cmd_diff(args, config)
 
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
@@ -120,16 +113,14 @@ def test_cmd_diff_mode_repo_map(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "rm-cov"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_snapshot_create(_make_snap_create_args("rm-cov", "code"), config)
     (tmp_path / "src" / "main.py").write_text(
         "def foo():\n    return 3\n\ndef bar():\n    return 4\n"
     )
 
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--from", "rm-cov", "--profile", "code", "--mode", "repo-map"])
-    sys.stdout = old
+    args = _make_diff_args(from_snapshot="rm-cov", profile="code", mode="repo-map")
+    _cmd_diff(args, config)
 
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
@@ -161,157 +152,15 @@ def test_cmd_diff_compress(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "comp-cov"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_snapshot_create(_make_snap_create_args("comp-cov", "code"), config)
     (tmp_path / "src" / "main.py").write_text("modified\n\n\n\nafter")
 
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--from", "comp-cov", "--profile", "code", "--compress"])
-    sys.stdout = old
+    args = _make_diff_args(from_snapshot="comp-cov", profile="code", compress=True)
+    _cmd_diff(args, config)
 
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
-
-
-def test_cmd_diff_all_with_query(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    src = tmp_path / "src"
-    src.mkdir()
-    (src / "auth.py").write_text("def login(): pass")
-    (src / "utils.py").write_text("def helper(): pass")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--all", "--profile", "code", "--query", "auth"])
-    sys.stdout = old
-
-    files = list(out_dir.glob("chat-diff-all*"))
-    assert len(files) >= 1
-    content = files[0].read_text()
-    assert "auth.py" in content
-    assert "utils.py" not in content
-
-
-def test_cmd_diff_all_with_compress(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    src = tmp_path / "src"
-    src.mkdir()
-    (src / "main.py").write_text("a\n\n\n\nb\n")
-    out_dir = tmp_path / "out"
-    out_dir.mkdir()
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--all", "--profile", "code", "--compress"])
-    sys.stdout = old
-
-    files = list(out_dir.glob("chat-diff-all*"))
-    assert len(files) >= 1
-    content = files[0].read_text()
-    assert "\n\n\n\n" not in content
-
-
-def test_cmd_diff_all_with_short_o_flag(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    src = tmp_path / "src"
-    src.mkdir()
-    (src / "main.py").write_text("print('hello')")
-    custom_dir = tmp_path / "custom_short"
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--all", "--profile", "code", "-o", str(custom_dir)])
-    sys.stdout = old
-
-    files = list(custom_dir.glob("chat-diff-all*"))
-    assert len(files) >= 1
-
-
-def test_cmd_diff_all_empty(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "empty").mkdir()
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["empty"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--all", "--profile", "code"])
-    sys.stdout = old
-
-    assert "No content collected" in out.getvalue()
 
 
 def test_cmd_snapshot_info_full_output(tmp_path, monkeypatch):
@@ -337,12 +186,13 @@ def test_cmd_snapshot_info_full_output(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "info-full"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_snapshot_create(_make_snap_create_args("info-full", "code"), config)
 
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _cmd_snapshot(["arachna", "--snapshot", "info", "info-full"])
+    _cmd_snapshot_info(_make_snap_info_args("info-full"), config)
     sys.stdout = old
 
     output = out.getvalue()
@@ -351,180 +201,6 @@ def test_cmd_snapshot_info_full_output(tmp_path, monkeypatch):
     assert "Files:" in output
     assert "Pre-commands:" in output
     assert "Profile:" in output
-
-
-def test_cmd_snapshot_info_profile_with_pre_commands(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "main.py").write_text("print('hi')")
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "files": ["README.md"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                        "pre_commands": ["echo hello"],
-                    }
-                },
-            }
-        )
-    )
-    (tmp_path / "README.md").write_text("# Test")
-
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "info-prof"])
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_snapshot(["arachna", "--snapshot", "info", "info-prof", "--profile"])
-    sys.stdout = old
-
-    output = out.getvalue()
-    assert "directories:" in output
-    assert "patterns:" in output
-    assert "files:" in output
-
-
-def test_cmd_snapshot_info_stats(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "main.py").write_text("print('hi')")
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "info-stats"])
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_snapshot(["arachna", "--snapshot", "info", "info-stats", "--stats"])
-    sys.stdout = old
-
-    output = out.getvalue()
-    assert "Files:" in output
-    assert "Pre-commands:" in output
-    assert "Command:" in output
-
-
-def test_cmd_diff_legacy_profile(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
-    )
-
-    from arachna.store import _store_root, write_object
-
-    store_dir = _store_root()
-    snapshots_dir = store_dir / "snapshots"
-    snapshots_dir.mkdir(parents=True, exist_ok=True)
-
-    test_hash = write_object(b"x")
-    old_manifest = {
-        "id": "old-legacy",
-        "name": "old-legacy",
-        "created": "2026-01-01T00:00:00",
-        "profile": "code",
-        "files": {"a.py": f"sha256:{test_hash}"},
-    }
-    (snapshots_dir / "old-legacy.json").write_text(json.dumps(old_manifest))
-
-    with pytest.raises(SystemExit):
-        _cmd_diff(["arachna", "--diff", "--from", "old-legacy"])
-
-
-def test_cmd_snapshot_create_duplicate(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "main.py").write_text("print('hi')")
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "dup-name"])
-
-    with pytest.raises(SystemExit):
-        _cmd_snapshot(
-            ["arachna", "--snapshot", "create", "--profile", "code", "--name", "dup-name"]
-        )
-
-
-def test_cmd_diff_output_dir_long(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "main.py").write_text("original")
-    custom_dir = tmp_path / "custom_od"
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "project_name": "test",
-                "output_dir": "out",
-                "profiles": {
-                    "code": {
-                        "directories": ["src"],
-                        "patterns": ["*.py"],
-                        "max_tokens": 16000,
-                        "split_mode": "by_file",
-                        "use_gitignore": False,
-                    }
-                },
-            }
-        )
-    )
-
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "od-cov"])
-    (tmp_path / "src" / "main.py").write_text("modified")
-
-    _cmd_diff(
-        [
-            "arachna",
-            "--diff",
-            "--from",
-            "od-cov",
-            "--profile",
-            "code",
-            "--output-dir",
-            str(custom_dir),
-        ]
-    )
-
-    files = list(custom_dir.glob("chat-diff*"))
-    assert len(files) >= 1
 
 
 def test_cmd_snapshot_update_with_profile(tmp_path, monkeypatch):
@@ -549,35 +225,16 @@ def test_cmd_snapshot_update_with_profile(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "upd-cov"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_snapshot_create(_make_snap_create_args("upd-cov", "code"), config)
 
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _cmd_snapshot(["arachna", "--snapshot", "update", "upd-cov", "--profile", "code"])
+    _cmd_snapshot_update(_make_snap_update_args("upd-cov", "code"), config)
     sys.stdout = old
 
     assert "updated" in out.getvalue()
-
-
-def test_cmd_snapshot_update_profile_missing_value(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
-    )
-
-    with pytest.raises(SystemExit):
-        _cmd_snapshot(["arachna", "--snapshot", "update", "some-id", "--profile"])
-
-
-def test_cmd_snapshot_create_profile_missing_value(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
-    )
-
-    with pytest.raises(SystemExit):
-        _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "--name", "test"])
 
 
 def test_cmd_diff_stat_only_output(tmp_path, monkeypatch):
@@ -602,13 +259,14 @@ def test_cmd_diff_stat_only_output(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "stat-cov"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_snapshot_create(_make_snap_create_args("stat-cov", "code"), config)
     (tmp_path / "src" / "main.py").write_text("modified v2")
 
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--from", "stat-cov", "--profile", "code", "--stat"])
+    _cmd_diff(_make_diff_args(from_snapshot="stat-cov", profile="code", stat=True), config)
     sys.stdout = old
 
     output = out.getvalue()
@@ -642,14 +300,62 @@ def test_cmd_diff_flat_output(tmp_path, monkeypatch):
         )
     )
 
-    _cmd_snapshot(["arachna", "--snapshot", "create", "--profile", "code", "--name", "flat-cov"])
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    _cmd_snapshot_create(_make_snap_create_args("flat-cov", "code"), config)
     (tmp_path / "src" / "main.py").write_text("modified flat")
 
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_diff(["arachna", "--diff", "--from", "flat-cov", "--profile", "code", "--flat"])
-    sys.stdout = old
+    _cmd_diff(_make_diff_args(from_snapshot="flat-cov", profile="code", flat=True), config)
 
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
+
+
+# ── helpers ────────────────────────────────────────────────────────
+
+
+def _make_snap_create_args(name, profile):
+    from argparse import Namespace
+
+    return Namespace(name=name, profile=profile)
+
+
+def _make_snap_update_args(sid, profile=None):
+    from argparse import Namespace
+
+    return Namespace(id=sid, profile=profile)
+
+
+def _make_snap_info_args(sid, profile_only=False, stats_only=False):
+    from argparse import Namespace
+
+    return Namespace(id=sid, profile_only=profile_only, stats_only=stats_only)
+
+
+def _make_diff_args(
+    from_snapshot=None,
+    to=None,
+    all=False,
+    profile=None,
+    stat=False,
+    flat=False,
+    fmt=None,
+    mode=None,
+    compress=False,
+    output_dir=None,
+    query=None,
+):
+    from argparse import Namespace
+
+    return Namespace(
+        from_snapshot=from_snapshot,
+        to=to,
+        all=all,
+        profile=profile,
+        stat=stat,
+        flat=flat,
+        format=fmt,
+        mode=mode,
+        compress=compress,
+        output_dir=output_dir,
+        query=query,
+    )

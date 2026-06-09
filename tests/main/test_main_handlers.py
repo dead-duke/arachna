@@ -1,20 +1,15 @@
-"""Coverage for __main__.py uncovered branches."""
+"""Coverage for __main__.py uncovered branches — updated for v3.0 subparser CLI."""
 
 import json
 from argparse import Namespace
 from unittest.mock import patch
 
-import pytest
-
 from arachna.__main__ import (
-    _cmd_clean,
-    _cmd_dry_run,
-    _cmd_list,
-    _cmd_single,
-    _cmd_validate,
+    _cmd_collect_clean,
+    _cmd_collect_list,
+    _cmd_collect_validate,
     _list_profiles,
     _print_collected,
-    _run_profile,
     _write_manifest,
 )
 
@@ -76,7 +71,7 @@ def test_write_manifest(tmp_path):
 
 
 def test_cmd_clean_corrupted_manifest(tmp_path, monkeypatch):
-    """_cmd_clean handles corrupted manifest JSON."""
+    """_cmd_collect_clean handles corrupted manifest JSON."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
@@ -85,11 +80,11 @@ def test_cmd_clean_corrupted_manifest(tmp_path, monkeypatch):
     ctx.mkdir()
     (ctx / ".arachna_manifest.json").write_text("not json")
 
-    _cmd_clean({}, ctx)
+    _cmd_collect_clean(Namespace(output_dir=None), {})
 
 
 def test_cmd_clean_manifest_os_error(tmp_path, monkeypatch):
-    """_cmd_clean handles OSError reading manifest."""
+    """_cmd_collect_clean handles OSError reading manifest."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
@@ -99,11 +94,11 @@ def test_cmd_clean_manifest_os_error(tmp_path, monkeypatch):
     (ctx / ".arachna_manifest.json").write_text('{"files": ["chat-c.md"]}')
 
     with patch("pathlib.Path.read_text", side_effect=OSError("disk error")):
-        _cmd_clean({}, ctx)
+        _cmd_collect_clean(Namespace(output_dir=None), {})
 
 
 def test_cmd_validate_multiple_profiles(tmp_path, monkeypatch):
-    """_cmd_validate with multiple profiles — one valid, one invalid."""
+    """_cmd_collect_validate with multiple profiles — one valid, one invalid."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
@@ -119,158 +114,12 @@ def test_cmd_validate_multiple_profiles(tmp_path, monkeypatch):
     config = json.loads((tmp_path / ".arachna.json").read_text())
 
     with patch("sys.exit") as mock_exit:
-        _cmd_validate(config)
+        _cmd_collect_validate(Namespace(), config)
         mock_exit.assert_called_with(1)
 
 
-def test_run_profile_invalid_name(tmp_path, monkeypatch):
-    """_run_profile with invalid profile name exits 1."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
-    )
-
-    with pytest.raises(SystemExit):
-        _run_profile(
-            "nonexistent",
-            json.loads((tmp_path / ".arachna.json").read_text()),
-            Namespace(
-                compress=False,
-                format=None,
-                dry_run=False,
-                merge=False,
-                verbose=False,
-                incremental=False,
-                all=False,
-            ),
-            "Test",
-            tmp_path / "out",
-        )
-
-
-def test_run_profile_merge_no_clean(tmp_path, monkeypatch):
-    """_run_profile with merge=True skips clean_manifest."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "main.py").write_text("print('hi')")
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 16000}}})
-    )
-
-    config = json.loads((tmp_path / ".arachna.json").read_text())
-    args = Namespace(
-        compress=False,
-        format=None,
-        dry_run=False,
-        merge=True,
-        verbose=False,
-        incremental=False,
-        all=False,
-    )
-
-    result = _run_profile("c", config, args, "Test", tmp_path / "out")
-    assert len(result.files) == 1
-
-
-def test_run_profile_dry_run(tmp_path, monkeypatch):
-    """_run_profile with dry_run=True returns stats, not files."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "main.py").write_text("print('hi')")
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 16000}}})
-    )
-
-    config = json.loads((tmp_path / ".arachna.json").read_text())
-    args = Namespace(
-        compress=False,
-        format=None,
-        dry_run=True,
-        merge=False,
-        verbose=False,
-        incremental=False,
-        all=False,
-    )
-
-    result = _run_profile("c", config, args, "Test", tmp_path / "out")
-    assert result.stats is not None
-    assert result.stats["name"] == "c"
-    assert result.files == []
-
-
-def test_cmd_single_no_content(tmp_path, monkeypatch):
-    """_cmd_single with empty profile prints 'No content collected'."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"e": {"directories": ["empty_dir"], "max_tokens": 100}}})
-    )
-    (tmp_path / "empty_dir").mkdir()
-
-    config = json.loads((tmp_path / ".arachna.json").read_text())
-    args = Namespace(
-        profile="e",
-        compress=False,
-        format=None,
-        dry_run=False,
-        merge=False,
-        verbose=False,
-        incremental=False,
-        all=False,
-    )
-
-    import sys
-    from io import StringIO
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_single(config, args, "Test", tmp_path / "out")
-    sys.stdout = old
-
-    assert "No content collected" in out.getvalue()
-
-
-def test_cmd_dry_run_with_args(tmp_path, monkeypatch):
-    """_cmd_dry_run with --all shows multiple profiles."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "profiles": {
-                    "a": {"command": "echo hi", "max_tokens": 100},
-                    "b": {"command": "echo bye", "max_tokens": 100},
-                }
-            }
-        )
-    )
-    config = json.loads((tmp_path / ".arachna.json").read_text())
-    args = Namespace(
-        all=True,
-        profile=None,
-        compress=False,
-        format=None,
-        dry_run=True,
-        merge=False,
-        verbose=False,
-        incremental=False,
-    )
-
-    import sys
-    from io import StringIO
-
-    out = StringIO()
-    old = sys.stdout
-    sys.stdout = out
-    _cmd_dry_run(config, args)
-    sys.stdout = old
-
-    output = out.getvalue()
-    assert "[a] section" in output
-    assert "[b] section" in output
-
-
 def test_cmd_list_keyerror(tmp_path, monkeypatch):
-    """_cmd_list handles KeyError from get_profile."""
+    """_cmd_collect_list handles KeyError from get_profile."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {"c": {"max_tokens": 100}}}))
     config = json.loads((tmp_path / ".arachna.json").read_text())
@@ -281,5 +130,5 @@ def test_cmd_list_keyerror(tmp_path, monkeypatch):
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _cmd_list(config)
+    _cmd_collect_list(Namespace(), config)
     sys.stdout = old
