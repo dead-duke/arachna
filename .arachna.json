@@ -27,7 +27,8 @@
         "git tag --sort=-creatordate",
         "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n'"
       ],
-      "max_tokens": 32768
+      "max_tokens": 32768,
+      "use_gitignore": false
     },
     "docs": {
       "split_mode": "by_file",
