@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws
+.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws benchmark
 
 PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 PYTEST ?= $(PYTHON) -m pytest
@@ -34,7 +34,6 @@ for p in get_files():
             continue
         lines = [line.rstrip() for line in content.split('\n')]
         new_content = '\n'.join(lines)
-        # Убираем множественные пустые строки в конце, оставляя ровно один \n
         new_content = new_content.rstrip('\n') + '\n'
 
         if new_content != content:
@@ -70,14 +69,12 @@ for p in get_files():
         if not content:
             continue
 
-        # Проверка пробелов в конце строк
         for line in content.split('\n'):
             if line != line.rstrip():
                 print(f'ERROR: {p} has trailing whitespace on line')
                 has_error = True
                 break
 
-        # Проверка двойных пустых строк в конце файла
         if content.endswith('\n\n'):
             print(f'ERROR: {p} ends with multiple blank lines')
             has_error = True
@@ -111,6 +108,9 @@ help:
 	@echo "Quality:"
 	@echo "  make trailing-ws     - check for trailing whitespace and double blank lines at EOF"
 	@echo "  make fix-trailing-ws - automatically fix trailing whitespace and double blank lines"
+	@echo ""
+	@echo "Benchmarks:"
+	@echo "  make benchmark     - run performance benchmarks"
 	@echo ""
 	@echo "arachna context:"
 	@echo "  make context       - collect full context for AI"
@@ -163,8 +163,6 @@ fix-trailing-ws:
 	@$(PYTHON) -c "$$FIX_WS_PYTHON"
 	@echo "Done."
 
-# Главная цель: сначала форматирует и линтит, затем ИСПРАВЛЯЕТ хвосты,
-# проверяет их, и только ПОТОМ запускает тесты.
 check: format lint fix-trailing-ws trailing-ws test
 	@echo "[OK] All checks passed"
 
@@ -213,3 +211,8 @@ store-stats:
 
 store-gc:
 	arachna --store gc
+
+# ── Benchmarks ─────────────────────────────────────────────────────
+
+benchmark:
+	$(PYTEST) tests/benchmark/ -v -s

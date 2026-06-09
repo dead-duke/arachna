@@ -190,6 +190,15 @@ This is by design — a config file you control doesn't need protection from
 yourself. Snapshot IDs, tokenizer files, and preset URLs are validated
 independently against path traversal and code injection.
 
+Sandbox limits command output to 10MB by default (`ARACHNA_MAX_OUTPUT_SIZE`).
+
+## Performance tips (v2.9.2+)
+
+- **Streaming mode** (full) keeps memory at O(max_tokens). Safe for 50K+ files.
+- **chars_per_token** for non-English code: `2.5` in profile for Russian/Cyrillic, `1.5` for CJK.
+- **write_to_disk=False** in collect_api for agent workflows — no filesystem I/O.
+- **Benchmarks** at [docs/BENCHMARKS.md](https://github.com/dead-duke/arachna/blob/main/docs/BENCHMARKS.md) — token savings and timings for all modes.
+
 ## Tips for LLM agents
 
 1. **Start with repo-map.** Before reading any code, get the project structure.

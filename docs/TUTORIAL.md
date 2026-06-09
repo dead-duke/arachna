@@ -99,10 +99,31 @@ result = watch.store_gc()
 print(f"Freed {result.freed_bytes} bytes")
 ```
 
+## In-memory collection (v2.9.2+)
+
+```python
+# Collect without writing files to disk — for AI agents
+result = collect(profile="full", write_to_disk=False)
+print(f"Collected {result.tokens} tokens in {len(result.parts)} parts")
+
+# Stream content directly to the model
+for part in result.parts:
+    response = model.generate(part)
+```
+
+## Token estimation for non-English code (v2.9.2+)
+
+```python
+# Adjust chars_per_token for Russian/Cyrillic
+result = collect(profile={"directories": ["src"], "patterns": ["*.py"], "chars_per_token": 2.5})
+# Default 4 chars/token underestimates Cyrillic by ~60%
+```
+
 ## Integration with AI agents
 
 ```python
 import arachna.watch as watch
+from arachna.collect_api import collect
 
 class AIAgent:
     def __init__(self, profile="full"):
@@ -115,13 +136,13 @@ class AIAgent:
             profile=self.profile,
             name=f"task-{task_name}"
         )
-        # First run — full context
-        return collect(profile=self.profile, mode="repo-map")
+        # First run — repo-map for project overview
+        return collect(profile=self.profile, mode="repo-map", write_to_disk=False)
 
     def get_context(self) -> str:
         """Get only what changed since the baseline."""
         if not self.snapshot_id:
-            return collect(profile=self.profile).parts[0]
+            return collect(profile=self.profile, write_to_disk=False).parts[0]
 
         diff = watch.compute_diff(
             snapshot_id=self.snapshot_id,
@@ -130,7 +151,7 @@ class AIAgent:
 
         # If changes are too large, treat as full context
         if diff.stats.tokens > 10000:
-            return collect(profile=self.profile).parts[0]
+            return collect(profile=self.profile, write_to_disk=False).parts[0]
 
         # Otherwise send only the diff
         return "\n".join(s.content for s in diff.sections)

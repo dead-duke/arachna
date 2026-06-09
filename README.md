@@ -7,7 +7,7 @@
 
 Context collector for AI — gathers project files into token-limited chunks.
 
-arachna is built with arachna — 1071 tests, 92% coverage, 200+ commits.
+arachna is built with arachna — 1121 tests, 92% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -64,6 +64,8 @@ your project for AI to understand. The rest is up to you.
 - [Incremental mode](#incremental-mode)
 - [Watch — snapshots and diffs](#watch--snapshots-and-diffs)
 - [Safety](#safety)
+- [Performance](#performance)
+- [Known limitations](#known-limitations)
 - [Doctor](#doctor)
 - [Git hooks (optional)](#git-hooks-optional)
 - [Tokenizer](#tokenizer)
@@ -214,7 +216,10 @@ Creates arachna_context/ with .md files ready for AI.
 |----------|---------|-------------|
 | ARACHNA_MAX_HASH_SIZE | 10485760 | Max file size in bytes for SHA256 hashing |
 | ARACHNA_SAFE_TOKENIZERS | tiktoken,transformers | Comma-separated safe tokenizer modules |
-| ARACHNA_PRE_COMMAND_DELAY | 0 | Seconds to sleep between pre_commands (0 = no delay) |
+| ARACHNA_PRE_COMMAND_DELAY | 0 | Seconds to sleep between pre_commands |
+| ARACHNA_MAX_OUTPUT_SIZE | 10485760 | Max stdout size in bytes for sandbox commands |
+| ARACHNA_CHARS_PER_TOKEN | 4 | Characters per token for default tokenizer |
+| ARACHNA_PRESETS_TIMEOUT | 10 | Timeout in seconds for --presets-update |
 
 ## Profiles
 
@@ -274,12 +279,13 @@ Example .arachna.json for a Python project:
 - post_commands: shell commands after collection
 - command: use command output instead of files
 - max_tokens: token limit per output file
+- chars_per_token: characters per token for estimation (default: 4)
 - section_format: markdown, xml, or json
-- compress: safe whitespace compression (blank lines, trailing spaces).
-  Does not modify indentation
+- compress: safe whitespace compression (blank lines, trailing spaces)
 - include_binary: include binaries as base64 (true/false)
 - binary_extensions: whitelist like [".png"]
 - binary_max_mb: max binary file size in MB
+- extends: inherit settings from another profile
 
 ## Output
 
@@ -469,10 +475,43 @@ pipes (|, ||, &&) and redirection (>, <) allowed. You control your config —
 you are responsible for what's in it.
 
 Snapshot IDs are validated against path traversal (no ../). Tokenizer files
-are checked for malicious top-level code. Preset URLs are restricted to
-http:// and https:// only.
+are checked for malicious code before import. Preset URLs are restricted to
+http:// and https:// only. Sandbox limits command output to 10MB by default
+(ARACHNA_MAX_OUTPUT_SIZE).
 
 Use --dry-run to preview what will be executed.
+
+## Performance
+
+Quick benchmarks on 1000 Python files (Apple M-series, macOS, Python 3.14):
+
+| Mode | Tokens | Time | vs full |
+|------|--------|------|---------|
+| full (streaming) | 73.6K | 0.05s | baseline |
+| repo-map | 33.4K | 0.10s | -55% tokens |
+| headers | 89.3K | 0.09s | +21% tokens |
+| compress | 22.7K | 0.05s | -4.2% vs no-compress |
+| query (1 match) | 101 | 0.02s | -99.9% |
+| incremental (unchanged) | 0 | 0.007s | instant |
+
+Full details: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). Run locally: `make benchmark`.
+
+## Known limitations
+
+- **Structural diff for non-Python languages** requires plugins. JavaScript, TypeScript,
+  Go, Rust, and C/C++ use text diff by default. Install plugins for accurate
+  block-level diffs: `pip install arachna[javascript]` (available in v3.1+)
+- **Incremental mode** works best on local machines. In CI/CD with fresh clones,
+  all files get new timestamps — cache misses and falls back to full SHA256 hashing.
+  Use without `--incremental` in CI.
+- **Config inheritance** uses different merge rules for different fields:
+  scalars override, exclude lists append, source lists replace. Warnings
+  are printed when child overrides parent fields.
+- **Repo-map and headers modes** load all file content into memory for parsing
+  (AST/regex). For projects with >10K files, use full mode with streaming instead.
+- **Streaming mode** (full mode) keeps memory at O(max_tokens). Pre_commands run
+  before file collection. Query filtering works on filenames in streaming mode.
+- **Snapshot portability** across Windows and Linux — paths stored relative to project root.
 
 ## Doctor
 
@@ -507,6 +546,13 @@ No dependencies. Always works. Set max_tokens below your model's
 context window:
 - 8192 window → max_tokens: 6000
 - 32768 window → max_tokens: 24000
+
+Adjust `chars_per_token` in your profile for non-English code:
+- English: 4.0 (default)
+- Russian/Cyrillic: 2.5
+- Chinese/Japanese/Korean: 1.5
+
+Or set `ARACHNA_CHARS_PER_TOKEN` environment variable.
 
 ### Custom tokenizer
 
@@ -613,6 +659,7 @@ Fetch updated presets from the remote repository:
 - [Changelog](https://github.com/dead-duke/arachna/blob/main/CHANGELOG.md)
 - [Architecture](https://github.com/dead-duke/arachna/blob/main/docs/ARCHITECTURE.md)
 - [LLM Integration](https://github.com/dead-duke/arachna/blob/main/docs/LLM_INTEGRATION.md)
+- [Benchmarks](https://github.com/dead-duke/arachna/blob/main/docs/BENCHMARKS.md)
 
 ## License
 

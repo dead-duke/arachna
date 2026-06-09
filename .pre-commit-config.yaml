@@ -1,12 +1,12 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.15
-    hooks:
-      - id: ruff-check
-        args: [--fix]
-      - id: ruff-format
   - repo: local
     hooks:
+      - id: format
+        name: format (ruff)
+        entry: make format
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: trailing-ws
         name: trailing whitespace
         entry: make trailing-ws
@@ -15,7 +15,7 @@ repos:
         always_run: true
       - id: unit-tests
         name: unit tests
-        entry: python -m pytest tests/ -v
+        entry: python -m pytest tests/ -v --ignore=tests/benchmark
         language: system
         pass_filenames: false
         always_run: true
