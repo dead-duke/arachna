@@ -1,4 +1,4 @@
-"""CLI entry point for arachna v3.0.0 — argparse subparsers."""
+"""CLI entry point for arachna v3.2.0 — argparse subparsers."""
 
 import argparse
 import copy
@@ -16,6 +16,7 @@ from .collector import (
 )
 from .config import get_profile, load_config
 from .gatherer import dry_run
+from .profiler import print_benchmark_table, run_benchmark
 from .renderer import render_dry_run
 from .tokenizer import count_tokens, load_tokenizer
 from .validator import validate_profile
@@ -661,6 +662,25 @@ def _cmd_store_gc(args, config: dict):
         print(f"Removed {result['removed']} objects (freed {result['freed_bytes']} bytes).")
 
 
+# ── Benchmark handler ─────────────────────────────────────────────
+
+
+def _cmd_benchmark(args, config: dict):
+    profile_name = args.profile or "full"
+    try:
+        profile = get_profile(profile_name)
+    except KeyError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    output_dir = _parse_output_dir(args, config)
+    fmt = args.format or "terminal"
+
+    print(f"Running benchmark on '{profile_name}' profile...")
+    results = run_benchmark(profile, output_dir)
+    print_benchmark_table(results, fmt)
+
+
 # ── Other handlers ────────────────────────────────────────────────
 
 
@@ -859,6 +879,12 @@ def main():
     presets_update = presets_subs.add_parser("update", help="Update presets from remote")
     presets_update.add_argument("--url", help="Remote presets URL")
 
+    # ── benchmark ──────────────────────────────────────────────
+    bench_p = sub.add_parser("profile", help="Profile project — measure token savings across modes")
+    bench_p.add_argument("--profile", "-p", help="Profile name (default: full)")
+    bench_p.add_argument("--format", choices=["terminal", "json"], default="terminal")
+    bench_p.add_argument("--output-dir", "-o", help="Output directory")
+
     # ── doctor ─────────────────────────────────────────────────
     sub.add_parser("doctor", help="Run configuration diagnostic")
 
@@ -949,6 +975,9 @@ def main():
         else:
             presets_p.print_help()
             sys.exit(1)
+
+    elif args.command == "profile":
+        _cmd_benchmark(args, config)
 
     elif args.command == "doctor":
         _cmd_doctor(args, config)
