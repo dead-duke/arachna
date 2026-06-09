@@ -41,8 +41,19 @@ where = ["src"]
 "share/man/man1" = ["arachna.1"]
 
 [project.optional-dependencies]
+tree-sitter = [
+    "tree-sitter~=0.21.0",
+    "tree-sitter-python~=0.21.0",
+    "tree-sitter-javascript~=0.21.0",
+    "tree-sitter-typescript~=0.21.0",
+    "tree-sitter-go~=0.21.0",
+]
 tiktoken = ["tiktoken"]
 transformers = ["transformers"]
+javascript = ["arachna[tree-sitter]"]
+typescript = ["arachna[tree-sitter]"]
+go = ["arachna[tree-sitter]"]
+all = ["arachna[tree-sitter,tiktoken]"]
 dev = ["pytest", "pytest-cov", "ruff", "pre-commit", "hypothesis"]
 
 [tool.ruff]

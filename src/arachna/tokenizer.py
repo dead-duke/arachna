@@ -3,6 +3,8 @@
 Default: 4 chars ≈ 1 token (conservative, zero dependencies).
 Supports pluggable tokenizers via tokenizer spec string.
 chars_per_token configurable via profile field or ARACHNA_CHARS_PER_TOKEN env var.
+
+v3.1: tiktoken plugin support for accurate token counting.
 """
 
 import ast as _ast
@@ -87,6 +89,39 @@ _ALLOWED_TOP_LEVEL = (
     _ast.Assign,
 )
 
+# ── Plugin detection ──────────────────────────────────────────────
+
+_HAS_TIKTOKEN = False
+_HAS_TRANSFORMERS = False
+
+
+def _check_tokenizer_plugins():
+    global _HAS_TIKTOKEN, _HAS_TRANSFORMERS
+    try:
+        import tiktoken  # noqa: F401
+
+        _HAS_TIKTOKEN = True
+    except ImportError:
+        _HAS_TIKTOKEN = False
+
+    try:
+        import transformers  # noqa: F401
+
+        _HAS_TRANSFORMERS = True
+    except ImportError:
+        _HAS_TRANSFORMERS = False
+
+
+_check_tokenizer_plugins()
+
+
+def _has_tiktoken() -> bool:
+    return _HAS_TIKTOKEN
+
+
+def _has_transformers() -> bool:
+    return _HAS_TRANSFORMERS
+
 
 def _validate_top_level_statements(filepath: Path) -> bool:
     try:
@@ -169,6 +204,20 @@ def load_tokenizer(spec: str, chars_per_token: int | None = None) -> Callable[[s
     if not spec or spec == "default":
         cpt = chars_per_token if chars_per_token is not None else _DEFAULT_CHARS_PER_TOKEN
         return lambda text: count_tokens(text, chars_per_token=cpt)
+
+    # Plugin-based tokenizers
+    if spec.startswith("tiktoken") and _has_tiktoken():
+        return _load_tiktoken(spec)
+    if spec.startswith("tiktoken") and not _has_tiktoken():
+        raise ValueError("tiktoken is not installed. Install: pip install arachna[tiktoken]")
+
+    if spec.startswith("transformers") and _has_transformers():
+        return _load_transformers(spec)
+    if spec.startswith("transformers") and not _has_transformers():
+        raise ValueError(
+            "transformers is not installed. Install: pip install arachna[transformers]"
+        )
+
     if not _is_safe_tokenizer(spec):
         raise ValueError(
             f"Unsafe tokenizer: '{spec}'. "
@@ -182,3 +231,35 @@ def load_tokenizer(spec: str, chars_per_token: int | None = None) -> Callable[[s
         func_name = "count_tokens"
     mod = importlib.import_module(module_name)
     return getattr(mod, func_name)
+
+
+def _load_tiktoken(spec: str) -> Callable[[str], int]:
+    """Load tiktoken tokenizer. spec format: 'tiktoken' or 'tiktoken:cl100k_base'."""
+    import tiktoken
+
+    encoding_name = "cl100k_base"
+    if ":" in spec:
+        encoding_name = spec.split(":", 1)[1]
+
+    enc = tiktoken.get_encoding(encoding_name)
+
+    def _count(text: str) -> int:
+        return len(enc.encode(text))
+
+    return _count
+
+
+def _load_transformers(spec: str) -> Callable[[str], int]:
+    """Load transformers tokenizer. spec format: 'transformers:model_name'."""
+    from transformers import AutoTokenizer
+
+    model_name = "gpt2"
+    if ":" in spec:
+        model_name = spec.split(":", 1)[1]
+
+    tok = AutoTokenizer.from_pretrained(model_name)
+
+    def _count(text: str) -> int:
+        return len(tok.encode(text))
+
+    return _count

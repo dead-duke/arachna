@@ -22,8 +22,6 @@ from arachna.__main__ import (
     _write_manifest,
 )
 
-# ── Plugin stubs ─────────────────────────────────────────────────
-
 
 def test_plugins_list():
     import sys
@@ -34,7 +32,10 @@ def test_plugins_list():
     sys.stdout = out
     _cmd_plugins_list(Namespace(), {})
     sys.stdout = old
-    assert "Plugin system coming in v3.1" in out.getvalue()
+    assert "Plugins:" in out.getvalue()
+    assert "javascript" in out.getvalue()
+    assert "go" in out.getvalue()
+    assert "tiktoken" in out.getvalue()
 
 
 def test_plugins_install():
@@ -44,10 +45,9 @@ def test_plugins_install():
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _cmd_plugins_install(Namespace(language="javascript"), {})
+    _cmd_plugins_install(Namespace(language="javascript", execute=False), {})
     sys.stdout = old
-    assert "Plugin system coming in v3.1" in out.getvalue()
-    assert "javascript" in out.getvalue()
+    assert "Run:" in out.getvalue() or "Environment:" in out.getvalue()
 
 
 def test_plugins_uninstall():
@@ -59,11 +59,7 @@ def test_plugins_uninstall():
     sys.stdout = out
     _cmd_plugins_uninstall(Namespace(language="go"), {})
     sys.stdout = old
-    assert "Plugin system coming in v3.1" in out.getvalue()
-    assert "go" in out.getvalue()
-
-
-# ── Snapshot error paths ──────────────────────────────────────────
+    assert "not installed" in out.getvalue() or "uninstall" in out.getvalue()
 
 
 def test_snapshot_create_no_name(tmp_path, monkeypatch):
@@ -86,7 +82,6 @@ def test_snapshot_create_invalid_name(tmp_path, monkeypatch):
 
 
 def test_snapshot_create_profile_not_found(tmp_path, monkeypatch):
-    """Non-existent profile raises SystemExit."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
@@ -154,9 +149,6 @@ def test_snapshot_update_profile_not_found(tmp_path, monkeypatch):
     store_create({"a.py": "x"}, name="test-snap")
     with pytest.raises(SystemExit):
         _cmd_snapshot_update(Namespace(id="test-snap", profile="nonexistent"), {})
-
-
-# ── Diff error paths ──────────────────────────────────────────────
 
 
 def test_diff_all_and_from_conflict(tmp_path, monkeypatch):
@@ -254,9 +246,6 @@ def test_diff_all_profile_not_found(tmp_path, monkeypatch):
         )
 
 
-# ── Collect error paths ───────────────────────────────────────────
-
-
 def test_collect_profile_not_found(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
@@ -290,7 +279,11 @@ def test_collect_validate_multi_profile(tmp_path, monkeypatch):
         json.dumps(
             {
                 "profiles": {
-                    "good": {"directories": ["src"], "max_tokens": 16000, "split_mode": "by_file"},
+                    "good": {
+                        "directories": ["src"],
+                        "max_tokens": 16000,
+                        "split_mode": "by_file",
+                    },
                     "bad": {"max_tokens": 100},
                 }
             }
@@ -299,9 +292,6 @@ def test_collect_validate_multi_profile(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as exc_info:
         _cmd_collect_validate(Namespace(), json.loads((tmp_path / ".arachna.json").read_text()))
     assert exc_info.value.code == 1
-
-
-# ── Print collected / write manifest ──────────────────────────────
 
 
 def test_print_collected_with_files(tmp_path, monkeypatch):
@@ -348,16 +338,11 @@ def test_write_manifest_basic(tmp_path):
     assert "chat-c.md" in content
 
 
-# ── Clean edge cases ──────────────────────────────────────────────
-
-
 def test_clean_with_diff_files(tmp_path, monkeypatch):
-    """Clean removes diff files via glob patterns — files in cwd (default output_dir='.')."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
     )
-    # _parse_output_dir(Namespace(output_dir=None), {}) returns "." = tmp_path
     (tmp_path / "chat-diff-snap_1.md").write_text("diff")
     (tmp_path / "chat-diff-v1-to-v2_1.md").write_text("cross")
 
@@ -368,12 +353,10 @@ def test_clean_with_diff_files(tmp_path, monkeypatch):
 
 
 def test_clean_manifest_and_diff_files(tmp_path, monkeypatch):
-    """Clean with manifest removes manifest-tracked files AND diff files."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
     )
-    # _parse_output_dir returns "." = tmp_path
     mf = tmp_path / ".arachna_manifest.json"
     mf.write_text(json.dumps({"files": ["chat-c_1.md", "chat-diff-snap_1.md"]}))
     (tmp_path / "chat-c_1.md").write_text("collected")

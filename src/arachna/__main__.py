@@ -30,12 +30,6 @@ def _list_profiles(config: dict) -> list[str]:
     return ["default"]
 
 
-def _collect_profile_names(config: dict, args) -> list[str]:
-    if args.all:
-        return _list_profiles(config)
-    return [args.profile]
-
-
 def _apply_args_to_profile(profile: dict, args):
     profile = copy.deepcopy(profile)
     if getattr(args, "compress", False):
@@ -738,22 +732,36 @@ def _cmd_presets_update(args, config: dict):
     print("Saved to presets.json")
 
 
-# ── Plugin handlers (stubs for v3.1) ──────────────────────────────
+# ── Plugin handlers ────────────────────────────────────────────────
 
 
 def _cmd_plugins_list(args, config: dict):
-    print("Plugin system coming in v3.1.")
-    print("Currently supported: built-in tokenizer and formatters (zero dependencies).")
+    from .plugins import list_plugins
+
+    plugins = list_plugins()
+    if not plugins:
+        print("No plugins available.")
+        return
+
+    print("Plugins:")
+    for name, info in sorted(plugins.items()):
+        status = "installed" if info["installed"] else "not installed"
+        deps = ", ".join(info["deps"])
+        print(f"  {name:15} {status:15} ({deps})")
 
 
 def _cmd_plugins_install(args, config: dict):
-    print("Plugin system coming in v3.1.")
-    print(f"To install {args.language} plugin: pip install arachna[{args.language}]")
+    from .plugins import install_plugin
+
+    result = install_plugin(args.language, execute=args.execute)
+    print(result)
 
 
 def _cmd_plugins_uninstall(args, config: dict):
-    print("Plugin system coming in v3.1.")
-    print(f"To uninstall {args.language} plugin: pip uninstall arachna[{args.language}]")
+    from .plugins import uninstall_plugin
+
+    result = uninstall_plugin(args.language)
+    print(result)
 
 
 # ── Main ──────────────────────────────────────────────────────────
@@ -834,11 +842,14 @@ def main():
     store_subs.add_parser("gc", help="Garbage collect store")
 
     # ── plugins ────────────────────────────────────────────────
-    plugins_p = sub.add_parser("plugins", help="Plugin management (v3.1)")
+    plugins_p = sub.add_parser("plugins", help="Plugin management")
     plugins_subs = plugins_p.add_subparsers(dest="plugins_command")
     plugins_subs.add_parser("list", help="List plugins")
     plugins_install = plugins_subs.add_parser("install", help="Install plugin")
-    plugins_install.add_argument("language", help="Language to install")
+    plugins_install.add_argument(
+        "language", help="Language to install (javascript, typescript, go, tiktoken)"
+    )
+    plugins_install.add_argument("--execute", action="store_true", help="Execute install command")
     plugins_uninstall = plugins_subs.add_parser("uninstall", help="Uninstall plugin")
     plugins_uninstall.add_argument("language", help="Language to uninstall")
 

@@ -7,16 +7,77 @@ matching for body extraction. Strings and comments are stripped
 before brace matching to handle braces in literals.
 For Ruby/Elixir/Lua: regex-based block parsing.
 For all other languages: falls back to text-based difflib.
+
+v3.1: Tree-sitter plugin support for accurate structural diff.
+When tree-sitter plugin is installed for a language, uses it
+instead of regex brace matching. Falls back to text diff with
+clear warning when plugin is not installed.
 """
 
+import logging
 import re
 from pathlib import Path
 
 from .formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
 
+logger = logging.getLogger("arachna.differ_structural")
+
 _RE_STRINGS = re.compile(r'"[^"]*"|\'[^\']*\'|`[^`]*`')
 _RE_SINGLE_COMMENT = re.compile(r"//[^\n]*")
 _RE_MULTI_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+
+_HAS_TS = False
+_HAS_TS_JS = False
+_HAS_TS_TS = False
+_HAS_TS_GO = False
+
+
+def _check_plugins():
+    global _HAS_TS, _HAS_TS_JS, _HAS_TS_TS, _HAS_TS_GO
+    try:
+        import tree_sitter  # noqa: F401
+
+        _HAS_TS = True
+    except ImportError:
+        _HAS_TS = False
+        _HAS_TS_JS = False
+        _HAS_TS_TS = False
+        _HAS_TS_GO = False
+        return
+
+    try:
+        import tree_sitter_javascript  # noqa: F401
+
+        _HAS_TS_JS = True
+    except ImportError:
+        _HAS_TS_JS = False
+
+    try:
+        import tree_sitter_typescript  # noqa: F401
+
+        _HAS_TS_TS = True
+    except ImportError:
+        _HAS_TS_TS = False
+
+    try:
+        import tree_sitter_go  # noqa: F401
+
+        _HAS_TS_GO = True
+    except ImportError:
+        _HAS_TS_GO = False
+
+
+_check_plugins()
+
+
+def _has_tree_sitter_for(lang: str) -> bool:
+    if lang == "javascript":
+        return _HAS_TS_JS
+    elif lang in ("typescript", "tsx"):
+        return _HAS_TS_TS
+    elif lang == "go":
+        return _HAS_TS_GO
+    return False
 
 
 def _strip_strings_and_comments(text: str) -> str:
@@ -45,6 +106,17 @@ def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
 def structural_diff_for_lang(
     old_content: str, new_content: str, path: str, lang: str, fmt: str = "markdown"
 ) -> str:
+    if _has_tree_sitter_for(lang):
+        return _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt)
+
+    if lang in C_LIKE_LANGS and not _has_tree_sitter_for(lang):
+        logger.warning(
+            "Tree-sitter plugin not installed for %s. "
+            "Install: pip install arachna[%s]. Using regex fallback (may be inaccurate).",
+            lang,
+            lang,
+        )
+
     if lang == "python":
         blocks_old = _parse_python_blocks(old_content)
         blocks_new = _parse_python_blocks(new_content)
@@ -59,6 +131,70 @@ def structural_diff_for_lang(
     else:
         return _fallback_diff(old_content, new_content, path, fmt)
     return _format_block_diff(blocks_old, blocks_new, path, fmt)
+
+
+def _structural_diff_tree_sitter(
+    old_content: str, new_content: str, path: str, lang: str, fmt: str
+) -> str:
+    try:
+        import tree_sitter
+
+        if lang == "javascript":
+            import tree_sitter_javascript as ts_lang
+        elif lang in ("typescript", "tsx"):
+            import tree_sitter_typescript as ts_lang
+        elif lang == "go":
+            import tree_sitter_go as ts_lang
+        else:
+            return _fallback_diff(old_content, new_content, path, fmt)
+
+        parser = tree_sitter.Parser()
+        parser.set_language(ts_lang.language())
+
+        old_tree = parser.parse(old_content.encode("utf-8"))
+        new_tree = parser.parse(new_content.encode("utf-8"))
+
+        old_blocks = _extract_ts_blocks(old_tree.root_node, old_content, lang)
+        new_blocks = _extract_ts_blocks(new_tree.root_node, new_content, lang)
+
+        return _format_block_diff(old_blocks, new_blocks, path, fmt)
+
+    except ImportError:
+        return _fallback_diff(old_content, new_content, path, fmt)
+    except Exception as e:
+        logger.warning("Tree-sitter diff failed for %s: %s. Falling back to text diff.", path, e)
+        return _fallback_diff(old_content, new_content, path, fmt)
+
+
+def _extract_ts_blocks(node, text: str, lang: str) -> dict[str, tuple[str, str]]:
+    blocks = {}
+    _walk_ts_tree(node, text, blocks, lang)
+    return blocks
+
+
+def _walk_ts_tree(node, text: str, blocks: dict, lang: str):
+    func_types = {"function_declaration", "method_definition", "arrow_function"}
+    class_types = {"class_declaration"}
+    if lang == "go":
+        func_types = {"function_declaration", "method_declaration"}
+        class_types = {"type_declaration"}
+
+    if node.type in func_types or node.type in class_types:
+        name_node = node.child_by_field_name("name")
+        if name_node is not None:
+            name = text[name_node.start_byte : name_node.end_byte]
+            body_node = node.child_by_field_name("body")
+            if body_node is not None:
+                body_start = body_node.start_byte
+                body = text[body_start : body_node.end_byte]
+                sig = text[node.start_byte : body_start]
+            else:
+                body = ""
+                sig = text[node.start_byte : node.end_byte]
+            blocks[name] = (sig.strip(), body.strip())
+
+    for child in node.children:
+        _walk_ts_tree(child, text, blocks, lang)
 
 
 def structural_diff(
