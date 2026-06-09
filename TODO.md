@@ -1,17 +1,5 @@
 # TODO
 
-## v3.0 — CLI redesign (details: llm_docs/specs/spec-v3.0-cli-redesign.md)
-- [x] CLI: argparse subparsers — arachna collect/snapshot/diff/store/plugins/presets/completion
-- [x] CLI: remove all manual sys.argv parsing, delete cli_watch.py
-- [ ] CLI: update Makefile targets — arachna --snapshot create → arachna snapshot create, etc.
-- [ ] Doc: update README examples — arachna --profile code → arachna collect --profile code, etc.
-- [x] Test: CLI subparsers — test_cli_subparser_help_collect, test_cli_subparser_help_snapshot, test_cli_subparser_help_diff
-- [x] Test: CLI subparsers — test_cli_collect_profile, test_cli_collect_all, test_cli_collect_clean, test_cli_collect_list
-- [ ] Version bump: __init__.py → 3.0.0
-- [ ] Version bump: pyproject.toml → 3.0.0
-- [ ] Update TEST_REPORT.md with new test counts
-- [ ] Update CHANGELOG for v3.0
-
 ## v3.1 — Plugin system (details: llm_docs/specs/spec-v3.1-plugins.md)
 - [ ] Plugin system: environment detector (pipx, poetry, uv, conda, venv, system, PEP 668)
 - [ ] Plugin system: install_command — pip/python extras integration, user-friendly messages

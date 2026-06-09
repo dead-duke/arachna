@@ -1,5 +1,39 @@
 # Changelog
 
+## v3.0.0 — CLI redesign with argparse subparsers
+
+- BREAKING: Flat --flag CLI replaced with hierarchical subcommands
+- `arachna --profile code` → `arachna collect --profile code`
+- `arachna --all` → `arachna collect --all`
+- `arachna --snapshot create` → `arachna snapshot create`
+- `arachna --diff --from X` → `arachna diff --from X`
+- `arachna --store stats` → `arachna store stats`
+- `arachna --presets-update` → `arachna presets update`
+- `arachna --completion bash` → `arachna completion bash`
+- `arachna --doctor` → `arachna doctor`
+- `arachna --init` → `arachna init`
+- Remove cli_watch.py — all handlers in __main__.py
+- Remove all manual sys.argv parsing
+- Plugin stubs (list/install/uninstall) for v3.1
+- 1188 tests, 92% coverage, 0 bugs
+
+## v2.9.2 — Zero-dep fixes + Streaming pipeline
+
+- Fix: Streaming pipeline for full mode — O(max_tokens) memory, pre_commands + query + compress work
+- Fix: TOC substring matching — split_sections returns indices, no more content.strip() in part_content
+- Fix: Config inheritance — "extends" field with typed merge (scalars override, exclude append, sources replace)
+- Fix: Config inheritance UX — warnings on field conflicts between parent and child
+- Fix: collect_api double I/O — parts from memory, write_to_disk=False for agent API
+- Fix: Snapshot paths — relative to project root, portable across Windows/Linux
+- Fix: Sandbox max_output_size — Popen with chunked read, ARACHNA_MAX_OUTPUT_SIZE env var
+- Fix: chars_per_token in profile — ARACHNA_CHARS_PER_TOKEN env var, per-profile override
+- Fix: run_command always returns str with truncation marker, no tuple
+- Fix: All internal callers updated for collect() 3-tuple return
+- Doc: Known limitations section in README
+- Doc: ARCHITECTURE.md with streaming data flow
+- Doc: BENCHMARKS.md with real numbers for all modes
+- 1121 tests, 92% coverage, 0 bugs
+
 ## v2.9.1 — Architecture + Code Quality fixes
 
 - MEDIUM ARCH-01: Strip strings/comments before brace matching in _extract_braced_block

@@ -18,22 +18,22 @@ arachna solves the whole cycle. It understands that:
 arachna is built around a multi-agent workflow:
 
 ```
-Техдир -> [Программист <-> Тестировщик] -> Техдир
+Architect -> [Programmer <-> Tester] -> Architect
 ```
 
-1. **Техдир** plans the work in TODO.md, creates specs for complex tasks
-2. **Программист** writes code, runs `make context` to see the project
-3. **Тестировщик** writes tests, checks coverage, reports bugs in BUGS.md
-4. **Аудитор** reviews everything: code, tests, docs, security
-5. **Техдир** reads the audit, accepts or rejects, plans next cycle
+1. **Architect** plans the work in TODO.md, creates specs for complex tasks
+2. **Programmer** writes code, runs `make context` to see the project
+3. **Tester** writes tests, checks coverage, reports bugs in BUGS.md
+4. **Auditor** reviews everything: code, tests, docs, security
+5. **Architect** reads the audit, accepts or rejects, plans next cycle
 
 Each role sees different context via profiles:
 
 ```bash
-arachna --profile code     # source code
-arachna --profile tests    # test files
-arachna --profile docs     # documentation
-arachna --profile git      # commit history
+arachna collect --profile code     # source code
+arachna collect --profile tests    # test files
+arachna collect --profile docs     # documentation
+arachna collect --profile git      # commit history
 ```
 
 ## Why snapshots and diffs
@@ -49,9 +49,9 @@ Instead:
 4. Send only the diff to the LLM — 10-50x fewer tokens
 
 ```bash
-arachna --snapshot create --profile full --name baseline
+arachna snapshot create --profile full --name baseline
 # ... work on the project ...
-arachna --diff --from baseline
+arachna diff --from baseline
 ```
 
 The diff is not a raw unified diff. It's structured for AI consumption:
@@ -75,13 +75,13 @@ A typical session:
 
 ```bash
 # First message: give the LLM a map of the project
-arachna --all --mode repo-map
+arachna collect --all --mode repo-map
 
 # Second message: focus on relevant files
-arachna --all --mode full --query "auth"
+arachna collect --all --mode full --query "auth"
 
 # After changes: show what changed
-arachna --diff --from baseline --mode structural
+arachna diff --from baseline --mode structural
 ```
 
 ## Practical workflow example
@@ -91,7 +91,7 @@ A bug is reported: "login fails with Unicode names."
 ### Step 1: Understand the problem
 
 ```bash
-arachna --all --query "login auth unicode" --mode repo-map
+arachna collect --all --query "login auth unicode" --mode repo-map
 ```
 
 Send to LLM: "Here's the project structure around authentication.
@@ -100,7 +100,7 @@ Where should I look for Unicode handling in login?"
 ### Step 2: Deep dive
 
 ```bash
-arachna --all --query "login auth" --mode full
+arachna collect --all --query "login auth" --mode full
 ```
 
 Send to LLM: "Here are the relevant files. Find the Unicode bug."
@@ -112,7 +112,7 @@ LLM suggests changes. You apply them.
 ### Step 4: Verify
 
 ```bash
-arachna --diff --from baseline
+arachna diff --from baseline
 ```
 
 Send to LLM: "Here's what I changed. Is this correct?
@@ -121,13 +121,13 @@ Are there edge cases I missed?"
 ### Step 5: Update baseline
 
 ```bash
-arachna --snapshot update baseline
+arachna snapshot update baseline
 ```
 
 ### Step 6: Tests
 
 ```bash
-arachna --profile tests
+arachna collect --profile tests
 ```
 
 Send to LLM: "Write tests for the Unicode login fix."
@@ -167,12 +167,12 @@ They are content-addressed with SHA256 deduplication.
 Multiple snapshots share identical files — only one copy stored.
 
 ```bash
-arachna --snapshot list              # list all snapshots
-arachna --snapshot info baseline     # show details
-arachna --snapshot rename old new    # rename
-arachna --snapshot delete old        # clean up
-arachna --store stats                # disk usage
-arachna --store gc                   # remove unreferenced objects
+arachna snapshot list              # list all snapshots
+arachna snapshot info baseline     # show details
+arachna snapshot rename old new    # rename
+arachna snapshot delete old        # clean up
+arachna store stats                # disk usage
+arachna store gc                   # remove unreferenced objects
 ```
 
 ## Security model

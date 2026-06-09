@@ -28,6 +28,15 @@
         "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s%n%nMESSAGE:%n%b%n'"
       ],
       "max_tokens": 32768
+    },
+    "docs": {
+      "split_mode": "by_file",
+      "directories": ["docs", "llm_docs"],
+      "patterns": ["*.md", "*.txt"],
+      "files": ["README.md", "CHANGELOG.md", "TODO.md", "Makefile", "LICENSE", "arachna.1"],
+      "pre_commands": ["tree docs llm_docs 2>/dev/null || true"],
+      "max_tokens": 32768,
+      "use_gitignore": false
     }
   }
 }

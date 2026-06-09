@@ -7,7 +7,7 @@
 
 Context collector for AI — gathers project files into token-limited chunks.
 
-arachna is built with arachna — 1121 tests, 92% coverage, 200+ commits.
+arachna is built with arachna — 1188 tests, 92% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -86,8 +86,8 @@ gets cut in the middle.
 ## Quick start
 
     cd your-project
-    arachna --init
-    arachna --all
+    arachna init
+    arachna collect --all
 
 Creates arachna_context/ with .md files ready for AI.
 
@@ -95,12 +95,12 @@ Creates arachna_context/ with .md files ready for AI.
 
 ### Local model (Ollama)
 
-    arachna --profile code
+    arachna collect --profile code
     cat arachna_context/chat-code_1.md | ollama run qwen2.5:32b
 
 ### Cloud API (OpenAI)
 
-    arachna --profile code
+    arachna collect --profile code
     # Then paste arachna_context/chat-code_1.md into chat.openai.com
     # Or use the API:
     curl https://api.openai.com/v1/chat/completions \
@@ -110,89 +110,97 @@ Creates arachna_context/ with .md files ready for AI.
 ### Multiple profiles for different tasks
 
     # Give code to the Programmer agent
-    arachna --profile code
+    arachna collect --profile code
 
     # Give tests to the Tester agent
-    arachna --profile tests
+    arachna collect --profile tests
 
     # Give docs to the Auditor agent
-    arachna --profile docs
+    arachna collect --profile docs
 
     # Give git history for context
-    arachna --profile git
+    arachna collect --profile git
 
 ### Skip pre_commands for quick collection
 
-    arachna --profile code --no-pre-commands
+    arachna collect --profile code --no-pre-commands
 
 ### Incremental mode (only changed files)
 
-    arachna --profile code --incremental
+    arachna collect --profile code --incremental
     # First run: collects everything
     # Second run: skips unchanged files, creates nothing
 
 ### Agent workflow with snapshots
 
-    arachna --snapshot create --profile code --name "baseline"
+    arachna snapshot create --profile code --name "baseline"
     # ... AI makes changes to your project ...
-    arachna --diff --from baseline
+    arachna diff --from baseline
     # Sends only the diff, not the full project
 
 ### Full project as diff (no snapshot needed)
 
-    arachna --diff --all --profile code
-    arachna --diff --all --profile code --mode repo-map
+    arachna diff --all --profile code
+    arachna diff --all --profile code --mode repo-map
 
 ### Dry-run (preview without writing)
 
-    arachna --all --dry-run
+    arachna collect --all --dry-run
 
 ### Safety check
 
-    arachna --validate
+    arachna collect --validate
     # Checks config for errors, exits 1 if problems found
 
 ## Commands
 
-    arachna --init              interactive setup
-    arachna --init --defaults   auto-detect everything
-    arachna --init --preset X   use specific preset
-    arachna --all               collect all profiles
-    arachna --profile code      collect one profile
-    arachna --all --dry-run     preview without writing
-    arachna --clean             remove collected files
-    arachna --list              show profiles
-    arachna --validate          check config for errors
-    arachna --doctor            run full diagnostic
-    arachna --install-hook      install post-commit git hook (optional)
-    arachna --presets-update    update presets from remote repository
+### Collection
+
+    arachna init              interactive setup
+    arachna init --defaults   auto-detect everything
+    arachna init --preset X   use specific preset
+    arachna init --install-hook   install post-commit git hook (optional)
+    arachna collect --all     collect all profiles
+    arachna collect --profile code   collect one profile
+    arachna collect --list    show profiles
+    arachna collect --validate   check config for errors
+    arachna collect --clean   remove collected files
+    arachna collect --dry-run   preview without writing
+    arachna doctor            run full diagnostic
+    arachna presets update    update presets from remote repository
+    arachna completion bash   generate shell completion
 
 ### Watch commands
 
-    arachna --snapshot                          show usage hint
-    arachna --snapshot list                     list all snapshots
-    arachna --snapshot create --profile X --name Y   create snapshot
-    arachna --snapshot update <id>              update snapshot
-    arachna --snapshot delete <id>              delete snapshot
-    arachna --snapshot info <id>                show snapshot details
-    arachna --snapshot rename <old> <new>       rename snapshot
-    arachna --diff                              diff from single snapshot (auto)
-    arachna --diff --from <id>                  diff from specific snapshot
-    arachna --diff --from A --to B              cross-snapshot diff
-    arachna --diff --all --profile X            full project as diff (no snapshot)
-    arachna --diff --stat                       stats only (no content)
-    arachna --diff --flat                       flat output (no grouping)
-    arachna --diff --format xml                 XML output
-    arachna --diff --mode structural            structural (block-level) diff
-    arachna --store stats                       store statistics
-    arachna --store gc                          garbage collect
+    arachna snapshot list                     list all snapshots
+    arachna snapshot create --profile X --name Y   create snapshot
+    arachna snapshot update <id>              update snapshot
+    arachna snapshot delete <id>              delete snapshot
+    arachna snapshot info <id>                show snapshot details
+    arachna snapshot rename <old> <new>       rename snapshot
+    arachna diff                              diff from single snapshot (auto)
+    arachna diff --from <id>                  diff from specific snapshot
+    arachna diff --from A --to B              cross-snapshot diff
+    arachna diff --all --profile X            full project as diff (no snapshot)
+    arachna diff --stat                       stats only (no content)
+    arachna diff --flat                       flat output (no grouping)
+    arachna diff --format xml                 XML output
+    arachna diff --mode structural            structural (block-level) diff
+    arachna store stats                       store statistics
+    arachna store gc                          garbage collect
 
 ### Collection modes
 
-    arachna --all                               full content (default)
-    arachna --all --mode headers                with dependency/export headers
-    arachna --all --mode repo-map               signatures only (50-70% less tokens)
-    arachna --all --query "authentication"      filter files by query
+    arachna collect --all                     full content (default)
+    arachna collect --all --mode headers      with dependency/export headers
+    arachna collect --all --mode repo-map     signatures only (50-70% less tokens)
+    arachna collect --all --query "auth"      filter files by query
+
+### Plugin management (v3.1+)
+
+    arachna plugins list                      list available plugins
+    arachna plugins install javascript        install language plugin
+    arachna plugins uninstall javascript      remove language plugin
 
 ## Options
 
@@ -305,7 +313,7 @@ chat-code_2.md...
 
 ## Manifest and cleanup
 
-Every created file is tracked in .arachna_manifest.json. Running --all
+Every created file is tracked in .arachna_manifest.json. Running collect --all
 again removes old files automatically. With --profile, only that
 profile's files are cleaned.
 
@@ -325,13 +333,13 @@ then send only changes (diff) in subsequent iterations.
 ### How it works
 
     # Create a baseline snapshot
-    arachna --snapshot create --profile code --name "before-refactor"
+    arachna snapshot create --profile code --name "before-refactor"
 
     # AI or developer makes changes to the project
     # ...
 
     # See what changed (grouped by type)
-    arachna --diff --from before-refactor
+    arachna diff --from before-refactor
     # Output:
     #   ## Changes from before-refactor to current (1 renamed, 2 modified)
     #   ### Renamed
@@ -341,21 +349,21 @@ then send only changes (diff) in subsequent iterations.
     #   REMOVED/ADDED...
 
     # Cross-snapshot diff (between two snapshots)
-    arachna --diff --from v1 --to v2
+    arachna diff --from v1 --to v2
 
     # Full project as diff (no snapshot needed)
-    arachna --diff --all --profile code
-    arachna --diff --all --profile code --mode repo-map
+    arachna diff --all --profile code
+    arachna diff --all --profile code --mode repo-map
 
     # Just the stats
-    arachna --diff --from before-refactor --stat
+    arachna diff --from before-refactor --stat
     # Modified: 3, Added: 1, Renamed: 1, Deleted: 0
 
     # Flat output (old format, backward compatible)
-    arachna --diff --from before-refactor --flat
+    arachna diff --from before-refactor --flat
 
     # Structural diff (understands code blocks)
-    arachna --diff --from before-refactor --mode structural
+    arachna diff --from before-refactor --mode structural
 
 ### Rename and move detection
 
@@ -378,13 +386,13 @@ arachna can add context headers showing dependencies and exports for each file.
 Use `--mode headers` or `--query` to auto-enable headers.
 
     # Collect with dependency/export headers
-    arachna --all --mode headers
+    arachna collect --all --mode headers
 
     # Filter by query (keyword scoring + import chain)
-    arachna --all --query "authentication"
+    arachna collect --all --query "authentication"
 
     # Repo-map mode — signatures only, no bodies
-    arachna --all --mode repo-map
+    arachna collect --all --mode repo-map
     # 50-70% token savings for project overview
 
 ### Content-addressable store
@@ -393,35 +401,35 @@ Snapshots are stored in .arachna/store/ (never committed — auto-gitignored).
 Files are deduplicated by SHA256 hash. Multiple snapshots share identical
 content — only one copy stored.
 
-    arachna --store stats
+    arachna store stats
     # Store statistics:
     #   Snapshots: 5
     #   Objects: 127
     #   Total size: 2.3 MB
     #   Unique content: 1.1 MB (52% deduplication)
 
-    arachna --store gc
+    arachna store gc
     # Removed 15 objects (freed 2.3 MB)
 
 ### Snapshot management
 
     # List all snapshots
-    arachna --snapshot list
+    arachna snapshot list
 
     # Show snapshot details
-    arachna --snapshot info before-refactor
+    arachna snapshot info before-refactor
 
     # Show profile only
-    arachna --snapshot info before-refactor --profile
+    arachna snapshot info before-refactor --profile
 
     # Update a snapshot (re-scan current state)
-    arachna --snapshot update before-refactor
+    arachna snapshot update before-refactor
 
     # Rename a snapshot
-    arachna --snapshot rename before-refactor after-refactor
+    arachna snapshot rename before-refactor after-refactor
 
     # Delete a snapshot (objects survive for other snapshots)
-    arachna --snapshot delete before-refactor
+    arachna snapshot delete before-refactor
 
 ### Programmatic API (v2.0.0+)
 
@@ -515,7 +523,7 @@ Full details: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). Run locally: `make bench
 
 ## Doctor
 
-arachna --doctor runs a full diagnostic — validates all profiles, checks
+arachna doctor runs a full diagnostic — validates all profiles, checks
 that directories and files exist, verifies .gitignore integration.
 
 ## Git hooks (optional)
@@ -523,14 +531,14 @@ that directories and files exist, verifies .gitignore integration.
 If you prefer git-based workflow, arachna can integrate via post-commit hooks.
 But it works fine without git.
 
-    arachna --install-hook
+    arachna init --install-hook
 
 Configure the command in .arachna.json:
 
 ```json
 {
   "hook": {
-    "post-commit": "arachna --all --incremental"
+    "post-commit": "arachna collect --all --incremental"
   }
 }
 ```
@@ -590,7 +598,7 @@ the built-in estimate with safety margin is sufficient.
 
 ## Supported project types
 
-arachna --init auto-detects 24 project types:
+arachna init auto-detects 24 project types:
 
 ### Languages
 - Python: src/, app/, lib/, pkg/, scripts/, *.py, pyproject.toml
@@ -640,16 +648,16 @@ Create presets.json in your project root to add or override presets:
 }
 ```
 
-Use with: arachna --init --preset my_game
+Use with: arachna init --preset my_game
 
 ### Presets update
 
 Fetch updated presets from the remote repository:
 
-    arachna --presets-update
+    arachna presets update
     # Merges with built-in presets, local presets.json never overwritten
 
-    arachna --presets-update --url https://example.com/presets.json
+    arachna presets update --url https://example.com/presets.json
     # Use custom URL
 
 ## Links

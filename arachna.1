@@ -1,33 +1,13 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-09" "arachna 2.9.0" "User Commands"
+.TH ARACHNA 1 "2026-06-09" "arachna 3.0.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
 .B arachna
-[\fB\-\-profile\fR \fIname\fR]
-[\fB\-\-all\fR]
-[\fB\-\-clean\fR]
-[\fB\-\-list\fR]
-[\fB\-\-validate\fR]
-[\fB\-\-doctor\fR]
-[\fB\-\-init\fR]
-[\fB\-\-install\-hook\fR]
-[\fB\-\-presets\-update\fR]
-.br
-.B arachna \-\-completion
-.RI [ bash | zsh ]
-.br
-.B arachna \-\-version
-.br
-.B arachna \-\-snapshot
 .I command
 .RI [ options ]
 .br
-.B arachna \-\-diff
-.RI [ options ]
-.br
-.B arachna \-\-store
-.RI [ gc | stats ]
+.B arachna \-\-version
 .SH DESCRIPTION
 arachna collects project files into token-limited chunks ready for AI consumption.
 It understands tokens (not lines) and splits output smartly so nothing gets cut
@@ -37,120 +17,131 @@ It supports incremental diffs via snapshots: snapshot what an AI has seen,
 then send only what changed. Works across multiple chats, agents, and sessions.
 .SH COMMANDS
 .TP
-\fB\-\-profile\fR \fIname\fR
+\fBcollect\fR
+Collect project context.
+.TP
+\fBcollect \-\-profile\fR \fIname\fR
 Collect a specific profile.
 .TP
-\fB\-\-all\fR
+\fBcollect \-\-all\fR
 Collect all profiles.
 .TP
-\fB\-\-clean\fR
-Remove all collected files.
-.TP
-\fB\-\-list\fR
+\fBcollect \-\-list\fR
 List available profiles.
 .TP
-\fB\-\-validate\fR
+\fBcollect \-\-validate\fR
 Validate configuration for errors. Exits 1 if problems found.
 .TP
-\fB\-\-doctor\fR
-Run full configuration diagnostic.
+\fBcollect \-\-clean\fR
+Remove all collected files.
 .TP
-\fB\-\-init\fR
-Interactive .arachna.json bootstrap.
+\fBsnapshot\fR
+Manage snapshots.
 .TP
-\fB\-\-init \-\-defaults\fR
-Auto-detect project type and create config non-interactively.
-.TP
-\fB\-\-init \-\-preset\fR \fIname\fR
-Use a specific preset for initialization.
-.TP
-\fB\-\-install\-hook\fR
-Install post-commit git hook.
-.TP
-\fB\-\-install\-hook \-\-force\fR
-Overwrite existing hook.
-.TP
-\fB\-\-presets\-update\fR
-Fetch and merge presets from remote repository.
-.TP
-\fB\-\-presets\-update \-\-url\fR \fIurl\fR
-Use custom URL for presets (must be http:// or https://).
-.TP
-\fB\-\-completion\fR \fIbash|zsh\fR
-Generate shell completion script. Usage:
-.RS
-.B source <(arachna \-\-completion bash)
-.RE
-.TP
-\fB\-\-version\fR
-Print version and exit.
-.SS Watch Commands
-.TP
-\fB\-\-snapshot\fR
-Show usage hint for snapshot commands.
-.TP
-\fB\-\-snapshot list\fR
+\fBsnapshot list\fR
 List all snapshots.
 .TP
-\fB\-\-snapshot create\fR \fB\-\-profile\fR \fIname\fR \fB\-\-name\fR \fIid\fR
+\fBsnapshot create \-\-profile\fR \fIname\fR \fB\-\-name\fR \fIid\fR
 Create a named snapshot. \fIid\fR must match [\ew][\ew.\-]* (no path separators).
 .TP
-\fB\-\-snapshot update\fR \fIid\fR [\fB\-\-profile\fR \fIname\fR]
+\fBsnapshot update\fR \fIid\fR [\fB\-\-profile\fR \fIname\fR]
 Update an existing snapshot. Optionally change the profile.
 .TP
-\fB\-\-snapshot delete\fR \fIid\fR
+\fBsnapshot delete\fR \fIid\fR
 Delete a snapshot. Objects survive for other snapshots.
 .TP
-\fB\-\-snapshot info\fR \fIid\fR
+\fBsnapshot info\fR \fIid\fR
 Show snapshot details.
 .TP
-\fB\-\-snapshot info\fR \fIid\fR \fB\-\-profile\fR
+\fBsnapshot info\fR \fIid\fR \fB\-\-profile\fR
 Show stored profile only.
 .TP
-\fB\-\-snapshot info\fR \fIid\fR \fB\-\-stats\fR
+\fBsnapshot info\fR \fIid\fR \fB\-\-stats\fR
 Show file and command counts only.
 .TP
-\fB\-\-snapshot rename\fR \fIold\fR \fInew\fR
+\fBsnapshot rename\fR \fIold\fR \fInew\fR
 Rename a snapshot.
 .TP
-\fB\-\-diff\fR
+\fBdiff\fR
 Diff from the single available snapshot (auto-select).
 .TP
-\fB\-\-diff \-\-from\fR \fIid\fR
+\fBdiff \-\-from\fR \fIid\fR
 Diff from a specific snapshot against current state.
 .TP
-\fB\-\-diff \-\-from\fR \fIA\fR \fB\-\-to\fR \fIB\fR
+\fBdiff \-\-from\fR \fIA\fR \fB\-\-to\fR \fIB\fR
 Cross-snapshot diff between two snapshots.
 .TP
-\fB\-\-diff \-\-all\fR \fB\-\-profile\fR \fIname\fR
+\fBdiff \-\-all\fR \fB\-\-profile\fR \fIname\fR
 Full project as diff — no snapshot needed.
 .TP
-\fB\-\-diff \-\-stat\fR
+\fBdiff \-\-stat\fR
 Show diff statistics only (counts, no content).
 .TP
-\fB\-\-diff \-\-flat\fR
+\fBdiff \-\-flat\fR
 Flat output without grouping headers.
 .TP
-\fB\-\-diff \-\-format\fR \fIxml\fR
+\fBdiff \-\-format\fR \fIxml\fR
 XML output format.
 .TP
-\fB\-\-diff \-\-mode\fR \fIstructural\fR
+\fBdiff \-\-mode\fR \fIstructural\fR
 Block-level diff — understands code functions and classes.
 .TP
-\fB\-\-diff \-\-mode\fR \fIrepo\-map\fR
+\fBdiff \-\-mode\fR \fIrepo\-map\fR
 Repo-map diff — signatures only with change markers.
 .TP
-\fB\-\-diff \-\-compress\fR
+\fBdiff \-\-compress\fR
 Compress whitespace in diff output.
 .TP
-\fB\-\-diff \-\-output\-dir\fR \fIpath\fR
+\fBdiff \-\-output\-dir\fR \fIpath\fR
 Write diff files to a custom directory.
 .TP
-\fB\-\-store stats\fR
-Show content-addressable store statistics (snapshots, objects, dedup).
+\fBstore\fR
+Store management.
 .TP
-\fB\-\-store gc\fR
+\fBstore stats\fR
+Show content-addressable store statistics.
+.TP
+\fBstore gc\fR
 Garbage collect unreferenced objects from the store.
+.TP
+\fBplugins\fR
+Plugin management (v3.1+).
+.TP
+\fBplugins list\fR
+List available plugins and their status.
+.TP
+\fBplugins install\fR \fIlanguage\fR
+Install plugin for a language.
+.TP
+\fBplugins uninstall\fR \fIlanguage\fR
+Uninstall plugin for a language.
+.TP
+\fBpresets\fR
+Preset management.
+.TP
+\fBpresets update\fR [\fB\-\-url\fR \fIurl\fR]
+Update presets from remote repository.
+.TP
+\fBdoctor\fR
+Run configuration diagnostic.
+.TP
+\fBinit\fR
+Interactive .arachna.json bootstrap.
+.TP
+\fBinit \-\-defaults\fR
+Auto-detect project type and create config non-interactively.
+.TP
+\fBinit \-\-preset\fR \fIname\fR
+Use a specific preset for initialization.
+.TP
+\fBinit \-\-install\-hook\fR
+Install post-commit git hook.
+.TP
+\fBinit \-\-install\-hook \-\-force\fR
+Overwrite existing hook.
+.TP
+\fBcompletion\fR \fIbash|zsh\fR
+Generate shell completion script.
 .SH OPTIONS
 .TP
 \fB\-\-output\-dir\fR \fIpath\fR
@@ -185,17 +176,6 @@ Filter files by query. Uses keyword scoring (+10 filename, +8 exports,
 .TP
 \fB\-\-mode\fR \fIfull|headers|repo\-map\fR
 Collection mode.
-.RS
-.TP
-full
-Complete file contents (default).
-.TP
-headers
-Full content with dependency/export headers.
-.TP
-repo\-map
-Function/class signatures only (50-70% token savings).
-.RE
 .TP
 \fB\-\-no\-pre\-commands\fR
 Skip pre_commands for this run.
@@ -210,7 +190,7 @@ names, preset URLs, and external input.
 .PP
 Snapshot IDs are validated against path traversal. Tokenizer files are
 checked for malicious code before import. Preset URLs are restricted to
-http:// and https://.
+http:// and https://. Sandbox limits command output to 10MB by default.
 .SH ENVIRONMENT
 .TP
 \fBARACHNA_MAX_HASH_SIZE\fR
@@ -222,59 +202,68 @@ Comma-separated list of safe tokenizer module names. Default: tiktoken,transform
 .TP
 \fBARACHNA_PRE_COMMAND_DELAY\fR
 Seconds to sleep between pre_commands. Default: 0 (no delay).
+.TP
+\fBARACHNA_MAX_OUTPUT_SIZE\fR
+Max stdout size for sandbox commands. Default: 10485760 (10 MB).
+.TP
+\fBARACHNA_CHARS_PER_TOKEN\fR
+Characters per token for default tokenizer. Default: 4.
+.TP
+\fBARACHNA_PRESETS_TIMEOUT\fR
+Timeout in seconds for presets update. Default: 10.
 .SH EXAMPLES
 .PP
 Create a config with auto-detected profiles:
 .RS
-.B arachna \-\-init \-\-defaults
+.B arachna init \-\-defaults
 .RE
 .PP
 Collect all profiles:
 .RS
-.B arachna \-\-all
+.B arachna collect \-\-all
 .RE
 .PP
 Collect code profile, skip git history:
 .RS
-.B arachna \-\-profile code \-\-no\-pre\-commands
+.B arachna collect \-\-profile code \-\-no\-pre\-commands
 .RE
 .PP
 Create a snapshot and diff later:
 .RS
-.B arachna \-\-snapshot create \-\-profile full \-\-name baseline
+.B arachna snapshot create \-\-profile full \-\-name baseline
 .br
 .I ... make changes ...
 .br
-.B arachna \-\-diff \-\-from baseline
+.B arachna diff \-\-from baseline
 .RE
 .PP
 Full project as repo-map diff:
 .RS
-.B arachna \-\-diff \-\-all \-\-profile code \-\-mode repo\-map
+.B arachna diff \-\-all \-\-profile code \-\-mode repo\-map
 .RE
 .PP
 Filter by query:
 .RS
-.B arachna \-\-all \-\-query "authentication"
+.B arachna collect \-\-all \-\-query authentication
 .RE
 .PP
 Generate shell completion:
 .RS
-.B source <(arachna \-\-completion bash)
+.B source <(arachna completion bash)
 .RE
 .PP
 Check configuration:
 .RS
-.B arachna \-\-validate
+.B arachna collect \-\-validate
 .br
-.B arachna \-\-doctor
+.B arachna doctor
 .RE
 .PP
 Store management:
 .RS
-.B arachna \-\-store stats
+.B arachna store stats
 .br
-.B arachna \-\-store gc
+.B arachna store gc
 .RE
 .SH FILES
 .TP

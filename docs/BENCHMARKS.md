@@ -1,6 +1,6 @@
-# Benchmarks: arachna v2.9.2
+# Benchmarks: arachna v3.0.0
 
-Run: `python -m pytest tests/benchmark/ -v -s`
+Run: `make benchmark`
 Date: 2026-06-09
 Machine: macOS 15.x, Apple M-series, Python 3.14.0
 

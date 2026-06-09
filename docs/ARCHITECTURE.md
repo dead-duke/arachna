@@ -8,8 +8,7 @@ by token limits, and writes output files ready for AI consumption.
 ## Module map
 
 ```
-__main__.py         CLI entry point, argparse, all command handlers
-cli_watch.py        Watch CLI handlers (--snapshot, --diff, --store)
+__main__.py         CLI entry point, argparse subparsers (collect, snapshot, diff, store, plugins, presets, doctor, init, completion)
 collect_api.py      Public Collection API (programmatic use, write_to_disk param)
 collector.py        Orchestrator: gather -> split -> write -> post_commands
 gatherer.py         Content assembly: streaming for full mode, in-memory for repo-map/headers
@@ -36,6 +35,30 @@ api_types.py        Public API dataclasses
 api_errors.py       Public API exception classes
 watch.py            Public Watch API (programmatic), thin wrapper over watcher + gatherer
 store_errors.py     Store subsystem exceptions
+```
+
+## CLI structure (v3.0.0)
+
+```
+arachna
+├── collect       # --profile, --all, --dry-run, --compress, --incremental, --merge, --format, --query, --mode, --no-pre-commands, --output-dir, --verbose
+├── snapshot
+│   ├── create    # --profile, --name
+│   ├── list
+│   ├── update    # <id> [--profile]
+│   ├── delete    # <id>
+│   ├── info      # <id> [--profile | --stats]
+│   └── rename    # <old> <new>
+├── diff          # --from, --to, --all, --profile, --stat, --flat, --format, --mode, --compress, --output-dir
+├── store
+│   ├── stats
+│   └── gc
+├── plugins       # list, install, uninstall (v3.1+)
+├── presets
+│   └── update    # [--url]
+├── doctor
+├── init           # [--defaults] [--preset X] [--install-hook] [--force]
+└── completion    # bash | zsh
 ```
 
 ## Data flow
@@ -66,48 +89,14 @@ User -> __main__.py -> collector.collect()
                                        _write_parts() -> files
 ```
 
-Memory: O(max_tokens + file_metadata), independent of file count.
-
-### Collection — repo-map/headers mode (in-memory)
+### Watch (arachna snapshot / diff)
 
 ```
-User -> __main__.py -> collector.collect()
-                            |
-                            v
-                       gatherer._assemble_content()
+User -> __main__.py -> subparser handlers
                             |
             +---------------+---------------+
             |                               |
-    _collect_pre_commands           _scan_directories
-            |                               |
-            v                               v
-      run_command()                  read all files
-            |                               |
-            +-----------+-------------------+
-                        |
-                        v
-              _filter_by_query (full scoring + import chain)
-                        |
-                        v
-              format_file_section (AST/regex parsing)
-                        |
-                        v
-              split_sections -> (parts, indices)
-                        |
-                        v
-              _write_parts() -> files
-```
-
-Memory: O(total_content). Suitable for <10K files.
-
-### Watch (arachna --snapshot / --diff)
-
-```
-User -> __main__.py -> cli_watch._cmd_snapshot / _cmd_diff
-                            |
-            +---------------+---------------+
-            |                               |
-    _cmd_snapshot create              _cmd_diff
+    _cmd_snapshot_create              _cmd_diff
             |                               |
     watcher.create_snapshot()      watcher.compute_diff()
             |                               |
@@ -133,21 +122,6 @@ User -> __main__.py -> cli_watch._cmd_snapshot / _cmd_diff
                               _diff_part_header() summary
 ```
 
-### Agent API (v2.0.0+)
-
-```
-User -> watch.py / collect_api.py
-              |
-    +---------+---------+
-    |                   |
-    v                   v
-store.py          collector.py
-watcher.py        gatherer.py
-differ.py         splitter.py
-```
-
-collect_api supports `write_to_disk=False` for in-memory-only collection.
-
 ## Key design decisions
 
 ### 1. Token-based splitting, not line-based
@@ -165,8 +139,7 @@ AST/regex parsing before token counting.
 
 Watch snapshots use SHA256 hashing for deduplication. Multiple snapshots
 share identical file content. Garbage collection removes unreferenced
-objects. Store is auto-gitignored. Paths stored relative to project root
-for cross-platform portability.
+objects. Paths stored relative to project root for cross-platform portability.
 
 ### 4. Dual-mode command sandbox
 
@@ -202,6 +175,10 @@ Three functions: _diff_files_sections, _diff_pre_commands_sections, _diff_comman
 
 Scalars override, exclude lists append, source lists replace. Warnings on conflicts.
 
+### 12. Hierarchical CLI with argparse subparsers
+
+Clean command hierarchy, auto-generated help, no manual sys.argv parsing.
+
 ## Environment variables
 
 - ARACHNA_MAX_HASH_SIZE — max file size for SHA256 (default: 10 MB)
@@ -219,31 +196,32 @@ Scalars override, exclude lists append, source lists replace. Warnings on confli
 
 ## Testing
 
-1121 tests, 92% coverage. Tests use tmp_path + monkeypatch exclusively.
+1188 tests, 92% coverage. Tests use tmp_path + monkeypatch exclusively.
 Integration tests run arachna as a subprocess.
 
 ```
 tests/
+  benchmark/       Performance benchmarks (7 tests)
   cache/           Cache tests (smart hybrid, SHA256 fallback)
-  collector/       Collector tests (collect, merge, lock, TOC, write_to_disk)
+  collector/       Collector tests (collect, merge, lock, TOC, write_to_disk, coverage)
   completion/      Shell completion tests
   compressor/      Whitespace compression tests (property-based)
   config/          Config loader + extends + profile tests
   differ/          Text + structural + XML + tokenizer-aware diff tests
   doctor/          Diagnostic tests
-  formatter/       Formatting tests (binary, headers, shebang, extensions)
-  gatherer/        Collection tests (streaming, query, repo-map)
+  formatter/       Formatting tests (binary, headers, shebang, extensions, decision table)
+  gatherer/        Collection tests (streaming, query, repo-map, pre_commands, symlinks)
   gitignore/       Gitignore parser tests
   hook/            Git hook installer tests
   init/            Init + presets tests
-  integration/     End-to-end CLI tests (snapshot update, diff)
-  main/            CLI handler tests
+  integration/     End-to-end CLI tests (v3.0 subparser syntax)
+  main/            CLI handler tests (collect, snapshot, diff, store, plugins, coverage)
   presets/         Preset detection + fetch + timeout tests
   renderer/        Dry-run output tests
-  runner/          Popen + sandbox + max_output_size + shell=True tests
+  runner/          Popen + sandbox + max_output_size + shell=True + property-based tests
   splitter/        Token splitter + binary search tests (property-based)
   store/           Content store + validate_snapshot_id tests
-  tokenizer/       Tokenizer safety + top-level validation + plugin tests
+  tokenizer/       Tokenizer safety + top-level validation + plugin + import tests
   validator/       Profile validation tests
-  watcher/         Watcher orchestration + isolated + relative paths tests
+  watcher/         Watcher orchestration + isolated + relative paths + rename + repo-map tests
 ```
