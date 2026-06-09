@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-09" "arachna 3.1.0" "User Commands"
+.TH ARACHNA 1 "2026-06-10" "arachna 3.2.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -38,6 +38,15 @@ Validate configuration for errors. Exits 1 if problems found.
 .TP
 \fBcollect \-\-clean\fR
 Remove all collected files.
+.TP
+\fBprofile\fR
+Measure token savings across all modes on the current project.
+.TP
+\fBprofile \-\-profile\fR \fIname\fR
+Profile a specific profile (default: full).
+.TP
+\fBprofile \-\-format\fR \fIterminal|json\fR
+Output format (terminal table or JSON).
 .TP
 \fBsnapshot\fR
 Manage snapshots.
@@ -85,7 +94,7 @@ Plugin management.
 List available plugins and their status.
 .TP
 \fBplugins install\fR \fIlanguage\fR
-Install plugin for a language (javascript, typescript, go, tiktoken).
+Install plugin for a language (javascript, typescript, go, tiktoken, transformers).
 .TP
 \fBplugins install\fR \fIlanguage\fR \fB\-\-execute\fR
 Install and automatically execute the install command.
@@ -125,6 +134,7 @@ javascript;Tree-sitter structural diff for JavaScript
 typescript;Tree-sitter structural diff for TypeScript
 go;Tree-sitter structural diff for Go
 tiktoken;Accurate token counting for OpenAI models
+transformers;HuggingFace tokenizers
 .TE
 .PP
 Install: \fBpip install arachna[javascript]\fR
@@ -140,6 +150,11 @@ Create a config with auto-detected profiles:
 Collect all profiles:
 .RS
 .B arachna collect \-\-all
+.RE
+.PP
+Profile your project — measure token savings:
+.RS
+.B arachna profile
 .RE
 .PP
 Install JavaScript plugin:

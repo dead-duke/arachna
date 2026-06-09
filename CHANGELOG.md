@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.2.0 — Benchmarking + Oversized sections + Profile
+
+- arachna profile command: measure token savings across all modes on real project
+- Benchmark overhaul: memory (RSS), baseline tracking, warm-up, throughput, stress tests (50K files)
+- Structural diff benchmarks: Python AST vs JS tree-sitter comparison
+- Oversized sections fix: split_sections with paragraph->line->character fallback chain
+- Continuation markers (CONTINUES/CONTINUED) and [split across N parts] in TOC
+- BUG-001 closed: oversized sections no longer truncated
+- Business model section in README
+- 1251 tests, 92% coverage, 0 bugs
+
 ## v3.1.0 — Plugin system
 
 - Plugin system: environment detector (pipx, poetry, uv, conda, venv, system, PEP 668)

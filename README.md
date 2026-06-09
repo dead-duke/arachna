@@ -7,7 +7,15 @@
 
 Context collector for AI — gathers project files into token-limited chunks.
 
-arachna is built with arachna — 1233 tests, 92% coverage, 200+ commits.
+## What arachna does
+
+arachna collects your project files into files ready to be sent to an AI.
+It understands tokens (not lines) and splits output smartly so nothing
+gets cut in the middle.
+
+arachna is built with arachna — the context for this README and every
+commit in this project was collected by arachna itself. Dogfooding since
+day one. 1251 tests, 92% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -47,11 +55,26 @@ your project for AI to understand. The rest is up to you.
 - **Free software, not just open source.** AGPLv3 guarantees the four freedoms.
   No proprietary forks. [What's the difference?](https://www.gnu.org/philosophy/free-sw.html)
 
+## Business model
+
+arachna is free software. There is no paid version, no premium features,
+no cloud service. No SaaS.
+
+If you find arachna useful, you can:
+
+- **Star** the repository on GitHub — it helps others discover the project
+- **Spread the word** — tell other developers who work with AI agents
+
+For collaboration: Telegram in the [GitHub profile](https://github.com/dead-duke).
+
 ## Contents
 
 - [What arachna does](#what-arachna-does)
-- [Install](#install)
+- [Who this is for](#who-this-is-for)
+- [What I believe](#what-i-believe)
+- [Business model](#business-model)
 - [Quick start](#quick-start)
+- [Install](#install)
 - [Examples](#examples)
 - [Commands](#commands)
 - [Options](#options)
@@ -74,16 +97,6 @@ your project for AI to understand. The rest is up to you.
 - [Links](#links)
 - [License](#license)
 
-## What arachna does
-
-arachna collects your project files into files ready to be sent to an AI.
-It understands tokens (not lines) and splits output smartly so nothing
-gets cut in the middle.
-
-## Install
-
-    pip install arachna
-
 ## Quick start
 
     cd your-project
@@ -91,6 +104,10 @@ gets cut in the middle.
     arachna collect --all
 
 Creates arachna_context/ with .md files ready for AI.
+
+## Install
+
+    pip install arachna
 
 ## Examples
 
@@ -121,6 +138,26 @@ Creates arachna_context/ with .md files ready for AI.
 
     # Give git history for context
     arachna collect --profile git
+
+### Profile your project (token savings across all modes)
+
+    arachna profile
+
+    # Output:
+    #   Mode                  Parts     Tokens      Time       vs full tokens    vs full time
+    #   ------------------------------------------------------------------------------------------
+    #   full                      3      73591     0.055s        baseline         baseline
+    #   compress                  3      73591     0.058s           +0.0%             +5.5%
+    #   repo-map                  1      33374     0.107s          -54.6%            +94.5%
+    #   headers                   3      89260     0.083s          +21.3%            +50.9%
+    #   incremental               0          0     0.007s              —                —
+    #   query                     1        101     0.020s          -99.9%            -63.6%
+    #
+    #   Summary:
+    #     * repo-map saves 55% tokens vs full
+    #     * query saves 99.9% tokens
+
+    arachna profile --format json   # machine-readable output
 
 ### Skip pre_commands for quick collection
 
@@ -167,6 +204,7 @@ Creates arachna_context/ with .md files ready for AI.
     arachna collect --validate   check config for errors
     arachna collect --clean   remove collected files
     arachna collect --dry-run   preview without writing
+    arachna profile           measure token savings across all modes
     arachna doctor            run full diagnostic
     arachna presets update    update presets from remote repository
     arachna completion bash   generate shell completion
@@ -480,12 +518,21 @@ packages are available as opt-in plugins.
 | javascript | Tree-sitter structural diff | `pip install arachna[javascript]` |
 | typescript | Tree-sitter structural diff | `pip install arachna[typescript]` |
 | go | Tree-sitter structural diff | `pip install arachna[go]` |
-| tiktoken | Accurate token counting | `pip install arachna[tiktoken]` |
+| tiktoken | Accurate token counting (OpenAI) | `pip install arachna[tiktoken]` |
+| transformers | HuggingFace tokenizers | `pip install arachna[transformers]` |
 
 ### Managing plugins
 
     # List plugins and their status
     arachna plugins list
+
+    # Output:
+    #   Plugin        Status         Dependencies
+    #   javascript    not installed  tree-sitter, tree-sitter-javascript
+    #   typescript    not installed  tree-sitter, tree-sitter-typescript
+    #   go            not installed  tree-sitter, tree-sitter-go
+    #   tiktoken      not installed  tiktoken
+    #   transformers  not installed  transformers
 
     # Install a plugin
     arachna plugins install javascript
@@ -538,14 +585,14 @@ Use --dry-run to preview what will be executed.
 
 Quick benchmarks on 1000 Python files (Apple M-series, macOS, Python 3.14):
 
-| Mode | Tokens | Time | vs full |
-|------|--------|------|---------|
-| full (streaming) | 73.6K | 0.05s | baseline |
-| repo-map | 33.4K | 0.10s | -55% tokens |
-| headers | 89.3K | 0.09s | +21% tokens |
-| compress | 22.7K | 0.05s | -4.2% vs no-compress |
-| query (1 match) | 101 | 0.02s | -99.9% |
-| incremental (unchanged) | 0 | 0.007s | instant |
+| Mode | Tokens | Time | Throughput | vs full |
+|------|--------|------|------------|---------|
+| full (streaming) | 73.6K | 0.05s | 60 files/s | baseline |
+| repo-map | 33.4K | 0.10s | 10 files/s | -55% tokens |
+| headers | 89.3K | 0.09s | 37 files/s | +21% tokens |
+| compress | 22.7K | 0.05s | — | -4.2% vs no-compress |
+| query (1 match) | 101 | 0.02s | 1 file | -99.9% |
+| incremental (unchanged) | 0 | 0.007s | — | instant |
 
 Full details: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). Run locally: `make benchmark`.
 

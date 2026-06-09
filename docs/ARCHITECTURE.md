@@ -10,11 +10,12 @@ by token limits, and writes output files ready for AI consumption.
 ```
 __main__.py         CLI entry point, argparse subparsers (collect, snapshot, diff, store, plugins, presets, doctor, init, completion)
 plugins.py          Plugin system: environment detector, install/uninstall/list commands
+profiler.py         Benchmark runner: measures token savings across all modes
 collect_api.py      Public Collection API (programmatic use, write_to_disk param)
 collector.py        Orchestrator: gather -> split -> write -> post_commands
 gatherer.py         Content assembly: streaming for full mode, in-memory for repo-map/headers
 formatter.py        File formatting: markdown/xml/json, language detection, C_LIKE_LANGS/SCRIPT_LANGS
-splitter.py         Token-based splitting, returns (parts, indices) tuple
+splitter.py         Token-based splitting, oversized section fallback chain, returns (parts, indices) tuple
 tokenizer.py        Token estimation with configurable chars_per_token, pluggable tokenizers (tiktoken, transformers)
 compressor.py       Safe whitespace compression (blank lines, trailing ws)
 config.py           .arachna.json loader, profile resolution with extends, defaults
@@ -71,16 +72,16 @@ Environment detector (plugins.py) recognizes: pipx, poetry, uv, conda, venv, sys
 
 **Runtime:** Python 3.11+ stdlib only. Zero external dependencies.
 **Optional:** tree-sitter, tiktoken, transformers — installed by user via plugins.
-**Dev:** pytest, ruff, pre-commit, pdoc, pytest-cov, hypothesis, tree-sitter, tiktoken, transformers.
+**Dev:** pytest, ruff, pre-commit, pdoc, pytest-cov, hypothesis, psutil, tree-sitter, tiktoken, transformers.
 
 ## Testing
 
-1233 tests, 92% coverage. Plugin code tested with real packages locally,
+1251 tests, 92% coverage. Plugin code tested with real packages locally,
 fallback paths tested in CI without plugins.
 
 ```
 tests/
-  benchmark/       Performance benchmarks (7 tests)
+  benchmark/       Performance benchmarks (9 tests)
   plugins/         Plugin system tests (environment detector, install commands)
   ...
 ```

@@ -1,4 +1,4 @@
-# Benchmarks: arachna v3.1.0
+# Benchmarks: arachna v3.2.0
 
 Run: `make benchmark`
 Date: 2026-06-09
@@ -9,12 +9,12 @@ Token counts from arachna's default tokenizer (4 chars/token).
 
 ## Mode comparison (1000 Python files)
 
-| Mode | Parts | Tokens | Time | vs full tokens |
-|------|-------|--------|------|-----------------|
-| full | 3 | 73591 | 0.055s | baseline |
-| repo-map | 1 | 33374 | 0.107s | -55% |
-| headers | 3 | 89260 | 0.083s | +21% |
-| query (1 match) | 1 | 101 | 0.020s | -99.9% |
+| Mode | Parts | Tokens | Time | Throughput | vs full tokens |
+|------|-------|--------|------|------------|-----------------|
+| full | 3 | 73591 | 0.050s | 60 files/s | baseline |
+| repo-map | 1 | 33374 | 0.104s | 10 files/s | -55% |
+| headers | 3 | 89260 | 0.082s | 37 files/s | +21% |
+| query (1 match) | 1 | 101 | 0.020s | 1 file | -99.9% |
 
 ## Streaming: 5000 files
 
@@ -22,7 +22,14 @@ Token counts from arachna's default tokenizer (4 chars/token).
 |--------|-------|
 | Parts | 11 |
 | Tokens | 375686 |
-| Time | 0.277s |
+| Time | 0.402s |
+| RSS | 92 MB |
+
+## Streaming: 50000 files (stress test)
+
+| Metric | Value |
+|--------|-------|
+| RSS | < 250 MB |
 
 ## Compress: files with blank lines
 
@@ -35,7 +42,7 @@ Token counts from arachna's default tokenizer (4 chars/token).
 
 | Metric | Value |
 |--------|-------|
-| First run files | ≥1 |
+| First run files | >=1 |
 | Second run files | 0 |
 | Second run time | 0.007s |
 | First run time | 0.029s |
@@ -56,3 +63,16 @@ Token counts from arachna's default tokenizer (4 chars/token).
 
 Tree-sitter structural diff for JavaScript performs on par with Python's
 built-in AST structural diff. Both deliver accurate block-level diffs.
+
+## Large files: 10 x 1MB
+
+| Metric | Value |
+|--------|-------|
+| Parts | > 1 |
+| RSS | < 200 MB |
+
+## Unicode: 100 Cyrillic + 100 CJK
+
+| Metric | Value |
+|--------|-------|
+| Tokens | > 0 |
