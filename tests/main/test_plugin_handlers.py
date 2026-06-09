@@ -2,11 +2,14 @@
 
 from argparse import Namespace
 
+import pytest
+
 from arachna.__main__ import (
     _cmd_plugins_install,
     _cmd_plugins_list,
     _cmd_plugins_uninstall,
 )
+from arachna.plugins import _is_installed
 
 
 def test_cmd_plugins_list_with_real_plugins():
@@ -25,6 +28,7 @@ def test_cmd_plugins_list_with_real_plugins():
     assert "tiktoken" in output
 
 
+@pytest.mark.skipif(not _is_installed("tree_sitter"), reason="tree_sitter not installed")
 def test_cmd_plugins_install_already_installed():
     """_cmd_plugins_install for already installed plugin shows 'already installed'."""
     import sys
@@ -39,6 +43,7 @@ def test_cmd_plugins_install_already_installed():
     assert "already installed" in output
 
 
+@pytest.mark.skipif(not _is_installed("tiktoken"), reason="tiktoken not installed")
 def test_cmd_plugins_uninstall_installed():
     """_cmd_plugins_uninstall for installed plugin shows pip uninstall command."""
     import sys

@@ -3,6 +3,8 @@
 import os
 from unittest.mock import patch
 
+import pytest
+
 from arachna.plugins import (
     _build_install_command,
     _detect_environment,
@@ -147,8 +149,8 @@ def test_install_plugin_unknown():
     assert "Unknown plugin" in result
 
 
+@pytest.mark.skipif(not _is_installed("tree_sitter"), reason="tree_sitter not installed")
 def test_install_plugin_already_installed():
-    # tree-sitter IS installed locally
     result = install_plugin("javascript")
     assert "already installed" in result
 
@@ -166,5 +168,6 @@ def test_is_installed_nonexistent():
     assert not _is_installed("nonexistent_package_xyz")
 
 
+@pytest.mark.skipif(not _is_installed("tree_sitter"), reason="tree_sitter not installed")
 def test_is_installed_tree_sitter():
     assert _is_installed("tree_sitter")

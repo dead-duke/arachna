@@ -1,8 +1,11 @@
 """Tests for _load_tiktoken and _load_transformers — with real packages installed."""
 
-from arachna.tokenizer import load_tokenizer
+import pytest
+
+from arachna.tokenizer import _has_tiktoken, _has_transformers, load_tokenizer
 
 
+@pytest.mark.skipif(not _has_tiktoken(), reason="tiktoken not installed")
 def test_load_tiktoken_real():
     """_load_tiktoken with real tiktoken installed."""
     tok = load_tokenizer("tiktoken")
@@ -11,6 +14,7 @@ def test_load_tiktoken_real():
     assert result > 0
 
 
+@pytest.mark.skipif(not _has_tiktoken(), reason="tiktoken not installed")
 def test_load_tiktoken_custom_encoding():
     """_load_tiktoken with custom encoding."""
     tok = load_tokenizer("tiktoken:cl100k_base")
@@ -19,6 +23,7 @@ def test_load_tiktoken_custom_encoding():
     assert result > 0
 
 
+@pytest.mark.skipif(not _has_transformers(), reason="transformers not installed")
 def test_load_transformers_real():
     """_load_transformers with real transformers installed."""
     tok = load_tokenizer("transformers")
