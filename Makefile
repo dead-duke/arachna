@@ -184,33 +184,33 @@ info:
 # ── arachna context ────────────────────────────────────────────────
 
 context:
-	arachna --all
+	arachna collect --all
 
 # ── Watch commands ──────────────────────────────────────────────────
 
 snapshot-create:
-	arachna --snapshot create --profile $(PROFILE) --name $(SNAPSHOT)
+	arachna snapshot create --profile $(PROFILE) --name $(SNAPSHOT)
 
 snapshot-list:
-	arachna --snapshot list
+	arachna snapshot list
 
 snapshot-update:
-	arachna --snapshot update $(SNAPSHOT)
+	arachna snapshot update $(SNAPSHOT)
 
 snapshot-delete:
-	arachna --snapshot delete $(SNAPSHOT)
+	arachna snapshot delete $(SNAPSHOT)
 
 diff:
-	arachna --diff --from $(SNAPSHOT)
+	arachna diff --from $(SNAPSHOT)
 
 diff-stat:
-	arachna --diff --from $(SNAPSHOT) --stat
+	arachna diff --from $(SNAPSHOT) --stat
 
 store-stats:
-	arachna --store stats
+	arachna store stats
 
 store-gc:
-	arachna --store gc
+	arachna store gc
 
 # ── Benchmarks ─────────────────────────────────────────────────────
 
