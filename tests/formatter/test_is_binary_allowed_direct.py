@@ -1,8 +1,6 @@
 """Direct unit tests for _is_binary_allowed (v2.9.2)."""
 
-import sys
-
-import pytest
+from unittest.mock import patch
 
 from arachna.formatter import _is_binary_allowed
 
@@ -41,12 +39,8 @@ def test_is_binary_allowed_extensions_empty(tmp_path):
     assert not _is_binary_allowed(f, [".bin"], 1.0)
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="chmod 0o000 prevents stat only on Linux")
 def test_is_binary_allowed_os_error(tmp_path):
     f = tmp_path / "data.bin"
     f.write_bytes(b"x")
-    f.chmod(0o000)
-    try:
+    with patch.object(type(f), "stat", side_effect=OSError("permission denied")):
         assert not _is_binary_allowed(f, [".bin"], 1.0)
-    finally:
-        f.chmod(0o644)
