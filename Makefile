@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-cov test-cov-html lint format check clean tree info context diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws benchmark
+.PHONY: help install install-dev test test-unit test-integration test-benchmark test-cov test-cov-html lint format check clean tree info context context-full context-dev context-docs context-config diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws benchmark
 
 PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 PYTEST ?= $(PYTHON) -m pytest
@@ -93,27 +93,31 @@ help:
 	@echo "arachna — context collector for AI"
 	@echo ""
 	@echo "Development:"
-	@echo "  make install       - install in development mode"
-	@echo "  make install-dev   - install with dev dependencies + pre-commit"
-	@echo "  make test          - run unit tests"
-	@echo "  make test-cov      - run tests with coverage (terminal)"
-	@echo "  make test-cov-html - run tests with coverage (HTML)"
-	@echo "  make lint          - ruff check"
-	@echo "  make format        - ruff format (auto-fix)"
-	@echo "  make check         - format + lint + fix-trailing-ws + trailing-ws + test"
-	@echo "  make clean         - remove build artifacts and context files"
-	@echo "  make tree          - show project structure"
-	@echo "  make info          - show project info"
+	@echo "  make install          - install in development mode"
+	@echo "  make install-dev      - install with dev dependencies + pre-commit"
+	@echo "  make test             - run all tests"
+	@echo "  make test-unit        - run unit tests only"
+	@echo "  make test-integration - run integration tests only"
+	@echo "  make test-benchmark   - run benchmark tests only"
+	@echo "  make test-cov         - run tests with coverage (terminal)"
+	@echo "  make test-cov-html    - run tests with coverage (HTML)"
+	@echo "  make lint             - ruff check"
+	@echo "  make format           - ruff format (auto-fix)"
+	@echo "  make check            - format + lint + fix-trailing-ws + trailing-ws + test"
+	@echo "  make clean            - remove build artifacts and context files"
+	@echo "  make tree             - show project structure"
+	@echo "  make info             - show project info"
 	@echo ""
 	@echo "Quality:"
-	@echo "  make trailing-ws     - check for trailing whitespace and double blank lines at EOF"
-	@echo "  make fix-trailing-ws - automatically fix trailing whitespace and double blank lines"
+	@echo "  make trailing-ws      - check trailing whitespace and double blank lines"
+	@echo "  make fix-trailing-ws  - fix trailing whitespace and double blank lines"
 	@echo ""
-	@echo "Benchmarks:"
-	@echo "  make benchmark     - run performance benchmarks"
-	@echo ""
-	@echo "arachna context:"
-	@echo "  make context       - collect full context for AI"
+	@echo "Context:"
+	@echo "  make context          - collect ALL profiles"
+	@echo "  make context-full     - collect full profile (everything)"
+	@echo "  make context-dev      - collect dev profile (code + tests + llm_docs + configs)"
+	@echo "  make context-docs     - collect docs profile (documentation)"
+	@echo "  make context-config   - collect config profile (config files only)"
 	@echo ""
 	@echo "Watch (snapshots and diffs):"
 	@echo "  make snapshot-create SNAPSHOT=name  - create named snapshot (default: cycle)"
@@ -124,6 +128,9 @@ help:
 	@echo "  make diff-stat SNAPSHOT=name        - diff stats only (default: cycle)"
 	@echo "  make store-stats                    - store statistics"
 	@echo "  make store-gc                       - garbage collect store"
+	@echo ""
+	@echo "Benchmarks:"
+	@echo "  make benchmark        - run performance benchmarks"
 
 install:
 	$(PIP) install -e .
@@ -132,10 +139,19 @@ install-dev: install
 	$(PIP) install -r requirements-dev.txt
 	pre-commit install
 
-# ── Testing & Linting ──────────────────────────────────────────────
+# ── Testing ────────────────────────────────────────────────────────
 
 test:
 	$(PYTEST) tests/ -v
+
+test-unit:
+	$(PYTEST) tests/ -v --ignore=tests/integration --ignore=tests/benchmark
+
+test-integration:
+	$(PYTEST) tests/integration/ -v
+
+test-benchmark:
+	$(PYTEST) tests/benchmark/ -v -s
 
 test-cov:
 	$(PYTEST) tests/ -v --cov=src/arachna --cov-report=term-missing
@@ -181,10 +197,22 @@ info:
 	@echo "Python: $$($(PYTHON) --version)"
 	@echo "Path: $$(pwd)"
 
-# ── arachna context ────────────────────────────────────────────────
+# ── Context collection ─────────────────────────────────────────────
 
 context:
 	arachna collect --all
+
+context-full:
+	arachna collect --profile full
+
+context-dev:
+	arachna collect --profile dev
+
+context-docs:
+	arachna collect --profile docs
+
+context-config:
+	arachna collect --profile config
 
 # ── Watch commands ──────────────────────────────────────────────────
 
