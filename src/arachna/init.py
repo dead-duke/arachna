@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Interactive .arachna.json bootstrap."""
 
 import json

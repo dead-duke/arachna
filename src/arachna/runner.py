@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Safe command execution with sandbox validation and audit logging."""
 
 import json

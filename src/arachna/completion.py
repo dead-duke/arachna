@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Shell completion for bash and zsh."""
 
 import sys

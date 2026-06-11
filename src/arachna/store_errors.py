@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Exceptions for the Watch store subsystem."""
 
 

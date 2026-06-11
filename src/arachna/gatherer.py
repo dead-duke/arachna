@@ -344,6 +344,26 @@ def _filter_filenames_by_query(filepaths: list[Path], query: str) -> list[Path]:
     return result
 
 
+def _get_profile_files(profile: dict[str, Any], exclude: list[str]) -> list[Path]:
+    """Collect files from profile['files'] that exist and are not excluded."""
+    filepaths = []
+    for filepath_str in profile.get("files", []):
+        filepath = Path(filepath_str)
+        if not filepath.is_file():
+            continue
+        if is_excluded(filepath, exclude):
+            continue
+        filepaths.append(filepath)
+    return filepaths
+
+
+def _print_compress_stats(raw_tokens: int, comp_tokens: int):
+    """Print compression statistics. Shared between streaming and in-memory paths."""
+    if raw_tokens > 0:
+        pct = (raw_tokens - comp_tokens) / raw_tokens * 100
+        print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
+
+
 def _stream_full_mode(
     filepaths: list[Path],
     pre_sections: list[tuple[str, str, int]],
@@ -357,26 +377,14 @@ def _stream_full_mode(
     verbose: bool,
     include_header: bool,
 ) -> tuple[list[str], list[list[int]], list[tuple[str, str, int]]]:
-    parts = []
-    indices = []
-    named_sections = list(pre_sections)
-    current = ""
-    current_tokens = 0
-    current_indices = []
+    from .splitter import pack_into_parts
 
-    for i, (_label, output, _tokens) in enumerate(pre_sections):
+    sections = []
+    named_sections = list(pre_sections)
+
+    for _i, (_label, output, _tokens) in enumerate(pre_sections):
         content = _compress(output) if do_compress and output.strip() else output
-        content_tokens = tokenizer(content)
-        if current_tokens + content_tokens > max_tokens and current:
-            parts.append(current.strip())
-            indices.append(current_indices)
-            current = ""
-            current_tokens = 0
-            current_indices = []
-        sep = "\n\n" if current else ""
-        current += sep + content
-        current_tokens += content_tokens
-        current_indices.append(i)
+        sections.append(content)
 
     for fp in filepaths:
         section = format_file_section(
@@ -393,22 +401,10 @@ def _stream_full_mode(
         if do_compress:
             section = _compress(section)
         tokens = tokenizer(section)
-        if current_tokens + tokens > max_tokens and current:
-            parts.append(current.strip())
-            indices.append(current_indices)
-            current = ""
-            current_tokens = 0
-            current_indices = []
-        sep = "\n\n" if current else ""
-        current += sep + section
-        current_tokens += tokens
-        current_indices.append(len(named_sections))
+        sections.append(section)
         named_sections.append((str(fp), section, tokens))
 
-    if current.strip():
-        parts.append(current.strip())
-        indices.append(current_indices)
-
+    parts, indices = pack_into_parts(sections, max_tokens, tokenizer=tokenizer)
     return parts, indices, named_sections
 
 
@@ -498,21 +494,28 @@ def _assemble_file_content(
             mode=mode,
         )
         sections = []
-        for _name, content, _tokens in named_sections:
+        raw_tokens = 0
+        for _name, content, tokens in named_sections:
+            raw_tokens += tokens
             if do_compress and content.strip():
                 sections.append(_compress(content))
             else:
                 sections.append(content)
         if verbose and do_compress:
-            raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
             comp_tokens = sum(tokenizer(s) for s in sections)
-            if raw_tokens > 0:
-                pct = (raw_tokens - comp_tokens) / raw_tokens * 100
-                print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
+            _print_compress_stats(raw_tokens, comp_tokens)
         parts, indices = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
         return named_sections, parts, indices, new_cache
 
+    # Streaming path
     filepaths = _scan_directories(profile, exclude)
+
+    # BUG-001: Add profile files to target files
+    profile_files = _get_profile_files(profile, exclude)
+    for fp in profile_files:
+        if fp not in filepaths:
+            filepaths.append(fp)
+
     if incremental and cache is not None:
         changed, new, deleted = get_changed_files(filepaths, cache)
         target_files = changed + new
@@ -527,6 +530,8 @@ def _assemble_file_content(
         target_files = _filter_filenames_by_query(target_files, query)
 
     pre_sections = _collect_pre_commands(profile, tokenizer)
+
+    # BUG-002: Include profile files in update_cache
     new_cache = update_cache(target_files, cache or {})
 
     fmt = profile.get("section_format", "markdown")
@@ -551,9 +556,7 @@ def _assemble_file_content(
     if verbose and do_compress:
         raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
         comp_tokens = sum(tokenizer(p) for p in parts)
-        if raw_tokens > 0:
-            pct = (raw_tokens - comp_tokens) / raw_tokens * 100
-            print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
+        _print_compress_stats(raw_tokens, comp_tokens)
 
     return named_sections, parts, indices, new_cache
 

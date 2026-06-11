@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI entry point for arachna v3.2.0 — argparse subparsers."""
 
 import argparse
@@ -44,6 +45,23 @@ def _parse_output_dir(args, config: dict) -> str:
     if getattr(args, "output_dir", None):
         return args.output_dir
     return config.get("output_dir", ".")
+
+
+def _format_profile_section(profile_dict: dict) -> str:
+    """Format profile dict fields for display. Used in _cmd_snapshot_info."""
+    lines = []
+    for key, label in [
+        ("directories", "directories"),
+        ("patterns", "patterns"),
+        ("files", "files"),
+        ("pre_commands", "pre_commands"),
+    ]:
+        val = profile_dict.get(key, [])
+        if val:
+            lines.append(f"  {label}: {', '.join(val)}")
+    lines.append(f"  max_tokens: {profile_dict.get('max_tokens', '?')}")
+    lines.append(f"  split_mode: {profile_dict.get('split_mode', '?')}")
+    return "\n".join(lines)
 
 
 def _print_collected(created: list[str]):
@@ -202,6 +220,7 @@ def _cmd_collect_list(args, config: dict):
         try:
             prof = get_profile(name)
         except KeyError:
+            print(f"  Warning: profile '{name}' not found, skipping")
             continue
         cmd = prof.get("command")
         if cmd:
@@ -222,7 +241,7 @@ def _cmd_collect_validate(args, config: dict):
             try:
                 valid_profiles[name] = get_profile(name)
             except KeyError as e:
-                print(f"  ✗ Profile '{name}': {e}")
+                print(f"  Warning: profile '{name}': {e}")
         profiles = valid_profiles
     all_errors = 0
     all_warnings = 0
@@ -390,17 +409,7 @@ def _cmd_snapshot_info(args, config: dict):
         prof = target.get("profile", {})
         if isinstance(prof, dict):
             print("Profile:")
-            for key, label in [
-                ("directories", "directories"),
-                ("patterns", "patterns"),
-                ("files", "files"),
-                ("pre_commands", "pre_commands"),
-            ]:
-                val = prof.get(key, [])
-                if val:
-                    print(f"  {label}: {', '.join(val)}")
-            print(f"  max_tokens: {prof.get('max_tokens', '?')}")
-            print(f"  split_mode: {prof.get('split_mode', '?')}")
+            print(_format_profile_section(prof))
         else:
             print(f"Profile: {prof} (legacy format)")
         return
@@ -426,17 +435,7 @@ def _cmd_snapshot_info(args, config: dict):
     prof = target.get("profile", {})
     if isinstance(prof, dict):
         print("Profile:")
-        for key, label in [
-            ("directories", "directories"),
-            ("patterns", "patterns"),
-            ("files", "files"),
-            ("pre_commands", "pre_commands"),
-        ]:
-            val = prof.get(key, [])
-            if val:
-                print(f"  {label}: {', '.join(val)}")
-        print(f"  max_tokens: {prof.get('max_tokens', '?')}")
-        print(f"  split_mode: {prof.get('split_mode', '?')}")
+        print(_format_profile_section(prof))
     else:
         print(f"Profile: {prof} (legacy format)")
 

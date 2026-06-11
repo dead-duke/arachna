@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Watcher — orchestration layer between CLI, store, and differ."""
 
 import difflib

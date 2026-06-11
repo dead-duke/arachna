@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Content-addressable store for Watch snapshots.
 
 Storage layout under .arachna/ (created lazily on first write):
@@ -77,6 +78,12 @@ def _hash_path(store_dir: Path, object_hash: str, mkdir: bool = False) -> Path:
 
 
 def write_object(data: bytes, root: Path | None = None) -> str:
+    """Write an object to the store.
+
+    Atomicity is best-effort: tries tempfile + os.replace first.
+    Falls back to direct write if mkstemp fails (e.g. permissions, disk full).
+    Crash during fallback may corrupt the object file.
+    """
     object_hash = hashlib.sha256(data).hexdigest()
     store_dir = _store_root(root)
     path = _hash_path(store_dir, object_hash, mkdir=True)
@@ -155,9 +162,9 @@ def create_snapshot(
         manifest["pre_commands"] = pre_commands
     if command:
         manifest["command"] = command
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     head_path = store_dir / "HEAD"
-    head_path.write_text(snapshot_id)
+    head_path.write_text(snapshot_id + "\n")
     return snapshot_id
 
 
@@ -189,10 +196,10 @@ def update_snapshot(
         del manifest["command"]
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     head_path = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
-        head_path.write_text(snapshot_id)
+        head_path.write_text(snapshot_id + "\n")
     return snapshot_id
 
 
@@ -259,7 +266,7 @@ def delete_snapshot(snapshot_id: str, root: Path | None = None) -> None:
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
         remaining = list_snapshots(root=root)
         if remaining:
-            head_path.write_text(remaining[0]["id"])
+            head_path.write_text(remaining[0]["id"] + "\n")
         else:
             head_path.unlink()
 
@@ -278,11 +285,11 @@ def rename_snapshot(old_id: str, new_id: str, root: Path | None = None) -> str:
     manifest = json.loads(old_path.read_text())
     manifest["id"] = new_id
     manifest["name"] = new_id
-    new_path.write_text(json.dumps(manifest, indent=2))
+    new_path.write_text(json.dumps(manifest, indent=2) + "\n")
     old_path.unlink()
     head_path = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == old_id:
-        head_path.write_text(new_id)
+        head_path.write_text(new_id + "\n")
     return new_id
 
 

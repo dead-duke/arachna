@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Token estimation for AI models.
 
 Default: 4 chars ≈ 1 token (conservative, zero dependencies).

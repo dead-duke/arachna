@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """File formatting for markdown output."""
 
 import ast as _ast
 import base64
 import fnmatch
 import json
+import os as _os
 import re
 from pathlib import Path
 
@@ -17,6 +19,7 @@ _EXT_LANG = {
     "sh": "bash",
     "cfg": "ini",
     "ini": "ini",
+    "in": "ini",
     "txt": "text",
     "js": "javascript",
     "jsx": "jsx",
@@ -97,6 +100,8 @@ C_LIKE_LANGS = frozenset(
     }
 )
 SCRIPT_LANGS = frozenset({"ruby", "elixir", "lua"})
+
+_ARACHNA_MAX_FILE_SIZE = int(_os.environ.get("ARACHNA_MAX_FILE_SIZE", 100 * 1024 * 1024))
 
 
 def _lang_from_shebang(first_line: str) -> str:
@@ -324,6 +329,20 @@ def format_file_section(
                 print(f"  Skipped (binary not in allowlist): {path}")
             else:
                 print(f"  Skipped (binary): {path}")
+        return ""
+
+    # BUG-006: Check file size before reading to prevent OOM
+    try:
+        st_size = path.stat().st_size
+    except OSError as e:
+        if verbose:
+            print(f"  Skipped (error): {path} - {e}")
+        return ""
+    if st_size > _ARACHNA_MAX_FILE_SIZE:
+        if verbose:
+            size_mb = st_size / (1024 * 1024)
+            limit_mb = _ARACHNA_MAX_FILE_SIZE / (1024 * 1024)
+            print(f"  Skipped (file too large: {size_mb:.1f}MB > {limit_mb:.0f}MB): {path}")
         return ""
 
     try:

@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Public API data classes for arachna v2.0.0.
 
 All return types for the public watch and collect APIs.

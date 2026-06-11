@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Doctor — validates config and collected context integrity."""
 
 from pathlib import Path

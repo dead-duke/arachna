@@ -1,21 +1,8 @@
 """Integration tests for v2.5.0 features — updated for v3.0 CLI."""
 
 import json
-import os
-import subprocess
-import sys
 
-
-def _arachna(*args: str) -> subprocess.CompletedProcess:
-    env = os.environ.copy()
-    env["PYTHONIOENCODING"] = "utf-8"
-    return subprocess.run(
-        [sys.executable, "-m", "arachna", *args],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        env=env,
-    )
+from tests.integration.conftest import _arachna
 
 
 def test_diff_all_full(tmp_path, monkeypatch):

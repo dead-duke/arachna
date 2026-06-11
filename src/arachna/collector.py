@@ -140,7 +140,10 @@ def _build_toc(
     Deduplicates indices within the part. If all_indices is provided,
     appends [split across N parts] for sections split across multiple parts.
     """
-    # Deduplicate indices within this part
+    # Deduplicate indices within this part using dict insertion order preservation
+    # dict.fromkeys(some_list) returns a dict with list elements as keys (None values),
+    # preserving insertion order. list() then extracts the keys in order.
+    # This is equivalent to: seen = set(); unique = [x for x in part_section_indices if x not in seen and not seen.add(x)]
     unique_indices = list(dict.fromkeys(part_section_indices))
     files = []
     for idx in unique_indices:

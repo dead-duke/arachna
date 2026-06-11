@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Benchmark module for arachna v3.2.
 
 Measures real token savings and performance across all collection modes.

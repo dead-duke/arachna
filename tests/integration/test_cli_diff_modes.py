@@ -1,21 +1,8 @@
 """Integration tests for diff --mode structural/repo-map (v3.0)."""
 
 import json
-import os
-import subprocess
-import sys
 
-
-def _arachna(*args: str) -> subprocess.CompletedProcess:
-    env = os.environ.copy()
-    env["PYTHONIOENCODING"] = "utf-8"
-    return subprocess.run(
-        [sys.executable, "-m", "arachna", *args],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        env=env,
-    )
+from tests.integration.conftest import _arachna
 
 
 def test_diff_mode_structural(tmp_path, monkeypatch):

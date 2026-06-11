@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Plugin system for arachna v3.1.0.
 
 Optional dependencies for language-specific features:

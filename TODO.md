@@ -1,25 +1,25 @@
 # TODO
 
 ## v3.3.0 — Quick wins: DRY, fuzzing, polish, bug fixes (details: llm_docs/specs/spec-v3.3.0-quick-wins.md)
-- [ ] BUG-001: Fix streaming mode ignores profile "files" when directories is empty (gatherer.py _assemble_file_content)
-- [ ] BUG-002: Fix incremental cache misses profile "files" in streaming mode (gatherer.py update_cache)
-- [ ] BUG-003: Fix MANIFEST.in skipped — add .in extension to _TEXT_EXTENSIONS in formatter.py
-- [ ] BUG-004: Fix merge_presets missing tokenizer safety validation for remote presets (presets.py)
-- [ ] BUG-005: Document atomic write best-effort in write_object docstring or remove fallback (store.py)
-- [ ] BUG-006: Add file size check in format_file_section — skip files > ARACHNA_MAX_FILE_SIZE (formatter.py)
-- [ ] BUG-007: Fix missing trailing newline in JSON manifests — add \n to json.dumps in create_snapshot/update_snapshot (store.py)
-- [ ] Extract pack_into_parts in splitter.py — single token-packing primitive replacing 4 duplicates (_stream_full_mode, _build_parts, split_sections, _split_oversized_section)
-- [ ] Use pack_into_parts in all 4 call sites — _stream_full_mode, _build_parts, split_sections, _split_oversized_section become thin wrappers
-- [ ] Extract _format_profile_section(profile_dict) — deduplicate profile formatting in _cmd_snapshot_info (3 places)
-- [ ] Extract _print_compress_stats helper in gatherer.py — deduplicate compress stats printing in _assemble_file_content both pipelines
-- [ ] Move _arachna() helper from 7 integration test files to tests/integration/conftest.py
-- [ ] Add hypothesis fuzzing tests for _RE_C_LIKE_BLOCK and _RE_C_LIKE_IMPORT — ReDoS protection
-- [ ] Add timeout for regex.match/search on _RE_C_LIKE_BLOCK and _RE_C_LIKE_IMPORT
-- [ ] Add comment or explicit loop for dict.fromkeys dedup idiom in collector.py:185
-- [ ] _cmd_collect_list — print warning on KeyError instead of silent skip
-- [ ] Add AGPLv3 LICENSE headers to all .py files
+- [x] BUG-001: Fix streaming mode ignores profile "files" when directories is empty (gatherer.py _assemble_file_content)
+- [x] BUG-002: Fix incremental cache misses profile "files" in streaming mode (gatherer.py update_cache)
+- [x] BUG-003: Fix MANIFEST.in skipped — add .in extension to _TEXT_EXTENSIONS in formatter.py
+- [x] BUG-004: Fix merge_presets missing tokenizer safety validation for remote presets (presets.py)
+- [x] BUG-005: Document atomic write best-effort in write_object docstring or remove fallback (store.py)
+- [x] BUG-006: Add file size check in format_file_section — skip files > ARACHNA_MAX_FILE_SIZE (formatter.py)
+- [x] BUG-007: Fix missing trailing newline in JSON manifests — add \n to json.dumps in create_snapshot/update_snapshot (store.py)
+- [x] Extract pack_into_parts in splitter.py — single token-packing primitive replacing 4 duplicates (_stream_full_mode, _build_parts, split_sections, _split_oversized_section)
+- [x] Use pack_into_parts in _stream_full_mode and split_sections; _build_parts kept separate for raw content
+- [x] Extract _format_profile_section(profile_dict) — deduplicate profile formatting in _cmd_snapshot_info (3 places)
+- [x] Extract _print_compress_stats helper in gatherer.py — deduplicate compress stats printing in _assemble_file_content both pipelines
+- [x] Move _arachna() helper from 7 integration test files to tests/integration/conftest.py
+- [x] Add hypothesis fuzzing tests for _RE_C_LIKE_BLOCK and _RE_C_LIKE_IMPORT — ReDoS protection
+- [x] Add timeout for regex.match/search on _RE_C_LIKE_BLOCK and _RE_C_LIKE_IMPORT
+- [x] Add comment explaining dict.fromkeys dedup idiom in collector.py:185
+- [x] _cmd_collect_list — print warning on KeyError instead of silent skip
+- [x] Add AGPLv3 LICENSE headers to all .py files
 - [ ] Add prominent pdoc API reference link to README
-- [ ] Fill TODO.md with this plan
+- [x] Fill TODO.md with this plan
 - [ ] Restore BACKLOG.md — move integration examples from PROJECT_MEMORY
 
 ## v3.4.0 — Structural core: __main__.py split + complexity reduction (details: llm_docs/specs/spec-v3.4.0-cli-split.md)

@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Split content into token-limited parts + signature extraction."""
 
 import logging
@@ -108,45 +109,19 @@ def _split_oversized_section(
     return chunks
 
 
-def split(
-    raw_content: str,
-    max_tokens: int,
-    mode: str = "by_file",
-    marker: str = "\n\n",
-    separator: str = "\n\n",
-    tokenizer: Callable[[str], int] | None = None,
-) -> list[str]:
-    tk = tokenizer if tokenizer is not None else count_tokens
-    if mode == "by_file":
-        sections = _split_to_sections(raw_content, "\n\n### ")
-    elif mode == "by_paragraph":
-        sections = _split_to_sections(raw_content, "\n\n")
-    elif mode == "by_marker":
-        sections = _split_to_sections(raw_content, marker)
-    elif mode == "single":
-        parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
-        if was_truncated:
-            logger.warning(
-                "Content truncated: %s tokens exceeds limit of %s tokens",
-                tk(raw_content),
-                max_tokens,
-            )
-        return parts
-    else:
-        sections = _split_to_sections(raw_content, "\n\n### ")
-    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
-
-
-def split_sections(
+def pack_into_parts(
     sections: list[str],
     max_tokens: int,
     separator: str = "\n\n",
     tokenizer: Callable[[str], int] | None = None,
 ) -> tuple[list[str], list[list[int]]]:
-    """Split pre-built sections into token-limited parts.
+    """Single token-packing primitive — packs formatted sections into token-limited parts.
 
-    Oversized sections are split via _split_oversized_section with
+    Handles oversized sections via _split_oversized_section with
     continuation markers. Each chunk shares the original section index.
+
+    For formatted file sections where splitting oversized content
+    into chunks is meaningful (split_sections, _stream_full_mode).
 
     Returns (parts, indices) where indices[i] = list of section positions
     packed into parts[i]. Indices may contain duplicates for split sections.
@@ -219,6 +194,49 @@ def split_sections(
     return parts, indices
 
 
+def split(
+    raw_content: str,
+    max_tokens: int,
+    mode: str = "by_file",
+    marker: str = "\n\n",
+    separator: str = "\n\n",
+    tokenizer: Callable[[str], int] | None = None,
+) -> list[str]:
+    tk = tokenizer if tokenizer is not None else count_tokens
+    if mode == "by_file":
+        sections = _split_to_sections(raw_content, "\n\n### ")
+    elif mode == "by_paragraph":
+        sections = _split_to_sections(raw_content, "\n\n")
+    elif mode == "by_marker":
+        sections = _split_to_sections(raw_content, marker)
+    elif mode == "single":
+        parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
+        if was_truncated:
+            logger.warning(
+                "Content truncated: %s tokens exceeds limit of %s tokens",
+                tk(raw_content),
+                max_tokens,
+            )
+        return parts
+    else:
+        sections = _split_to_sections(raw_content, "\n\n### ")
+    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
+
+
+def split_sections(
+    sections: list[str],
+    max_tokens: int,
+    separator: str = "\n\n",
+    tokenizer: Callable[[str], int] | None = None,
+) -> tuple[list[str], list[list[int]]]:
+    """Split pre-built sections into token-limited parts.
+
+    Thin wrapper around pack_into_parts — for formatted file sections
+    where oversized content can be split into chunks.
+    """
+    return pack_into_parts(sections, max_tokens, separator=separator, tokenizer=tokenizer)
+
+
 def _split_to_sections(text: str, marker: str) -> list[str]:
     if not text:
         return []
@@ -247,6 +265,12 @@ def _build_parts(
     separator: str = "\n\n",
     tokenizer: Callable[[str], int] | None = None,
 ) -> list[str]:
+    """Pack raw content sections into token-limited parts.
+
+    For command mode — oversized sections are truncated via _handle_single.
+    Unlike pack_into_parts which splits oversized sections into chunks,
+    this truncates them since raw command output can't be meaningfully split.
+    """
     tk = tokenizer if tokenizer is not None else count_tokens
     parts = []
     current = ""

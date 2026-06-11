@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Config loader — reads .arachna.json from project root."""
 
 import functools

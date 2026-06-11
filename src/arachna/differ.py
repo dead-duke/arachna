@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """LLM-optimized differ for Watch snapshots."""
 
 import difflib

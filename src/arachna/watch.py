@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Public Watch API for arachna v2.0.0."""
 
 import logging

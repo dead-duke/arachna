@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 r"""Gitignore parser — reads .gitignore patterns for auto-exclusion.
 
 Limitations:

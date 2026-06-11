@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Structural diff — understands code blocks, not just text lines.
 
 For Python: uses ast to parse source into named blocks (functions,
@@ -16,6 +17,7 @@ clear warning when plugin is not installed.
 
 import logging
 import re
+import threading
 from pathlib import Path
 
 from .formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
@@ -30,6 +32,37 @@ _HAS_TS = False
 _HAS_TS_JS = False
 _HAS_TS_TS = False
 _HAS_TS_GO = False
+
+_REGEX_TIMEOUT = 0.1  # 100ms timeout for regex operations
+
+
+class RegexTimeoutError(Exception):
+    """Raised when a regex operation exceeds the timeout."""
+
+    pass
+
+
+def _run_with_timeout(func, timeout=_REGEX_TIMEOUT):
+    """Run func with a timeout via threading.Timer."""
+    result = [None]
+    error = [None]
+    done = threading.Event()
+
+    def target():
+        try:
+            result[0] = func()
+        except Exception as e:
+            error[0] = e
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=target, daemon=True)
+    thread.start()
+    if not done.wait(timeout):
+        raise RegexTimeoutError(f"Regex operation timed out after {timeout}s")
+    if error[0] is not None:
+        raise error[0]
+    return result[0]
 
 
 def _check_plugins():
@@ -298,7 +331,14 @@ _RE_C_LIKE_BLOCK = re.compile(
 
 def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
     blocks = {}
-    for m in _RE_C_LIKE_BLOCK.finditer(text):
+    try:
+        matches = _run_with_timeout(lambda: list(_RE_C_LIKE_BLOCK.finditer(text)))
+    except RegexTimeoutError:
+        logger.warning(
+            "_RE_C_LIKE_BLOCK timed out on input of length %d — skipping structural diff", len(text)
+        )
+        return {}
+    for m in matches:
         sig = m.group(0).strip()
         name = None
         for group_name in [

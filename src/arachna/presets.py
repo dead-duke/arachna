@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Language and engine presets for arachna init."""
 
 import json
@@ -163,6 +164,15 @@ def merge_presets(builtin: dict, remote: dict, local: dict) -> dict:
     merged = dict(builtin)
     for name, preset in remote.items():
         if name not in local:
+            # BUG-004: validate tokenizer safety for remote presets
+            tokenizer = preset.get("tokenizer", "default")
+            if not _is_safe_tokenizer(tokenizer):
+                print(
+                    f"Warning: remote preset '{name}' has unsafe tokenizer '{tokenizer}', "
+                    f"resetting to 'default'."
+                )
+                preset = dict(preset)
+                preset["tokenizer"] = "default"
             merged[name] = preset
     merged.update(local)
     return merged

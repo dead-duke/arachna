@@ -1,3 +1,4 @@
+# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """File modification cache for incremental collection.
 
 Cache format v2:

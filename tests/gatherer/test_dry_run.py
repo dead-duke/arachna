@@ -28,7 +28,8 @@ def test_multiple_parts(tmp_path, monkeypatch):
             "name_template": "chat",
         }
     )
-    assert len(stats["parts"]) == 2
+    # 2 files, each oversized (158 tokens > 50) -> each split into 2+ chunks
+    assert len(stats["parts"]) >= 4
 
 
 def test_empty_dir(tmp_path, monkeypatch):
@@ -60,5 +61,6 @@ def test_section_too_large(tmp_path, monkeypatch):
             "name_template": "chat",
         }
     )
-    assert len(stats["parts"]) == 1
+    # 1 file, 134 tokens > 10 -> split into multiple chunks
+    assert len(stats["parts"]) >= 2
     assert stats["parts"][0]["total_tokens"] > 10
