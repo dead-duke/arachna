@@ -4,6 +4,10 @@
 - [ ] BUG-001: Fix streaming mode ignores profile "files" when directories is empty (gatherer.py _assemble_file_content)
 - [ ] BUG-002: Fix incremental cache misses profile "files" in streaming mode (gatherer.py update_cache)
 - [ ] BUG-003: Fix MANIFEST.in skipped — add .in extension to _TEXT_EXTENSIONS in formatter.py
+- [ ] BUG-004: Fix merge_presets missing tokenizer safety validation for remote presets (presets.py)
+- [ ] BUG-005: Document atomic write best-effort in write_object docstring or remove fallback (store.py)
+- [ ] BUG-006: Add file size check in format_file_section — skip files > ARACHNA_MAX_FILE_SIZE (formatter.py)
+- [ ] BUG-007: Fix missing trailing newline in JSON manifests — add \n to json.dumps in create_snapshot/update_snapshot (store.py)
 - [ ] Extract pack_into_parts in splitter.py — single token-packing primitive replacing 4 duplicates (_stream_full_mode, _build_parts, split_sections, _split_oversized_section)
 - [ ] Use pack_into_parts in all 4 call sites — _stream_full_mode, _build_parts, split_sections, _split_oversized_section become thin wrappers
 - [ ] Extract _format_profile_section(profile_dict) — deduplicate profile formatting in _cmd_snapshot_info (3 places)

@@ -17,6 +17,7 @@
         "CHANGELOG.md",
         "Makefile",
         "LICENSE",
+        "SECURITY.md",
         "requirements-dev.txt",
         ".pre-commit-config.yaml",
         "MANIFEST.in",
@@ -55,7 +56,7 @@
       "split_mode": "by_file",
       "directories": ["docs", "llm_docs"],
       "patterns": ["*.md", "*.txt"],
-      "files": ["README.md", "CHANGELOG.md", "TODO.md", "Makefile", "LICENSE", "arachna.1"],
+      "files": ["README.md", "CHANGELOG.md", "TODO.md", "Makefile", "LICENSE", "SECURITY.md", "arachna.1"],
       "pre_commands": ["tree docs llm_docs 2>/dev/null || true"],
       "max_tokens": 32768,
       "use_gitignore": false

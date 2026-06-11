@@ -581,6 +581,8 @@ http:// and https:// only. Sandbox limits command output to 10MB by default
 
 Use --dry-run to preview what will be executed.
 
+Full security documentation: [docs/SECURITY.md](docs/SECURITY.md).
+
 ## Performance
 
 Quick benchmarks on 1000 Python files (Apple M-series, macOS, Python 3.14):
@@ -757,6 +759,8 @@ Fetch updated presets from the remote repository:
 - [Issue Tracker](https://github.com/dead-duke/arachna/issues)
 - [Changelog](https://github.com/dead-duke/arachna/blob/main/CHANGELOG.md)
 - [Architecture](https://github.com/dead-duke/arachna/blob/main/docs/ARCHITECTURE.md)
+- [Security Architecture](https://github.com/dead-duke/arachna/blob/main/docs/SECURITY.md)
+- [Security Policy](https://github.com/dead-duke/arachna/blob/main/SECURITY.md)
 - [LLM Integration](https://github.com/dead-duke/arachna/blob/main/docs/LLM_INTEGRATION.md)
 - [Benchmarks](https://github.com/dead-duke/arachna/blob/main/docs/BENCHMARKS.md)
 
