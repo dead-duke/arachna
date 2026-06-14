@@ -26,8 +26,14 @@ from ._helpers import (
 )
 
 
+def _get_root(config: dict) -> Path | None:
+    root_str = config.get("_root")
+    return Path(root_str) if root_str else None
+
+
 @register("collect-profile")
 def _cmd_collect_profile(args, config: dict):
+    root = _get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
     out_path = Path(output_dir)
@@ -48,7 +54,7 @@ def _cmd_collect_profile(args, config: dict):
     if args.dry_run:
         query = getattr(args, "query", None)
         mode = getattr(args, "mode", "full")
-        stats = dry_run(profile, query=query, mode=mode)
+        stats = dry_run(profile, query=query, mode=mode, root=root)
         stats["name"] = args.profile
         render_dry_run([stats])
         return
@@ -67,6 +73,7 @@ def _cmd_collect_profile(args, config: dict):
         merge=args.merge,
         query=getattr(args, "query", None),
         mode=getattr(args, "mode", "full"),
+        root=root,
     )
 
     prev = load_manifest(out_path)
@@ -85,6 +92,7 @@ def _cmd_collect_profile(args, config: dict):
 
 @register("collect-all")
 def _cmd_collect_all(args, config: dict):
+    root = _get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
     out_path = Path(output_dir)
@@ -107,7 +115,7 @@ def _cmd_collect_all(args, config: dict):
         if args.dry_run:
             query = getattr(args, "query", None)
             mode = getattr(args, "mode", "full")
-            stats = dry_run(profile, query=query, mode=mode)
+            stats = dry_run(profile, query=query, mode=mode, root=root)
             stats["name"] = name
             all_created_stats = getattr(args, "_all_stats", None)
             if all_created_stats is None:
@@ -128,6 +136,7 @@ def _cmd_collect_all(args, config: dict):
             merge=False,
             query=getattr(args, "query", None),
             mode=getattr(args, "mode", "full"),
+            root=root,
         )
 
         if created:

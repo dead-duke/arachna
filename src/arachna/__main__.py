@@ -6,7 +6,7 @@ import sys
 
 from . import __version__
 from .cli import COMMAND_HANDLERS
-from .config import load_config
+from .config import find_config, load_config
 
 
 def build_argparse() -> argparse.ArgumentParser:
@@ -149,7 +149,10 @@ def main():
         parser.print_help()
         sys.exit(0)
 
+    cfg_path = find_config()
     config = load_config()
+    if cfg_path is not None:
+        config["_root"] = str(cfg_path.parent)
 
     if args.command == "collect":
         _dispatch_collect(args, config)
