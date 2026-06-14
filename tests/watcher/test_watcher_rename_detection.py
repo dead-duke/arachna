@@ -1,7 +1,5 @@
 """Tests for rename/move detection in watcher.py (v1.7.0)."""
 
-import json
-
 from arachna.watcher import (
     _detect_renames_and_moves,
     _diff_file_sets,
@@ -11,29 +9,12 @@ from arachna.watcher import (
 )
 
 
-def _make_profile(directory: str, patterns=None, files=None) -> dict:
-    return {
-        "directories": [directory],
-        "patterns": patterns or ["*"],
-        "files": files or [],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
-
-
-def _setup_config(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
-    )
-
-
-def test_rename_exact_same_content(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_rename_exact_same_content(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "old_name.py").write_text("print('hello')")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "old_name.py").unlink()
     (src / "new_name.py").write_text("print('hello')")
@@ -46,22 +27,17 @@ def test_rename_exact_same_content(tmp_path, monkeypatch):
     assert content_diffs[0].similarity == 1.0
 
 
-def test_move_exact_same_content(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_move_exact_same_content(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     lib = tmp_path / "lib"
     lib.mkdir()
     (src / "utils.py").write_text("def helper(): pass")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "utils.py").unlink()
-    profile2 = {
-        "directories": ["lib"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
+    profile2 = make_profile("lib", ["*.py"])
     (lib / "utils.py").write_text("def helper(): pass")
     sid2 = create_snapshot(profile2, name="v2")
     diffs = compute_diff(sid1, profile2, to_snapshot_id=sid2)
@@ -69,14 +45,14 @@ def test_move_exact_same_content(tmp_path, monkeypatch):
     assert len(content_diffs) >= 1, f"Expected moved in {[d.type for d in diffs]}"
 
 
-def test_rename_similar_content(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_rename_similar_content(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "old.py").write_text(
         "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
     )
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "old.py").unlink()
     (src / "new.py").write_text(
@@ -88,12 +64,12 @@ def test_rename_similar_content(tmp_path, monkeypatch):
     assert len(content_diffs) >= 1, f"Expected renamed in {[d.type for d in diffs]}"
 
 
-def test_dissimilar_no_rename(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_dissimilar_no_rename(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "old.py").write_text("completely different content here yes")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "old.py").unlink()
     (src / "new.py").write_text("nothing in common with the old file at all")
@@ -106,12 +82,12 @@ def test_dissimilar_no_rename(tmp_path, monkeypatch):
     assert "renamed" not in types
 
 
-def test_binary_no_similarity_check(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_binary_no_similarity_check(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "data.bin").write_bytes(b"\x00\x01\x02\x03")
-    profile = _make_profile("src", ["*"])
+    profile = make_profile("src", ["*"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "data.bin").unlink()
     (src / "moved.bin").write_bytes(b"\x00\x01\x02\x03")
@@ -169,8 +145,8 @@ def test_detect_renames_and_moves_dissimilar():
     assert len(sections) == 0
 
 
-def test_diff_file_sets_handles_rename(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_diff_file_sets_handles_rename(tmp_path, setup_config):
+    setup_config()
     old_files = {"src/old.py": "unchanged content here yes"}
     new_files = {"src/new.py": "unchanged content here yes"}
     diffs = _diff_file_sets(old_files, new_files, "markdown")

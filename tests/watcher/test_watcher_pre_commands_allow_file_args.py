@@ -4,9 +4,8 @@ from arachna.store import load_snapshot
 from arachna.watcher import _collect_snapshot_content, compute_diff, create_snapshot
 
 
-def test_collect_snapshot_content_pre_commands_with_pipes(tmp_path, monkeypatch):
-    """TC-186: _collect_snapshot_content runs pre_commands with pipes (tree -I pattern)."""
-    monkeypatch.chdir(tmp_path)
+def test_collect_snapshot_content_pre_commands_with_pipes(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -29,9 +28,8 @@ def test_collect_snapshot_content_pre_commands_with_pipes(tmp_path, monkeypatch)
         assert hash_spec.startswith("sha256:")
 
 
-def test_snapshot_create_with_git_pre_commands(tmp_path, monkeypatch):
-    """TC-186: create_snapshot with git pre_commands stores output."""
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_create_with_git_pre_commands(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -56,9 +54,8 @@ def test_snapshot_create_with_git_pre_commands(tmp_path, monkeypatch):
     assert "files" in manifest
 
 
-def test_diff_with_pre_commands_current_state(tmp_path, monkeypatch):
-    """TC-187: compute_diff runs current pre_commands with allow_file_args."""
-    monkeypatch.chdir(tmp_path)
+def test_diff_with_pre_commands_current_state(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")

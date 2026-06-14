@@ -8,25 +8,14 @@ from arachna.store import load_snapshot
 from arachna.watcher import _collect_snapshot_content, create_snapshot, update_snapshot
 
 
-def _make_profile(directory: str, patterns=None, files=None) -> dict:
-    return {
-        "directories": [directory],
-        "patterns": patterns or ["*"],
-        "files": files or [],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
-
-
-def test_collect_snapshot_content_files(tmp_path, monkeypatch):
-    """_collect_snapshot_content collects files from profile."""
-    monkeypatch.chdir(tmp_path)
+def test_collect_snapshot_content_files(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
     (src / "utils.py").write_text("x = 1")
 
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     files, pre, cmd = _collect_snapshot_content(profile)
 
     assert len(files) == 2
@@ -36,9 +25,8 @@ def test_collect_snapshot_content_files(tmp_path, monkeypatch):
     assert cmd == {}
 
 
-def test_collect_snapshot_content_with_pre_commands(tmp_path, monkeypatch):
-    """_collect_snapshot_content runs and stores pre_commands output."""
-    monkeypatch.chdir(tmp_path)
+def test_collect_snapshot_content_with_pre_commands(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -58,9 +46,8 @@ def test_collect_snapshot_content_with_pre_commands(tmp_path, monkeypatch):
     assert cmd == {}
 
 
-def test_collect_snapshot_content_with_command(tmp_path, monkeypatch):
-    """_collect_snapshot_content runs and stores command output."""
-    monkeypatch.chdir(tmp_path)
+def test_collect_snapshot_content_with_command(tmp_path, setup_config):
+    setup_config()
 
     profile = {
         "command": "echo 'command output'",
@@ -76,9 +63,8 @@ def test_collect_snapshot_content_with_command(tmp_path, monkeypatch):
     assert cmd["command output"].startswith("sha256:")
 
 
-def test_collect_snapshot_content_empty_pre_commands(tmp_path, monkeypatch):
-    """_collect_snapshot_content skips empty pre_commands output."""
-    monkeypatch.chdir(tmp_path)
+def test_collect_snapshot_content_empty_pre_commands(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -96,14 +82,13 @@ def test_collect_snapshot_content_empty_pre_commands(tmp_path, monkeypatch):
     assert pre == {}
 
 
-def test_watcher_update_snapshot_replaces_files(tmp_path, monkeypatch):
-    """watcher.update_snapshot re-scans and updates snapshot."""
-    monkeypatch.chdir(tmp_path)
+def test_watcher_update_snapshot_replaces_files(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("first")
 
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     create_snapshot(profile, name="w-update")
 
     (src / "a.py").write_text("second")
@@ -117,28 +102,25 @@ def test_watcher_update_snapshot_replaces_files(tmp_path, monkeypatch):
     assert any("b.py" in f for f in manifest["files"])
 
 
-def test_watcher_update_snapshot_uses_existing_profile(tmp_path, monkeypatch):
-    """watcher.update_snapshot uses stored profile when none given."""
-    monkeypatch.chdir(tmp_path)
+def test_watcher_update_snapshot_uses_existing_profile(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("original")
 
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     create_snapshot(profile, name="w-auto-profile")
 
     (src / "b.py").write_text("new")
 
-    update_snapshot("w-auto-profile")  # No profile arg — use stored
+    update_snapshot("w-auto-profile")
 
     manifest = load_snapshot("w-auto-profile")
     assert len(manifest["files"]) == 2
 
 
-def test_watcher_update_snapshot_legacy_profile_raises(tmp_path, monkeypatch):
-    """watcher.update_snapshot raises ValueError for legacy string profile."""
-
-    monkeypatch.chdir(tmp_path)
+def test_watcher_update_snapshot_legacy_profile_raises(tmp_path, setup_config):
+    setup_config()
     from arachna.store import _store_root, write_object
 
     store_dir = _store_root()

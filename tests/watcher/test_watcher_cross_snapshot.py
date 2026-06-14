@@ -1,7 +1,5 @@
 """Tests for cross-snapshot diff in watcher.py (v1.7.0)."""
 
-import json
-
 from arachna.watcher import (
     _build_current_files,
     _diff_file_sets,
@@ -11,29 +9,12 @@ from arachna.watcher import (
 )
 
 
-def _make_profile(directory: str, patterns=None, files=None) -> dict:
-    return {
-        "directories": [directory],
-        "patterns": patterns or ["*"],
-        "files": files or [],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
-
-
-def _setup_config(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
-    )
-
-
-def test_cross_snapshot_diff_modified(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_cross_snapshot_diff_modified(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("version 1")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "main.py").write_text("version 2")
     sid2 = create_snapshot(profile, name="v2")
@@ -44,12 +25,12 @@ def test_cross_snapshot_diff_modified(tmp_path, monkeypatch):
     assert content_diffs[0].path == "src/main.py"
 
 
-def test_cross_snapshot_diff_added(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_cross_snapshot_diff_added(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("existing")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "b.py").write_text("new file")
     sid2 = create_snapshot(profile, name="v2")
@@ -60,12 +41,12 @@ def test_cross_snapshot_diff_added(tmp_path, monkeypatch):
     assert any("b.py" in d.path for d in added)
 
 
-def test_cross_snapshot_diff_deleted(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_cross_snapshot_diff_deleted(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("will be deleted")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     (src / "a.py").unlink()
     sid2 = create_snapshot(profile, name="v2")
@@ -74,12 +55,12 @@ def test_cross_snapshot_diff_deleted(tmp_path, monkeypatch):
     assert len(content_diffs) >= 1
 
 
-def test_cross_snapshot_diff_unchanged(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_cross_snapshot_diff_unchanged(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("unchanged")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid1 = create_snapshot(profile, name="v1")
     sid2 = create_snapshot(profile, name="v2")
     diffs = compute_diff(sid1, profile, to_snapshot_id=sid2)
@@ -87,20 +68,20 @@ def test_cross_snapshot_diff_unchanged(tmp_path, monkeypatch):
     assert len(content_diffs) == 0
 
 
-def test_cross_snapshot_diff_same_snapshot(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_cross_snapshot_diff_same_snapshot(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("same")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     sid = create_snapshot(profile, name="only")
     diffs = compute_diff(sid, profile, to_snapshot_id=sid)
     content_diffs = [d for d in diffs if d.path]
     assert len(content_diffs) == 0
 
 
-def test_get_content_from_manifest(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_get_content_from_manifest(tmp_path, setup_config):
+    setup_config()
     from arachna.store import write_object
 
     obj_hash = write_object(b"hello world")
@@ -109,21 +90,21 @@ def test_get_content_from_manifest(tmp_path, monkeypatch):
     assert content == "hello world"
 
 
-def test_build_current_files(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_build_current_files(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
     (src / "utils.py").write_text("x = 1")
-    profile = _make_profile("src", ["*.py"])
+    profile = make_profile("src", ["*.py"])
     files = _build_current_files(profile, [])
     assert len(files) == 2
     assert any("main.py" in f for f in files)
     assert any("utils.py" in f for f in files)
 
 
-def test_diff_file_sets_modified(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_diff_file_sets_modified(tmp_path, setup_config):
+    setup_config()
     old_files = {"a.py": "old content"}
     new_files = {"a.py": "new content"}
     diffs = _diff_file_sets(old_files, new_files, "markdown")

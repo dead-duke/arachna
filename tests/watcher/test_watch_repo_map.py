@@ -1,6 +1,4 @@
-"""Coverage for watch.py — _apply_repo_map_to_sections, _format_repo_map_diff, compute_diff gaps."""
-
-import json
+"""Coverage for watch.py - _apply_repo_map_to_sections, _format_repo_map_diff, compute_diff gaps."""
 
 import pytest
 
@@ -15,22 +13,6 @@ from arachna.gatherer import (
     _read_file_from_store,
 )
 from arachna.watch import compute_diff, create_snapshot
-
-
-def _make_profile(directory: str, patterns=None) -> dict:
-    return {
-        "directories": [directory],
-        "patterns": patterns or ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
-
-
-def _setup_config(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
-    )
 
 
 def test_format_repo_map_diff_sig_changed():
@@ -84,13 +66,13 @@ def test_format_repo_map_added_empty():
     assert result == ""
 
 
-def test_apply_repo_map_to_sections_modified(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_apply_repo_map_to_sections_modified(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
 
-    profile = _make_profile("src")
+    profile = make_profile("src", ["*.py"])
     create_snapshot(profile=profile, name="rm-mod")
     (src / "main.py").write_text("def foo():\n    return 2\n")
 
@@ -106,13 +88,13 @@ def test_apply_repo_map_to_sections_modified(tmp_path, monkeypatch):
     assert "foo" in result[0].content
 
 
-def test_apply_repo_map_to_sections_added(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_apply_repo_map_to_sections_added(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
 
-    profile = _make_profile("src")
+    profile = make_profile("src", ["*.py"])
     create_snapshot(profile=profile, name="rm-add")
 
     sections = [
@@ -127,13 +109,13 @@ def test_apply_repo_map_to_sections_added(tmp_path, monkeypatch):
     assert "new.py" in result[0].path or "new_func" in result[0].content
 
 
-def test_apply_repo_map_to_sections_header_passthrough(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_apply_repo_map_to_sections_header_passthrough(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
 
-    profile = _make_profile("src")
+    profile = make_profile("src", ["*.py"])
     create_snapshot(profile=profile, name="rm-header")
 
     sections = [
@@ -144,13 +126,13 @@ def test_apply_repo_map_to_sections_header_passthrough(tmp_path, monkeypatch):
     assert result[0].content == "## Changes\n"
 
 
-def test_apply_repo_map_to_sections_deleted(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_apply_repo_map_to_sections_deleted(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
 
-    profile = _make_profile("src")
+    profile = make_profile("src", ["*.py"])
     create_snapshot(profile=profile, name="rm-del")
 
     sections = [
@@ -161,13 +143,13 @@ def test_apply_repo_map_to_sections_deleted(tmp_path, monkeypatch):
     assert "Removed signatures" in result[0].content or "DELETED" in result[0].content
 
 
-def test_apply_repo_map_to_sections_cannot_read(tmp_path, monkeypatch):
-    _setup_config(tmp_path, monkeypatch)
+def test_apply_repo_map_to_sections_cannot_read(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
 
-    profile = _make_profile("src")
+    profile = make_profile("src", ["*.py"])
     create_snapshot(profile=profile, name="rm-readfail")
 
     sections = [
@@ -182,11 +164,8 @@ def test_apply_repo_map_to_sections_cannot_read(tmp_path, monkeypatch):
     assert "REMOVED" in result[0].content
 
 
-def test_compute_diff_profile_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
-    )
+def test_compute_diff_profile_not_found(tmp_path, setup_config):
+    setup_config(profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_text("x")
 
@@ -194,15 +173,14 @@ def test_compute_diff_profile_not_found(tmp_path, monkeypatch):
         compute_diff(profile="nonexistent", snapshot_id="no-such")
 
 
-def test_compute_diff_snapshot_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_compute_diff_snapshot_not_found(tmp_path, setup_config, make_profile):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("x")
 
-    profile = _make_profile("src")
     with pytest.raises(SnapshotNotFoundError):
-        compute_diff(profile=profile)
+        compute_diff(profile=make_profile("src", ["*.py"]))
 
 
 def test_read_file_from_store_not_found():

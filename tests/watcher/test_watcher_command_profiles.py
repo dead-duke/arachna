@@ -1,32 +1,13 @@
-"""Tests for v1.6.3 — Watch command-based profiles support."""
+"""Tests for v1.6.3 - Watch command-based profiles support."""
+
+import json
 
 from arachna.store import load_snapshot
 from arachna.watcher import compute_diff, create_snapshot
 
 
-def _make_file_profile(directory: str, patterns=None, files=None) -> dict:
-    """Helper to create a minimal file-based profile dict."""
-    return {
-        "directories": [directory],
-        "patterns": patterns or ["*"],
-        "files": files or [],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
-
-
-def _make_command_profile(command: str) -> dict:
-    """Helper to create a command-based profile dict."""
-    return {
-        "command": command,
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-
-
-def test_create_snapshot_with_pre_commands(tmp_path, monkeypatch):
-    """create_snapshot stores pre_commands output in manifest."""
-    monkeypatch.chdir(tmp_path)
+def test_create_snapshot_with_pre_commands(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -49,9 +30,8 @@ def test_create_snapshot_with_pre_commands(tmp_path, monkeypatch):
     assert len(manifest["files"]) == 1
 
 
-def test_create_snapshot_with_command_profile(tmp_path, monkeypatch):
-    """create_snapshot handles command-based profiles."""
-    monkeypatch.chdir(tmp_path)
+def test_create_snapshot_with_command_profile(tmp_path, setup_config):
+    setup_config()
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
@@ -69,14 +49,21 @@ def test_create_snapshot_with_command_profile(tmp_path, monkeypatch):
     assert manifest.get("files", {}) == {}
 
 
-def test_compute_diff_command_changed(tmp_path, monkeypatch):
-    """compute_diff detects changes in command output."""
-    monkeypatch.chdir(tmp_path)
+def test_compute_diff_command_changed(tmp_path, setup_config):
+    setup_config()
 
-    profile = _make_command_profile("echo 'version 1'")
+    profile = {
+        "command": "echo 'version 1'",
+        "split_mode": "by_paragraph",
+        "max_tokens": 16000,
+    }
     sid = create_snapshot(profile, name="cmd-snap")
 
-    profile2 = _make_command_profile("echo 'version 2'")
+    profile2 = {
+        "command": "echo 'version 2'",
+        "split_mode": "by_paragraph",
+        "max_tokens": 16000,
+    }
     diffs = compute_diff(sid, profile2)
 
     content_diffs = [d for d in diffs if d.type == "modified" and d.path]
@@ -85,9 +72,8 @@ def test_compute_diff_command_changed(tmp_path, monkeypatch):
     assert "command output" in content_diffs[0].path
 
 
-def test_compute_diff_pre_commands_changed(tmp_path, monkeypatch):
-    """compute_diff detects changes in pre_commands output."""
-    monkeypatch.chdir(tmp_path)
+def test_compute_diff_pre_commands_changed(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -115,11 +101,14 @@ def test_compute_diff_pre_commands_changed(tmp_path, monkeypatch):
     assert pre_diffs[0].type in ("modified", "added", "deleted")
 
 
-def test_compute_diff_command_unchanged(tmp_path, monkeypatch):
-    """compute_diff produces no diff when command output is unchanged."""
-    monkeypatch.chdir(tmp_path)
+def test_compute_diff_command_unchanged(tmp_path, setup_config):
+    setup_config()
 
-    profile = _make_command_profile("echo 'stable output'")
+    profile = {
+        "command": "echo 'stable output'",
+        "split_mode": "by_paragraph",
+        "max_tokens": 16000,
+    }
     sid = create_snapshot(profile, name="stable-snap")
 
     diffs = compute_diff(sid, profile)
@@ -127,12 +116,8 @@ def test_compute_diff_command_unchanged(tmp_path, monkeypatch):
     assert len(cmd_diffs) == 0
 
 
-def test_manifest_backward_compatible(tmp_path, monkeypatch):
-    """Old manifests without pre_commands/command fields are handled gracefully."""
-    import json
-
-    monkeypatch.chdir(tmp_path)
-
+def test_manifest_backward_compatible(tmp_path, setup_config):
+    setup_config()
     from arachna.store import _store_root, write_object
 
     store_dir = _store_root()
@@ -167,9 +152,8 @@ def test_manifest_backward_compatible(tmp_path, monkeypatch):
     assert pre_diffs[0].type == "added"
 
 
-def test_create_snapshot_empty_pre_commands_skipped(tmp_path, monkeypatch):
-    """Empty pre_commands output is not stored in manifest."""
-    monkeypatch.chdir(tmp_path)
+def test_create_snapshot_empty_pre_commands_skipped(tmp_path, setup_config):
+    setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -188,9 +172,8 @@ def test_create_snapshot_empty_pre_commands_skipped(tmp_path, monkeypatch):
     assert "pre_commands" not in manifest or len(manifest["pre_commands"]) == 0
 
 
-def test_compute_diff_command_added(tmp_path, monkeypatch):
-    """compute_diff detects when a command is added to a profile that had none."""
-    monkeypatch.chdir(tmp_path)
+def test_compute_diff_command_added(tmp_path, setup_config):
+    setup_config()
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
@@ -214,11 +197,14 @@ def test_compute_diff_command_added(tmp_path, monkeypatch):
     assert cmd_diffs[0].type == "added"
 
 
-def test_compute_diff_command_removed(tmp_path, monkeypatch):
-    """compute_diff detects when a command is removed from a profile."""
-    monkeypatch.chdir(tmp_path)
+def test_compute_diff_command_removed(tmp_path, setup_config):
+    setup_config()
 
-    profile_with_cmd = _make_command_profile("echo 'old command'")
+    profile_with_cmd = {
+        "command": "echo 'old command'",
+        "split_mode": "by_paragraph",
+        "max_tokens": 16000,
+    }
     sid = create_snapshot(profile_with_cmd, name="with-cmd")
 
     profile_no_cmd = {}
