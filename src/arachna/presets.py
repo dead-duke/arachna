@@ -9,13 +9,17 @@ _SEPARATOR = "-" * 50
 DEFAULT_PRESETS_PATH = "presets.json"
 
 
-def _detect_dir(path: str) -> bool:
-    p = Path(path)
+def _detect_dir(path: str, root: Path | None = None) -> bool:
+    if root is None:
+        root = Path.cwd()
+    p = root / path
     return p.is_dir() and any(p.rglob("*.*"))
 
 
-def _detect_file(path: str) -> bool:
-    return Path(path).exists()
+def _detect_file(path: str, root: Path | None = None) -> bool:
+    if root is None:
+        root = Path.cwd()
+    return (root / path).exists()
 
 
 _VALID_PRESET_KEYS = {
@@ -223,12 +227,18 @@ def _detect_any(paths: list[str], root: Path | None = None) -> bool:
         if "*" in p or "?" in p:
             if list(root.glob(p)):
                 return True
-        elif _detect_dir(str(root / p)) or _detect_file(str(root / p)):
+        elif _detect_dir(p, root=root) or _detect_file(p, root=root):
             return True
     return False
 
 
-def preset_to_profile(name: str, external_path: str | Path | None = None) -> dict | None:
+def preset_to_profile(
+    name: str,
+    external_path: str | Path | None = None,
+    root: Path | None = None,
+) -> dict | None:
+    if root is None:
+        root = Path.cwd()
     all_presets = get_all_presets(external_path)
     preset = all_presets.get(name)
     if preset is None:
@@ -242,13 +252,13 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
         profile["tokenizer"] = tokenizer
     dirs = preset.get("dirs", [])
     if dirs:
-        profile["directories"] = [d for d in dirs if _detect_dir(d)]
+        profile["directories"] = [d for d in dirs if _detect_dir(d, root=root)]
     patterns = preset.get("patterns", [])
     if patterns:
         profile["patterns"] = patterns
     files = preset.get("files", [])
     if files:
-        profile["files"] = [f for f in files if _detect_file(f)]
+        profile["files"] = [f for f in files if _detect_file(f, root=root)]
     split_marker = preset.get("split_marker")
     if split_marker:
         profile["split_marker"] = split_marker
@@ -265,7 +275,12 @@ def preset_to_profile(name: str, external_path: str | Path | None = None) -> dic
     return profile
 
 
-def get_detected_summary(external_path: str | Path | None = None) -> dict[str, dict]:
+def get_detected_summary(
+    external_path: str | Path | None = None,
+    root: Path | None = None,
+) -> dict[str, dict]:
+    if root is None:
+        root = Path.cwd()
     all_presets = get_all_presets(external_path)
-    detected_names = detect_presets(external_path=external_path)
+    detected_names = detect_presets(external_path=external_path, root=root)
     return {name: all_presets[name] for name in detected_names if name in all_presets}
