@@ -14,6 +14,11 @@ from . import register
 from ._helpers import parse_output_dir, print_collected
 
 
+def _get_root(config: dict) -> Path | None:
+    root_str = config.get("_root")
+    return Path(root_str) if root_str else None
+
+
 @register("diff")
 def _cmd_diff(args, config: dict):
     if args.all and args.from_snapshot:
@@ -138,6 +143,7 @@ def _cmd_diff(args, config: dict):
 
 @register("diff-all")
 def _cmd_diff_all(args, config: dict):
+    root = _get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
     out_path = Path(output_dir)
@@ -171,6 +177,7 @@ def _cmd_diff_all(args, config: dict):
         query=query,
         mode=diff_mode,
         name_template=name_tmpl,
+        root=root,
     )
 
     if created:

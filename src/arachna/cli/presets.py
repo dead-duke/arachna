@@ -17,10 +17,13 @@ def _cmd_presets_update(args, config: dict):
         print(f"  Got: {url}")
         sys.exit(1)
 
-    local = load_presets_from_file("presets.json")
+    root = Path(config.get("_root", "."))
+    presets_path = root / "presets.json"
+
+    local = load_presets_from_file(presets_path)
     if local:
         print(f"Local presets.json: {len(local)} preset(s) — will be preserved.")
-    elif Path("presets.json").exists():
+    elif presets_path.exists():
         print("Warning: local presets.json exists but could not be loaded. Aborting.")
         print("  Fix or remove the file and try again.")
         sys.exit(1)
@@ -35,7 +38,7 @@ def _cmd_presets_update(args, config: dict):
     merged = merge_presets(builtin, remote, local)
 
     out = json.dumps(merged, indent=2) + "\n"
-    Path("presets.json").write_text(out)
+    presets_path.write_text(out)
     new_count = len(remote)
     local_count = len(local)
     print(

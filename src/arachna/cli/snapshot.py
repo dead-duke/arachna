@@ -2,6 +2,7 @@
 """CLI handlers for 'arachna snapshot' command."""
 
 import sys
+from pathlib import Path
 
 from ..config import get_profile
 from ..store import delete_snapshot, list_snapshots, validate_snapshot_id
@@ -10,6 +11,11 @@ from ..watcher import create_snapshot as watch_create_snapshot
 from ..watcher import update_snapshot as watch_update_snapshot
 from . import register
 from ._helpers import format_profile_section
+
+
+def _get_root(config: dict) -> Path | None:
+    root_str = config.get("_root")
+    return Path(root_str) if root_str else None
 
 
 @register("snapshot-create")
