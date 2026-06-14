@@ -84,9 +84,12 @@ _SUSPICIOUS_MODULES = frozenset(
 )
 
 
-def _is_safe_tokenizer(spec: str) -> bool:
+def _is_safe_tokenizer(spec: str, root: Path | None = None) -> bool:
     if not spec or spec == "default":
         return True
+
+    if root is None:
+        root = Path.cwd()
 
     module_name = spec.split(":", 1)[0]
     safe_tokenizers = _get_safe_tokenizers()
@@ -100,7 +103,7 @@ def _is_safe_tokenizer(spec: str) -> bool:
     if module_name in sys.stdlib_module_names:
         return False
 
-    paths_to_check = [Path.cwd()] + [Path(p) for p in sys.path if p]
+    paths_to_check = [root] + [Path(p) for p in sys.path if p]
     local_path = None
     try:
         for base in paths_to_check:

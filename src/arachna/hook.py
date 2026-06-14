@@ -9,21 +9,27 @@ from .config import load_config
 _HOOK_SCRIPT_TEMPLATE = "#!/bin/sh\n{command}\n"
 
 
-def install_hook(command: str | None = None, force: bool = False) -> tuple[bool, str]:
+def install_hook(
+    command: str | None = None,
+    force: bool = False,
+    root: Path | None = None,
+) -> tuple[bool, str]:
     """Install post-commit hook to run arachna after each commit.
 
     Args:
         command: Shell command to run in the hook. If None, reads from
                  .arachna.json hook.post-commit, falls back to "arachna --all".
         force: Overwrite existing hook without confirmation prompt.
+        root: Project root directory (default: cwd).
 
     Returns:
         (success, message) tuple.
     """
-    cwd = Path.cwd()
+    if root is None:
+        root = Path.cwd()
 
     # Check this is a git repository
-    git_dir = cwd / ".git"
+    git_dir = root / ".git"
     if not git_dir.is_dir():
         return False, "Not a git repository (.git directory not found)"
 
@@ -34,7 +40,7 @@ def install_hook(command: str | None = None, force: bool = False) -> tuple[bool,
     # Resolve command
     if command is None:
         try:
-            config = load_config()
+            config = load_config(root=root)
             hook_config = config.get("hook", {})
             command = hook_config.get("post-commit", "arachna --all")
         except Exception:

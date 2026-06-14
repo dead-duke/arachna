@@ -26,11 +26,12 @@ def _ask_yes(prompt: str, default: bool = True) -> bool:
     return answer in ("y", "yes")
 
 
-def run_defaults(output_dir: str = ".", preset: str | None = None):
-    cwd = Path.cwd()
-    project_name = cwd.resolve().name
+def run_defaults(output_dir: str = ".", preset: str | None = None, root: Path | None = None):
+    if root is None:
+        root = Path.cwd()
+    project_name = root.resolve().name
     config = {"project_name": project_name, "output_dir": output_dir, "profiles": {}}
-    detected = detect_presets(preset_name=preset)
+    detected = detect_presets(preset_name=preset, root=root)
     if not detected:
         print("Warning: no presets detected for this project.")
         print("  You can create a custom preset in presets.json.")
@@ -39,29 +40,30 @@ def run_defaults(output_dir: str = ".", preset: str | None = None):
         profile = preset_to_profile(name)
         if profile:
             config["profiles"][name] = profile
-    _write_config(cwd, config, output_dir)
+    _write_config(root, config, output_dir)
     if detected:
         print(f"Profiles: {', '.join(config['profiles'].keys())}")
 
 
-def run_interactive(output_dir: str = ".", preset: str | None = None):
-    cwd = Path.cwd()
+def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path | None = None):
+    if root is None:
+        root = Path.cwd()
     from .config import find_config
 
-    existing = find_config()
+    existing = find_config(root=root)
     if existing:
         print(f"Found existing config: {existing}")
         if not _ask_yes("Overwrite?", default=False):
             print("Aborted.")
             return
-    project_name = _ask("Project name", cwd.resolve().name)
+    project_name = _ask("Project name", root.resolve().name)
     output_dir = _ask("Output directory", output_dir)
     max_tokens = int(_ask("Default max tokens", "16000"))
     print()
     print(_SEPARATOR)
     print("Detected:")
     print(_SEPARATOR)
-    detected = detect_presets(preset_name=preset)
+    detected = detect_presets(preset_name=preset, root=root)
     profiles = {}
     for name in detected:
         profile = preset_to_profile(name)
@@ -84,14 +86,14 @@ def run_interactive(output_dir: str = ".", preset: str | None = None):
     print(json.dumps(config, indent=2))
     print(_SEPARATOR)
     if _ask_yes("Create this config?", default=True):
-        _write_config(cwd, config, output_dir)
+        _write_config(root, config, output_dir)
 
 
-def _write_config(cwd: Path, config: dict, output_dir: str):
-    cfg_path = cwd / ".arachna.json"
+def _write_config(root: Path, config: dict, output_dir: str):
+    cfg_path = root / ".arachna.json"
     cfg_path.write_text(json.dumps(config, indent=2) + "\n")
     print(f"Created {cfg_path}")
-    out_path = cwd / output_dir
+    out_path = root / output_dir
     out_path.mkdir(parents=True, exist_ok=True)
     print(f"Created {out_path}/")
     print("Done. Run 'arachna --all' to collect context.")

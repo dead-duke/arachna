@@ -185,8 +185,12 @@ def merge_presets(builtin: dict, remote: dict, local: dict) -> dict:
 
 
 def detect_presets(
-    preset_name: str | None = None, external_path: str | Path | None = None
+    preset_name: str | None = None,
+    external_path: str | Path | None = None,
+    root: Path | None = None,
 ) -> list[str]:
+    if root is None:
+        root = Path.cwd()
     all_presets = get_all_presets(external_path)
     if preset_name:
         if preset_name not in all_presets:
@@ -196,7 +200,7 @@ def detect_presets(
         detect_paths = preset.get("detect", [])
         if not detect_paths:
             return [preset_name]
-        if not _detect_any(detect_paths):
+        if not _detect_any(detect_paths, root=root):
             print(
                 f"Warning: preset '{preset_name}' doesn't match this project (none of {detect_paths} found)"
             )
@@ -207,18 +211,19 @@ def detect_presets(
         detect_paths = preset.get("detect", [])
         if not detect_paths:
             continue
-        if _detect_any(detect_paths):
+        if _detect_any(detect_paths, root=root):
             detected.append(name)
     return detected
 
 
-def _detect_any(paths: list[str]) -> bool:
-    cwd = Path.cwd()
+def _detect_any(paths: list[str], root: Path | None = None) -> bool:
+    if root is None:
+        root = Path.cwd()
     for p in paths:
         if "*" in p or "?" in p:
-            if list(cwd.glob(p)):
+            if list(root.glob(p)):
                 return True
-        elif _detect_dir(p) or _detect_file(p):
+        elif _detect_dir(str(root / p)) or _detect_file(str(root / p)):
             return True
     return False
 

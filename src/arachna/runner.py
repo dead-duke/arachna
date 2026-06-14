@@ -194,10 +194,11 @@ def _is_safe_command(cmd: str, allow_file_args: bool = False) -> bool:
     return base in allowlist
 
 
-def _get_audit_log_path() -> Path | None:
+def _get_audit_log_path(root: Path | None = None) -> Path | None:
     try:
-        cwd = Path.cwd()
-        for i, parent in enumerate([cwd, *cwd.parents]):
+        if root is None:
+            root = Path.cwd()
+        for i, parent in enumerate([root, *root.parents]):
             if i > 5:
                 break
             cfg = parent / ".arachna.json"
@@ -208,7 +209,7 @@ def _get_audit_log_path() -> Path | None:
                     return parent / out_dir / ".arachna_commands.log"
                 except (json.JSONDecodeError, OSError):
                     pass
-        return cwd / "arachna_context" / ".arachna_commands.log"
+        return root / "arachna_context" / ".arachna_commands.log"
     except Exception:
         return None
 
@@ -228,8 +229,8 @@ def _write_log(log_path: Path, entry: str):
         pass
 
 
-def _log_command(cmd: str, success: bool):
-    log_path = _get_audit_log_path()
+def _log_command(cmd: str, success: bool, root: Path | None = None):
+    log_path = _get_audit_log_path(root=root)
     if log_path is None:
         return
     from datetime import datetime
@@ -282,6 +283,7 @@ def run_command(
     dry_run: bool = False,
     allow_file_args: bool = False,
     max_output_size: int | None = None,
+    root: Path | None = None,
 ) -> str:
     if not cmd.strip():
         return ""
@@ -299,10 +301,10 @@ def run_command(
             print(f"   Reason: {reason}")
             response = input("   Execute anyway? [y/N]: ").strip().lower()
             if response not in ("y", "yes"):
-                _log_command(cmd, False)
+                _log_command(cmd, False, root=root)
                 return ""
         else:
-            _log_command(cmd, False)
+            _log_command(cmd, False, root=root)
             return ""
 
     if dry_run:
@@ -315,17 +317,17 @@ def run_command(
                 print(f"   {cmd}")
                 response = input("   Execute anyway? [y/N]: ").strip().lower()
                 if response not in ("y", "yes"):
-                    _log_command(cmd, False)
+                    _log_command(cmd, False, root=root)
                     return ""
             else:
-                _log_command(cmd, False)
+                _log_command(cmd, False, root=root)
                 return ""
 
     needs_shell = any(c in cmd for c in _SHELL_CHARS)
     output, was_truncated = _run_popen(cmd, needs_shell, max_output_size)
     if was_truncated:
         logger.warning("Command output truncated: %s", cmd[:80])
-    _log_command(cmd, True)
+    _log_command(cmd, True, root=root)
     return output
 
 
