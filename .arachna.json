@@ -41,6 +41,7 @@
         ".arachna.json",
         ".gitignore",
         "pyproject.toml",
+        "TODO.md",
         "Makefile",
         "requirements-dev.txt",
         ".pre-commit-config.yaml"
