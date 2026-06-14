@@ -27,8 +27,9 @@ def test_load_custom_module():
         finally:
             sys.path.pop(0)
             importlib.invalidate_caches()
-            if "my_tok" in sys.modules:
-                del sys.modules["my_tok"]
+            for mod_name in list(sys.modules.keys()):
+                if mod_name.startswith("my_tok"):
+                    del sys.modules[mod_name]
 
 
 def test_load_custom_module_with_function():
@@ -42,5 +43,6 @@ def test_load_custom_module_with_function():
         finally:
             sys.path.pop(0)
             importlib.invalidate_caches()
-            if "my_tok2" in sys.modules:
-                del sys.modules["my_tok2"]
+            for mod_name in list(sys.modules.keys()):
+                if mod_name.startswith("my_tok2"):
+                    del sys.modules[mod_name]

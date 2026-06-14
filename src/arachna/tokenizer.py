@@ -91,6 +91,7 @@ def _is_safe_tokenizer(spec: str, root: Path | None = None) -> bool:
     if root is None:
         root = Path.cwd()
 
+    # Extract module name — strip function name after :
     module_name = spec.split(":", 1)[0]
     safe_tokenizers = _get_safe_tokenizers()
 
@@ -244,6 +245,31 @@ def _load_transformers(spec: str) -> Callable[[str], int]:
     return _count
 
 
+def _find_module_path(module_name: str, root: Path | None = None) -> Path | None:
+    """Find a .py file or package for the given module name."""
+    if root is None:
+        root = Path.cwd()
+    paths_to_check = [root] + [Path(p) for p in sys.path if p]
+    for base in paths_to_check:
+        candidate = base / f"{module_name}.py"
+        if candidate.is_file():
+            return candidate
+        candidate_pkg = base / module_name
+        if candidate_pkg.is_dir() and (candidate_pkg / "__init__.py").is_file():
+            return candidate_pkg / "__init__.py"
+    return None
+
+
+def _import_local_module(module_name: str, filepath: Path) -> object:
+    """Import a module from a specific file path, bypassing sys.modules cache."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(module_name, str(filepath))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def count_tokens(text: str, chars_per_token: int | None = None) -> int:
     if chars_per_token is None:
         chars_per_token = _get_default_chars_per_token()
@@ -252,12 +278,16 @@ def count_tokens(text: str, chars_per_token: int | None = None) -> int:
     return max(1, len(text) // chars_per_token)
 
 
-def load_tokenizer(spec: str, chars_per_token: int | None = None) -> Callable[[str], int]:
+def load_tokenizer(
+    spec: str,
+    chars_per_token: int | None = None,
+    root: Path | None = None,
+) -> Callable[[str], int]:
     if not spec or spec == "default":
         cpt = chars_per_token if chars_per_token is not None else _get_default_chars_per_token()
         return lambda text: count_tokens(text, chars_per_token=cpt)
 
-    if not _is_safe_tokenizer(spec):
+    if not _is_safe_tokenizer(spec, root=root):
         safe_tokenizers = _get_safe_tokenizers()
         raise ValueError(
             f"Unsafe tokenizer: '{spec}'. "
@@ -281,5 +311,12 @@ def load_tokenizer(spec: str, chars_per_token: int | None = None) -> Callable[[s
         module_name = spec
         func_name = "count_tokens"
 
+    # Try local file first (bypasses sys.modules cache for test isolation)
+    filepath = _find_module_path(module_name, root=root)
+    if filepath is not None:
+        mod = _import_local_module(module_name, filepath)
+        return getattr(mod, func_name)
+
+    # Fall back to regular import
     mod = importlib.import_module(module_name)
     return getattr(mod, func_name)
