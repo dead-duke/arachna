@@ -63,9 +63,11 @@ def _read_profile_files(profile: dict) -> dict[str, str]:
     return result
 
 
-def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
-    exclude = _get_exclude_patterns(profile)
-    filepaths = _scan_directories(profile, exclude)
+def _collect_snapshot_content(profile: dict, root: Path | None = None) -> tuple[dict, dict, dict]:
+    if root is None:
+        root = Path.cwd()
+    exclude = _get_exclude_patterns(profile, root=root)
+    filepaths = _scan_directories(profile, exclude, root=root)
     files = {}
     for fp in filepaths:
         try:
@@ -96,20 +98,25 @@ def _collect_snapshot_content(profile: dict) -> tuple[dict, dict, dict]:
     return files, pre_commands_data, command_data
 
 
-def create_snapshot(profile: dict, name: str) -> str:
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile)
+def create_snapshot(profile: dict, name: str, root: Path | None = None) -> str:
+    if root is None:
+        root = Path.cwd()
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile, root=root)
     return store_create_snapshot(
         files,
         profile_dict=profile,
         name=name,
         pre_commands=pre_commands_data if pre_commands_data else None,
         command=command_data if command_data else None,
+        root=root,
     )
 
 
-def update_snapshot(snapshot_id: str, profile: dict | None = None) -> str:
+def update_snapshot(snapshot_id: str, profile: dict | None = None, root: Path | None = None) -> str:
+    if root is None:
+        root = Path.cwd()
     if profile is None:
-        manifest = load_snapshot(snapshot_id)
+        manifest = load_snapshot(snapshot_id, root=root)
         stored = manifest.get("profile", {})
         if isinstance(stored, dict):
             profile = stored
@@ -117,13 +124,14 @@ def update_snapshot(snapshot_id: str, profile: dict | None = None) -> str:
             raise ValueError(
                 f"Snapshot '{snapshot_id}' has legacy format. Provide profile explicitly."
             )
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile)
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile, root=root)
     return store_update_snapshot(
         snapshot_id,
         files,
         profile_dict=profile,
         pre_commands=pre_commands_data if pre_commands_data else None,
         command=command_data if command_data else None,
+        root=root,
     )
 
 
