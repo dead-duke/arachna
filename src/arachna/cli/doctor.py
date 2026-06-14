@@ -9,6 +9,6 @@ from . import register
 
 @register("doctor")
 def _cmd_doctor(args, config: dict):
-    report = run_doctor()
+    report = run_doctor(config=config)
     print_doctor(report)
     sys.exit(1 if report["total_errors"] > 0 else 0)

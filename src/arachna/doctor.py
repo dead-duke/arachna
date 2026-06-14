@@ -8,8 +8,12 @@ from .gitignore import load_gitignore_patterns
 from .validator import validate_profile
 
 
-def run_doctor(project_root: Path | None = None) -> dict:
+def run_doctor(project_root: Path | None = None, config: dict | None = None) -> dict:
     """Run diagnostic checks on the project configuration.
+
+    Args:
+        project_root: Project root directory for gitignore checks.
+        config: Pre-loaded config dict. If None, loads from project_root or cwd.
 
     Returns dict with:
         profiles: dict of profile_name -> {errors, warnings}
@@ -26,11 +30,12 @@ def run_doctor(project_root: Path | None = None) -> dict:
         "total_warnings": 0,
     }
 
-    config = load_config()
+    if config is None:
+        config = load_config(root=project_root)
+
     profiles = config.get("profiles", {})
 
     if not profiles:
-        # Use default profile
         profiles = {"default": {"max_tokens": 32000, "split_mode": "by_file", "directories": ["."]}}
 
     for name, profile in profiles.items():
