@@ -35,7 +35,7 @@ def _cmd_collect_profile(args, config: dict):
 
     print(f"[{args.profile}] Collecting...")
     try:
-        profile = get_profile(args.profile)
+        profile = get_profile(args.profile, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -96,7 +96,7 @@ def _cmd_collect_all(args, config: dict):
     for name in list_profiles(config):
         print(f"[{name}] Collecting...")
         try:
-            profile = get_profile(name)
+            profile = get_profile(name, config=config)
         except KeyError:
             continue
         profile = apply_args_to_profile(profile, args)
@@ -153,7 +153,7 @@ def _cmd_collect_all(args, config: dict):
 def _cmd_collect_list(args, config: dict):
     for name in list_profiles(config):
         try:
-            prof = get_profile(name)
+            prof = get_profile(name, config=config)
         except KeyError:
             print(f"  Warning: profile '{name}' not found, skipping")
             continue
@@ -170,12 +170,12 @@ def _cmd_collect_list(args, config: dict):
 def _cmd_collect_validate(args, config: dict):
     profiles = config.get("profiles", {})
     if not profiles:
-        profiles = {"default": get_profile("default")}
+        profiles = {"default": get_profile("default", config=config)}
     else:
         valid_profiles = {}
         for name in profiles:
             try:
-                valid_profiles[name] = get_profile(name)
+                valid_profiles[name] = get_profile(name, config=config)
             except KeyError as e:
                 print(f"  Warning: profile '{name}': {e}")
         profiles = valid_profiles

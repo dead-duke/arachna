@@ -25,7 +25,7 @@ def _cmd_snapshot_create(args, config: dict):
 
     profile_name = args.profile or "full"
     try:
-        profile = get_profile(profile_name)
+        profile = get_profile(profile_name, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -63,7 +63,7 @@ def _cmd_snapshot_update(args, config: dict):
     profile = None
     if args.profile:
         try:
-            profile = get_profile(args.profile)
+            profile = get_profile(args.profile, config=config)
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)

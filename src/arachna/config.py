@@ -89,8 +89,11 @@ def _merge_profiles(base: dict, child: dict) -> dict:
     return merged
 
 
-def get_profile(name: str) -> dict[str, Any]:
-    config = load_config()
+def get_profile(name: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Get profile by name from config. Falls back to load_config() if config is empty."""
+    if config is None or not config.get("profiles"):
+        config = load_config()
+    project_name = config.get("project_name", "Project")
     profiles = config.get("profiles", {})
     if not profiles:
         return _default_profile()
@@ -98,9 +101,7 @@ def get_profile(name: str) -> dict[str, Any]:
         raise KeyError(f"Profile '{name}' not found. Available: {list(profiles.keys())}")
     profile = _resolve_profile(name, profiles)
     profile.setdefault("name_template", f"chat-{name}")
-    profile.setdefault(
-        "title_template", f"# {config['project_name']} — {name.upper()} (part {{part}})\n\n"
-    )
+    profile.setdefault("title_template", f"# {project_name} — {name.upper()} (part {{part}})\n\n")
     profile.setdefault("max_tokens", 16000)
     profile.setdefault("split_mode", "by_file")
     profile.setdefault("directories", [])

@@ -13,7 +13,7 @@ from ._helpers import parse_output_dir
 def _cmd_benchmark(args, config: dict):
     profile_name = args.profile or "full"
     try:
-        profile = get_profile(profile_name)
+        profile = get_profile(profile_name, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
