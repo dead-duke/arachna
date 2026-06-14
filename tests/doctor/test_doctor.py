@@ -3,11 +3,10 @@ from argparse import Namespace
 from unittest.mock import patch
 
 from arachna.cli.doctor import _cmd_doctor
+from arachna.doctor import print_doctor, run_doctor
 
 
-def test_valid_config(tmp_path, monkeypatch):
-    """Doctor reports no errors for a valid config."""
-    monkeypatch.chdir(tmp_path)
+def test_valid_config(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
@@ -18,16 +17,13 @@ def test_valid_config(tmp_path, monkeypatch):
             }
         )
     )
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
     assert report["total_errors"] == 0
     assert "code" in report["profiles"]
 
 
-def test_invalid_split_mode(tmp_path, monkeypatch):
-    """Doctor reports error for invalid split_mode."""
-    monkeypatch.chdir(tmp_path)
+def test_invalid_split_mode(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -41,16 +37,13 @@ def test_invalid_split_mode(tmp_path, monkeypatch):
             }
         )
     )
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
     assert report["total_errors"] >= 1
     assert any("split_mode" in e for e in report["profiles"]["bad"]["errors"])
 
 
-def test_missing_directory(tmp_path, monkeypatch):
-    """Doctor warns about non-existent directories."""
-    monkeypatch.chdir(tmp_path)
+def test_missing_directory(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -63,16 +56,13 @@ def test_missing_directory(tmp_path, monkeypatch):
             }
         )
     )
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
     assert report["total_warnings"] >= 1
     assert any("nonexistent_dir" in w for w in report["profiles"]["code"]["warnings"])
 
 
-def test_missing_file(tmp_path, monkeypatch):
-    """Doctor warns about non-existent files."""
-    monkeypatch.chdir(tmp_path)
+def test_missing_file(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -85,38 +75,28 @@ def test_missing_file(tmp_path, monkeypatch):
             }
         )
     )
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
     assert report["total_warnings"] >= 1
     assert any("nonexistent.txt" in w for w in report["profiles"]["code"]["warnings"])
 
 
-def test_no_config(tmp_path, monkeypatch):
-    """Doctor works without .arachna.json (uses default profile)."""
-    monkeypatch.chdir(tmp_path)
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+def test_no_config(tmp_path):
+    report = run_doctor(project_root=tmp_path)
     assert "default" in report["profiles"]
 
 
-def test_zero_max_tokens(tmp_path, monkeypatch):
-    """Doctor reports error for zero max_tokens."""
-    monkeypatch.chdir(tmp_path)
+def test_zero_max_tokens(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"bad": {"max_tokens": 0, "command": "echo hi"}}})
     )
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
     assert report["total_errors"] >= 1
     assert any("max_tokens" in e for e in report["profiles"]["bad"]["errors"])
 
 
-def test_by_marker_no_marker(tmp_path, monkeypatch):
-    """Doctor reports error for by_marker without split_marker."""
-    monkeypatch.chdir(tmp_path)
+def test_by_marker_no_marker(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -130,28 +110,21 @@ def test_by_marker_no_marker(tmp_path, monkeypatch):
             }
         )
     )
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
     assert report["total_errors"] >= 1
     assert any("split_marker" in e for e in report["profiles"]["bad"]["errors"])
 
 
-def test_no_content_source(tmp_path, monkeypatch):
-    """Doctor reports error when no content source is specified."""
-    monkeypatch.chdir(tmp_path)
+def test_no_content_source(tmp_path):
     (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {"bad": {"max_tokens": 100}}}))
-    from arachna.doctor import run_doctor
-
-    report = run_doctor()
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
     assert report["total_errors"] >= 1
     assert any("No content source" in e for e in report["profiles"]["bad"]["errors"])
 
 
 def test_print_doctor_output():
-    """print_doctor prints without raising."""
-    from arachna.doctor import print_doctor
-
     report = {
         "profiles": {"test": {"errors": [], "warnings": []}},
         "gitignore": [],
@@ -162,9 +135,6 @@ def test_print_doctor_output():
 
 
 def test_print_doctor_with_errors():
-    """print_doctor handles errors in output."""
-    from arachna.doctor import print_doctor
-
     report = {
         "profiles": {
             "bad": {
@@ -179,32 +149,30 @@ def test_print_doctor_with_errors():
     print_doctor(report)
 
 
-def test_cmd_doctor_valid(tmp_path, monkeypatch):
-    """_cmd_doctor exits 0 for valid config."""
-    monkeypatch.chdir(tmp_path)
+def test_cmd_doctor_valid(tmp_path):
     (tmp_path / "src").mkdir()
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "profiles": {
-                    "code": {"directories": ["src"], "max_tokens": 16000, "split_mode": "by_file"}
-                }
-            }
-        )
-    )
-
+    config = {
+        "project_name": "test",
+        "output_dir": str(tmp_path / "out"),
+        "_root": str(tmp_path),
+        "profiles": {
+            "code": {"directories": ["src"], "max_tokens": 16000, "split_mode": "by_file"}
+        },
+    }
+    (tmp_path / ".arachna.json").write_text(json.dumps(config))
     with patch("sys.exit") as mock_exit:
-        _cmd_doctor(Namespace(), {})
+        _cmd_doctor(Namespace(), config)
         mock_exit.assert_called_with(0)
 
 
-def test_cmd_doctor_invalid(tmp_path, monkeypatch):
-    """_cmd_doctor exits 1 for invalid config."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"bad": {"max_tokens": 0, "command": "echo hi"}}})
-    )
-
+def test_cmd_doctor_invalid(tmp_path):
+    config = {
+        "project_name": "test",
+        "output_dir": str(tmp_path / "out"),
+        "_root": str(tmp_path),
+        "profiles": {"bad": {"max_tokens": 0, "command": "echo hi"}},
+    }
+    (tmp_path / ".arachna.json").write_text(json.dumps(config))
     with patch("sys.exit") as mock_exit:
-        _cmd_doctor(Namespace(), json.loads((tmp_path / ".arachna.json").read_text()))
+        _cmd_doctor(Namespace(), config)
         mock_exit.assert_called_with(1)

@@ -16,7 +16,6 @@ from arachna.presets import (
 
 
 def test_load_builtin_presets_has_all():
-    """Built-in presets loaded from JSON files contain all expected presets."""
     presets = _load_builtin_presets()
     assert "python" in presets
     assert "javascript" in presets
@@ -38,14 +37,12 @@ def test_load_builtin_presets_has_all():
 
 
 def test_load_builtin_presets_no_service_field():
-    """Service field removed in v1.5.1 — presets are JSON-only now, no metadata."""
     presets = _load_builtin_presets()
     for name, preset in presets.items():
-        assert "service" not in preset, f"Preset '{name}' has 'service' field — should be removed"
+        assert "service" not in preset, f"Preset '{name}' has 'service' field - should be removed"
 
 
 def test_load_builtin_presets_git_command():
-    """Git preset has pre_commands with git log command."""
     presets = _load_builtin_presets()
     assert len(presets["git"]["pre_commands"]) == 1
     assert "git log" in presets["git"]["pre_commands"][0]
@@ -87,157 +84,138 @@ def test_detect_file_not_found(tmp_path):
 # ── _detect_any ─────────────────────────────────────────────────────
 
 
-def test_detect_any_dir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_any_dir(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
-    assert _detect_any(["src"])
+    assert _detect_any(["src"], root=tmp_path)
 
 
-def test_detect_any_file(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_any_file(tmp_path):
     (tmp_path / "README.md").write_text("x")
-    assert _detect_any(["README.md"])
+    assert _detect_any(["README.md"], root=tmp_path)
 
 
-def test_detect_any_glob(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_any_glob(tmp_path):
     (tmp_path / "test.csproj").write_text("x")
-    assert _detect_any(["*.csproj"])
+    assert _detect_any(["*.csproj"], root=tmp_path)
 
 
-def test_detect_any_none(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    assert not _detect_any(["nonexistent_dir", "missing.txt"])
+def test_detect_any_none(tmp_path):
+    assert not _detect_any(["nonexistent_dir", "missing.txt"], root=tmp_path)
 
 
 # ── detect_presets ──────────────────────────────────────────────────
 
 
-def test_detect_python(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_python(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "python" in detected
     assert "git" in detected
 
 
-def test_detect_javascript(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_javascript(tmp_path):
     (tmp_path / "package.json").write_text("{}")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "javascript" in detected
 
 
-def test_detect_godot(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_godot(tmp_path):
     (tmp_path / "project.godot").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "godot" in detected
 
 
-def test_detect_unity(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_unity(tmp_path):
     (tmp_path / "Assets").mkdir()
     (tmp_path / "Assets" / "script.cs").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "unity" in detected
 
 
-def test_detect_c_cpp(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_c_cpp(tmp_path):
     (tmp_path / "CMakeLists.txt").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "c_cpp" in detected
 
 
-def test_detect_csharp_glob(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_csharp_glob(tmp_path):
     (tmp_path / "MyProject.csproj").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "csharp" in detected
 
 
-def test_detect_swift(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_swift(tmp_path):
     (tmp_path / "Package.swift").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "swift" in detected
 
 
-def test_detect_kotlin_java(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_kotlin_java(tmp_path):
     (tmp_path / "build.gradle").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "kotlin_java" in detected
 
 
-def test_detect_ruby(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_ruby(tmp_path):
     (tmp_path / "Gemfile").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "ruby" in detected
 
 
-def test_detect_php(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_php(tmp_path):
     (tmp_path / "composer.json").write_text("{}")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "php" in detected
 
 
-def test_detect_docker(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_docker(tmp_path):
     (tmp_path / "Dockerfile").write_text("FROM python")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "docker" in detected
 
 
-def test_detect_terraform_glob(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_terraform_glob(tmp_path):
     (tmp_path / "main.tf").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "terraform" in detected
 
 
-def test_detect_tests(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_tests(tmp_path):
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_x.py").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "tests" in detected
 
 
-def test_detect_docs(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_docs(tmp_path):
     (tmp_path / "README.md").write_text("x")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "docs" in detected
 
 
-def test_detect_multiple(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_multiple(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
     (tmp_path / "package.json").write_text("{}")
     (tmp_path / "Dockerfile").write_text("FROM python")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "python" in detected
     assert "javascript" in detected
     assert "docker" in detected
@@ -246,78 +224,63 @@ def test_detect_multiple(tmp_path, monkeypatch):
 # ── detect_presets with explicit preset_name ────────────────────────
 
 
-def test_detect_presets_explicit_valid(tmp_path, monkeypatch):
-    """Explicit preset with matching detect-paths returns the preset."""
-    monkeypatch.chdir(tmp_path)
+def test_detect_presets_explicit_valid(tmp_path):
     (tmp_path / "project.godot").write_text("x")
-    detected = detect_presets(preset_name="godot")
+    detected = detect_presets(preset_name="godot", root=tmp_path)
     assert detected == ["godot"]
 
 
-def test_detect_presets_explicit_no_match(tmp_path, monkeypatch):
-    """Explicit preset without matching detect-paths returns empty list."""
-    monkeypatch.chdir(tmp_path)
-    detected = detect_presets(preset_name="godot")
+def test_detect_presets_explicit_no_match(tmp_path):
+    detected = detect_presets(preset_name="godot", root=tmp_path)
     assert detected == []
 
 
-def test_detect_presets_explicit_unknown(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    detected = detect_presets(preset_name="nonexistent")
+def test_detect_presets_explicit_unknown(tmp_path):
+    detected = detect_presets(preset_name="nonexistent", root=tmp_path)
     assert detected == []
 
 
-def test_detect_presets_explicit_service_no_match(tmp_path, monkeypatch):
-    """Service presets with explicit name validate detect-paths."""
-    monkeypatch.chdir(tmp_path)
-    detected = detect_presets(preset_name="git")
+def test_detect_presets_explicit_service_no_match(tmp_path):
+    detected = detect_presets(preset_name="git", root=tmp_path)
     assert detected == []
 
 
-def test_detect_presets_explicit_service_with_match(tmp_path, monkeypatch):
-    """Service presets with explicit name return preset when detect-path matches."""
-    monkeypatch.chdir(tmp_path)
+def test_detect_presets_explicit_service_with_match(tmp_path):
     (tmp_path / ".git").mkdir()
-    detected = detect_presets(preset_name="git")
+    detected = detect_presets(preset_name="git", root=tmp_path)
     assert detected == ["git"]
 
 
-def test_detect_presets_explicit_override(tmp_path, monkeypatch):
-    """Explicit preset with matching files skips auto-detection entirely."""
-    monkeypatch.chdir(tmp_path)
+def test_detect_presets_explicit_override(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
     (tmp_path / "Dockerfile").write_text("FROM python")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets(preset_name="docker")
+    detected = detect_presets(preset_name="docker", root=tmp_path)
     assert detected == ["docker"]
 
 
-def test_detect_presets_explicit_config_no_detect_paths(tmp_path, monkeypatch):
-    """Config preset has empty detect list — always allowed."""
-    monkeypatch.chdir(tmp_path)
-    detected = detect_presets(preset_name="config")
+def test_detect_presets_explicit_config_no_detect_paths(tmp_path):
+    detected = detect_presets(preset_name="config", root=tmp_path)
     assert detected == ["config"]
 
 
 # ── preset_to_profile ───────────────────────────────────────────────
 
 
-def test_preset_to_profile_python(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_preset_to_profile_python(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
-    profile = preset_to_profile("python")
+    profile = preset_to_profile("python", root=tmp_path)
     assert profile is not None
     assert profile["split_mode"] == "by_file"
     assert "src" in profile["directories"]
     assert "*.py" in profile["patterns"]
 
 
-def test_preset_to_profile_git(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_preset_to_profile_git(tmp_path):
     (tmp_path / ".git").mkdir()
-    profile = preset_to_profile("git")
+    profile = preset_to_profile("git", root=tmp_path)
     assert profile is not None
     assert profile["split_mode"] == "by_marker"
     assert "command" in profile
@@ -328,19 +291,17 @@ def test_preset_to_profile_unknown():
     assert preset_to_profile("nonexistent") is None
 
 
-def test_preset_to_profile_docker(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_preset_to_profile_docker(tmp_path):
     (tmp_path / "Dockerfile").write_text("FROM python")
     (tmp_path / "docker-compose.yml").write_text("x")
-    profile = preset_to_profile("docker")
+    profile = preset_to_profile("docker", root=tmp_path)
     assert profile is not None
     assert "Dockerfile" in profile["files"]
     assert "docker-compose.yml" in profile["files"]
 
 
-def test_preset_to_profile_filters_missing(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    profile = preset_to_profile("docs")
+def test_preset_to_profile_filters_missing(tmp_path):
+    profile = preset_to_profile("docs", root=tmp_path)
     assert profile is not None
     for f in profile.get("files", []):
         assert Path(f).exists()
@@ -436,7 +397,6 @@ def test_load_presets_non_list_fields_converted(tmp_path):
 
 
 def test_load_presets_unsafe_tokenizer_rejected(tmp_path):
-    """External preset with unsafe tokenizer gets reset to 'default'."""
     f = tmp_path / "presets.json"
     f.write_text(
         json.dumps(
@@ -457,7 +417,6 @@ def test_load_presets_unsafe_tokenizer_rejected(tmp_path):
 
 
 def test_load_presets_safe_tokenizer_allowed(tmp_path):
-    """External preset with tiktoken tokenizer is allowed."""
     f = tmp_path / "presets.json"
     f.write_text(
         json.dumps(
@@ -478,7 +437,6 @@ def test_load_presets_safe_tokenizer_allowed(tmp_path):
 
 
 def test_load_presets_default_tokenizer_unchanged(tmp_path):
-    """Default tokenizer passes validation unchanged."""
     f = tmp_path / "presets.json"
     f.write_text(
         json.dumps(
@@ -498,7 +456,6 @@ def test_load_presets_default_tokenizer_unchanged(tmp_path):
 
 
 def test_load_presets_utf16_encoded(tmp_path):
-    """UTF-16 encoded presets.json should not crash (LOW-20)."""
     f = tmp_path / "presets.json"
     content = json.dumps(
         {
@@ -552,7 +509,6 @@ def test_get_all_presets_merged(tmp_path):
 
 
 def test_get_all_presets_default_path():
-    """get_all_presets with no args uses DEFAULT_PRESETS_PATH."""
     all_presets = get_all_presets()
     assert "python" in all_presets
 
@@ -560,8 +516,7 @@ def test_get_all_presets_default_path():
 # ── detect_presets with external ────────────────────────────────────
 
 
-def test_detect_presets_with_external_custom(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_detect_presets_with_external_custom(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / "game").mkdir()
     (tmp_path / "game" / "main.lua").write_text("x")
@@ -580,13 +535,12 @@ def test_detect_presets_with_external_custom(tmp_path, monkeypatch):
             }
         )
     )
-    detected = detect_presets(external_path=f)
+    detected = detect_presets(root=tmp_path, external_path=f)
     assert "my_game" in detected
     assert "git" in detected
 
 
-def test_preset_to_profile_external(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_preset_to_profile_external(tmp_path):
     (tmp_path / "game").mkdir()
     (tmp_path / "game" / "main.lua").write_text("x")
 
@@ -603,7 +557,7 @@ def test_preset_to_profile_external(tmp_path, monkeypatch):
             }
         )
     )
-    profile = preset_to_profile("my_game", external_path=f)
+    profile = preset_to_profile("my_game", external_path=f, root=tmp_path)
     assert profile is not None
     assert profile["split_mode"] == "by_file"
     assert "game" in profile["directories"]
@@ -613,27 +567,23 @@ def test_preset_to_profile_external(tmp_path, monkeypatch):
 # ── Unreal Engine ───────────────────────────────────────────────────
 
 
-def test_detect_unreal(tmp_path, monkeypatch):
-    """Unreal Engine preset detected when .uproject file exists."""
-    monkeypatch.chdir(tmp_path)
+def test_detect_unreal(tmp_path):
     (tmp_path / "MyProject.uproject").write_text("{}")
     (tmp_path / "Source").mkdir()
     (tmp_path / "Source" / "MyClass.cpp").write_text("// C++")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "unreal" in detected
 
 
-def test_preset_to_profile_unreal(tmp_path, monkeypatch):
-    """Unreal preset converts to profile with correct fields."""
-    monkeypatch.chdir(tmp_path)
+def test_preset_to_profile_unreal(tmp_path):
     (tmp_path / "MyProject.uproject").write_text("{}")
     (tmp_path / "Source").mkdir()
     (tmp_path / "Source" / "MyClass.cpp").write_text("// C++")
     (tmp_path / "Content").mkdir()
     (tmp_path / "Content" / "texture.uasset").write_bytes(b"\x00")
 
-    profile = preset_to_profile("unreal")
+    profile = preset_to_profile("unreal", root=tmp_path)
     assert profile is not None
     assert profile["split_mode"] == "by_file"
     assert profile["max_tokens"] == 16000
@@ -647,44 +597,33 @@ def test_preset_to_profile_unreal(tmp_path, monkeypatch):
     assert "*.uplugin" in profile["patterns"]
 
 
-def test_unreal_not_detected_without_uproject(tmp_path, monkeypatch):
-    """Unreal preset not detected when no .uproject file."""
-    monkeypatch.chdir(tmp_path)
+def test_unreal_not_detected_without_uproject(tmp_path):
     (tmp_path / "Source").mkdir()
     (tmp_path / "Source" / "MyClass.cpp").write_text("// C++")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets()
+    detected = detect_presets(root=tmp_path)
     assert "unreal" not in detected
 
 
-# ── No _SERVICE_PRESETS — all presets treated equally ───────────────
+# ── No _SERVICE_PRESETS ─────────────────────────────────────────────
 
 
 def test_no_service_presets_hardcoded():
-    """_SERVICE_PRESETS should not exist in the module."""
     import arachna.presets as p
 
     assert not hasattr(p, "_SERVICE_PRESETS")
 
 
 def test_no_presets_dict_hardcoded():
-    """PRESETS dict should not exist — presets come from JSON files."""
     import arachna.presets as p
 
     assert not hasattr(p, "PRESETS")
 
 
-"""Tests for external presets with explicit preset_name.
-
-Covers the LOW finding from AUDIT_REPORT.md: missing test coverage
-for detect_presets and preset_to_profile with external presets
-and preset_name parameter.
-"""
+# ── detect_presets with external and explicit preset_name ────────────
 
 
-def test_detect_presets_explicit_external_with_name(tmp_path, monkeypatch):
-    """Explicit preset_name with external presets checks detect-paths."""
-    monkeypatch.chdir(tmp_path)
+def test_detect_presets_explicit_external_with_name(tmp_path):
     (tmp_path / "game").mkdir()
     (tmp_path / "game" / "main.lua").write_text("x")
 
@@ -702,14 +641,11 @@ def test_detect_presets_explicit_external_with_name(tmp_path, monkeypatch):
             }
         )
     )
-    detected = detect_presets(preset_name="my_game", external_path=f)
+    detected = detect_presets(preset_name="my_game", root=tmp_path, external_path=f)
     assert detected == ["my_game"]
 
 
-def test_detect_presets_explicit_external_no_match(tmp_path, monkeypatch):
-    """Explicit preset_name with external presets returns empty if no match."""
-    monkeypatch.chdir(tmp_path)
-
+def test_detect_presets_explicit_external_no_match(tmp_path):
     f = tmp_path / "presets.json"
     f.write_text(
         json.dumps(
@@ -724,13 +660,11 @@ def test_detect_presets_explicit_external_no_match(tmp_path, monkeypatch):
             }
         )
     )
-    detected = detect_presets(preset_name="my_game", external_path=f)
+    detected = detect_presets(preset_name="my_game", root=tmp_path, external_path=f)
     assert detected == []
 
 
-def test_preset_to_profile_external_with_name(tmp_path, monkeypatch):
-    """preset_to_profile with external presets and explicit name."""
-    monkeypatch.chdir(tmp_path)
+def test_preset_to_profile_external_with_name(tmp_path):
     (tmp_path / "game").mkdir()
     (tmp_path / "game" / "main.lua").write_text("x")
 
@@ -747,17 +681,14 @@ def test_preset_to_profile_external_with_name(tmp_path, monkeypatch):
             }
         )
     )
-    profile = preset_to_profile("my_game", external_path=f)
+    profile = preset_to_profile("my_game", external_path=f, root=tmp_path)
     assert profile is not None
     assert profile["split_mode"] == "by_file"
     assert "game" in profile["directories"]
     assert "*.lua" in profile["patterns"]
 
 
-def test_detect_presets_explicit_external_service_always_allowed(tmp_path, monkeypatch):
-    """External service-like preset with empty detect is always allowed with explicit name."""
-    monkeypatch.chdir(tmp_path)
-
+def test_detect_presets_explicit_external_service_always_allowed(tmp_path):
     f = tmp_path / "presets.json"
     f.write_text(
         json.dumps(
@@ -771,14 +702,11 @@ def test_detect_presets_explicit_external_service_always_allowed(tmp_path, monke
             }
         )
     )
-    detected = detect_presets(preset_name="my_tool", external_path=f)
+    detected = detect_presets(preset_name="my_tool", root=tmp_path, external_path=f)
     assert detected == ["my_tool"]
 
 
-def test_detect_presets_explicit_external_unknown_name(tmp_path, monkeypatch):
-    """Explicit preset_name not in external presets returns empty list."""
-    monkeypatch.chdir(tmp_path)
-
+def test_detect_presets_explicit_external_unknown_name(tmp_path):
     f = tmp_path / "presets.json"
     f.write_text(
         json.dumps(
@@ -793,5 +721,5 @@ def test_detect_presets_explicit_external_unknown_name(tmp_path, monkeypatch):
             }
         )
     )
-    detected = detect_presets(preset_name="nonexistent", external_path=f)
+    detected = detect_presets(preset_name="nonexistent", root=tmp_path, external_path=f)
     assert detected == []

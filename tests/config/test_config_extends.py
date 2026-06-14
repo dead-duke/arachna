@@ -4,12 +4,11 @@ import json
 
 import pytest
 
-from arachna.config import get_profile
+from arachna.config import get_profile, load_config
 
 
-def test_config_extends_scalar(tmp_path, monkeypatch):
-    """Child scalar overrides parent."""
-    monkeypatch.chdir(tmp_path)
+def test_config_extends_scalar(tmp_path):
+    (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -21,14 +20,14 @@ def test_config_extends_scalar(tmp_path, monkeypatch):
             }
         )
     )
-    profile = get_profile("child")
+    config = load_config(root=tmp_path)
+    profile = get_profile("child", config=config)
     assert profile["max_tokens"] == 32000
     assert profile["directories"] == ["src"]
 
 
-def test_config_extends_exclude_append(tmp_path, monkeypatch):
-    """Exclusion lists concatenate."""
-    monkeypatch.chdir(tmp_path)
+def test_config_extends_exclude_append(tmp_path):
+    (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -44,14 +43,14 @@ def test_config_extends_exclude_append(tmp_path, monkeypatch):
             }
         )
     )
-    profile = get_profile("child")
+    config = load_config(root=tmp_path)
+    profile = get_profile("child", config=config)
     assert "*.pyc" in profile["exclude_patterns"]
     assert "*.log" in profile["exclude_patterns"]
 
 
-def test_config_extends_source_override(tmp_path, monkeypatch):
-    """Child directories replaces parent."""
-    monkeypatch.chdir(tmp_path)
+def test_config_extends_source_override(tmp_path):
+    (tmp_path / "lib").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -63,14 +62,12 @@ def test_config_extends_source_override(tmp_path, monkeypatch):
             }
         )
     )
-    (tmp_path / "lib").mkdir()
-    profile = get_profile("child")
+    config = load_config(root=tmp_path)
+    profile = get_profile("child", config=config)
     assert profile["directories"] == ["lib"]
 
 
-def test_config_extends_circular(tmp_path, monkeypatch):
-    """Circular extends raises ValueError."""
-    monkeypatch.chdir(tmp_path)
+def test_config_extends_circular(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -82,13 +79,13 @@ def test_config_extends_circular(tmp_path, monkeypatch):
             }
         )
     )
+    config = load_config(root=tmp_path)
     with pytest.raises(ValueError, match="Circular"):
-        get_profile("a")
+        get_profile("a", config=config)
 
 
-def test_config_extends_deep_chain(tmp_path, monkeypatch):
-    """Chain of 3 profiles merges correctly."""
-    monkeypatch.chdir(tmp_path)
+def test_config_extends_deep_chain(tmp_path):
+    (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -105,7 +102,8 @@ def test_config_extends_deep_chain(tmp_path, monkeypatch):
             }
         )
     )
-    profile = get_profile("child")
+    config = load_config(root=tmp_path)
+    profile = get_profile("child", config=config)
     assert profile["max_tokens"] == 500
     assert profile["directories"] == ["src"]
     assert profile["patterns"] == ["*.py"]

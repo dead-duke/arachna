@@ -1,18 +1,21 @@
 import json
 
-from arachna.config import get_profile
+from arachna.config import get_profile, load_config
 
 
-def test_fills_defaults(tmp_path, monkeypatch):
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {"t": {"directories": ["x"]}}}))
-    monkeypatch.chdir(tmp_path)
-    p = get_profile("t")
+def test_fills_defaults(tmp_path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps({"profiles": {"t": {"directories": ["src"]}}})
+    )
+    config = load_config(root=tmp_path)
+    p = get_profile("t", config=config)
     assert p["split_mode"] == "by_file"
     assert p["max_tokens"] == 16000
 
 
-def test_default_profile(tmp_path, monkeypatch):
+def test_default_profile(tmp_path):
     (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
-    monkeypatch.chdir(tmp_path)
-    p = get_profile("default")
+    config = load_config(root=tmp_path)
+    p = get_profile("default", config=config)
     assert p["max_tokens"] == 32000

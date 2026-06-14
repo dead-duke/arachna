@@ -7,9 +7,7 @@ from .test_performance import _make_files, _profile, _run_with_memory
 
 @pytest.mark.slow
 @pytest.mark.benchmark
-def test_bench_full_50000(tmp_path, monkeypatch):
-    """Stress test: 50K files — streaming must handle without OOM."""
-    monkeypatch.chdir(tmp_path)
+def test_bench_full_50000(tmp_path):
     _make_files(tmp_path, 50000)
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
@@ -21,9 +19,7 @@ def test_bench_full_50000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_large_files(tmp_path, monkeypatch):
-    """10 files, each 1MB — test memory efficiency."""
-    monkeypatch.chdir(tmp_path)
+def test_bench_large_files(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     for i in range(10):
@@ -36,9 +32,7 @@ def test_bench_large_files(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_unicode(tmp_path, monkeypatch):
-    """Files with unicode content — test tokenizer accuracy."""
-    monkeypatch.chdir(tmp_path)
+def test_bench_unicode(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     for i in range(100):

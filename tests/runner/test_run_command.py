@@ -187,15 +187,13 @@ def test_empty_args_after_split():
     assert run_command("   ") == ""
 
 
-def test_audit_log_written(tmp_path, monkeypatch):
+def test_audit_log_written(tmp_path):
     import json
 
-    monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
-
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        run_command("echo hello")
+        run_command("echo hello", root=tmp_path)
 
     log_path = tmp_path / "out" / ".arachna_commands.log"
     assert log_path.exists()
@@ -203,13 +201,11 @@ def test_audit_log_written(tmp_path, monkeypatch):
     assert "OK: echo hello" in content
 
 
-def test_audit_log_blocked(tmp_path, monkeypatch):
+def test_audit_log_blocked(tmp_path):
     import json
 
-    monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
-
-    result = run_command("curl http://evil.com")
+    result = run_command("curl http://evil.com", root=tmp_path)
     assert result == ""
 
     log_path = tmp_path / "out" / ".arachna_commands.log"
@@ -218,12 +214,10 @@ def test_audit_log_blocked(tmp_path, monkeypatch):
     assert "FAIL: curl http://evil.com" in content
 
 
-def test_audit_log_no_config(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-
+def test_audit_log_no_config(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        run_command("echo hello")
+        run_command("echo hello", root=tmp_path)
 
     log_path = tmp_path / "arachna_context" / ".arachna_commands.log"
     assert log_path.exists()

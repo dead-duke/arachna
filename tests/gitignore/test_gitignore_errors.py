@@ -6,21 +6,15 @@ from arachna.gitignore import load_gitignore_patterns
 
 
 def test_gitignore_os_error_on_st_size(tmp_path, monkeypatch):
-    """Gitignore that raises OSError on st_size is skipped gracefully.
-
-    Patches only Path.stat().st_size to raise — not the entire stat call.
-    This avoids breaking rglob, is_file, and exists which also call stat.
-    """
     gitignore = tmp_path / ".gitignore"
     gitignore.write_text("*.pyc")
 
-    # Patch st_size property to raise OSError
     original_st_size = Path.stat
 
     def mock_stat(self, *args, **kwargs):
         result = original_st_size(self, *args, **kwargs)
         if self.name == ".gitignore" and self.parent == tmp_path:
-            # Return a mock result with st_size that raises
+
             class MockStatResult:
                 st_mode = result.st_mode
                 st_mtime = result.st_mtime
@@ -38,14 +32,12 @@ def test_gitignore_os_error_on_st_size(tmp_path, monkeypatch):
 
 
 def test_gitignore_unicode_decode_error(tmp_path):
-    """Gitignore with invalid UTF-8 is skipped gracefully."""
     (tmp_path / ".gitignore").write_bytes(b"\xff\xfe\x00\x01\x02\x03")
     patterns = load_gitignore_patterns(tmp_path)
     assert isinstance(patterns, list)
 
 
 def test_gitignore_value_error_from_relative_to(tmp_path, monkeypatch):
-    """Gitignore in subdirectory that raises ValueError on relative_to is skipped."""
     sub = tmp_path / "sub"
     sub.mkdir()
     (sub / ".gitignore").write_text("*.log")

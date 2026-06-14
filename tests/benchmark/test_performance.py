@@ -79,7 +79,7 @@ def _run_with_memory(tmp_path, profile, mode="full", query=None, incremental=Fal
     out.mkdir(exist_ok=True)
     t0 = time.perf_counter()
     created, tokens_by_file, parts = collect(
-        profile, "B", str(out), mode=mode, query=query, incremental=incremental
+        profile, "B", str(out), mode=mode, query=query, incremental=incremental, root=tmp_path
     )
     elapsed = time.perf_counter() - t0
 
@@ -103,11 +103,6 @@ def _run_with_memory(tmp_path, profile, mode="full", query=None, incremental=Fal
 
 
 def _check_regression(name: str, result: dict, tolerance: float = 2.0):
-    """Check for catastrophic regression only (>2x slowdown or >2x memory).
-
-    Uses tolerance=2.0 (200%) so only severe regressions fail.
-    Benchmarks are for development guidance, not CI gating.
-    """
     if os.environ.get("CI"):
         return
     if not BASELINE_FILE.exists():
@@ -136,8 +131,7 @@ def _collect_result(test_name: str, result: dict):
 
 
 @pytest.mark.benchmark
-def test_bench_full_1000(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_bench_full_1000(tmp_path):
     _make_files(tmp_path, 1000)
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
@@ -153,8 +147,7 @@ def test_bench_full_1000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_repo_map_1000(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_bench_repo_map_1000(tmp_path):
     _make_files(tmp_path, 1000)
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "repo-map")  # warm-up
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "repo-map")
@@ -172,8 +165,7 @@ def test_bench_repo_map_1000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_headers_1000(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_bench_headers_1000(tmp_path):
     _make_files(tmp_path, 1000)
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "headers")  # warm-up
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "headers")
@@ -187,8 +179,7 @@ def test_bench_headers_1000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_full_compress_1000(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_bench_full_compress_1000(tmp_path):
     _make_files(tmp_path, 1000, _content_with_blanks)
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
     r_no = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
@@ -199,8 +190,7 @@ def test_bench_full_compress_1000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_query_1000(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_bench_query_1000(tmp_path):
     _make_files(tmp_path, 1000)
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
     r_no = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
@@ -212,8 +202,7 @@ def test_bench_query_1000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_full_5000(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_bench_full_5000(tmp_path):
     _make_files(tmp_path, 5000)
     _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
@@ -228,8 +217,7 @@ def test_bench_full_5000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_incremental_unchanged(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_bench_incremental_unchanged(tmp_path):
     _make_files(tmp_path, 500)
     r1 = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full", incremental=True)
     assert r1["files"] >= 1

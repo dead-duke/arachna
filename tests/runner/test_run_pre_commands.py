@@ -1,4 +1,4 @@
-"""Tests for run_pre_commands in runner.py (v2.8.2)."""
+"""Tests for run_pre_commands in runner.py."""
 
 from unittest.mock import MagicMock, patch
 
@@ -50,7 +50,7 @@ def test_run_pre_commands_with_delay():
             _mock_popen(stdout="b\n"),
             _mock_popen(stdout="c\n"),
         ]
-        results = run_pre_commands(["cmd1", "cmd2", "cmd3"], pre_command_delay=0.1)
+        results = run_pre_commands(["echo a", "echo b", "echo c"], pre_command_delay=0.1)
 
     assert len(results) == 3
     assert mock_sleep.call_count == 2
@@ -63,7 +63,7 @@ def test_run_pre_commands_no_delay_default():
         patch("arachna.runner.time.sleep") as mock_sleep,
     ):
         mock_popen.return_value = _mock_popen(stdout="x\n")
-        run_pre_commands(["cmd1", "cmd2"])
+        run_pre_commands(["echo x", "echo y"])
 
     mock_sleep.assert_not_called()
 
@@ -73,4 +73,24 @@ def test_run_pre_commands_failure_continues():
     with patch("subprocess.Popen", side_effect=OSError("command not found")):
         results = run_pre_commands(["bad_cmd", "echo ok"])
     assert len(results) == 2
+    assert results[0][0] == "bad_cmd"
+    assert results[0][1] == ""
     assert results[1][0] == "echo ok"
+
+
+def test_run_pre_commands_partial_failure_middle():
+    """Middle command fails, rest continue.
+
+    Uses echo commands which pass validation, but middle one fails with OSError.
+    """
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.side_effect = [
+            _mock_popen(stdout="first\n"),
+            OSError("middle failed"),
+            _mock_popen(stdout="third\n"),
+        ]
+        results = run_pre_commands(["echo first", "echo middle", "echo third"])
+    assert len(results) == 3
+    assert results[0][1] == "first\n"
+    assert results[1][1] == ""
+    assert results[2][1] == "third\n"

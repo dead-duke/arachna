@@ -58,29 +58,24 @@ def test_dry_run_shell_metachar_interactive_yes():
         assert result == "hello\n"
 
 
-def test_log_command_no_config(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    log_path = _get_audit_log_path()
+def test_log_command_no_config(tmp_path):
+    log_path = _get_audit_log_path(root=tmp_path)
     assert log_path is not None
     assert log_path.name == ".arachna_commands.log"
 
 
-def test_log_command_os_error_on_write(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_log_command_os_error_on_write(tmp_path):
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
     out_dir = tmp_path / "out"
     out_dir.mkdir()
     (out_dir / ".arachna_commands.log").mkdir()
+    _log_command("echo hello", True, root=tmp_path)
 
-    _log_command("echo hello", True)
 
-
-def test_log_command_permission_error_on_mkdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_log_command_permission_error_on_mkdir(tmp_path):
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
     (tmp_path / "out").write_text("blocked")
-
-    _log_command("echo hello", True)
+    _log_command("echo hello", True, root=tmp_path)
 
 
 def test_validate_command_allow_dangerous_blocked_phrase():
@@ -112,12 +107,10 @@ def test_run_command_allow_dangerous_rm():
         assert result == ""
 
 
-def test_log_command_os_error_on_mkdir_parents(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_log_command_os_error_on_mkdir_parents(tmp_path):
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
     (tmp_path / "out").write_text("blocked")
-
-    _log_command("echo hello", True)
+    _log_command("echo hello", True, root=tmp_path)
 
 
 def test_log_command_none_log_path(monkeypatch):
@@ -167,11 +160,9 @@ def test_run_command_shell_redirect():
         assert result == ""
 
 
-def test_get_audit_log_path_exception_fallback(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_get_audit_log_path_exception_fallback(tmp_path):
     (tmp_path / ".arachna.json").write_text("{invalid")
-
-    log_path = _get_audit_log_path()
+    log_path = _get_audit_log_path(root=tmp_path)
     assert log_path is not None
     assert log_path.name == ".arachna_commands.log"
 

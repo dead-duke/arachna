@@ -2,12 +2,11 @@
 
 import json
 
-from arachna.config import get_profile
+from arachna.config import get_profile, load_config
 
 
-def test_config_extends_warns_on_conflict(tmp_path, monkeypatch, capsys):
-    """Warning printed when child overrides parent scalar."""
-    monkeypatch.chdir(tmp_path)
+def test_config_extends_warns_on_conflict(tmp_path, capsys):
+    (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -19,7 +18,8 @@ def test_config_extends_warns_on_conflict(tmp_path, monkeypatch, capsys):
             }
         )
     )
-    get_profile("child")
+    config = load_config(root=tmp_path)
+    get_profile("child", config=config)
     captured = capsys.readouterr()
     assert "Warning" in captured.out
     assert "max_tokens" in captured.out

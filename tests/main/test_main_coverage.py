@@ -6,11 +6,7 @@ from argparse import Namespace
 import pytest
 
 from arachna.cli._helpers import print_collected, write_manifest
-from arachna.cli.collect import (
-    _cmd_collect_clean,
-    _cmd_collect_profile,
-    _cmd_collect_validate,
-)
+from arachna.cli.collect import _cmd_collect_clean, _cmd_collect_profile, _cmd_collect_validate
 from arachna.cli.diff import _cmd_diff
 from arachna.cli.snapshot import (
     _cmd_snapshot_create,
@@ -20,104 +16,94 @@ from arachna.cli.snapshot import (
     _cmd_snapshot_update,
 )
 
+
+def _config(tmp_path, profiles=None):
+    return {
+        "project_name": "test",
+        "output_dir": str(tmp_path / "out"),
+        "_root": str(tmp_path),
+        "profiles": profiles or {"c": {"directories": ["mysrc"], "max_tokens": 100}},
+    }
+
+
 # ── Snapshot error paths ──────────────────────────────────────────
 
 
-def test_snapshot_create_no_name(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
-    )
+def test_snapshot_create_no_name(tmp_path, make_config):
+    config = make_config(tmp_path)
     (tmp_path / "src").mkdir()
     with pytest.raises(SystemExit):
-        _cmd_snapshot_create(Namespace(name=None, profile="c"), {})
+        _cmd_snapshot_create(Namespace(name=None, profile="c"), config)
 
 
-def test_snapshot_create_invalid_name(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
-    )
+def test_snapshot_create_invalid_name(tmp_path, make_config):
+    config = make_config(tmp_path)
     with pytest.raises(SystemExit):
-        _cmd_snapshot_create(Namespace(name="../../etc", profile="c"), {})
+        _cmd_snapshot_create(Namespace(name="../../etc", profile="c"), config)
 
 
-def test_snapshot_create_profile_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
-    )
+def test_snapshot_create_profile_not_found(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_create(Namespace(name="test", profile="nonexistent"), {})
+        _cmd_snapshot_create(Namespace(name="test", profile="nonexistent"), config)
 
 
-def test_snapshot_delete_invalid_id(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_snapshot_delete_invalid_id(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_delete(Namespace(id="../../etc"), {})
+        _cmd_snapshot_delete(Namespace(id="../../etc"), config)
 
 
-def test_snapshot_info_invalid_id(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_snapshot_info_invalid_id(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_info(Namespace(id="../../etc", profile_only=False, stats_only=False), {})
+        _cmd_snapshot_info(Namespace(id="../../etc", profile_only=False, stats_only=False), config)
 
 
-def test_snapshot_info_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_snapshot_info_not_found(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_info(Namespace(id="nonexist", profile_only=False, stats_only=False), {})
+        _cmd_snapshot_info(Namespace(id="nonexist", profile_only=False, stats_only=False), config)
 
 
-def test_snapshot_rename_invalid_old(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_snapshot_rename_invalid_old(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_rename(Namespace(old="../../etc", new="ok"), {})
+        _cmd_snapshot_rename(Namespace(old="../../etc", new="ok"), config)
 
 
-def test_snapshot_rename_invalid_new(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_snapshot_rename_invalid_new(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_rename(Namespace(old="ok", new="../../etc"), {})
+        _cmd_snapshot_rename(Namespace(old="ok", new="../../etc"), config)
 
 
-def test_snapshot_update_invalid_id(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_snapshot_update_invalid_id(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_update(Namespace(id="../../etc", profile=None), {})
+        _cmd_snapshot_update(Namespace(id="../../etc", profile=None), config)
 
 
-def test_snapshot_update_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_snapshot_update_not_found(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
-        _cmd_snapshot_update(Namespace(id="nonexist", profile=None), {})
+        _cmd_snapshot_update(Namespace(id="nonexist", profile=None), config)
 
 
-def test_snapshot_update_profile_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
-    )
+def test_snapshot_update_profile_not_found(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     from arachna.store import create_snapshot as store_create
 
-    store_create({"a.py": "x"}, name="test-snap")
+    store_create({"a.py": "x"}, name="test-snap", root=tmp_path)
     with pytest.raises(SystemExit):
-        _cmd_snapshot_update(Namespace(id="test-snap", profile="nonexistent"), {})
+        _cmd_snapshot_update(Namespace(id="test-snap", profile="nonexistent"), config)
 
 
 # ── Diff error paths ──────────────────────────────────────────────
 
 
-def test_diff_all_and_from_conflict(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_diff_all_and_from_conflict(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
         _cmd_diff(
             Namespace(
@@ -133,13 +119,12 @@ def test_diff_all_and_from_conflict(tmp_path, monkeypatch):
                 output_dir=None,
                 query=None,
             ),
-            {},
+            config,
         )
 
 
-def test_diff_no_snapshots(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {}}))
+def test_diff_no_snapshots(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
         _cmd_diff(
             Namespace(
@@ -155,18 +140,15 @@ def test_diff_no_snapshots(tmp_path, monkeypatch):
                 output_dir=None,
                 query=None,
             ),
-            {},
+            config,
         )
 
 
-def test_diff_profile_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
-    )
+def test_diff_profile_not_found(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     from arachna.store import create_snapshot as store_create
 
-    store_create({"a.py": "x"}, name="test-snap")
+    store_create({"a.py": "x"}, name="test-snap", root=tmp_path)
     with pytest.raises(SystemExit):
         _cmd_diff(
             Namespace(
@@ -182,15 +164,12 @@ def test_diff_profile_not_found(tmp_path, monkeypatch):
                 output_dir=None,
                 query=None,
             ),
-            {},
+            config,
         )
 
 
-def test_diff_all_profile_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
-    )
+def test_diff_all_profile_not_found(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     with pytest.raises(SystemExit):
         _cmd_diff(
             Namespace(
@@ -206,18 +185,15 @@ def test_diff_all_profile_not_found(tmp_path, monkeypatch):
                 output_dir=None,
                 query=None,
             ),
-            {},
+            config,
         )
 
 
 # ── Collect error paths ───────────────────────────────────────────
 
 
-def test_collect_profile_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
-    )
+def test_collect_profile_not_found(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     with pytest.raises(SystemExit):
         _cmd_collect_profile(
             Namespace(
@@ -234,40 +210,34 @@ def test_collect_profile_not_found(tmp_path, monkeypatch):
                 no_pre_commands=False,
                 output_dir=None,
             ),
-            {},
+            config,
         )
 
 
-def test_collect_validate_multi_profile(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_collect_validate_multi_profile(tmp_path, make_config):
+    config = make_config(
+        tmp_path,
+        profiles={
+            "good": {"directories": ["src"], "max_tokens": 16000, "split_mode": "by_file"},
+            "bad": {"max_tokens": 100},
+        },
+    )
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps(
-            {
-                "profiles": {
-                    "good": {"directories": ["src"], "max_tokens": 16000, "split_mode": "by_file"},
-                    "bad": {"max_tokens": 100},
-                }
-            }
-        )
-    )
     with pytest.raises(SystemExit) as exc_info:
-        _cmd_collect_validate(Namespace(), json.loads((tmp_path / ".arachna.json").read_text()))
+        _cmd_collect_validate(Namespace(), config)
     assert exc_info.value.code == 1
 
 
 # ── Print collected / write manifest ──────────────────────────────
 
 
-def test_print_collected_with_files(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    f = tmp_path / "test.md"
-    f.write_text("hello\nworld\n")
-
+def test_print_collected_with_files(tmp_path):
     import sys
     from io import StringIO
 
+    f = tmp_path / "test.md"
+    f.write_text("hello\nworld\n")
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
@@ -294,9 +264,7 @@ def test_write_manifest_basic(tmp_path):
     out.mkdir()
     f = tmp_path / "out" / "chat-c.md"
     f.write_text("content")
-
     write_manifest(out, [str(f)], {str(f): 50}, {"project_name": "Test"})
-
     mf = out / "chat-manifest.md"
     assert mf.exists()
     content = mf.read_text()
@@ -307,32 +275,24 @@ def test_write_manifest_basic(tmp_path):
 # ── Clean edge cases ──────────────────────────────────────────────
 
 
-def test_clean_with_diff_files(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
-    )
-    (tmp_path / "chat-diff-snap_1.md").write_text("diff")
-    (tmp_path / "chat-diff-v1-to-v2_1.md").write_text("cross")
-
-    _cmd_collect_clean(Namespace(output_dir=None), {})
-
-    assert not (tmp_path / "chat-diff-snap_1.md").exists()
-    assert not (tmp_path / "chat-diff-v1-to-v2_1.md").exists()
+def test_clean_with_diff_files(tmp_path, make_config):
+    config = make_config(tmp_path)
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / "chat-diff-snap_1.md").write_text("diff")
+    (tmp_path / "out" / "chat-diff-v1-to-v2_1.md").write_text("cross")
+    _cmd_collect_clean(Namespace(output_dir=None), config)
+    assert not (tmp_path / "out" / "chat-diff-snap_1.md").exists()
+    assert not (tmp_path / "out" / "chat-diff-v1-to-v2_1.md").exists()
 
 
-def test_clean_manifest_and_diff_files(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
-    )
-    mf = tmp_path / ".arachna_manifest.json"
+def test_clean_manifest_and_diff_files(tmp_path, make_config):
+    config = make_config(tmp_path)
+    (tmp_path / "out").mkdir()
+    mf = tmp_path / "out" / ".arachna_manifest.json"
     mf.write_text(json.dumps({"files": ["chat-c_1.md", "chat-diff-snap_1.md"]}))
-    (tmp_path / "chat-c_1.md").write_text("collected")
-    (tmp_path / "chat-diff-snap_1.md").write_text("diff")
-
-    _cmd_collect_clean(Namespace(output_dir=None), {})
-
-    assert not (tmp_path / "chat-c_1.md").exists()
-    assert not (tmp_path / "chat-diff-snap_1.md").exists()
+    (tmp_path / "out" / "chat-c_1.md").write_text("collected")
+    (tmp_path / "out" / "chat-diff-snap_1.md").write_text("diff")
+    _cmd_collect_clean(Namespace(output_dir=None), config)
+    assert not (tmp_path / "out" / "chat-c_1.md").exists()
+    assert not (tmp_path / "out" / "chat-diff-snap_1.md").exists()
     assert not mf.exists()

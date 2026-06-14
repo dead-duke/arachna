@@ -11,7 +11,6 @@ from .test_performance import _default_content, _js_content, _profile, _run_with
 
 @pytest.mark.benchmark
 def test_bench_structural_diff_performance():
-    """Compare structural diff speed: Python AST vs JS tree-sitter vs regex."""
     old_py = _default_content(0)
     new_py = old_py.replace("x + y", "x * y")
 
@@ -40,14 +39,12 @@ def test_bench_structural_diff_performance():
 
 
 @pytest.mark.benchmark
-def test_bench_tree_sitter_js_1000(tmp_path, monkeypatch):
-    """Test JS collection with tree-sitter plugin for repo-map reduction."""
+def test_bench_tree_sitter_js_1000(tmp_path):
     try:
         import tree_sitter_javascript  # noqa: F401
     except ImportError:
         pytest.skip("tree-sitter-javascript not installed")
 
-    monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
     for i in range(1000):
@@ -71,10 +68,7 @@ def test_bench_tree_sitter_js_1000(tmp_path, monkeypatch):
 
 
 @pytest.mark.benchmark
-def test_bench_collection_python_vs_js(tmp_path, monkeypatch):
-    """Compare collection performance: Python files vs JS files."""
-    monkeypatch.chdir(tmp_path)
-
+def test_bench_collection_python_vs_js(tmp_path):
     src_py = tmp_path / "src_py"
     src_py.mkdir()
     for i in range(500):

@@ -1,22 +1,37 @@
 import json
 from unittest.mock import patch
 
-from arachna.__main__ import main
+from arachna.cli.collect import _cmd_collect_validate
 
 
-def test_valid(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"c": {"directories": ["src"], "max_tokens": 100}}})
-    )
-    with patch("sys.argv", ["arachna", "collect", "--validate"]), patch("sys.exit") as ex:
-        main()
+def _args():
+    from argparse import Namespace
+
+    return Namespace()
+
+
+def test_valid(tmp_path):
+    (tmp_path / "src").mkdir()
+    config = {
+        "project_name": "test",
+        "output_dir": str(tmp_path / "out"),
+        "_root": str(tmp_path),
+        "profiles": {"c": {"directories": ["src"], "max_tokens": 100}},
+    }
+    (tmp_path / ".arachna.json").write_text(json.dumps(config))
+    with patch("sys.exit") as ex:
+        _cmd_collect_validate(_args(), config)
         ex.assert_called_with(0)
 
 
-def test_invalid(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / ".arachna.json").write_text(json.dumps({"profiles": {"b": {"max_tokens": 0}}}))
-    with patch("sys.argv", ["arachna", "collect", "--validate"]), patch("sys.exit") as ex:
-        main()
+def test_invalid(tmp_path):
+    config = {
+        "project_name": "test",
+        "output_dir": str(tmp_path / "out"),
+        "_root": str(tmp_path),
+        "profiles": {"b": {"max_tokens": 0}},
+    }
+    (tmp_path / ".arachna.json").write_text(json.dumps(config))
+    with patch("sys.exit") as ex:
+        _cmd_collect_validate(_args(), config)
         ex.assert_called_with(1)

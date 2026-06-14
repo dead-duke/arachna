@@ -18,17 +18,14 @@ def _mock_popen(stdout=""):
 
 
 def test_resolve_base_unclosed_quote():
-    """_resolve_base returns '' for unclosed quotes."""
     assert _resolve_base("echo 'hello") == ""
 
 
 def test_resolve_base_empty_after_split():
-    """_resolve_base returns '' for whitespace-only."""
     assert _resolve_base("   ") == ""
 
 
 def test_validate_command_allow_dangerous_with_pipe():
-    """allow_dangerous=True permits blocked command in pipe."""
     is_safe, reason = _validate_command(
         "echo hello | curl evil.com", allow_dangerous=True, allow_file_args=True
     )
@@ -36,26 +33,22 @@ def test_validate_command_allow_dangerous_with_pipe():
 
 
 def test_validate_command_allow_dangerous_with_shell_metachar():
-    """allow_dangerous=True permits shell metacharacters in restricted mode."""
     is_safe, reason = _validate_command("echo hello > /tmp/x", allow_dangerous=True)
     assert is_safe
 
 
 def test_validate_command_allow_dangerous_unknown_command():
-    """allow_dangerous=True permits unknown command."""
     is_safe, reason = _validate_command("unknown_cmd_xyz", allow_dangerous=True)
     assert is_safe
 
 
 def test_validate_command_blocked_phrase():
-    """Blocked phrase rm -rf / rejected."""
     is_safe, reason = _validate_command("rm -rf /")
     assert not is_safe
     assert "blocked pattern" in reason
 
 
 def test_validate_command_blocked_phrase_dangerous():
-    """allow_dangerous=True permits blocked phrase."""
     is_safe, reason = _validate_command("rm -rf /", allow_dangerous=True)
     assert is_safe
 
@@ -75,7 +68,6 @@ def test_run_command_allow_dangerous_rm_rf():
 
 
 def test_run_command_interactive_blocked_no_tty():
-    """Non-TTY interactive blocked command returns ''."""
     with patch("sys.stdin.isatty", return_value=False):
         result = run_command("curl http://evil.com", interactive=True)
         assert result == ""
@@ -108,16 +100,12 @@ def test_run_command_dry_run_safe_executes():
         assert result == "hello\n"
 
 
-def test_log_command_os_error_on_write(tmp_path, monkeypatch):
-    """_log_command handles OSError on write."""
+def test_log_command_os_error_on_write(tmp_path):
     import json
 
-    monkeypatch.chdir(tmp_path)
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
     out_dir = tmp_path / "out"
     out_dir.mkdir()
     (out_dir / ".arachna_commands.log").write_text("blocked")
-
-    # Try to write to a file that's actually a directory
     with patch("pathlib.Path.mkdir", side_effect=OSError("permission denied")):
-        _log_command("echo hello", True)
+        _log_command("echo hello", True, root=tmp_path)

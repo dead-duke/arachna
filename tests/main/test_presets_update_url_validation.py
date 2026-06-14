@@ -9,22 +9,22 @@ def _make_args(url=None):
     return Namespace(url=url)
 
 
-def test_presets_update_rejects_file_url(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_presets_update_rejects_file_url(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with patch("sys.exit") as mock_exit:
-        _cmd_presets_update(_make_args(url="file:///etc/passwd"), {})
+        _cmd_presets_update(_make_args(url="file:///etc/passwd"), config)
         mock_exit.assert_called_with(1)
 
 
-def test_presets_update_rejects_ftp_url(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_presets_update_rejects_ftp_url(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     with patch("sys.exit") as mock_exit:
-        _cmd_presets_update(_make_args(url="ftp://evil.com/presets.json"), {})
+        _cmd_presets_update(_make_args(url="ftp://evil.com/presets.json"), config)
         mock_exit.assert_called_with(1)
 
 
-def test_presets_update_allows_https_url(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_presets_update_allows_https_url(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     mock_presets = {
         "test": {
             "dirs": ["src"],
@@ -38,12 +38,12 @@ def test_presets_update_allows_https_url(tmp_path, monkeypatch):
         patch("arachna.cli.presets.fetch_presets", return_value=mock_presets),
         patch("sys.exit") as mock_exit,
     ):
-        _cmd_presets_update(_make_args(url="https://example.com/presets.json"), {})
+        _cmd_presets_update(_make_args(url="https://example.com/presets.json"), config)
         mock_exit.assert_not_called()
 
 
-def test_presets_update_allows_http_url(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_presets_update_allows_http_url(tmp_path, make_config):
+    config = make_config(tmp_path, profiles={})
     mock_presets = {
         "test": {
             "dirs": ["src"],
@@ -57,5 +57,5 @@ def test_presets_update_allows_http_url(tmp_path, monkeypatch):
         patch("arachna.cli.presets.fetch_presets", return_value=mock_presets),
         patch("sys.exit") as mock_exit,
     ):
-        _cmd_presets_update(_make_args(url="http://example.com/presets.json"), {})
+        _cmd_presets_update(_make_args(url="http://example.com/presets.json"), config)
         mock_exit.assert_not_called()
