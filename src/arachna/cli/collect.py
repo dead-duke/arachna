@@ -210,8 +210,9 @@ def _cmd_collect_validate(args, config: dict):
 
 @register("collect-clean")
 def _cmd_collect_clean(args, config: dict):
+    root = _get_root(config)
     output_dir = parse_output_dir(args, config)
-    out_path = Path(output_dir)
+    out_path = root / output_dir if root else Path(output_dir)
     cleaned = 0
     mf = out_path / _MANIFEST
     if mf.exists():

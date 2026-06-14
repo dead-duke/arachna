@@ -687,16 +687,20 @@ def _assemble_content(
 
 
 def _apply_repo_map_to_sections(
-    sections: list, snapshot_id: str, to_snapshot_id: str | None, profile: dict
+    sections: list,
+    snapshot_id: str,
+    to_snapshot_id: str | None,
+    profile: dict,
+    root: Path | None = None,
 ) -> list:
     from .formatter import lang_for_path
     from .store import load_snapshot
 
-    manifest = load_snapshot(snapshot_id)
+    manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
     to_files = None
     if to_snapshot_id:
-        to_manifest = load_snapshot(to_snapshot_id)
+        to_manifest = load_snapshot(to_snapshot_id, root=root)
         to_files = to_manifest.get("files", {})
     result = []
     for s in sections:
@@ -705,11 +709,11 @@ def _apply_repo_map_to_sections(
             continue
         lang = lang_for_path(Path(s.path))
         if s.type == "modified":
-            old_content = _read_file_from_store(s.path, snapshot_files)
+            old_content = _read_file_from_store(s.path, snapshot_files, root=root)
             new_content = (
                 _read_file_from_disk(s.path)
                 if to_files is None
-                else _read_file_from_store(s.path, to_files)
+                else _read_file_from_store(s.path, to_files, root=root)
             )
             if old_content is not None and new_content is not None:
                 old_blocks = _parse_blocks_dispatch(old_content, lang)
@@ -719,13 +723,13 @@ def _apply_repo_map_to_sections(
             new_content = (
                 _read_file_from_disk(s.path)
                 if to_files is None
-                else _read_file_from_store(s.path, to_files)
+                else _read_file_from_store(s.path, to_files, root=root)
             )
             if new_content is not None:
                 blocks = _parse_blocks_dispatch(new_content, lang)
                 s.content = _format_repo_map_added(s.path, lang, blocks)
         elif s.type == "deleted":
-            old_content = _read_file_from_store(s.path, snapshot_files)
+            old_content = _read_file_from_store(s.path, snapshot_files, root=root)
             if old_content is not None:
                 blocks = _parse_blocks_dispatch(old_content, lang)
                 sig_lines = [f"  {sig}" for sig, _body in blocks.values()]
@@ -753,14 +757,14 @@ def _parse_blocks_dispatch(text: str, lang: str) -> dict[str, tuple[str, str]]:
     return {}
 
 
-def _read_file_from_store(path: str, files: dict) -> str | None:
+def _read_file_from_store(path: str, files: dict, root: Path | None = None) -> str | None:
     from .store import read_object
 
     for fpath, hash_spec in files.items():
         if fpath == path:
             obj_hash = hash_spec[7:]
             try:
-                return read_object(obj_hash).decode("utf-8")
+                return read_object(obj_hash, root=root).decode("utf-8")
             except Exception:
                 return None
     return None

@@ -82,7 +82,7 @@ def _collect_snapshot_content(profile: dict, root: Path | None = None) -> tuple[
         output = run_command(cmd, allow_file_args=True)
         if output.strip():
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
-            obj_hash = write_object(output.encode("utf-8"))
+            obj_hash = write_object(output.encode("utf-8"), root=root)
             pre_commands_data[f"pre: {label}"] = f"sha256:{obj_hash}"
         else:
             logger.warning("pre_command produced no output: %s", cmd[:80])
@@ -91,7 +91,7 @@ def _collect_snapshot_content(profile: dict, root: Path | None = None) -> tuple[
     if cmd:
         output = run_command(cmd, allow_file_args=True)
         if output.strip():
-            obj_hash = write_object(output.encode("utf-8"))
+            obj_hash = write_object(output.encode("utf-8"), root=root)
             command_data["command output"] = f"sha256:{obj_hash}"
         else:
             logger.warning("command produced no output: %s", cmd[:80])
@@ -140,12 +140,14 @@ def _get_profile_from_manifest(manifest: dict) -> dict | None:
     return stored if isinstance(stored, dict) else None
 
 
-def _get_content_from_manifest(path: str, hash_spec: str) -> str:
-    return read_object(hash_spec[7:]).decode("utf-8")
+def _get_content_from_manifest(path: str, hash_spec: str, root: Path | None = None) -> str:
+    return read_object(hash_spec[7:], root=root).decode("utf-8")
 
 
-def _build_current_files(profile: dict, exclude: list[str]) -> dict[str, str]:
-    current_filepaths = _scan_directories(profile, exclude)
+def _build_current_files(
+    profile: dict, exclude: list[str], root: Path | None = None
+) -> dict[str, str]:
+    current_filepaths = _scan_directories(profile, exclude, root=root)
     current_files = {}
     for fp in current_filepaths:
         try:
@@ -481,19 +483,27 @@ def _diff_pre_commands_structural(
 
 
 def _diff_files_sections(
-    snapshot_id: str, profile: dict, exclude: list[str], to_snapshot_id: str | None, fmt: str
+    snapshot_id: str,
+    profile: dict,
+    exclude: list[str],
+    to_snapshot_id: str | None,
+    fmt: str,
+    root: Path | None = None,
 ) -> list[DiffSection]:
-    manifest = load_snapshot(snapshot_id)
+    manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
-    old_files = {path: _get_content_from_manifest(path, h) for path, h in snapshot_files.items()}
+    old_files = {
+        path: _get_content_from_manifest(path, h, root=root) for path, h in snapshot_files.items()
+    }
     if to_snapshot_id is not None:
-        to_manifest = load_snapshot(to_snapshot_id)
+        to_manifest = load_snapshot(to_snapshot_id, root=root)
         to_snapshot_files = to_manifest.get("files", {})
         new_files = {
-            path: _get_content_from_manifest(path, h) for path, h in to_snapshot_files.items()
+            path: _get_content_from_manifest(path, h, root=root)
+            for path, h in to_snapshot_files.items()
         }
     else:
-        new_files = _build_current_files(profile, exclude)
+        new_files = _build_current_files(profile, exclude, root=root)
         for path in list(old_files.keys()):
             if path not in new_files and not _path_matches_profile(path, profile):
                 del old_files[path]
@@ -501,16 +511,20 @@ def _diff_files_sections(
 
 
 def _diff_pre_commands_sections(
-    snapshot_id: str, profile: dict, to_snapshot_id: str | None, fmt: str
+    snapshot_id: str,
+    profile: dict,
+    to_snapshot_id: str | None,
+    fmt: str,
+    root: Path | None = None,
 ) -> list[DiffSection]:
-    manifest = load_snapshot(snapshot_id)
+    manifest = load_snapshot(snapshot_id, root=root)
     snapshot_pre = manifest.get("pre_commands", {})
     current_pre: dict[str, str] = {}
     if to_snapshot_id is not None:
-        to_manifest = load_snapshot(to_snapshot_id)
+        to_manifest = load_snapshot(to_snapshot_id, root=root)
         snapshot_to_pre = to_manifest.get("pre_commands", {})
         for label, hash_spec in snapshot_to_pre.items():
-            current_pre[label] = _get_content_from_manifest(label, hash_spec)
+            current_pre[label] = _get_content_from_manifest(label, hash_spec, root=root)
     else:
         for cmd in profile.get("pre_commands", []):
             output = run_command(cmd, allow_file_args=True)
@@ -523,7 +537,7 @@ def _diff_pre_commands_sections(
         cmd_map[label] = cmd
     sections: list[DiffSection] = []
     for label, hash_spec in snapshot_pre.items():
-        old_content = _get_content_from_manifest(label, hash_spec)
+        old_content = _get_content_from_manifest(label, hash_spec, root=root)
         if label in current_pre:
             cmd = cmd_map.get(label, "")
             diff_output = (
@@ -555,16 +569,20 @@ def _diff_pre_commands_sections(
 
 
 def _diff_command_section(
-    snapshot_id: str, profile: dict, to_snapshot_id: str | None, fmt: str
+    snapshot_id: str,
+    profile: dict,
+    to_snapshot_id: str | None,
+    fmt: str,
+    root: Path | None = None,
 ) -> list[DiffSection]:
-    manifest = load_snapshot(snapshot_id)
+    manifest = load_snapshot(snapshot_id, root=root)
     snapshot_cmd = manifest.get("command", {})
     current_cmd_output = ""
     if to_snapshot_id is not None:
-        to_manifest = load_snapshot(to_snapshot_id)
+        to_manifest = load_snapshot(to_snapshot_id, root=root)
         snapshot_to_cmd = to_manifest.get("command", {})
         for label, hash_spec in snapshot_to_cmd.items():
-            current_cmd_output = _get_content_from_manifest(label, hash_spec)
+            current_cmd_output = _get_content_from_manifest(label, hash_spec, root=root)
     else:
         cmd = profile.get("command")
         if cmd:
@@ -574,13 +592,13 @@ def _diff_command_section(
     sections: list[DiffSection] = []
     if snapshot_cmd and current_cmd_output:
         for label, hash_spec in snapshot_cmd.items():
-            old_content = _get_content_from_manifest(label, hash_spec)
+            old_content = _get_content_from_manifest(label, hash_spec, root=root)
             diff_output = differ_compute_diff(old_content, current_cmd_output, label, fmt=fmt)
             if diff_output:
                 sections.append(DiffSection(type="modified", path=label, content=diff_output))
     elif snapshot_cmd and not current_cmd_output:
         for label, hash_spec in snapshot_cmd.items():
-            old_content = _get_content_from_manifest(label, hash_spec)
+            old_content = _get_content_from_manifest(label, hash_spec, root=root)
             removed_lines = "\n".join(f"- {line}" for line in old_content.strip().split("\n"))
             sections.append(
                 DiffSection(
@@ -601,16 +619,21 @@ def compute_diff(
     fmt: str = "markdown",
     to_snapshot_id: str | None = None,
     flat: bool = False,
+    root: Path | None = None,
 ) -> list[DiffSection]:
-    manifest = load_snapshot(snapshot_id)
+    if root is None:
+        root = Path.cwd()
+    manifest = load_snapshot(snapshot_id, root=root)
     if profile is None:
         profile = _get_profile_from_manifest(manifest)
         if profile is None:
             raise ValueError(f"Snapshot '{snapshot_id}' has legacy format. Use --profile.")
-    exclude = _get_exclude_patterns(profile)
-    sections = _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt)
-    sections.extend(_diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt))
-    sections.extend(_diff_command_section(snapshot_id, profile, to_snapshot_id, fmt))
+    exclude = _get_exclude_patterns(profile, root=root)
+    sections = _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt, root=root)
+    sections.extend(
+        _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root=root)
+    )
+    sections.extend(_diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root=root))
     if not flat and sections:
         sections = _group_diff_sections(sections, snapshot_id, to_snapshot_id)
     return sections

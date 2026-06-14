@@ -79,7 +79,7 @@ def _cmd_diff(args, config: dict):
         profile["compress"] = True
 
     sections = compute_diff(
-        snapshot_id, profile, fmt=fmt, to_snapshot_id=to_snapshot_id, flat=flat_mode
+        snapshot_id, profile, fmt=fmt, to_snapshot_id=to_snapshot_id, flat=flat_mode, root=root
     )
 
     if stat_only:
@@ -105,7 +105,9 @@ def _cmd_diff(args, config: dict):
     elif diff_mode == "repo-map":
         from ..gatherer import _apply_repo_map_to_sections
 
-        sections = _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile)
+        sections = _apply_repo_map_to_sections(
+            sections, snapshot_id, to_snapshot_id, profile, root=root
+        )
 
     content_sections = [s for s in sections if s.content.strip()]
     if not content_sections:
