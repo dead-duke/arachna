@@ -2,14 +2,21 @@
 """CLI handlers for 'arachna store' command."""
 
 import sys
+from pathlib import Path
 
 from ..store import gc, stats
 from . import register
 
 
+def _get_root(config: dict) -> Path | None:
+    root_str = config.get("_root")
+    return Path(root_str) if root_str else None
+
+
 @register("store-stats")
 def _cmd_store_stats(args, config: dict):
-    s = stats()
+    root = _get_root(config)
+    s = stats(root=root)
     print("Store statistics:")
     print(f"  Snapshots: {s['snapshots']}")
     print(f"  Objects: {s['objects']}")
@@ -19,7 +26,8 @@ def _cmd_store_stats(args, config: dict):
 
 @register("store-gc")
 def _cmd_store_gc(args, config: dict):
-    result = gc()
+    root = _get_root(config)
+    result = gc(root=root)
     if result["removed"] == 0:
         print("No objects to collect.")
     else:

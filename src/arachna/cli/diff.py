@@ -31,6 +31,7 @@ def _cmd_diff(args, config: dict):
         _cmd_diff_all(args, config)
         return
 
+    root = _get_root(config)
     snapshot_id = args.from_snapshot
     to_snapshot_id = args.to
 
@@ -48,7 +49,7 @@ def _cmd_diff(args, config: dict):
     diff_mode = args.mode or "full"
 
     if snapshot_id is None:
-        snaps = list_snapshots()
+        snaps = list_snapshots(root=root)
         if len(snaps) == 0:
             print("Error: No snapshots found.")
             sys.exit(1)
@@ -66,7 +67,7 @@ def _cmd_diff(args, config: dict):
     out_path.mkdir(parents=True, exist_ok=True)
 
     if profile is None:
-        manifest = load_snapshot(snapshot_id)
+        manifest = load_snapshot(snapshot_id, root=root)
         stored = manifest.get("profile", {})
         if isinstance(stored, dict):
             profile = stored

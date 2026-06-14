@@ -37,7 +37,8 @@ def _cmd_snapshot_create(args, config: dict):
         sys.exit(1)
 
     try:
-        sid = watch_create_snapshot(profile, name=args.name)
+        root = _get_root(config)
+        sid = watch_create_snapshot(profile, name=args.name, root=root)
         print(f"Snapshot '{sid}' created.")
     except SnapshotExistsError as e:
         print(f"Error: {e}")
@@ -46,7 +47,8 @@ def _cmd_snapshot_create(args, config: dict):
 
 @register("snapshot-list")
 def _cmd_snapshot_list(args, config: dict):
-    snaps = list_snapshots()
+    root = _get_root(config)
+    snaps = list_snapshots(root=root)
     if not snaps:
         print("No snapshots found.")
         return
@@ -75,7 +77,8 @@ def _cmd_snapshot_update(args, config: dict):
             sys.exit(1)
 
     try:
-        watch_update_snapshot(sid, profile=profile)
+        root = _get_root(config)
+        watch_update_snapshot(sid, profile=profile, root=root)
         print(f"Snapshot '{sid}' updated.")
     except Exception as e:
         print(f"Error: {e}")
@@ -92,7 +95,8 @@ def _cmd_snapshot_delete(args, config: dict):
         sys.exit(1)
 
     try:
-        delete_snapshot(sid)
+        root = _get_root(config)
+        delete_snapshot(sid, root=root)
         print(f"Snapshot '{sid}' deleted.")
     except Exception as e:
         print(f"Error: {e}")
@@ -109,7 +113,8 @@ def _cmd_snapshot_info(args, config: dict):
         sys.exit(1)
 
     try:
-        all_manifests = list_snapshots()
+        root = _get_root(config)
+        all_manifests = list_snapshots(root=root)
         target = None
         for m in all_manifests:
             if m["id"] == sid:
@@ -169,7 +174,8 @@ def _cmd_snapshot_rename(args, config: dict):
         sys.exit(1)
 
     try:
-        store_rename_snapshot(args.old, args.new)
+        root = _get_root(config)
+        store_rename_snapshot(args.old, args.new, root=root)
         print(f"Snapshot '{args.old}' renamed to '{args.new}'.")
     except Exception as e:
         print(f"Error: {e}")
