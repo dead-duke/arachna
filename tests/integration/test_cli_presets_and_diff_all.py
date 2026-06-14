@@ -1,12 +1,11 @@
-"""Integration tests for v2.5.0 features — updated for v3.0 CLI."""
+"""Integration tests for presets and diff --all."""
 
 import json
 
 from tests.integration.conftest import _arachna
 
 
-def test_diff_all_full(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_all_full(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     out_dir = tmp_path / "out"
@@ -29,7 +28,7 @@ def test_diff_all_full(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("diff", "--all", "--profile", "code")
+    result = _arachna("diff", "--all", "--profile", "code", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff-all*"))
     assert len(files) >= 1
@@ -37,8 +36,7 @@ def test_diff_all_full(tmp_path, monkeypatch):
     assert "main.py" in content
 
 
-def test_diff_all_repo_map(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_all_repo_map(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("def foo():\n    return 1\n")
     out_dir = tmp_path / "out"
@@ -61,7 +59,7 @@ def test_diff_all_repo_map(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("diff", "--all", "--profile", "code", "--mode", "repo-map")
+    result = _arachna("diff", "--all", "--profile", "code", "--mode", "repo-map", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff-all*"))
     assert len(files) >= 1
@@ -70,19 +68,16 @@ def test_diff_all_repo_map(tmp_path, monkeypatch):
     assert "return 1" not in content
 
 
-def test_diff_all_and_from_error(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_all_and_from_error(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
-
-    result = _arachna("diff", "--all", "--from", "some-snap")
+    result = _arachna("diff", "--all", "--from", "some-snap", cwd=tmp_path)
     assert result.returncode == 1
     assert "Cannot use --all and --from together" in result.stdout
 
 
-def test_snapshot_info_full(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_info_full(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / ".arachna.json").write_text(
@@ -104,23 +99,22 @@ def test_snapshot_info_full(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "info-e2e")
-    result = _arachna("snapshot", "info", "info-e2e")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "info-e2e", cwd=tmp_path)
+    result = _arachna("snapshot", "info", "info-e2e", cwd=tmp_path)
     assert result.returncode == 0
     assert "Snapshot: info-e2e" in result.stdout
     assert "Profile:" in result.stdout
 
-    result_p = _arachna("snapshot", "info", "info-e2e", "--profile")
+    result_p = _arachna("snapshot", "info", "info-e2e", "--profile", cwd=tmp_path)
     assert result_p.returncode == 0
     assert "directories:" in result_p.stdout
 
-    result_s = _arachna("snapshot", "info", "info-e2e", "--stats")
+    result_s = _arachna("snapshot", "info", "info-e2e", "--stats", cwd=tmp_path)
     assert result_s.returncode == 0
     assert "Files:" in result_s.stdout
 
 
-def test_snapshot_rename(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_rename(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / ".arachna.json").write_text(
@@ -141,18 +135,17 @@ def test_snapshot_rename(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "old-name")
-    result = _arachna("snapshot", "rename", "old-name", "new-name")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "old-name", cwd=tmp_path)
+    result = _arachna("snapshot", "rename", "old-name", "new-name", cwd=tmp_path)
     assert result.returncode == 0
     assert "renamed" in result.stdout
 
-    lst = _arachna("snapshot", "list")
+    lst = _arachna("snapshot", "list", cwd=tmp_path)
     assert "new-name" in lst.stdout
     assert "old-name" not in lst.stdout
 
 
-def test_diff_format_xml(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_format_xml(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("original")
     out_dir = tmp_path / "out"
@@ -175,10 +168,12 @@ def test_diff_format_xml(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "xml-e2e")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "xml-e2e", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("modified")
 
-    result = _arachna("diff", "--from", "xml-e2e", "--profile", "code", "--format", "xml")
+    result = _arachna(
+        "diff", "--from", "xml-e2e", "--profile", "code", "--format", "xml", cwd=tmp_path
+    )
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
@@ -186,22 +181,21 @@ def test_diff_format_xml(tmp_path, monkeypatch):
     assert 'file path="' in content
 
 
-def test_presets_update_with_url(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_presets_update_with_url(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
-
-    result = _arachna("presets", "update", "--url", "https://example.com/presets.json")
+    result = _arachna(
+        "presets", "update", "--url", "https://example.com/presets.json", cwd=tmp_path
+    )
     assert result.returncode == 1
     assert "No presets fetched" in result.stdout
 
 
-def test_diff_cross_snapshot(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_cross_snapshot(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("version 1")
     out_dir = tmp_path / "out"
@@ -224,11 +218,11 @@ def test_diff_cross_snapshot(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "v1-cross")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "v1-cross", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("version 2")
-    _arachna("snapshot", "create", "--profile", "code", "--name", "v2-cross")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "v2-cross", cwd=tmp_path)
 
-    result = _arachna("diff", "--from", "v1-cross", "--to", "v2-cross")
+    result = _arachna("diff", "--from", "v1-cross", "--to", "v2-cross", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
@@ -237,8 +231,7 @@ def test_diff_cross_snapshot(tmp_path, monkeypatch):
     assert "v2-cross" in content
 
 
-def test_diff_flat(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_flat(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("original")
     out_dir = tmp_path / "out"
@@ -261,17 +254,16 @@ def test_diff_flat(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "flat-e2e")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "flat-e2e", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("modified")
 
-    result = _arachna("diff", "--from", "flat-e2e", "--flat")
+    result = _arachna("diff", "--from", "flat-e2e", "--flat", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
 
 
-def test_all_mode_headers(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_all_mode_headers(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("import os\n\ndef foo():\n    return 1\n")
     out_dir = tmp_path / "out"
@@ -294,7 +286,7 @@ def test_all_mode_headers(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--all", "--mode", "headers")
+    result = _arachna("collect", "--all", "--mode", "headers", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-code*"))
     assert len(files) >= 1
@@ -303,8 +295,7 @@ def test_all_mode_headers(tmp_path, monkeypatch):
     assert "exports:" in content
 
 
-def test_all_query(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_all_query(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "auth.py").write_text("def login(): pass")
     (tmp_path / "src" / "utils.py").write_text("def helper(): pass")
@@ -328,7 +319,7 @@ def test_all_query(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--all", "--query", "auth")
+    result = _arachna("collect", "--all", "--query", "auth", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-code*"))
     assert len(files) >= 1
@@ -337,8 +328,7 @@ def test_all_query(tmp_path, monkeypatch):
     assert "utils.py" not in content
 
 
-def test_profile_mode_repo_map(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_profile_mode_repo_map(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("def foo():\n    return 1\n\nclass Bar:\n    pass\n")
     out_dir = tmp_path / "out"
@@ -361,7 +351,7 @@ def test_profile_mode_repo_map(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--mode", "repo-map")
+    result = _arachna("collect", "--profile", "code", "--mode", "repo-map", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-code*"))
     assert len(files) >= 1
@@ -371,8 +361,7 @@ def test_profile_mode_repo_map(tmp_path, monkeypatch):
     assert "return 1" not in content
 
 
-def test_diff_compress(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_compress(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("original\n\n\n\nspaces")
     out_dir = tmp_path / "out"
@@ -395,10 +384,10 @@ def test_diff_compress(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "comp-e2e")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "comp-e2e", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("modified\n\n\n\nafter")
 
-    result = _arachna("diff", "--from", "comp-e2e", "--profile", "code", "--compress")
+    result = _arachna("diff", "--from", "comp-e2e", "--profile", "code", "--compress", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
@@ -406,13 +395,12 @@ def test_diff_compress(tmp_path, monkeypatch):
     assert "\n\n\n\n" not in content
 
 
-def test_init_with_preset(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_init_with_preset(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / ".git").mkdir()
 
-    result = _arachna("init", "--defaults", "--preset", "python")
+    result = _arachna("init", "--defaults", "--preset", "python", cwd=tmp_path)
     assert result.returncode == 0
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -421,8 +409,7 @@ def test_init_with_preset(tmp_path, monkeypatch):
     assert len(data["profiles"]) == 1
 
 
-def test_diff_mode_structural_integration(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_mode_structural_integration(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("import os\n\ndef foo():\n    return 1\n")
     out_dir = tmp_path / "out"
@@ -445,17 +432,18 @@ def test_diff_mode_structural_integration(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "struct-int")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "struct-int", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("import sys\n\ndef foo():\n    return 2\n")
 
-    result = _arachna("diff", "--from", "struct-int", "--profile", "code", "--mode", "structural")
+    result = _arachna(
+        "diff", "--from", "struct-int", "--profile", "code", "--mode", "structural", cwd=tmp_path
+    )
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff*"))
     assert len(files) >= 1
 
 
-def test_profile_query(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_profile_query(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "auth.py").write_text("def login(): pass")
     (tmp_path / "src" / "utils.py").write_text("def helper(): pass")
@@ -479,7 +467,7 @@ def test_profile_query(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--query", "auth")
+    result = _arachna("collect", "--profile", "code", "--query", "auth", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-code*"))
     assert len(files) >= 1
@@ -488,8 +476,7 @@ def test_profile_query(tmp_path, monkeypatch):
     assert "utils.py" not in content
 
 
-def test_snapshot_update_with_profile(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_update_with_profile(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / ".arachna.json").write_text(
@@ -517,14 +504,13 @@ def test_snapshot_update_with_profile(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "upd-profile")
-    result = _arachna("snapshot", "update", "upd-profile", "--profile", "alt")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "upd-profile", cwd=tmp_path)
+    result = _arachna("snapshot", "update", "upd-profile", "--profile", "alt", cwd=tmp_path)
     assert result.returncode == 0
     assert "updated" in result.stdout
 
 
-def test_diff_output_dir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_output_dir(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("original")
     custom_dir = tmp_path / "custom_diff"
@@ -546,19 +532,25 @@ def test_diff_output_dir(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "od-diff")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "od-diff", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("modified")
 
     result = _arachna(
-        "diff", "--from", "od-diff", "--profile", "code", "--output-dir", str(custom_dir)
+        "diff",
+        "--from",
+        "od-diff",
+        "--profile",
+        "code",
+        "--output-dir",
+        str(custom_dir),
+        cwd=tmp_path,
     )
     assert result.returncode == 0
     files = list(custom_dir.glob("chat-diff*"))
     assert len(files) >= 1
 
 
-def test_diff_all_output_dir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_all_output_dir(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     custom_dir = tmp_path / "custom_all"
@@ -580,14 +572,15 @@ def test_diff_all_output_dir(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("diff", "--all", "--profile", "code", "--output-dir", str(custom_dir))
+    result = _arachna(
+        "diff", "--all", "--profile", "code", "--output-dir", str(custom_dir), cwd=tmp_path
+    )
     assert result.returncode == 0
     files = list(custom_dir.glob("chat-diff-all*"))
     assert len(files) >= 1
 
 
-def test_diff_all_query(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_all_query(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "auth.py").write_text("def login(): pass")
     (tmp_path / "src" / "utils.py").write_text("def helper(): pass")
@@ -611,7 +604,7 @@ def test_diff_all_query(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("diff", "--all", "--profile", "code", "--query", "auth")
+    result = _arachna("diff", "--all", "--profile", "code", "--query", "auth", cwd=tmp_path)
     assert result.returncode == 0
     files = list(out_dir.glob("chat-diff-all*"))
     assert len(files) >= 1

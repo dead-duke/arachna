@@ -1,12 +1,11 @@
-"""Integration tests for snapshot update with pre_commands. Updated for v3.0 CLI."""
+"""Integration tests for snapshot update with pre_commands."""
 
 import json
 
 from tests.integration.conftest import _arachna
 
 
-def test_snapshot_update_pre_commands_not_blocked(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_update_pre_commands_not_blocked(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -34,20 +33,19 @@ def test_snapshot_update_pre_commands_not_blocked(tmp_path, monkeypatch):
         )
     )
 
-    r1 = _arachna("snapshot", "create", "--profile", "code", "--name", "pre-upd-snap")
+    r1 = _arachna("snapshot", "create", "--profile", "code", "--name", "pre-upd-snap", cwd=tmp_path)
     assert r1.returncode == 0
     assert "blocked" not in r1.stderr.lower()
     assert "blocked" not in r1.stdout.lower()
 
     (src / "main.py").write_text("print('updated')")
-    r2 = _arachna("snapshot", "update", "pre-upd-snap", "--profile", "code")
+    r2 = _arachna("snapshot", "update", "pre-upd-snap", "--profile", "code", cwd=tmp_path)
     assert r2.returncode == 0
     assert "blocked" not in r2.stderr.lower()
     assert "blocked" not in r2.stdout.lower()
 
 
-def test_diff_with_pre_commands_not_blocked(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_with_pre_commands_not_blocked(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -77,11 +75,13 @@ def test_diff_with_pre_commands_not_blocked(tmp_path, monkeypatch):
         )
     )
 
-    r1 = _arachna("snapshot", "create", "--profile", "code", "--name", "diff-pre-snap")
+    r1 = _arachna(
+        "snapshot", "create", "--profile", "code", "--name", "diff-pre-snap", cwd=tmp_path
+    )
     assert r1.returncode == 0
 
     (src / "main.py").write_text("print('modified')")
-    r2 = _arachna("diff", "--from", "diff-pre-snap", "--profile", "code")
+    r2 = _arachna("diff", "--from", "diff-pre-snap", "--profile", "code", cwd=tmp_path)
     assert r2.returncode == 0
     assert "blocked" not in r2.stderr.lower()
     assert "blocked" not in r2.stdout.lower()

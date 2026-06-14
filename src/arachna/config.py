@@ -1,7 +1,6 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Config loader — reads .arachna.json from project root."""
 
-import functools
 import json
 from pathlib import Path
 from typing import Any
@@ -29,18 +28,20 @@ _MERGE_APPEND = {"exclude_patterns", "patterns"}
 _MAX_EXTENDS_DEPTH = 5
 
 
-@functools.lru_cache(maxsize=1)
-def find_config() -> Path | None:
-    cwd = Path.cwd()
-    for parent in [cwd, *cwd.parents]:
+def find_config(root: Path | None = None) -> Path | None:
+    """Find .arachna.json by walking up from root (default: cwd)."""
+    if root is None:
+        root = Path.cwd()
+    for parent in [root, *root.parents]:
         cfg = parent / ".arachna.json"
         if cfg.exists():
             return cfg
     return None
 
 
-def load_config() -> dict[str, Any]:
-    cfg_path = find_config()
+def load_config(root: Path | None = None) -> dict[str, Any]:
+    """Load config from .arachna.json found from root (default: cwd)."""
+    cfg_path = find_config(root)
     if not cfg_path:
         return _default_config()
     with open(cfg_path, encoding="utf-8") as f:

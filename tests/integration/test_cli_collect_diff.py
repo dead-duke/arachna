@@ -1,18 +1,11 @@
-"""Integration tests for v3.0 CLI — gaps identified in test audit.
-
-Covers: collect with --no-pre-commands, diff --to cross-snapshot,
-diff --all --compress, diff --format xml, snapshot update --profile,
-collect --mode headers, collect --mode repo-map.
-"""
+"""Integration tests for v3.0 CLI — collect/diff gaps."""
 
 import json
 
 from tests.integration.conftest import _arachna
 
 
-# TC-188: collect --no-pre-commands skips pre_commands output
-def test_collect_no_pre_commands(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_collect_no_pre_commands(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     out_dir = tmp_path / "out"
@@ -36,7 +29,7 @@ def test_collect_no_pre_commands(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--no-pre-commands")
+    result = _arachna("collect", "--profile", "code", "--no-pre-commands", cwd=tmp_path)
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-code*"))
@@ -46,9 +39,7 @@ def test_collect_no_pre_commands(tmp_path, monkeypatch):
     assert "PRE OUTPUT" not in content
 
 
-# TC-189: diff --to cross-snapshot via CLI
-def test_diff_to_cross_snapshot_cli(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_to_cross_snapshot_cli(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("v1")
     out_dir = tmp_path / "out"
@@ -71,20 +62,18 @@ def test_diff_to_cross_snapshot_cli(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "v1-snap")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "v1-snap", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("v2")
-    _arachna("snapshot", "create", "--profile", "code", "--name", "v2-snap")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "v2-snap", cwd=tmp_path)
 
-    result = _arachna("diff", "--from", "v1-snap", "--to", "v2-snap")
+    result = _arachna("diff", "--from", "v1-snap", "--to", "v2-snap", cwd=tmp_path)
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-diff-v1-snap-to-v2-snap*"))
     assert len(files) >= 1
 
 
-# TC-190: diff --all --compress via CLI
-def test_diff_all_compress_cli(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_all_compress_cli(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("a\n\n\n\nb\n")
     out_dir = tmp_path / "out"
@@ -107,7 +96,7 @@ def test_diff_all_compress_cli(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("diff", "--all", "--profile", "code", "--compress")
+    result = _arachna("diff", "--all", "--profile", "code", "--compress", cwd=tmp_path)
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-diff-all*"))
@@ -116,9 +105,7 @@ def test_diff_all_compress_cli(tmp_path, monkeypatch):
     assert "\n\n\n\n" not in content
 
 
-# TC-191: diff --format xml via CLI
-def test_diff_format_xml_cli(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_format_xml_cli(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("original")
     out_dir = tmp_path / "out"
@@ -141,10 +128,12 @@ def test_diff_format_xml_cli(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "xml-snap")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "xml-snap", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("modified")
 
-    result = _arachna("diff", "--from", "xml-snap", "--profile", "code", "--format", "xml")
+    result = _arachna(
+        "diff", "--from", "xml-snap", "--profile", "code", "--format", "xml", cwd=tmp_path
+    )
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-diff*"))
@@ -153,9 +142,7 @@ def test_diff_format_xml_cli(tmp_path, monkeypatch):
     assert 'file path="' in content
 
 
-# TC-192: snapshot update --profile via CLI
-def test_snapshot_update_with_profile_cli(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_update_with_profile_cli(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / ".arachna.json").write_text(
@@ -183,15 +170,13 @@ def test_snapshot_update_with_profile_cli(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "upd-prof-cli")
-    result = _arachna("snapshot", "update", "upd-prof-cli", "--profile", "alt")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "upd-prof-cli", cwd=tmp_path)
+    result = _arachna("snapshot", "update", "upd-prof-cli", "--profile", "alt", cwd=tmp_path)
     assert result.returncode == 0
     assert "updated" in result.stdout
 
 
-# TC-193: collect --mode headers via CLI
-def test_collect_mode_headers_cli(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_collect_mode_headers_cli(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("import os\n\ndef foo():\n    return 1\n")
     out_dir = tmp_path / "out"
@@ -214,7 +199,7 @@ def test_collect_mode_headers_cli(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--mode", "headers")
+    result = _arachna("collect", "--profile", "code", "--mode", "headers", cwd=tmp_path)
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-code*"))
@@ -224,9 +209,7 @@ def test_collect_mode_headers_cli(tmp_path, monkeypatch):
     assert "exports:" in content
 
 
-# TC-194: collect --mode repo-map via CLI
-def test_collect_mode_repo_map_cli(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_collect_mode_repo_map_cli(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("def foo():\n    return 1\n\nclass Bar:\n    pass\n")
     out_dir = tmp_path / "out"
@@ -249,7 +232,7 @@ def test_collect_mode_repo_map_cli(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--mode", "repo-map")
+    result = _arachna("collect", "--profile", "code", "--mode", "repo-map", cwd=tmp_path)
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-code*"))

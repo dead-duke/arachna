@@ -1,4 +1,4 @@
-"""End-to-end integration tests — run arachna as a real process. Updated for v3.0 CLI."""
+"""End-to-end integration tests — run arachna as a real process."""
 
 import json
 
@@ -6,22 +6,21 @@ from tests.integration.conftest import _arachna
 
 
 def test_version():
-    """TC-040: arachna --version prints version and exits 0."""
     result = _arachna("--version")
     assert result.returncode == 0
     assert "arachna v" in result.stdout
 
 
-def test_list():
-    """TC-014: arachna collect --list prints profiles."""
-    result = _arachna("collect", "--list")
+def test_list(tmp_path):
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
+    )
+    result = _arachna("collect", "--list", cwd=tmp_path)
     assert result.returncode == 0
-    assert "full:" in result.stdout
+    assert "default:" in result.stdout
 
 
-def test_validate(tmp_path, monkeypatch):
-    """TC-012: arachna collect --validate exits 0 on valid config."""
-    monkeypatch.chdir(tmp_path)
+def test_validate(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
@@ -36,18 +35,16 @@ def test_validate(tmp_path, monkeypatch):
             }
         )
     )
-
-    result = _arachna("collect", "--validate")
+    result = _arachna("collect", "--validate", cwd=tmp_path)
     assert result.returncode == 0
     assert "valid" in result.stdout
 
 
-def test_collect_and_clean(tmp_path, monkeypatch):
-    """TC-001, TC-004: collect a profile, verify output, clean."""
-    monkeypatch.chdir(tmp_path)
-
+def test_collect_and_clean(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -66,28 +63,26 @@ def test_collect_and_clean(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code")
+    result = _arachna("collect", "--profile", "code", cwd=tmp_path)
     assert result.returncode == 0
 
-    out_dir = tmp_path / "out"
     files = sorted(out_dir.glob("chat-code*"))
     assert len(files) == 1
     content = files[0].read_text()
     assert "main.py" in content
     assert "print('hello')" in content
 
-    result = _arachna("collect", "--clean")
+    result = _arachna("collect", "--clean", cwd=tmp_path)
     assert result.returncode == 0
     remaining = list(out_dir.glob("chat-code*"))
     assert len(remaining) == 0
 
 
-def test_dry_run_no_files(tmp_path, monkeypatch):
-    """TC-003: collect --dry-run prints stats, creates no files."""
-    monkeypatch.chdir(tmp_path)
-
+def test_dry_run_no_files(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -106,33 +101,28 @@ def test_dry_run_no_files(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--dry-run")
+    result = _arachna("collect", "--profile", "code", "--dry-run", cwd=tmp_path)
     assert result.returncode == 0
     assert "main.py" in result.stdout
 
-    out_dir = tmp_path / "out"
     if out_dir.exists():
         files = list(out_dir.glob("chat-code*"))
         assert len(files) == 0
 
 
-def test_missing_profile_exits_1(tmp_path, monkeypatch):
-    """Non-existent profile exits with 1."""
-    monkeypatch.chdir(tmp_path)
+def test_missing_profile_exits_1(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"profiles": {"code": {"command": "echo hi", "max_tokens": 100}}})
     )
-
-    result = _arachna("collect", "--profile", "nonexistent")
+    result = _arachna("collect", "--profile", "nonexistent", cwd=tmp_path)
     assert result.returncode == 1
 
 
-def test_collect_all(tmp_path, monkeypatch):
-    """TC-002: collect --all collects all profiles."""
-    monkeypatch.chdir(tmp_path)
-
+def test_collect_all(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -159,10 +149,9 @@ def test_collect_all(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--all")
+    result = _arachna("collect", "--all", cwd=tmp_path)
     assert result.returncode == 0
 
-    out_dir = tmp_path / "out"
     code_files = list(out_dir.glob("chat-code*"))
     docs_files = list(out_dir.glob("chat-docs*"))
     manifest = out_dir / "chat-manifest.md"
@@ -171,12 +160,11 @@ def test_collect_all(tmp_path, monkeypatch):
     assert manifest.exists()
 
 
-def test_compress_flag(tmp_path, monkeypatch):
-    """TC-011: collect --compress collapses blank lines."""
-    monkeypatch.chdir(tmp_path)
-
+def test_compress_flag(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("a\n\n\n\nb\n")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -195,20 +183,16 @@ def test_compress_flag(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--compress")
+    result = _arachna("collect", "--profile", "code", "--compress", cwd=tmp_path)
     assert result.returncode == 0
 
-    out_dir = tmp_path / "out"
     files = list(out_dir.glob("chat-code*"))
     assert len(files) == 1
     content = files[0].read_text()
     assert "\n\n\n\n" not in content
 
 
-def test_doctor_valid(tmp_path, monkeypatch):
-    """TC-015: doctor exits 0 on valid config."""
-    monkeypatch.chdir(tmp_path)
-
+def test_doctor_valid(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
@@ -223,33 +207,26 @@ def test_doctor_valid(tmp_path, monkeypatch):
             }
         )
     )
-
-    result = _arachna("doctor")
+    result = _arachna("doctor", cwd=tmp_path)
     assert result.returncode == 0
     assert "All profiles valid" in result.stdout
 
 
-def test_install_hook(tmp_path, monkeypatch):
-    """TC-023: init --install-hook creates post-commit hook."""
-    monkeypatch.chdir(tmp_path)
-
+def test_install_hook(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "test"}))
-
-    result = _arachna("init", "--install-hook")
+    result = _arachna("init", "--install-hook", cwd=tmp_path)
     assert result.returncode == 0
-
     hook = tmp_path / ".git" / "hooks" / "post-commit"
     assert hook.exists()
     assert "arachna --all" in hook.read_text()
 
 
-def test_merge_mode(tmp_path, monkeypatch):
-    """TC-025: collect --merge appends to existing output."""
-    monkeypatch.chdir(tmp_path)
-
+def test_merge_mode(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_text("print('hi')")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -268,24 +245,22 @@ def test_merge_mode(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("collect", "--profile", "code", "--merge")
-    _arachna("collect", "--profile", "code", "--merge")
+    _arachna("collect", "--profile", "code", "--merge", cwd=tmp_path)
+    _arachna("collect", "--profile", "code", "--merge", cwd=tmp_path)
 
-    out_dir = tmp_path / "out"
     files = sorted(out_dir.glob("chat-code_*.md"))
     assert len(files) == 2
     assert "chat-code_1.md" in files[0].name
     assert "chat-code_2.md" in files[1].name
 
 
-def test_gitignore_excludes(tmp_path, monkeypatch):
-    """TC-033: .gitignore patterns exclude files from collection."""
-    monkeypatch.chdir(tmp_path)
-
+def test_gitignore_excludes(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / "src" / "debug.txt").write_text("log")
     (tmp_path / ".gitignore").write_text("*.txt\n")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -304,10 +279,9 @@ def test_gitignore_excludes(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code")
+    result = _arachna("collect", "--profile", "code", cwd=tmp_path)
     assert result.returncode == 0
 
-    out_dir = tmp_path / "out"
     files = list(out_dir.glob("chat-code*"))
     assert len(files) == 1
     content = files[0].read_text()
@@ -315,15 +289,12 @@ def test_gitignore_excludes(tmp_path, monkeypatch):
     assert "debug.txt" not in content
 
 
-def test_init_defaults(tmp_path, monkeypatch):
-    """TC-017: init --defaults creates config with detected profiles."""
-    monkeypatch.chdir(tmp_path)
-
+def test_init_defaults(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / ".git").mkdir()
 
-    result = _arachna("init", "--defaults")
+    result = _arachna("init", "--defaults", cwd=tmp_path)
     assert result.returncode == 0
 
     cfg = tmp_path / ".arachna.json"
@@ -333,13 +304,12 @@ def test_init_defaults(tmp_path, monkeypatch):
     assert "git" in data["profiles"]
 
 
-def test_verbose_flag(tmp_path, monkeypatch):
-    """TC-042: collect --verbose prints skipped file information."""
-    monkeypatch.chdir(tmp_path)
-
+def test_verbose_flag(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / "src" / "data.bin").write_bytes(b"\x00\x01\x02")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -358,17 +328,16 @@ def test_verbose_flag(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("collect", "--profile", "code", "--verbose")
+    result = _arachna("collect", "--profile", "code", "--verbose", cwd=tmp_path)
     assert result.returncode == 0
     assert "Skipped" in result.stdout or "Skipped" in result.stderr
 
 
-def test_incremental_flag(tmp_path, monkeypatch):
-    """TC-043: collect --incremental second run collects no content."""
-    monkeypatch.chdir(tmp_path)
-
+def test_incremental_flag(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -387,22 +356,18 @@ def test_incremental_flag(tmp_path, monkeypatch):
         )
     )
 
-    result1 = _arachna("collect", "--profile", "code", "--incremental")
+    result1 = _arachna("collect", "--profile", "code", "--incremental", cwd=tmp_path)
     assert result1.returncode == 0
 
-    out_dir = tmp_path / "out"
     files_after_first = sorted(out_dir.glob("chat-code*"))
     assert len(files_after_first) == 1
 
-    result2 = _arachna("collect", "--profile", "code", "--incremental")
+    result2 = _arachna("collect", "--profile", "code", "--incremental", cwd=tmp_path)
     assert result2.returncode == 0
     assert "No content collected" in result2.stdout
 
 
-def test_output_dir_flag(tmp_path, monkeypatch):
-    """TC-044: collect --output-dir writes files to the specified directory."""
-    monkeypatch.chdir(tmp_path)
-
+def test_output_dir_flag(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / ".arachna.json").write_text(
@@ -424,7 +389,7 @@ def test_output_dir_flag(tmp_path, monkeypatch):
     )
 
     custom_dir = tmp_path / "custom_output"
-    result = _arachna("collect", "--profile", "code", "--output-dir", str(custom_dir))
+    result = _arachna("collect", "--profile", "code", "--output-dir", str(custom_dir), cwd=tmp_path)
     assert result.returncode == 0
 
     assert custom_dir.is_dir()

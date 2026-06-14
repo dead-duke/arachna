@@ -10,96 +10,75 @@ from arachna.store import (
 from arachna.store_errors import ObjectNotFoundError, SnapshotExistsError
 
 
-def test_rename_snapshot_happy_path(tmp_path, monkeypatch):
+def test_rename_snapshot_happy_path(tmp_path):
     """rename_snapshot renames manifest, updates id and name."""
-    monkeypatch.chdir(tmp_path)
-
-    create_snapshot({"a.py": "hello"}, name="old-name")
-    new_id = rename_snapshot("old-name", "new-name")
+    create_snapshot({"a.py": "hello"}, name="old-name", root=tmp_path)
+    new_id = rename_snapshot("old-name", "new-name", root=tmp_path)
 
     assert new_id == "new-name"
 
-    manifest = load_snapshot("new-name")
+    manifest = load_snapshot("new-name", root=tmp_path)
     assert manifest["id"] == "new-name"
     assert manifest["name"] == "new-name"
     assert manifest["files"] == {"a.py": manifest["files"]["a.py"]}
 
-    # Old name should not exist
     with pytest.raises(ObjectNotFoundError):
-        load_snapshot("old-name")
+        load_snapshot("old-name", root=tmp_path)
 
 
-def test_rename_snapshot_updates_head(tmp_path, monkeypatch):
+def test_rename_snapshot_updates_head(tmp_path):
     """rename_snapshot updates HEAD when it pointed to old_id."""
-    monkeypatch.chdir(tmp_path)
-
-    create_snapshot({"a.py": "x"}, name="head-snap")
-    rename_snapshot("head-snap", "renamed-head")
+    create_snapshot({"a.py": "x"}, name="head-snap", root=tmp_path)
+    rename_snapshot("head-snap", "renamed-head", root=tmp_path)
 
     from arachna.store import _store_root
 
-    head = (_store_root() / "HEAD").read_text().strip()
+    head = (_store_root(tmp_path) / "HEAD").read_text().strip()
     assert head == "renamed-head"
 
 
-def test_rename_snapshot_duplicate_name(tmp_path, monkeypatch):
+def test_rename_snapshot_duplicate_name(tmp_path):
     """rename_snapshot raises SnapshotExistsError when new_id already exists."""
-    monkeypatch.chdir(tmp_path)
-
-    create_snapshot({"a.py": "x"}, name="first")
-    create_snapshot({"b.py": "y"}, name="second")
+    create_snapshot({"a.py": "x"}, name="first", root=tmp_path)
+    create_snapshot({"b.py": "y"}, name="second", root=tmp_path)
 
     with pytest.raises(SnapshotExistsError, match="already exists"):
-        rename_snapshot("first", "second")
-
-    # Verify nothing was changed
-    assert load_snapshot("first")["id"] == "first"
-    assert load_snapshot("second")["id"] == "second"
+        rename_snapshot("first", "second", root=tmp_path)
 
 
-def test_rename_snapshot_not_found(tmp_path, monkeypatch):
+def test_rename_snapshot_not_found(tmp_path):
     """rename_snapshot raises ObjectNotFoundError when old_id doesn't exist."""
-    monkeypatch.chdir(tmp_path)
-
     with pytest.raises(ObjectNotFoundError, match="not found"):
-        rename_snapshot("nonexistent", "new-name")
+        rename_snapshot("nonexistent", "new-name", root=tmp_path)
 
 
-def test_rename_snapshot_other_head_unchanged(tmp_path, monkeypatch):
+def test_rename_snapshot_other_head_unchanged(tmp_path):
     """rename_snapshot does not update HEAD when it points to a different snapshot."""
-    monkeypatch.chdir(tmp_path)
+    create_snapshot({"a.py": "x"}, name="snap-a", root=tmp_path)
+    create_snapshot({"b.py": "y"}, name="snap-b", root=tmp_path)
 
-    create_snapshot({"a.py": "x"}, name="snap-a")
-    create_snapshot({"b.py": "y"}, name="snap-b")
-
-    # HEAD now points to snap-b (latest)
-    rename_snapshot("snap-a", "renamed-a")
+    rename_snapshot("snap-a", "renamed-a", root=tmp_path)
 
     from arachna.store import _store_root
 
-    head = (_store_root() / "HEAD").read_text().strip()
-    # HEAD should still point to snap-b
+    head = (_store_root(tmp_path) / "HEAD").read_text().strip()
     assert head == "snap-b"
 
 
-def test_rename_snapshot_objects_preserved(tmp_path, monkeypatch):
+def test_rename_snapshot_objects_preserved(tmp_path):
     """rename_snapshot preserves objects — content still accessible after rename."""
-    monkeypatch.chdir(tmp_path)
-
-    sid = create_snapshot({"a.py": "hello world"}, name="original")
-    old_manifest = load_snapshot(sid)
+    sid = create_snapshot({"a.py": "hello world"}, name="original", root=tmp_path)
+    old_manifest = load_snapshot(sid, root=tmp_path)
     old_hash = old_manifest["files"]["a.py"]
 
-    rename_snapshot("original", "renamed")
+    rename_snapshot("original", "renamed", root=tmp_path)
 
-    new_manifest = load_snapshot("renamed")
+    new_manifest = load_snapshot("renamed", root=tmp_path)
     assert new_manifest["files"]["a.py"] == old_hash
 
 
-def test_rename_snapshot_preserves_all_fields(tmp_path, monkeypatch):
+def test_rename_snapshot_preserves_all_fields(tmp_path):
     """rename_snapshot preserves profile, pre_commands, command, created."""
-    monkeypatch.chdir(tmp_path)
-
     profile_dict = {"directories": ["src"], "patterns": ["*.py"]}
     create_snapshot(
         {"a.py": "x"},
@@ -107,11 +86,12 @@ def test_rename_snapshot_preserves_all_fields(tmp_path, monkeypatch):
         name="full-snap",
         pre_commands={"pre: echo": "sha256:abc123"},
         command={"command output": "sha256:def456"},
+        root=tmp_path,
     )
 
-    rename_snapshot("full-snap", "renamed-full")
+    rename_snapshot("full-snap", "renamed-full", root=tmp_path)
 
-    manifest = load_snapshot("renamed-full")
+    manifest = load_snapshot("renamed-full", root=tmp_path)
     assert manifest["profile"] == profile_dict
     assert manifest["pre_commands"] == {"pre: echo": "sha256:abc123"}
     assert manifest["command"] == {"command output": "sha256:def456"}

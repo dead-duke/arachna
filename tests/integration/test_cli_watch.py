@@ -1,12 +1,11 @@
-"""Integration tests for Watch CLI. Updated for v3.0 CLI."""
+"""Integration tests for Watch CLI."""
 
 import json
 
 from tests.integration.conftest import _arachna
 
 
-def test_snapshot_create_and_list(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_create_and_list(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / ".arachna.json").write_text(
@@ -27,16 +26,17 @@ def test_snapshot_create_and_list(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("snapshot", "create", "--profile", "code", "--name", "list-test")
+    result = _arachna(
+        "snapshot", "create", "--profile", "code", "--name", "list-test", cwd=tmp_path
+    )
     assert result.returncode == 0
 
-    result = _arachna("snapshot", "list")
+    result = _arachna("snapshot", "list", cwd=tmp_path)
     assert result.returncode == 0
     assert "list-test" in result.stdout
 
 
-def test_snapshot_named(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_named(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / ".arachna.json").write_text(
@@ -57,16 +57,15 @@ def test_snapshot_named(tmp_path, monkeypatch):
         )
     )
 
-    result = _arachna("snapshot", "create", "--profile", "code", "--name", "my-snap")
+    result = _arachna("snapshot", "create", "--profile", "code", "--name", "my-snap", cwd=tmp_path)
     assert result.returncode == 0
     assert "my-snap" in result.stdout
 
-    result = _arachna("snapshot", "list")
+    result = _arachna("snapshot", "list", cwd=tmp_path)
     assert "my-snap" in result.stdout
 
 
-def test_snapshot_delete(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_delete(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / ".arachna.json").write_text(
@@ -87,26 +86,23 @@ def test_snapshot_delete(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "to-delete")
-    result = _arachna("snapshot", "delete", "to-delete")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "to-delete", cwd=tmp_path)
+    result = _arachna("snapshot", "delete", "to-delete", cwd=tmp_path)
     assert result.returncode == 0
 
-    result = _arachna("snapshot", "list")
+    result = _arachna("snapshot", "list", cwd=tmp_path)
     assert "to-delete" not in result.stdout
 
 
-def test_snapshot_delete_not_found(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_snapshot_delete_not_found(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
-
-    result = _arachna("snapshot", "delete", "nonexistent")
+    result = _arachna("snapshot", "delete", "nonexistent", cwd=tmp_path)
     assert result.returncode == 1
 
 
-def test_diff_modified(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_modified(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("original")
     out_dir = tmp_path / "out"
@@ -129,10 +125,10 @@ def test_diff_modified(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "snap1")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "snap1", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("modified")
 
-    result = _arachna("diff", "--from", "snap1", "--profile", "code")
+    result = _arachna("diff", "--from", "snap1", "--profile", "code", cwd=tmp_path)
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-diff*"))
@@ -141,8 +137,7 @@ def test_diff_modified(tmp_path, monkeypatch):
     assert "REMOVED" in content or "ADDED" in content
 
 
-def test_diff_no_snapshot(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_no_snapshot(tmp_path):
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -160,13 +155,11 @@ def test_diff_no_snapshot(tmp_path, monkeypatch):
             }
         )
     )
-
-    result = _arachna("diff", "--profile", "code")
+    result = _arachna("diff", "--profile", "code", cwd=tmp_path)
     assert result.returncode == 1
 
 
-def test_store_stats(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_store_stats(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / ".arachna.json").write_text(
@@ -187,16 +180,15 @@ def test_store_stats(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "stats-test")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "stats-test", cwd=tmp_path)
 
-    result = _arachna("store", "stats")
+    result = _arachna("store", "stats", cwd=tmp_path)
     assert result.returncode == 0
     assert "Snapshots:" in result.stdout
     assert "Objects:" in result.stdout
 
 
-def test_store_gc(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_store_gc(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     (tmp_path / ".arachna.json").write_text(
@@ -217,14 +209,13 @@ def test_store_gc(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "gc-test")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "gc-test", cwd=tmp_path)
 
-    result = _arachna("store", "gc")
+    result = _arachna("store", "gc", cwd=tmp_path)
     assert result.returncode == 0
 
 
-def test_diff_stat(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_diff_stat(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("original")
     out_dir = tmp_path / "out"
@@ -247,10 +238,10 @@ def test_diff_stat(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "stat-e2e")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "stat-e2e", cwd=tmp_path)
     (tmp_path / "src" / "main.py").write_text("modified")
 
-    result = _arachna("diff", "--from", "stat-e2e", "--profile", "code", "--stat")
+    result = _arachna("diff", "--from", "stat-e2e", "--profile", "code", "--stat", cwd=tmp_path)
     assert result.returncode == 0
     assert "Modified:" in result.stdout
     assert "Added:" in result.stdout

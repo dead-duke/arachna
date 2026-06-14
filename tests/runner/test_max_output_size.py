@@ -33,11 +33,8 @@ def test_max_output_size_within_limit():
 
 
 def test_run_command_truncation_warning():
-    """run_command with huge output gets truncated."""
-    with (
-        patch("subprocess.Popen") as mock_popen,
-        patch("arachna.runner._MAX_OUTPUT_SIZE", 5),
-    ):
+    """run_command with huge output gets truncated via max_output_size param."""
+    with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen_chunks(["a" * 100])
-        result = run_command("echo huge output")
+        result = run_command("echo huge output", max_output_size=5)
     assert "truncated" in result

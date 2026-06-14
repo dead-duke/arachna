@@ -7,7 +7,6 @@ from pathlib import Path
 
 _SEPARATOR = "-" * 50
 DEFAULT_PRESETS_PATH = "presets.json"
-_PRESETS_TIMEOUT = int(_os.environ.get("ARACHNA_PRESETS_TIMEOUT", "10"))
 
 
 def _detect_dir(path: str) -> bool:
@@ -77,6 +76,41 @@ def _is_safe_tokenizer(spec: str) -> bool:
     return _tok_safe(spec)
 
 
+def _validate_preset(name: str, preset: dict) -> dict | None:
+    """Validate a single preset. Returns cleaned preset or None if invalid."""
+    if not isinstance(preset, dict):
+        print(f"Warning: preset '{name}' is not an object, skipping")
+        return None
+    unknown_keys = set(preset.keys()) - _VALID_PRESET_KEYS
+    if unknown_keys:
+        print(f"Warning: preset '{name}' has unknown keys: {', '.join(sorted(unknown_keys))}")
+    split_mode = preset.get("split_mode", "by_file")
+    if split_mode not in _VALID_SPLIT_MODES:
+        print(
+            f"Warning: preset '{name}' has invalid split_mode '{split_mode}', must be one of {', '.join(sorted(_VALID_SPLIT_MODES))}"
+        )
+        return None
+    max_tokens = preset.get("max_tokens", 16000)
+    if not isinstance(max_tokens, int) or max_tokens <= 0:
+        print(f"Warning: preset '{name}' max_tokens must be > 0, got {max_tokens}")
+        return None
+    tokenizer = preset.get("tokenizer", "default")
+    if not _is_safe_tokenizer(tokenizer):
+        print(
+            f"Warning: preset '{name}' has unsafe tokenizer '{tokenizer}', using 'default' instead."
+        )
+        preset = dict(preset)
+        preset["tokenizer"] = "default"
+    for list_field in ("dirs", "patterns", "files", "pre_commands", "detect"):
+        if list_field in preset and not isinstance(preset[list_field], list):
+            print(
+                f"Warning: preset '{name}' field '{list_field}' must be a list, got {type(preset[list_field]).__name__}"
+            )
+            preset = dict(preset)
+            preset[list_field] = []
+    return preset
+
+
 def load_presets_from_file(path: str | Path) -> dict[str, dict]:
     p = Path(path)
     if not p.exists():
@@ -96,35 +130,9 @@ def load_presets_from_file(path: str | Path) -> dict[str, dict]:
         return {}
     result = {}
     for name, preset in data.items():
-        if not isinstance(preset, dict):
-            print(f"Warning: preset '{name}' is not an object, skipping")
-            continue
-        unknown_keys = set(preset.keys()) - _VALID_PRESET_KEYS
-        if unknown_keys:
-            print(f"Warning: preset '{name}' has unknown keys: {', '.join(sorted(unknown_keys))}")
-        split_mode = preset.get("split_mode", "by_file")
-        if split_mode not in _VALID_SPLIT_MODES:
-            print(
-                f"Warning: preset '{name}' has invalid split_mode '{split_mode}', must be one of {', '.join(sorted(_VALID_SPLIT_MODES))}"
-            )
-            continue
-        max_tokens = preset.get("max_tokens", 16000)
-        if not isinstance(max_tokens, int) or max_tokens <= 0:
-            print(f"Warning: preset '{name}' max_tokens must be > 0, got {max_tokens}")
-            continue
-        tokenizer = preset.get("tokenizer", "default")
-        if not _is_safe_tokenizer(tokenizer):
-            print(
-                f"Warning: preset '{name}' has unsafe tokenizer '{tokenizer}', using 'default' instead."
-            )
-            preset["tokenizer"] = "default"
-        for list_field in ("dirs", "patterns", "files", "pre_commands", "detect"):
-            if list_field in preset and not isinstance(preset[list_field], list):
-                print(
-                    f"Warning: preset '{name}' field '{list_field}' must be a list, got {type(preset[list_field]).__name__}"
-                )
-                preset[list_field] = []
-        result[name] = preset
+        validated = _validate_preset(name, preset)
+        if validated is not None:
+            result[name] = validated
     return result
 
 
@@ -137,12 +145,15 @@ def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
     return merged
 
 
-def fetch_presets(url: str) -> dict[str, dict]:
+def fetch_presets(url: str, timeout: int | None = None) -> dict[str, dict]:
     import contextlib
     import urllib.request
 
+    if timeout is None:
+        timeout = int(_os.environ.get("ARACHNA_PRESETS_TIMEOUT", "10"))
+
     try:
-        with contextlib.closing(urllib.request.urlopen(url, timeout=_PRESETS_TIMEOUT)) as response:
+        with contextlib.closing(urllib.request.urlopen(url, timeout=timeout)) as response:
             data = json.loads(response.read().decode("utf-8"))
     except Exception as e:
         print(f"Warning: failed to fetch presets from {url}: {e}")
@@ -156,7 +167,9 @@ def fetch_presets(url: str) -> dict[str, dict]:
             continue
         if "detect" not in preset and "dirs" not in preset and "command" not in preset:
             continue
-        result[name] = preset
+        validated = _validate_preset(name, preset)
+        if validated is not None:
+            result[name] = validated
     return result
 
 
@@ -164,16 +177,9 @@ def merge_presets(builtin: dict, remote: dict, local: dict) -> dict:
     merged = dict(builtin)
     for name, preset in remote.items():
         if name not in local:
-            # BUG-004: validate tokenizer safety for remote presets
-            tokenizer = preset.get("tokenizer", "default")
-            if not _is_safe_tokenizer(tokenizer):
-                print(
-                    f"Warning: remote preset '{name}' has unsafe tokenizer '{tokenizer}', "
-                    f"resetting to 'default'."
-                )
-                preset = dict(preset)
-                preset["tokenizer"] = "default"
-            merged[name] = preset
+            validated = _validate_preset(name, preset)
+            if validated is not None:
+                merged[name] = validated
     merged.update(local)
     return merged
 

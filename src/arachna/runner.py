@@ -15,8 +15,6 @@ logger = logging.getLogger("arachna.runner")
 
 _SHELL_CHARS = {"|", "&", ";", "<", ">", "$", "`", "(", ")", "{", "}"}
 _PIPE_SEP = "|"
-_PRE_COMMAND_DELAY = float(_os.environ.get("ARACHNA_PRE_COMMAND_DELAY", "0"))
-_MAX_OUTPUT_SIZE = int(_os.environ.get("ARACHNA_MAX_OUTPUT_SIZE", "10485760"))
 
 _RESTRICTED_COMMANDS = frozenset(
     {"echo", "date", "pwd", "whoami", "id", "uname", "which", "true", "false", "test", "["}
@@ -283,9 +281,13 @@ def run_command(
     interactive: bool = False,
     dry_run: bool = False,
     allow_file_args: bool = False,
+    max_output_size: int | None = None,
 ) -> str:
     if not cmd.strip():
         return ""
+
+    if max_output_size is None:
+        max_output_size = int(_os.environ.get("ARACHNA_MAX_OUTPUT_SIZE", "10485760"))
 
     is_safe, reason = _validate_command(cmd, allow_dangerous, allow_file_args=allow_file_args)
 
@@ -320,18 +322,33 @@ def run_command(
                 return ""
 
     needs_shell = any(c in cmd for c in _SHELL_CHARS)
-    output, was_truncated = _run_popen(cmd, needs_shell, _MAX_OUTPUT_SIZE)
+    output, was_truncated = _run_popen(cmd, needs_shell, max_output_size)
     if was_truncated:
         logger.warning("Command output truncated: %s", cmd[:80])
     _log_command(cmd, True)
     return output
 
 
-def run_pre_commands(commands: list[str]) -> list[tuple[str, str]]:
+def run_pre_commands(
+    commands: list[str],
+    pre_command_delay: float | None = None,
+) -> list[tuple[str, str]]:
+    """Run pre_commands with optional delay between them.
+
+    Each command is wrapped in try-except — failures log a warning
+    and continue, they don't fail the pipeline.
+    """
+    if pre_command_delay is None:
+        pre_command_delay = float(_os.environ.get("ARACHNA_PRE_COMMAND_DELAY", "0"))
+
     results = []
     for i, cmd in enumerate(commands):
-        if i > 0 and _PRE_COMMAND_DELAY > 0:
-            time.sleep(_PRE_COMMAND_DELAY)
-        output = run_command(cmd, allow_file_args=True)
-        results.append((cmd, output))
+        if i > 0 and pre_command_delay > 0:
+            time.sleep(pre_command_delay)
+        try:
+            output = run_command(cmd, allow_file_args=True)
+            results.append((cmd, output))
+        except Exception as e:
+            logger.warning("pre_command failed: %s — %s", cmd[:80], e)
+            results.append((cmd, ""))
     return results

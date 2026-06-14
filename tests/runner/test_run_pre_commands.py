@@ -40,46 +40,37 @@ def test_run_pre_commands_empty():
     assert results == []
 
 
-def test_run_pre_commands_with_delay(monkeypatch):
-    monkeypatch.setenv("ARACHNA_PRE_COMMAND_DELAY", "0.1")
-    import importlib
-
-    import arachna.runner as runner_module
-
-    importlib.reload(runner_module)
-
-    sleep_calls = []
-
-    def fake_sleep(seconds):
-        sleep_calls.append(seconds)
-
-    monkeypatch.setattr(runner_module.time, "sleep", fake_sleep)
-
-    with patch("subprocess.Popen") as mock_popen:
+def test_run_pre_commands_with_delay():
+    with (
+        patch("subprocess.Popen") as mock_popen,
+        patch("arachna.runner.time.sleep") as mock_sleep,
+    ):
         mock_popen.side_effect = [
             _mock_popen(stdout="a\n"),
             _mock_popen(stdout="b\n"),
             _mock_popen(stdout="c\n"),
         ]
-        results = runner_module.run_pre_commands(["cmd1", "cmd2", "cmd3"])
+        results = run_pre_commands(["cmd1", "cmd2", "cmd3"], pre_command_delay=0.1)
 
     assert len(results) == 3
-    assert len(sleep_calls) == 2
-    assert sleep_calls[0] == 0.1
+    assert mock_sleep.call_count == 2
+    mock_sleep.assert_any_call(0.1)
 
 
 def test_run_pre_commands_no_delay_default():
-    import importlib
-
-    import arachna.runner as runner_module
-
-    importlib.reload(runner_module)
-
     with (
         patch("subprocess.Popen") as mock_popen,
-        patch.object(runner_module.time, "sleep") as mock_sleep,
+        patch("arachna.runner.time.sleep") as mock_sleep,
     ):
         mock_popen.return_value = _mock_popen(stdout="x\n")
-        runner_module.run_pre_commands(["cmd1", "cmd2"])
+        run_pre_commands(["cmd1", "cmd2"])
 
     mock_sleep.assert_not_called()
+
+
+def test_run_pre_commands_failure_continues():
+    """Failed command logs warning, doesn't fail the pipeline."""
+    with patch("subprocess.Popen", side_effect=OSError("command not found")):
+        results = run_pre_commands(["bad_cmd", "echo ok"])
+    assert len(results) == 2
+    assert results[1][0] == "echo ok"

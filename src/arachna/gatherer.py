@@ -11,6 +11,10 @@ for signature extraction and header generation before token counting.
 Note: mode="headers" means mode="full" with dependency/export headers
 prepended to each file section. It does NOT mean "headers only" —
 for signatures-only output use mode="repo-map".
+
+v3.5: Strategy pattern for mode dispatch — FullModeStrategy (streaming),
+RepoMapModeStrategy (signatures), HeadersModeStrategy (dependency headers).
+root parameter propagates through scan/collect/assemble chain.
 """
 
 import contextlib
@@ -45,10 +49,19 @@ def _collect_pre_commands(
     return results
 
 
-def _scan_directories(profile: dict[str, Any], exclude: list[str]) -> list[Path]:
+def _scan_directories(
+    profile: dict[str, Any],
+    exclude: list[str],
+    root: Path | None = None,
+) -> list[Path]:
+    """Scan directories from profile, relative to root (default: cwd)."""
+    if root is None:
+        root = Path.cwd()
     seen = []
     for directory in profile.get("directories", []):
-        dir_path = Path(directory)
+        dir_path = root / directory
+        if not dir_path.is_dir():
+            continue
         if dir_path.is_symlink():
             print(f"  Warning: skipping symlink directory: {dir_path}")
             continue
@@ -136,10 +149,6 @@ def _format_file_list(
     return results
 
 
-def _format_scanned_files(*args, **kwargs) -> list[tuple[str, str, int]]:
-    return _format_file_list(*args, **kwargs)
-
-
 def _format_markdown_sigs(filepath: Path, lang: str, sigs: str) -> str:
     fence_lang = lang if lang else ""
     return f"### {filepath}\n\n```{fence_lang}\n{sigs}\n```\n"
@@ -168,12 +177,13 @@ def _collect_directory_sections(
     verbose: bool = False,
     include_header: bool = False,
     mode: str = "full",
+    root: Path | None = None,
 ) -> tuple[list[tuple[str, str, int]], dict[str, float] | None]:
     fmt = profile.get("section_format", "markdown")
     include_binary = profile.get("include_binary", False)
     binary_extensions = profile.get("binary_extensions")
     binary_max_mb = profile.get("binary_max_mb", 1.0)
-    seen_files = _scan_directories(profile, exclude)
+    seen_files = _scan_directories(profile, exclude, root=root)
     if incremental and cache is not None:
         changed, new, deleted = get_changed_files(seen_files, cache)
         target_files = changed + new
@@ -234,7 +244,6 @@ def _collect_file_sections(
     )
 
 
-# Cache for _collect_import_graph — keyed by tuple of (filepath, content_hash)
 _import_graph_cache: dict[tuple, dict[str, list[str]]] = {}
 
 
@@ -266,19 +275,10 @@ def _extract_deps_from_content(content: str) -> list[str] | None:
     return None
 
 
-# ── Query scoring pipeline ──────────────────────────────────────
-
-
 def _score_files(
     named_sections: list[tuple[str, str, int]],
     query_words: list[str],
 ) -> dict[str, int]:
-    """Score each file by relevance to query words.
-
-    Returns: {filepath: score}
-    Scoring: filename match = 10, content match = 3, exports match = 8,
-             dependency name match = 5.
-    """
     scores: dict[str, int] = {}
     for filepath, content, _tokens in named_sections:
         if filepath.startswith("pre: "):
@@ -301,7 +301,6 @@ def _score_files(
         if score > 0:
             scores[filepath] = score
 
-    # Add dependency-based scores
     graph = _collect_import_graph(named_sections)
     for filepath in scores:
         for dep in graph.get(filepath, []):
@@ -314,10 +313,6 @@ def _score_files(
 def _build_reverse_graph(
     graph: dict[str, list[str]],
 ) -> dict[str, list[str]]:
-    """Build reverse import graph: {imported_module -> [importers]}.
-
-    Both basenames and full paths are indexed for flexible matching.
-    """
     reverse: dict[str, list[str]] = {}
     for fpath, deps in graph.items():
         for dep in deps:
@@ -332,10 +327,6 @@ def _expand_import_chain(
     reverse_graph: dict[str, list[str]],
     depth: int = 2,
 ) -> set[str]:
-    """Expand matched files by following reverse import graph.
-
-    Depth=2: direct importers + importers of importers.
-    """
     result = set(matched)
     for _ in range(depth):
         new_matches: set[str] = set()
@@ -358,7 +349,6 @@ def _filter_by_query(
     query: str,
     include_pre_commands: bool = False,
 ) -> list[tuple[str, str, int]]:
-    """Filter named sections by query using scoring and import chain expansion."""
     if not query or not query.strip():
         return named_sections
 
@@ -399,7 +389,6 @@ def _filter_filenames_by_query(filepaths: list[Path], query: str) -> list[Path]:
 
 
 def _get_profile_files(profile: dict[str, Any], exclude: list[str]) -> list[Path]:
-    """Collect files from profile['files'] that exist and are not excluded."""
     filepaths = []
     for filepath_str in profile.get("files", []):
         filepath = Path(filepath_str)
@@ -412,54 +401,181 @@ def _get_profile_files(profile: dict[str, Any], exclude: list[str]) -> list[Path
 
 
 def _print_compress_stats(raw_tokens: int, comp_tokens: int):
-    """Print compression statistics. Shared between streaming and in-memory paths."""
     if raw_tokens > 0:
         pct = (raw_tokens - comp_tokens) / raw_tokens * 100
         print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
 
 
-def _stream_full_mode(
-    filepaths: list[Path],
-    pre_sections: list[tuple[str, str, int]],
-    tokenizer: Callable[[str], int],
-    max_tokens: int,
-    do_compress: bool,
-    fmt: str,
-    include_binary: bool,
-    binary_extensions: list[str] | None,
-    binary_max_mb: float,
-    verbose: bool,
-    include_header: bool,
-) -> tuple[list[str], list[list[int]], list[tuple[str, str, int]]]:
-    from .splitter import pack_into_parts
+# ── Strategy pattern for mode dispatch ───────────────────────────
 
-    sections = []
-    named_sections = list(pre_sections)
 
-    for _i, (_label, output, _tokens) in enumerate(pre_sections):
-        content = _compress(output) if do_compress and output.strip() else output
-        sections.append(content)
+class _FullModeStrategy:
+    """Streaming mode — reads and packs files on the fly, O(max_tokens) memory."""
 
-    for fp in filepaths:
-        section = format_file_section(
-            fp,
-            fmt=fmt,
-            include_binary=include_binary,
-            binary_extensions=binary_extensions,
-            binary_max_mb=binary_max_mb,
-            verbose=verbose,
-            include_header=include_header,
+    def assemble(
+        self,
+        profile: dict[str, Any],
+        exclude: list[str],
+        tokenizer: Callable[[str], int],
+        incremental: bool,
+        cache: dict[str, float] | None,
+        verbose: bool,
+        query: str | None,
+        root: Path | None = None,
+    ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+        from .splitter import pack_into_parts
+
+        do_compress = profile.get("compress", False)
+        max_tokens = profile.get("max_tokens", 16000)
+        include_header = bool(query and query.strip())
+
+        filepaths = _scan_directories(profile, exclude, root=root)
+        profile_files = _get_profile_files(profile, exclude)
+        for fp in profile_files:
+            if fp not in filepaths:
+                filepaths.append(fp)
+
+        if incremental and cache is not None:
+            changed, new, deleted = get_changed_files(filepaths, cache)
+            target_files = changed + new
+            for del_path in deleted:
+                cache.pop(str(del_path), None)
+            if deleted:
+                print(f"  Deleted: {len(deleted)} file(s)")
+        else:
+            target_files = filepaths
+
+        if query and query.strip():
+            target_files = _filter_filenames_by_query(target_files, query)
+
+        pre_sections = _collect_pre_commands(profile, tokenizer)
+        new_cache = update_cache(target_files, cache or {})
+
+        fmt = profile.get("section_format", "markdown")
+        include_binary = profile.get("include_binary", False)
+        binary_extensions = profile.get("binary_extensions")
+        binary_max_mb = profile.get("binary_max_mb", 1.0)
+
+        sections = []
+        named_sections = list(pre_sections)
+
+        for _i, (_label, output, _tokens) in enumerate(pre_sections):
+            content = _compress(output) if do_compress and output.strip() else output
+            sections.append(content)
+
+        for fp in target_files:
+            section = format_file_section(
+                fp,
+                fmt=fmt,
+                include_binary=include_binary,
+                binary_extensions=binary_extensions,
+                binary_max_mb=binary_max_mb,
+                verbose=verbose,
+                include_header=include_header,
+            )
+            if not section:
+                continue
+            if do_compress:
+                section = _compress(section)
+            tokens = tokenizer(section)
+            sections.append(section)
+            named_sections.append((str(fp), section, tokens))
+
+        parts, indices = pack_into_parts(sections, max_tokens, tokenizer=tokenizer)
+
+        if verbose and do_compress:
+            raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
+            comp_tokens = sum(tokenizer(p) for p in parts)
+            _print_compress_stats(raw_tokens, comp_tokens)
+
+        return named_sections, parts, indices, new_cache
+
+
+class _RepoMapModeStrategy:
+    """In-memory mode — extracts signatures, O(total content) memory."""
+
+    def assemble(
+        self,
+        profile: dict[str, Any],
+        exclude: list[str],
+        tokenizer: Callable[[str], int],
+        incremental: bool,
+        cache: dict[str, float] | None,
+        verbose: bool,
+        query: str | None,
+        root: Path | None = None,
+    ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+        return _assemble_in_memory(
+            profile, exclude, tokenizer, incremental, cache, verbose, query, "repo-map", root=root
         )
-        if not section:
-            continue
-        if do_compress:
-            section = _compress(section)
-        tokens = tokenizer(section)
-        sections.append(section)
-        named_sections.append((str(fp), section, tokens))
 
-    parts, indices = pack_into_parts(sections, max_tokens, tokenizer=tokenizer)
-    return parts, indices, named_sections
+
+class _HeadersModeStrategy:
+    """In-memory mode — includes dependency/export headers, O(total content) memory."""
+
+    def assemble(
+        self,
+        profile: dict[str, Any],
+        exclude: list[str],
+        tokenizer: Callable[[str], int],
+        incremental: bool,
+        cache: dict[str, float] | None,
+        verbose: bool,
+        query: str | None,
+        root: Path | None = None,
+    ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+        return _assemble_in_memory(
+            profile, exclude, tokenizer, incremental, cache, verbose, query, "headers", root=root
+        )
+
+
+_MODE_STRATEGIES = {
+    "full": _FullModeStrategy(),
+    "repo-map": _RepoMapModeStrategy(),
+    "headers": _HeadersModeStrategy(),
+}
+
+
+def _assemble_in_memory(
+    profile: dict[str, Any],
+    exclude: list[str],
+    tokenizer: Callable[[str], int],
+    incremental: bool,
+    cache: dict[str, float] | None,
+    verbose: bool,
+    query: str | None,
+    mode: str,
+    root: Path | None = None,
+) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+    do_compress = profile.get("compress", False)
+    max_tokens = profile.get("max_tokens", 16000)
+    include_header = bool(query and query.strip()) or mode == "headers"
+
+    named_sections, new_cache = _collect_named_sections(
+        profile,
+        exclude,
+        tokenizer=tokenizer,
+        incremental=incremental,
+        cache=cache,
+        verbose=verbose,
+        include_header=include_header,
+        query=query,
+        mode=mode,
+        root=root,
+    )
+    sections = []
+    raw_tokens = 0
+    for _name, content, tokens in named_sections:
+        raw_tokens += tokens
+        if do_compress and content.strip():
+            sections.append(_compress(content))
+        else:
+            sections.append(content)
+    if verbose and do_compress:
+        comp_tokens = sum(tokenizer(s) for s in sections)
+        _print_compress_stats(raw_tokens, comp_tokens)
+    parts, indices = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
+    return named_sections, parts, indices, new_cache
 
 
 def _collect_named_sections(
@@ -472,6 +588,7 @@ def _collect_named_sections(
     include_header: bool = False,
     query: str | None = None,
     mode: str = "full",
+    root: Path | None = None,
 ) -> tuple[list[tuple[str, str, int]], dict[str, float]]:
     named_sections = []
     named_sections.extend(_collect_pre_commands(profile, tokenizer))
@@ -484,6 +601,7 @@ def _collect_named_sections(
         verbose=verbose,
         include_header=include_header,
         mode=mode,
+        root=root,
     )
     named_sections.extend(dir_sections)
     named_sections.extend(
@@ -530,89 +648,12 @@ def _assemble_file_content(
     verbose: bool = False,
     query: str | None = None,
     mode: str = "full",
+    root: Path | None = None,
 ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
-    do_compress = profile.get("compress", False)
-    max_tokens = profile.get("max_tokens", 16000)
-    include_header = bool(query and query.strip()) or mode == "headers"
-
-    if mode in ("repo-map", "headers"):
-        named_sections, new_cache = _collect_named_sections(
-            profile,
-            exclude,
-            tokenizer=tokenizer,
-            incremental=incremental,
-            cache=cache,
-            verbose=verbose,
-            include_header=include_header,
-            query=query,
-            mode=mode,
-        )
-        sections = []
-        raw_tokens = 0
-        for _name, content, tokens in named_sections:
-            raw_tokens += tokens
-            if do_compress and content.strip():
-                sections.append(_compress(content))
-            else:
-                sections.append(content)
-        if verbose and do_compress:
-            comp_tokens = sum(tokenizer(s) for s in sections)
-            _print_compress_stats(raw_tokens, comp_tokens)
-        parts, indices = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
-        return named_sections, parts, indices, new_cache
-
-    # Streaming path
-    filepaths = _scan_directories(profile, exclude)
-
-    # BUG-001: Add profile files to target files
-    profile_files = _get_profile_files(profile, exclude)
-    for fp in profile_files:
-        if fp not in filepaths:
-            filepaths.append(fp)
-
-    if incremental and cache is not None:
-        changed, new, deleted = get_changed_files(filepaths, cache)
-        target_files = changed + new
-        for del_path in deleted:
-            cache.pop(str(del_path), None)
-        if deleted:
-            print(f"  Deleted: {len(deleted)} file(s)")
-    else:
-        target_files = filepaths
-
-    if query and query.strip():
-        target_files = _filter_filenames_by_query(target_files, query)
-
-    pre_sections = _collect_pre_commands(profile, tokenizer)
-
-    # BUG-002: Include profile files in update_cache
-    new_cache = update_cache(target_files, cache or {})
-
-    fmt = profile.get("section_format", "markdown")
-    include_binary = profile.get("include_binary", False)
-    binary_extensions = profile.get("binary_extensions")
-    binary_max_mb = profile.get("binary_max_mb", 1.0)
-
-    parts, indices, named_sections = _stream_full_mode(
-        target_files,
-        pre_sections,
-        tokenizer,
-        max_tokens,
-        do_compress,
-        fmt,
-        include_binary,
-        binary_extensions,
-        binary_max_mb,
-        verbose,
-        include_header,
+    strategy = _MODE_STRATEGIES.get(mode, _MODE_STRATEGIES["full"])
+    return strategy.assemble(
+        profile, exclude, tokenizer, incremental, cache, verbose, query, root=root
     )
-
-    if verbose and do_compress:
-        raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
-        comp_tokens = sum(tokenizer(p) for p in parts)
-        _print_compress_stats(raw_tokens, comp_tokens)
-
-    return named_sections, parts, indices, new_cache
 
 
 def _assemble_content(
@@ -624,6 +665,7 @@ def _assemble_content(
     verbose: bool = False,
     query: str | None = None,
     mode: str = "full",
+    root: Path | None = None,
 ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
     if profile.get("command"):
         if profile.get("directories") or profile.get("files"):
@@ -640,6 +682,7 @@ def _assemble_content(
         verbose=verbose,
         query=query,
         mode=mode,
+        root=root,
     )
 
 
@@ -770,11 +813,16 @@ def _format_repo_map_added(path: str, lang: str, blocks: dict) -> str:
 
 
 def gather_files(
-    profile: dict[str, Any], verbose: bool = False, tokenizer: Callable[[str], int] | None = None
+    profile: dict[str, Any],
+    verbose: bool = False,
+    tokenizer: Callable[[str], int] | None = None,
+    root: Path | None = None,
 ) -> list[str]:
     tk = tokenizer if tokenizer is not None else count_tokens
-    exclude = _get_exclude_patterns(profile)
-    sections, _ = _collect_named_sections(profile, exclude, tokenizer=tk, verbose=verbose)
+    exclude = _get_exclude_patterns(profile, root=root)
+    sections, _ = _collect_named_sections(
+        profile, exclude, tokenizer=tk, verbose=verbose, root=root
+    )
     return [content for _, content, _ in sections]
 
 
@@ -787,13 +835,22 @@ def dry_run(
     tokenizer: Callable[[str], int] | None = None,
     query: str | None = None,
     mode: str = "full",
+    root: Path | None = None,
 ) -> dict:
     tk = tokenizer if tokenizer is not None else count_tokens
-    exclude = _get_exclude_patterns(profile)
+    exclude = _get_exclude_patterns(profile, root=root)
     max_tokens = profile.get("max_tokens", 16000)
     name_tmpl = profile.get("name_template", "chat")
     named_sections, parts, indices, _ = _assemble_content(
-        profile, exclude, tk, incremental=False, cache=None, verbose=False, query=query, mode=mode
+        profile,
+        exclude,
+        tk,
+        incremental=False,
+        cache=None,
+        verbose=False,
+        query=query,
+        mode=mode,
+        root=root,
     )
     part_list = []
     for i, (content, idxs) in enumerate(zip(parts, indices, strict=True), 1):
@@ -805,8 +862,10 @@ def dry_run(
     return {"name_tmpl": name_tmpl, "max_tokens": max_tokens, "parts": part_list}
 
 
-def _get_exclude_patterns(profile: dict[str, Any]) -> list[str]:
+def _get_exclude_patterns(profile: dict[str, Any], root: Path | None = None) -> list[str]:
+    if root is None:
+        root = Path.cwd()
     exclude = list(profile.get("exclude_patterns", []))
     if profile.get("use_gitignore", True):
-        exclude.extend(load_gitignore_patterns(Path.cwd()))
+        exclude.extend(load_gitignore_patterns(root))
     return exclude

@@ -4,8 +4,7 @@ from arachna.gatherer import _assemble_content
 from arachna.tokenizer import count_tokens
 
 
-def test_unified_split_pre_commands_and_files_together(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_unified_split_pre_commands_and_files_together(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -24,17 +23,14 @@ def test_unified_split_pre_commands_and_files_together(tmp_path, monkeypatch):
         profile,
         exclude=[],
         tokenizer=count_tokens,
-        incremental=False,
-        cache=None,
-        verbose=False,
+        root=tmp_path,
     )
 
     assert len(named_sections) >= 4
     assert len(parts) == 1
 
 
-def test_unified_split_small_limit_many_parts(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_unified_split_small_limit_many_parts(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("x" * 500)
@@ -53,16 +49,13 @@ def test_unified_split_small_limit_many_parts(tmp_path, monkeypatch):
         profile,
         exclude=[],
         tokenizer=count_tokens,
-        incremental=False,
-        cache=None,
-        verbose=False,
+        root=tmp_path,
     )
 
     assert len(parts) >= 3
 
 
-def test_unified_split_with_compress(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_unified_split_with_compress(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hi')")
@@ -81,9 +74,7 @@ def test_unified_split_with_compress(tmp_path, monkeypatch):
         profile,
         exclude=[],
         tokenizer=count_tokens,
-        incremental=False,
-        cache=None,
-        verbose=False,
+        root=tmp_path,
     )
 
     assert len(parts) >= 1
@@ -91,8 +82,7 @@ def test_unified_split_with_compress(tmp_path, monkeypatch):
         assert "\n\n\n\n" not in p
 
 
-def test_unified_split_without_pre_commands(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_unified_split_without_pre_commands(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
@@ -110,16 +100,13 @@ def test_unified_split_without_pre_commands(tmp_path, monkeypatch):
         profile,
         exclude=[],
         tokenizer=count_tokens,
-        incremental=False,
-        cache=None,
-        verbose=False,
+        root=tmp_path,
     )
 
     assert len(parts) == 1
 
 
-def test_unified_split_dense_packing(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_unified_split_dense_packing(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     for i in range(20):
@@ -138,9 +125,7 @@ def test_unified_split_dense_packing(tmp_path, monkeypatch):
         profile,
         exclude=[],
         tokenizer=count_tokens,
-        incremental=False,
-        cache=None,
-        verbose=False,
+        root=tmp_path,
     )
 
     assert len(parts) >= 2, f"Expected >= 2 parts, got {len(parts)}"

@@ -135,15 +135,6 @@ def _build_toc(
     total_parts: int,
     all_indices: list[list[int]] | None = None,
 ) -> str:
-    """Build table of contents for a part.
-
-    Deduplicates indices within the part. If all_indices is provided,
-    appends [split across N parts] for sections split across multiple parts.
-    """
-    # Deduplicate indices within this part using dict insertion order preservation
-    # dict.fromkeys(some_list) returns a dict with list elements as keys (None values),
-    # preserving insertion order. list() then extracts the keys in order.
-    # This is equivalent to: seen = set(); unique = [x for x in part_section_indices if x not in seen and not seen.add(x)]
     unique_indices = list(dict.fromkeys(part_section_indices))
     files = []
     for idx in unique_indices:
@@ -154,7 +145,6 @@ def _build_toc(
             else:
                 entry = Path(name).name if "/" in name or "\\" in name else name
 
-            # Check if this section is split across multiple parts
             if all_indices is not None:
                 split_count = sum(1 for indices in all_indices if idx in indices)
                 if split_count > 1:
@@ -288,10 +278,13 @@ def collect(
     query: str | None = None,
     mode: str = "full",
     name_template: str | None = None,
+    root: Path | None = None,
 ) -> tuple[list[str], dict[str, int], list[str]]:
+    if root is None:
+        root = Path.cwd()
     name_tmpl = name_template if name_template is not None else profile["name_template"]
     title_tmpl = profile["title_template"]
-    out_path = Path(output_dir)
+    out_path = root / output_dir
     out_path.mkdir(parents=True, exist_ok=True)
     chars_per_token = profile.get("chars_per_token")
     tokenizer_spec = profile.get("tokenizer", "default")
@@ -306,7 +299,7 @@ def collect(
             )
         )
     )
-    exclude = _get_exclude_patterns(profile)
+    exclude = _get_exclude_patterns(profile, root=root)
     cache = load_cache(out_path) if incremental else None
     named_sections, parts, section_indices, new_cache = _assemble_content(
         profile,
@@ -317,6 +310,7 @@ def collect(
         verbose=verbose,
         query=query,
         mode=mode,
+        root=root,
     )
     if incremental:
         save_cache(out_path, new_cache)

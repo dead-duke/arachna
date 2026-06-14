@@ -1,13 +1,11 @@
-"""Integration tests for diff --mode structural/repo-map (v3.0)."""
+"""Integration tests for diff --mode structural/repo-map."""
 
 import json
 
 from tests.integration.conftest import _arachna
 
 
-def test_diff_mode_structural(tmp_path, monkeypatch):
-    """TC-117: diff --mode structural produces block-level diff."""
-    monkeypatch.chdir(tmp_path)
+def test_diff_mode_structural(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
@@ -31,10 +29,12 @@ def test_diff_mode_structural(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "struct-snap")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "struct-snap", cwd=tmp_path)
     (src / "main.py").write_text("def foo():\n    return 2\n")
 
-    result = _arachna("diff", "--from", "struct-snap", "--profile", "code", "--mode", "structural")
+    result = _arachna(
+        "diff", "--from", "struct-snap", "--profile", "code", "--mode", "structural", cwd=tmp_path
+    )
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-diff*"))
@@ -43,9 +43,7 @@ def test_diff_mode_structural(tmp_path, monkeypatch):
     assert "MODIFIED" in content or "modified" in content
 
 
-def test_diff_mode_repo_map(tmp_path, monkeypatch):
-    """TC-118: diff --mode repo-map extracts signatures only."""
-    monkeypatch.chdir(tmp_path)
+def test_diff_mode_repo_map(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n\ndef bar():\n    return 2\n")
@@ -69,10 +67,12 @@ def test_diff_mode_repo_map(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "rm-snap")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "rm-snap", cwd=tmp_path)
     (src / "main.py").write_text("def foo():\n    return 3\n\ndef bar():\n    return 4\n")
 
-    result = _arachna("diff", "--from", "rm-snap", "--profile", "code", "--mode", "repo-map")
+    result = _arachna(
+        "diff", "--from", "rm-snap", "--profile", "code", "--mode", "repo-map", cwd=tmp_path
+    )
     assert result.returncode == 0
 
     files = list(out_dir.glob("chat-diff*"))
@@ -81,9 +81,7 @@ def test_diff_mode_repo_map(tmp_path, monkeypatch):
     assert "def foo():" in content
 
 
-def test_diff_mode_structural_no_changes(tmp_path, monkeypatch):
-    """TC-119: diff --mode structural with no changes exits cleanly."""
-    monkeypatch.chdir(tmp_path)
+def test_diff_mode_structural_no_changes(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
@@ -105,7 +103,9 @@ def test_diff_mode_structural_no_changes(tmp_path, monkeypatch):
         )
     )
 
-    _arachna("snapshot", "create", "--profile", "code", "--name", "nochg-snap")
+    _arachna("snapshot", "create", "--profile", "code", "--name", "nochg-snap", cwd=tmp_path)
 
-    result = _arachna("diff", "--from", "nochg-snap", "--profile", "code", "--mode", "structural")
+    result = _arachna(
+        "diff", "--from", "nochg-snap", "--profile", "code", "--mode", "structural", cwd=tmp_path
+    )
     assert result.returncode == 0

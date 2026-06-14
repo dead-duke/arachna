@@ -1,8 +1,7 @@
 from arachna.collector import collect
 
 
-def test_collect_incremental_skips_unchanged(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_collect_incremental_skips_unchanged(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("unchanged")
@@ -19,17 +18,16 @@ def test_collect_incremental_skips_unchanged(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", incremental=True)
+    created1, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created1) == 1
 
-    created2, _, _ = collect(profile, "P", "out", incremental=True)
+    created2, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created2) == 0
 
 
-def test_collect_incremental_detects_modified(tmp_path, monkeypatch):
+def test_collect_incremental_detects_modified(tmp_path):
     import time
 
-    monkeypatch.chdir(tmp_path)
     src = tmp_path / "src"
     src.mkdir()
     fp = src / "a.py"
@@ -47,18 +45,17 @@ def test_collect_incremental_detects_modified(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", incremental=True)
+    created1, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created1) == 1
 
     time.sleep(0.01)
     fp.write_text("modified content that is longer")
 
-    created2, _, _ = collect(profile, "P", "out", incremental=True)
+    created2, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created2) == 1
 
 
-def test_collect_incremental_detects_new_file(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_collect_incremental_detects_new_file(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("existing")
@@ -75,10 +72,10 @@ def test_collect_incremental_detects_new_file(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", incremental=True)
+    created1, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created1) == 1
 
     (src / "b.py").write_text("new file")
 
-    created2, _, _ = collect(profile, "P", "out", incremental=True)
+    created2, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created2) == 1

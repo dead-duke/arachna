@@ -9,12 +9,11 @@ from arachna.collector import (
 )
 
 
-def test_single_file(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_single_file(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hi')")
-    out = tmp_path / "out"
+    out = tmp_path / "single_out"
     out.mkdir()
     created, tokens_by_file, _parts = collect(
         {
@@ -26,19 +25,19 @@ def test_single_file(tmp_path, monkeypatch):
             "patterns": ["*.py"],
         },
         "P",
-        "out",
+        str(out),
+        root=tmp_path,
     )
     assert len(created) == 1
     assert "c_1.md" in created[0]
 
 
-def test_multiple_parts(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_multiple_parts(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("x" * 2000)
     (src / "b.py").write_text("y" * 2000)
-    out = tmp_path / "out"
+    out = tmp_path / "multi_out"
     out.mkdir()
     created, tokens_by_file, _parts = collect(
         {
@@ -50,17 +49,16 @@ def test_multiple_parts(tmp_path, monkeypatch):
             "patterns": ["*.py"],
         },
         "P",
-        "out",
+        str(out),
+        root=tmp_path,
     )
-    # 2 files, each oversized -> split into chunks, >= 4 parts total
     assert len(created) >= 4
 
 
-def test_empty(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_empty(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
-    out = tmp_path / "out"
+    out = tmp_path / "empty_out"
     out.mkdir()
     created, tokens_by_file, _parts = collect(
         {
@@ -72,14 +70,14 @@ def test_empty(tmp_path, monkeypatch):
             "patterns": ["*.py"],
         },
         "P",
-        "out",
+        str(out),
+        root=tmp_path,
     )
     assert len(created) == 0
 
 
-def test_command_mode(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    out = tmp_path / "out"
+def test_command_mode(tmp_path):
+    out = tmp_path / "cmd_out"
     out.mkdir()
     created, tokens_by_file, _parts = collect(
         {
@@ -90,17 +88,16 @@ def test_command_mode(tmp_path, monkeypatch):
             "command": "echo hi",
         },
         "P",
-        "out",
+        str(out),
     )
     assert len(created) == 1
 
 
-def test_merge_mode_single_part(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_merge_mode_single_part(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("print('hi')")
-    out = tmp_path / "out"
+    out = tmp_path / "merge_single_out"
     out.mkdir()
 
     profile = {
@@ -113,22 +110,21 @@ def test_merge_mode_single_part(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", merge=True)
+    created1, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created1) == 1
     assert "c_1.md" in created1[0]
 
-    created2, _, _ = collect(profile, "P", "out", merge=True)
+    created2, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created2) == 1
     assert "c_2.md" in created2[0]
 
 
-def test_merge_mode_multiple_parts(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_merge_mode_multiple_parts(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("x" * 2000)
     (src / "b.py").write_text("y" * 2000)
-    out = tmp_path / "out"
+    out = tmp_path / "merge_multi_out"
     out.mkdir()
 
     profile = {
@@ -141,17 +137,16 @@ def test_merge_mode_multiple_parts(tmp_path, monkeypatch):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", merge=True)
-    # 2 files, each oversized -> split into chunks, >= 4 parts total
+    created1, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created1) >= 4
     assert any("c_1.md" in f for f in created1)
 
-    created2, _, _ = collect(profile, "P", "out", merge=True)
+    created2, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created2) >= 4
 
 
 def test_save_and_load_manifest(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "manifest_out"
     out.mkdir()
     save_manifest(out, ["a.md", "b.md"])
     loaded = load_manifest(out)
@@ -159,20 +154,20 @@ def test_save_and_load_manifest(tmp_path):
 
 
 def test_load_manifest_empty(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "load_empty_out"
     out.mkdir()
     assert load_manifest(out) == []
 
 
 def test_load_manifest_corrupted(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "corrupt_out"
     out.mkdir()
     (out / ".arachna_manifest.json").write_text("not json")
     assert load_manifest(out) == []
 
 
 def test_clean_manifest(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "clean_out"
     out.mkdir()
     (out / "chat-c_1.md").write_text("x")
     (out / "chat-c.md").write_text("x")
@@ -184,13 +179,13 @@ def test_clean_manifest(tmp_path):
 
 
 def test_find_next_part_num_empty(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "find_empty_out"
     out.mkdir()
     assert _find_next_part_num(out, "chat-c") == 1
 
 
 def test_find_next_part_num_existing(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "find_existing_out"
     out.mkdir()
     (out / "chat-c_1.md").write_text("x")
     (out / "chat-c_2.md").write_text("x")
@@ -198,26 +193,25 @@ def test_find_next_part_num_existing(tmp_path):
 
 
 def test_find_next_part_num_single_file(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "find_single_out"
     out.mkdir()
     (out / "chat-c.md").write_text("x")
     assert _find_next_part_num(out, "chat-c") == 2
 
 
 def test_find_next_part_num_mixed(tmp_path):
-    out = tmp_path / "out"
+    out = tmp_path / "find_mixed_out"
     out.mkdir()
     (out / "chat-c.md").write_text("x")
     (out / "chat-c_3.md").write_text("x")
     assert _find_next_part_num(out, "chat-c") == 4
 
 
-def test_post_commands_executed(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_post_commands_executed(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hi')")
-    out = tmp_path / "out"
+    out = tmp_path / "post_out"
     out.mkdir()
 
     with patch("arachna.collector.run_command") as mock_run:
@@ -234,6 +228,7 @@ def test_post_commands_executed(tmp_path, monkeypatch):
                 "post_commands": ["echo done"],
             },
             "P",
-            "out",
+            str(out),
+            root=tmp_path,
         )
         mock_run.assert_called_with("echo done", allow_file_args=True)

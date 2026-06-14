@@ -4,29 +4,17 @@ from arachna.gatherer import _assemble_content, _collect_pre_commands
 from arachna.tokenizer import count_tokens
 
 
-def test_collect_pre_commands_empty_list(tmp_path, monkeypatch):
-    """Empty pre_commands returns empty list."""
-    monkeypatch.chdir(tmp_path)
-    result = _collect_pre_commands(
-        {"pre_commands": []},
-        count_tokens,
-    )
+def test_collect_pre_commands_empty_list():
+    result = _collect_pre_commands({"pre_commands": []}, count_tokens)
     assert result == []
 
 
-def test_collect_pre_commands_no_key(tmp_path, monkeypatch):
-    """Profile without pre_commands key returns empty list."""
-    monkeypatch.chdir(tmp_path)
-    result = _collect_pre_commands(
-        {"directories": ["src"], "max_tokens": 100},
-        count_tokens,
-    )
+def test_collect_pre_commands_no_key():
+    result = _collect_pre_commands({"directories": ["src"], "max_tokens": 100}, count_tokens)
     assert result == []
 
 
-def test_assemble_content_with_query(tmp_path, monkeypatch):
-    """_assemble_content with query passes query through."""
-    monkeypatch.chdir(tmp_path)
+def test_assemble_content_with_query(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "auth.py").write_text("def login(): pass")
@@ -42,20 +30,14 @@ def test_assemble_content_with_query(tmp_path, monkeypatch):
     }
 
     named, parts, indices, cache = _assemble_content(
-        profile,
-        [],
-        count_tokens,
-        query="auth",
-        mode="full",
+        profile, [], count_tokens, query="auth", mode="full", root=tmp_path
     )
 
     assert len(named) == 1
     assert "auth.py" in named[0][0]
 
 
-def test_assemble_content_streaming_with_query(tmp_path, monkeypatch):
-    """Streaming mode with query filters files before reading."""
-    monkeypatch.chdir(tmp_path)
+def test_assemble_content_streaming_with_query(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "keep.py").write_text("important")
@@ -71,11 +53,7 @@ def test_assemble_content_streaming_with_query(tmp_path, monkeypatch):
     }
 
     named, parts, indices, cache = _assemble_content(
-        profile,
-        [],
-        count_tokens,
-        query="keep",
-        mode="full",
+        profile, [], count_tokens, query="keep", mode="full", root=tmp_path
     )
 
     assert len(parts) >= 1
@@ -84,9 +62,7 @@ def test_assemble_content_streaming_with_query(tmp_path, monkeypatch):
     assert "skip.py" not in content
 
 
-def test_assemble_file_content_streaming_verbose_compress(tmp_path, monkeypatch, capsys):
-    """Streaming mode with verbose and compress prints stats."""
-    monkeypatch.chdir(tmp_path)
+def test_assemble_file_content_streaming_verbose_compress(tmp_path, capsys):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("a\n\n\n\nb\n")
@@ -105,9 +81,8 @@ def test_assemble_file_content_streaming_verbose_compress(tmp_path, monkeypatch,
         },
         [],
         count_tokens,
-        incremental=False,
-        cache=None,
         verbose=True,
+        root=tmp_path,
     )
 
     captured = capsys.readouterr()

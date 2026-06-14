@@ -4,6 +4,7 @@
 Default: 4 chars ≈ 1 token (conservative, zero dependencies).
 Supports pluggable tokenizers via tokenizer spec string.
 chars_per_token configurable via profile field or ARACHNA_CHARS_PER_TOKEN env var.
+Safe tokenizers list configurable via ARACHNA_SAFE_TOKENIZERS env var.
 """
 
 import ast as _ast
@@ -13,9 +14,14 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-_SAFE_TOKENIZERS = frozenset(
-    _os.environ.get("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers").split(",")
-)
+
+def _get_safe_tokenizers() -> frozenset:
+    return frozenset(_os.environ.get("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers").split(","))
+
+
+def _get_default_chars_per_token() -> int:
+    return int(_os.environ.get("ARACHNA_CHARS_PER_TOKEN", "4"))
+
 
 _SUSPICIOUS_MODULES = frozenset(
     {
@@ -83,8 +89,9 @@ def _is_safe_tokenizer(spec: str) -> bool:
         return True
 
     module_name = spec.split(":", 1)[0]
+    safe_tokenizers = _get_safe_tokenizers()
 
-    if module_name in _SAFE_TOKENIZERS:
+    if module_name in safe_tokenizers:
         return True
 
     if module_name in _SUSPICIOUS_MODULES:
@@ -166,14 +173,18 @@ def _safe_local_imports(filepath: Path) -> bool:
     return _validate_top_level_statements(filepath)
 
 
-# ── Plugin checks — lazy import with warning suppression ──────────
+# ── Plugin checks — lazy on first use ────────────────────────────
 
+_plugins_checked = False
 _HAS_TIKTOKEN = False
 _HAS_TRANSFORMERS = False
 
 
 def _check_tokenizer_plugins():
-    global _HAS_TIKTOKEN, _HAS_TRANSFORMERS
+    global _plugins_checked, _HAS_TIKTOKEN, _HAS_TRANSFORMERS
+    if _plugins_checked:
+        return
+    _plugins_checked = True
     try:
         import tiktoken  # noqa: F401
 
@@ -189,7 +200,6 @@ def _check_tokenizer_plugins():
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             import transformers  # noqa: F401
-
         _HAS_TRANSFORMERS = True
         if _prev is not None:
             _os.environ["TRANSFORMERS_VERBOSITY"] = _prev
@@ -197,14 +207,13 @@ def _check_tokenizer_plugins():
         _HAS_TRANSFORMERS = False
 
 
-_check_tokenizer_plugins()
-
-
 def _has_tiktoken() -> bool:
+    _check_tokenizer_plugins()
     return _HAS_TIKTOKEN
 
 
 def _has_transformers() -> bool:
+    _check_tokenizer_plugins()
     return _HAS_TRANSFORMERS
 
 
@@ -232,12 +241,9 @@ def _load_transformers(spec: str) -> Callable[[str], int]:
     return _count
 
 
-_DEFAULT_CHARS_PER_TOKEN = int(_os.environ.get("ARACHNA_CHARS_PER_TOKEN", "4"))
-
-
 def count_tokens(text: str, chars_per_token: int | None = None) -> int:
     if chars_per_token is None:
-        chars_per_token = _DEFAULT_CHARS_PER_TOKEN
+        chars_per_token = _get_default_chars_per_token()
     if chars_per_token <= 0:
         chars_per_token = 4
     return max(1, len(text) // chars_per_token)
@@ -245,13 +251,14 @@ def count_tokens(text: str, chars_per_token: int | None = None) -> int:
 
 def load_tokenizer(spec: str, chars_per_token: int | None = None) -> Callable[[str], int]:
     if not spec or spec == "default":
-        cpt = chars_per_token if chars_per_token is not None else _DEFAULT_CHARS_PER_TOKEN
+        cpt = chars_per_token if chars_per_token is not None else _get_default_chars_per_token()
         return lambda text: count_tokens(text, chars_per_token=cpt)
 
     if not _is_safe_tokenizer(spec):
+        safe_tokenizers = _get_safe_tokenizers()
         raise ValueError(
             f"Unsafe tokenizer: '{spec}'. "
-            f"Only 'default', safe modules ({', '.join(sorted(_SAFE_TOKENIZERS))}), "
+            f"Only 'default', safe modules ({', '.join(sorted(safe_tokenizers))}), "
             f"or local .py files with safe imports are allowed."
         )
 

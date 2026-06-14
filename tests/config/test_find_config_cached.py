@@ -1,30 +1,32 @@
-"""TC-183: find_config is cached via @lru_cache."""
+"""TC-183: find_config accepts optional root parameter (v3.5.0)."""
 
 import json
 
 from arachna.config import find_config, load_config
 
 
-def test_find_config_cached(tmp_path, monkeypatch):
-    """Second call to find_config uses cache — same result, no disk I/O."""
-    monkeypatch.chdir(tmp_path)
+def test_find_config_with_explicit_root(tmp_path):
+    """find_config with explicit root finds config at that root."""
     (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "cached-test", "profiles": {}})
+        json.dumps({"project_name": "explicit-root", "profiles": {}})
     )
 
-    cfg1 = find_config()
-    cfg2 = find_config()
-    assert cfg1 is not None
-    assert cfg2 is cfg1
+    cfg = find_config(root=tmp_path)
+    assert cfg is not None
+    assert cfg.parent == tmp_path
 
 
-def test_load_config_reads_file(tmp_path, monkeypatch):
-    """load_config reads .arachna.json each time (not cached)."""
-    monkeypatch.chdir(tmp_path)
+def test_find_config_not_found_with_root(tmp_path):
+    """find_config with root that has no config returns None."""
+    cfg = find_config(root=tmp_path)
+    assert cfg is None
+
+
+def test_load_config_with_root(tmp_path):
+    """load_config with explicit root reads config from that root."""
     (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "isolated", "profiles": {}})
+        json.dumps({"project_name": "loaded-root", "profiles": {}})
     )
 
-    cfg1 = load_config()
-    cfg2 = load_config()
-    assert cfg1["project_name"] == cfg2["project_name"]
+    config = load_config(root=tmp_path)
+    assert config["project_name"] == "loaded-root"

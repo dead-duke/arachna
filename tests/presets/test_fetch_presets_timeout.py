@@ -1,45 +1,38 @@
-"""Tests for ARACHNA_PRESETS_TIMEOUT env var (v2.9.2)."""
+"""Tests for fetch_presets timeout parameter (v3.5.0)."""
 
 from unittest.mock import patch
 
 
+def test_fetch_presets_timeout_param():
+    """fetch_presets accepts explicit timeout parameter."""
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = TimeoutError("timed out")
+        from arachna.presets import fetch_presets
+
+        result = fetch_presets("https://example.com/presets.json", timeout=3)
+        assert result == {}
+        mock_urlopen.assert_called_with("https://example.com/presets.json", timeout=3)
+
+
 def test_fetch_presets_timeout_env(monkeypatch):
-    """ARACHNA_PRESETS_TIMEOUT overrides default timeout."""
+    """ARACHNA_PRESETS_TIMEOUT env var used as default."""
     monkeypatch.setenv("ARACHNA_PRESETS_TIMEOUT", "5")
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = TimeoutError("timed out")
+        from arachna.presets import fetch_presets
 
-    import importlib
-
-    import arachna.presets as presets_module
-
-    importlib.reload(presets_module)
-
-    assert presets_module._PRESETS_TIMEOUT == 5
+        result = fetch_presets("https://example.com/presets.json")
+        assert result == {}
+        mock_urlopen.assert_called_with("https://example.com/presets.json", timeout=5)
 
 
 def test_fetch_presets_timeout_default(monkeypatch):
     """Default timeout is 10 seconds."""
     monkeypatch.delenv("ARACHNA_PRESETS_TIMEOUT", raising=False)
-
-    import importlib
-
-    import arachna.presets as presets_module
-
-    importlib.reload(presets_module)
-
-    assert presets_module._PRESETS_TIMEOUT == 10
-
-
-def test_fetch_presets_timeout_used(monkeypatch):
-    """fetch_presets passes timeout to urlopen."""
-    monkeypatch.setenv("ARACHNA_PRESETS_TIMEOUT", "3")
-
-    import importlib
-
-    import arachna.presets as presets_module
-
-    importlib.reload(presets_module)
-
     with patch("urllib.request.urlopen") as mock_urlopen:
-        mock_urlopen.return_value.read.return_value = b"{}"
-        presets_module.fetch_presets("https://example.com/presets.json")
-        mock_urlopen.assert_called_with("https://example.com/presets.json", timeout=3)
+        mock_urlopen.side_effect = TimeoutError("timed out")
+        from arachna.presets import fetch_presets
+
+        result = fetch_presets("https://example.com/presets.json")
+        assert result == {}
+        mock_urlopen.assert_called_with("https://example.com/presets.json", timeout=10)

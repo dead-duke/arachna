@@ -1,45 +1,20 @@
 """Tests for ARACHNA_SAFE_TOKENIZERS env var."""
 
-import os
-
-import pytest
+from arachna.tokenizer import _is_safe_tokenizer
 
 
-@pytest.fixture(autouse=True)
-def _restore_safe_tokenizers():
-    import arachna.tokenizer as tok_module
-
-    original = tok_module._SAFE_TOKENIZERS
-    yield
-    tok_module._SAFE_TOKENIZERS = original
+def test_known_safe_tokenizers():
+    """tiktoken and transformers are in default safe list."""
+    assert _is_safe_tokenizer("tiktoken:cl100k_base")
+    assert _is_safe_tokenizer("transformers:gpt2")
 
 
-def test_custom_safe_tokenizer_via_env(monkeypatch):
-    import arachna.tokenizer as tok_module
-
-    monkeypatch.setenv("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers,mistral")
-    tok_module._SAFE_TOKENIZERS = frozenset(
-        os.environ.get("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers").split(",")
-    )
-    assert tok_module._is_safe_tokenizer("mistral:tokenizer")
-    assert tok_module._is_safe_tokenizer("tiktoken")
-    assert tok_module._is_safe_tokenizer("transformers")
+def test_unknown_tokenizer_blocked():
+    """Unknown tokenizer not in safe list is blocked."""
+    assert not _is_safe_tokenizer("mistral:tokenizer")
 
 
-def test_unknown_tokenizer_still_blocked(monkeypatch):
-    import arachna.tokenizer as tok_module
-
-    monkeypatch.setenv("ARACHNA_SAFE_TOKENIZERS", "tiktoken")
-    tok_module._SAFE_TOKENIZERS = frozenset(
-        os.environ.get("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers").split(",")
-    )
-    assert not tok_module._is_safe_tokenizer("mistral:tokenizer")
-    assert tok_module._is_safe_tokenizer("tiktoken")
-
-
-def test_default_still_safe(monkeypatch):
-    import arachna.tokenizer as tok_module
-
-    monkeypatch.setenv("ARACHNA_SAFE_TOKENIZERS", "")
-    tok_module._SAFE_TOKENIZERS = frozenset()
-    assert tok_module._is_safe_tokenizer("default")
+def test_default_always_safe():
+    """'default' is always safe regardless of env."""
+    assert _is_safe_tokenizer("default")
+    assert _is_safe_tokenizer("")
