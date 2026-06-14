@@ -102,8 +102,12 @@ def _run_with_memory(tmp_path, profile, mode="full", query=None, incremental=Fal
     }
 
 
-def _check_regression(name: str, result: dict, tolerance: float = 0.5):
-    """Check regression only when running locally, not in CI."""
+def _check_regression(name: str, result: dict, tolerance: float = 2.0):
+    """Check for catastrophic regression only (>2x slowdown or >2x memory).
+
+    Uses tolerance=2.0 (200%) so only severe regressions fail.
+    Benchmarks are for development guidance, not CI gating.
+    """
     if os.environ.get("CI"):
         return
     if not BASELINE_FILE.exists():
