@@ -1,44 +1,38 @@
-"""Coverage for __main__.py uncovered branches — updated for v3.0 subparser CLI."""
+"""Coverage for __main__.py uncovered branches — updated for v3.4.0."""
 
 import json
 from argparse import Namespace
 from unittest.mock import patch
 
-from arachna.__main__ import (
-    _cmd_collect_clean,
-    _cmd_collect_list,
-    _cmd_collect_validate,
-    _list_profiles,
-    _print_collected,
-    _write_manifest,
-)
+from arachna.cli._helpers import list_profiles, print_collected, write_manifest
+from arachna.cli.collect import _cmd_collect_clean, _cmd_collect_list, _cmd_collect_validate
 
 
 def test_list_profiles_empty_config():
-    """_list_profiles with empty profiles returns ['default']."""
-    assert _list_profiles({"profiles": {}}) == ["default"]
+    """list_profiles with empty profiles returns ['default']."""
+    assert list_profiles({"profiles": {}}) == ["default"]
 
 
 def test_list_profiles_no_key():
-    """_list_profiles without profiles key returns ['default']."""
-    assert _list_profiles({}) == ["default"]
+    """list_profiles without profiles key returns ['default']."""
+    assert list_profiles({}) == ["default"]
 
 
 def test_print_collected_empty():
-    """_print_collected with empty list prints 'No content collected'."""
+    """print_collected with empty list prints 'No content collected'."""
     import sys
     from io import StringIO
 
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _print_collected([])
+    print_collected([])
     sys.stdout = old
     assert "No content collected" in out.getvalue()
 
 
 def test_print_collected_with_files(tmp_path, monkeypatch):
-    """_print_collected with files prints file info."""
+    """print_collected with files prints file info."""
     import sys
     from io import StringIO
 
@@ -49,19 +43,19 @@ def test_print_collected_with_files(tmp_path, monkeypatch):
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _print_collected([str(f)])
+    print_collected([str(f)])
     sys.stdout = old
     assert "chat-c.md" in out.getvalue()
 
 
 def test_write_manifest(tmp_path):
-    """_write_manifest creates chat-manifest.md."""
+    """write_manifest creates chat-manifest.md."""
     out = tmp_path / "out"
     out.mkdir()
     f1 = str(out / "chat-c.md")
     (out / "chat-c.md").write_text("content")
 
-    _write_manifest(out, [f1], {f1: 10}, {"project_name": "Test"})
+    write_manifest(out, [f1], {f1: 10}, {"project_name": "Test"})
 
     mf = out / "chat-manifest.md"
     assert mf.exists()

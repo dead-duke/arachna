@@ -160,8 +160,19 @@ def _is_binary_content(content: str) -> bool:
     return "\x00" in content
 
 
-def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
-    rename_sections = []
+# ── Rename/move detection — decomposed pipeline ──────────────────
+
+
+def _match_exact_renames(
+    deleted: dict[str, str],
+    added: dict[str, str],
+    fmt: str,
+) -> tuple[list[DiffSection], set[str], set[str], dict[str, str], dict[str, str]]:
+    """Match exact renames/moves by SHA256 hash.
+
+    Returns: (sections, matched_deleted, matched_added, remaining_deleted, remaining_added)
+    """
+    rename_sections: list[DiffSection] = []
     matched_deleted: set[str] = set()
     matched_added: set[str] = set()
 
@@ -229,6 +240,25 @@ def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
     remaining_deleted = {p: c for p, c in deleted.items() if p not in matched_deleted}
     remaining_added = {p: c for p, c in added.items() if p not in matched_added}
 
+    return rename_sections, matched_deleted, matched_added, remaining_deleted, remaining_added
+
+
+def _match_similar_renames(
+    remaining_deleted: dict[str, str],
+    remaining_added: dict[str, str],
+    matched_added: set[str],
+    fmt: str,
+) -> tuple[list[DiffSection], set[str], set[str]]:
+    """Match similar renames by difflib ratio (>0.7).
+
+    Only considers files with same extension, under 1MB, non-binary.
+
+    Returns: (sections, newly_matched_deleted, newly_matched_added)
+    """
+    rename_sections: list[DiffSection] = []
+    matched_deleted: set[str] = set()
+    newly_matched_added: set[str] = set()
+
     for del_path, del_content in remaining_deleted.items():
         if (
             _is_binary_content(del_content)
@@ -241,6 +271,7 @@ def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
             for p, c in remaining_added.items()
             if Path(p).suffix == del_ext
             and p not in matched_added
+            and p not in newly_matched_added
             and len(c.encode("utf-8")) <= _MAX_SIMILARITY_SIZE
         }
         for add_path, add_content in list(candidates.items()):
@@ -273,11 +304,35 @@ def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
                     )
                 )
                 matched_deleted.add(del_path)
-                matched_added.add(add_path)
+                newly_matched_added.add(add_path)
                 del remaining_added[add_path]
                 break
 
-    return rename_sections, matched_deleted, matched_added
+    return rename_sections, matched_deleted, newly_matched_added
+
+
+def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
+    """Detect renames and moves between deleted and added files.
+
+    Pipeline: exact hash match → similar content match.
+
+    Returns: (all_sections, matched_deleted, matched_added)
+    """
+    # Phase 1: exact hash match
+    exact_sections, exact_del, exact_add, remaining_del, remaining_add = _match_exact_renames(
+        deleted, added, fmt
+    )
+
+    # Phase 2: similar content match
+    similar_sections, similar_del, similar_add = _match_similar_renames(
+        remaining_del, remaining_add, exact_add, fmt
+    )
+
+    all_sections = exact_sections + similar_sections
+    all_matched_del = exact_del | similar_del
+    all_matched_add = exact_add | similar_add
+
+    return all_sections, all_matched_del, all_matched_add
 
 
 def _diff_file_sets(old_files: dict, new_files: dict, fmt: str) -> list[DiffSection]:

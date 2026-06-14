@@ -1,8 +1,8 @@
-"""Tests for diff --all CLI handler — updated for v3.0 (imports from __main__)."""
+"""Tests for diff --all CLI handler — updated for v3.4.0."""
 
 import json
 
-from arachna.__main__ import _cmd_diff_all
+from arachna.cli.diff import _cmd_diff_all
 
 
 def _make_args(profile="code", mode=None, query=None, compress=False, output_dir=None):

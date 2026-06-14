@@ -5,18 +5,19 @@ from argparse import Namespace
 
 import pytest
 
-from arachna.__main__ import (
+from arachna.cli._helpers import print_collected, write_manifest
+from arachna.cli.collect import (
     _cmd_collect_clean,
     _cmd_collect_profile,
     _cmd_collect_validate,
-    _cmd_diff,
+)
+from arachna.cli.diff import _cmd_diff
+from arachna.cli.snapshot import (
     _cmd_snapshot_create,
     _cmd_snapshot_delete,
     _cmd_snapshot_info,
     _cmd_snapshot_rename,
     _cmd_snapshot_update,
-    _print_collected,
-    _write_manifest,
 )
 
 # ── Snapshot error paths ──────────────────────────────────────────
@@ -270,7 +271,7 @@ def test_print_collected_with_files(tmp_path, monkeypatch):
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _print_collected([str(f)])
+    print_collected([str(f)])
     sys.stdout = old
     assert "test.md" in out.getvalue()
     assert "3 lines" in out.getvalue()
@@ -283,7 +284,7 @@ def test_print_collected_empty():
     out = StringIO()
     old = sys.stdout
     sys.stdout = out
-    _print_collected([])
+    print_collected([])
     sys.stdout = old
     assert "No content collected" in out.getvalue()
 
@@ -294,7 +295,7 @@ def test_write_manifest_basic(tmp_path):
     f = tmp_path / "out" / "chat-c.md"
     f.write_text("content")
 
-    _write_manifest(out, [str(f)], {str(f): 50}, {"project_name": "Test"})
+    write_manifest(out, [str(f)], {str(f): 50}, {"project_name": "Test"})
 
     mf = out / "chat-manifest.md"
     assert mf.exists()

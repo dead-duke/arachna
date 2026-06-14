@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from arachna.__main__ import _cmd_presets_update
+from arachna.cli.presets import _cmd_presets_update
 
 
 def _make_args(url=None):
@@ -35,7 +35,7 @@ def test_presets_update_allows_https_url(tmp_path, monkeypatch):
         }
     }
     with (
-        patch("arachna.presets.fetch_presets", return_value=mock_presets),
+        patch("arachna.cli.presets.fetch_presets", return_value=mock_presets),
         patch("sys.exit") as mock_exit,
     ):
         _cmd_presets_update(_make_args(url="https://example.com/presets.json"), {})
@@ -54,7 +54,7 @@ def test_presets_update_allows_http_url(tmp_path, monkeypatch):
         }
     }
     with (
-        patch("arachna.presets.fetch_presets", return_value=mock_presets),
+        patch("arachna.cli.presets.fetch_presets", return_value=mock_presets),
         patch("sys.exit") as mock_exit,
     ):
         _cmd_presets_update(_make_args(url="http://example.com/presets.json"), {})

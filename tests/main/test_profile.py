@@ -3,7 +3,7 @@
 import json
 from io import StringIO
 
-from arachna.__main__ import _cmd_benchmark
+from arachna.cli.profile import _cmd_benchmark
 
 
 def _make_args(profile="code", fmt="terminal", output_dir=None):

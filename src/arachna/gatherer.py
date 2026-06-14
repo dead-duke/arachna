@@ -266,15 +266,19 @@ def _extract_deps_from_content(content: str) -> list[str] | None:
     return None
 
 
-def _filter_by_query(
+# ── Query scoring pipeline ──────────────────────────────────────
+
+
+def _score_files(
     named_sections: list[tuple[str, str, int]],
-    query: str,
-    include_pre_commands: bool = False,
-) -> list[tuple[str, str, int]]:
-    if not query or not query.strip():
-        return named_sections
-    query_words = query.lower().split()
-    graph = _collect_import_graph(named_sections)
+    query_words: list[str],
+) -> dict[str, int]:
+    """Score each file by relevance to query words.
+
+    Returns: {filepath: score}
+    Scoring: filename match = 10, content match = 3, exports match = 8,
+             dependency name match = 5.
+    """
     scores: dict[str, int] = {}
     for filepath, content, _tokens in named_sections:
         if filepath.startswith("pre: "):
@@ -294,32 +298,82 @@ def _filter_by_query(
                     if word in exports_str.lower():
                         score += 8
                 break
+        if score > 0:
+            scores[filepath] = score
+
+    # Add dependency-based scores
+    graph = _collect_import_graph(named_sections)
+    for filepath in scores:
         for dep in graph.get(filepath, []):
             for word in query_words:
                 if word in dep.lower():
-                    score += 5
-        if score > 0:
-            scores[filepath] = score
-    matched = set(scores.keys())
+                    scores[filepath] += 5
+    return scores
+
+
+def _build_reverse_graph(
+    graph: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    """Build reverse import graph: {imported_module -> [importers]}.
+
+    Both basenames and full paths are indexed for flexible matching.
+    """
     reverse: dict[str, list[str]] = {}
     for fpath, deps in graph.items():
         for dep in deps:
             dep_basename = dep.split("/")[-1].split(".")[0]
             reverse.setdefault(dep_basename, []).append(fpath)
             reverse.setdefault(dep, []).append(fpath)
-    for _depth in range(2):
+    return reverse
+
+
+def _expand_import_chain(
+    matched: set[str],
+    reverse_graph: dict[str, list[str]],
+    depth: int = 2,
+) -> set[str]:
+    """Expand matched files by following reverse import graph.
+
+    Depth=2: direct importers + importers of importers.
+    """
+    result = set(matched)
+    for _ in range(depth):
         new_matches: set[str] = set()
-        for fpath in matched:
+        for fpath in result:
             basename = Path(fpath).name.split(".")[0]
-            for importer in reverse.get(basename, []):
-                if importer not in matched:
+            for importer in reverse_graph.get(basename, []):
+                if importer not in result:
                     new_matches.add(importer)
-            for importer in reverse.get(fpath, []):
-                if importer not in matched:
+            for importer in reverse_graph.get(fpath, []):
+                if importer not in result:
                     new_matches.add(importer)
-        matched |= new_matches
         if not new_matches:
             break
+        result |= new_matches
+    return result
+
+
+def _filter_by_query(
+    named_sections: list[tuple[str, str, int]],
+    query: str,
+    include_pre_commands: bool = False,
+) -> list[tuple[str, str, int]]:
+    """Filter named sections by query using scoring and import chain expansion."""
+    if not query or not query.strip():
+        return named_sections
+
+    query_words = query.lower().split()
+    scores = _score_files(named_sections, query_words)
+    if not scores:
+        return (
+            [s for s in named_sections if s[0].startswith("pre: ")] if include_pre_commands else []
+        )
+
+    matched = set(scores.keys())
+    graph = _collect_import_graph(named_sections)
+    reverse_graph = _build_reverse_graph(graph)
+    matched = _expand_import_chain(matched, reverse_graph)
+
     result = []
     for section in named_sections:
         if section[0].startswith("pre: "):

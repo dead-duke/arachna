@@ -2,7 +2,7 @@ import json
 from argparse import Namespace
 from unittest.mock import patch
 
-from arachna.__main__ import _cmd_doctor
+from arachna.cli.doctor import _cmd_doctor
 
 
 def test_valid_config(tmp_path, monkeypatch):
@@ -18,7 +18,6 @@ def test_valid_config(tmp_path, monkeypatch):
             }
         )
     )
-    report = _cmd_doctor.__wrapped__ if hasattr(_cmd_doctor, "__wrapped__") else _cmd_doctor
     from arachna.doctor import run_doctor
 
     report = run_doctor()

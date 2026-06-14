@@ -1,11 +1,11 @@
-"""Coverage for Watch CLI handlers — updated for v3.0 (imports from __main__)."""
+"""Coverage for Watch CLI handlers — updated for v3.4.0."""
 
 import json
 import sys
 from io import StringIO
 
-from arachna.__main__ import (
-    _cmd_diff,
+from arachna.cli.diff import _cmd_diff
+from arachna.cli.snapshot import (
     _cmd_snapshot_create,
     _cmd_snapshot_info,
     _cmd_snapshot_update,

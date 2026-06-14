@@ -1,18 +1,21 @@
 # TODO
 
 ## v3.4.0 — Structural core: __main__.py split + complexity reduction (details: llm_docs/specs/spec-v3.4.0-cli-split.md)
-- [ ] Create src/arachna/cli/ package with COMMAND_HANDLERS registry in __init__.py
-- [ ] Extract handlers: cli/collect.py, cli/snapshot.py, cli/diff.py, cli/store.py, cli/plugins.py, cli/presets.py, cli/doctor.py, cli/init.py, cli/completion.py, cli/profile.py
-- [ ] Extract helpers: cli/_helpers.py (_list_profiles, _apply_args_to_profile, _parse_output_dir, _print_collected, _write_manifest)
-- [ ] Shrink __main__.py to ~30 lines — build_argparse() + main() dispatch only
-- [ ] Add typing.Protocol for Tokenizer (formalize Callable[[str], int])
-- [ ] Add typing.Protocol for ObjectStore (write_object, read_object, create_snapshot, etc.)
-- [ ] Add typing.Protocol for ContentFormatter (format_file_section, lang_for_path)
-- [ ] Decompose _filter_by_query (complexity 12-14) into _score_files(), _build_reverse_graph(), _expand_import_chain()
-- [ ] Decompose _detect_renames_and_moves (complexity 12-14) into _match_exact_renames() and _match_similar_renames()
-- [ ] Replace _RE_C_LIKE_BLOCK (single regex with 15 named groups) with _BLOCK_PATTERNS chain of single-purpose patterns
-- [ ] Update 20 test files — switch imports from __main__ to cli.*
-- [ ] Keep proxy functions in __main__.py for one release — backward compat for remaining tests
+- [x] Create src/arachna/cli/ package with COMMAND_HANDLERS registry in __init__.py
+- [x] Extract handlers: cli/collect.py, cli/snapshot.py, cli/diff.py, cli/store.py, cli/plugins.py, cli/presets.py, cli/doctor.py, cli/init.py, cli/completion.py, cli/profile.py
+- [x] Extract helpers: cli/_helpers.py (list_profiles, apply_args_to_profile, parse_output_dir, print_collected, write_manifest, format_profile_section)
+- [x] Shrink __main__.py to ~100 lines — build_argparse() + main() dispatch only (build_argparse ~90 lines неизбежен из-за 30+ аргументов)
+- [x] Add typing.Protocol for Tokenizer (Callable[[str], int])
+- [x] Add typing.Protocol for ObjectStore (write_object, read_object, create_snapshot, load_snapshot, list_snapshots, delete_snapshot)
+- [x] Add typing.Protocol for ContentFormatter (Path -> str, minimal contract)
+- [x] Decompose _filter_by_query into _score_files(), _build_reverse_graph(), _expand_import_chain()
+- [x] Decompose _detect_renames_and_moves into _match_exact_renames() and _match_similar_renames()
+- [x] Replace _RE_C_LIKE_BLOCK with _BLOCK_PATTERNS chain of single-purpose patterns
+- [x] Update 11 test files — switch imports from __main__ to cli.*
+- [x] No proxy functions in __main__.py — тесты переписаны, легаси удалено
+- [x] Fix B023 closure binding in _BLOCK_PATTERNS loop (lambda p=pattern)
+- [x] Add tests for query pipeline (test_query_pipeline.py, 7 tests)
+- [x] make check passes: 1278 passed, 3 skipped
 
 ## v3.5.0 — Ecosystem: testability, CI, docs, security, man page (details: llm_docs/specs/spec-v3.5.0-ecosystem.md)
 - [ ] Replace monkeypatch.chdir with explicit root/output_dir params — start with config.py, store.py, then gatherer.py, collector.py (module by module)

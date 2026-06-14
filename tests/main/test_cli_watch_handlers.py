@@ -1,20 +1,19 @@
-"""Tests for Watch CLI handlers — updated for v3.0 (imports from __main__)."""
+"""Tests for Watch CLI handlers — updated for v3.4.0."""
 
 import json
 
 import pytest
 
-from arachna.__main__ import (
-    _cmd_diff,
+from arachna.cli.diff import _cmd_diff
+from arachna.cli.snapshot import (
     _cmd_snapshot_create,
     _cmd_snapshot_delete,
     _cmd_snapshot_info,
     _cmd_snapshot_list,
     _cmd_snapshot_rename,
     _cmd_snapshot_update,
-    _cmd_store_gc,
-    _cmd_store_stats,
 )
+from arachna.cli.store import _cmd_store_gc, _cmd_store_stats
 
 
 def _make_snap_create_args(name, profile):

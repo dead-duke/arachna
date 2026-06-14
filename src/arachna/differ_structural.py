@@ -13,6 +13,9 @@ v3.1: Tree-sitter plugin support for accurate structural diff.
 When tree-sitter plugin is installed for a language, uses it
 instead of regex brace matching. Falls back to text diff with
 clear warning when plugin is not installed.
+
+v3.4: _BLOCK_PATTERNS replaces _RE_C_LIKE_BLOCK — chain of
+single-purpose patterns instead of one 15-group monster regex.
 """
 
 import logging
@@ -118,6 +121,61 @@ def _strip_strings_and_comments(text: str) -> str:
     text = _RE_SINGLE_COMMENT.sub(" ", text)
     text = _RE_MULTI_COMMENT.sub(" ", text)
     return text
+
+
+# ── Block pattern chain — single-purpose patterns ────────────────
+# Replaces _RE_C_LIKE_BLOCK (one 15-group regex) with a chain of
+# single-purpose patterns. Each pattern extracts one declaration
+# type. Applied in priority order: more specific first.
+
+_BLOCK_PATTERNS = [
+    # (pattern, group_name)
+    # function declarations
+    (
+        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+(?P<name>\w+)[^{]*", re.MULTILINE),
+        "name",
+    ),
+    # def (Python-like in C-like files)
+    (re.compile(r"^\s*def\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # class declarations
+    (
+        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?class\s+(?P<name>\w+)[^{]*", re.MULTILINE),
+        "name",
+    ),
+    # interface declarations
+    (
+        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?interface\s+(?P<name>\w+)[^{]*", re.MULTILINE),
+        "name",
+    ),
+    # enum declarations
+    (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?enum\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # struct declarations
+    (
+        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?struct\s+(?P<name>\w+)[^{]*", re.MULTILINE),
+        "name",
+    ),
+    # trait declarations
+    (
+        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?trait\s+(?P<name>\w+)[^{]*", re.MULTILINE),
+        "name",
+    ),
+    # impl declarations
+    (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?impl\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # type alias with struct/interface
+    (re.compile(r"^\s*type\s+(?P<name>\w+)\s+\w+[^{]*", re.MULTILINE), "name"),
+    # type alias simple
+    (re.compile(r"^\s*type\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # Java public class
+    (re.compile(r"^\s*public\s+class\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # Java public static
+    (re.compile(r"^\s*public\s+static\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # Java public function
+    (re.compile(r"^\s*public\s+function\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # Rust fn
+    (re.compile(r"^\s*fn\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+    # Go func
+    (re.compile(r"^\s*func\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
+]
 
 
 def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
@@ -293,85 +351,31 @@ def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]] | None:
     return blocks
 
 
-_RE_C_LIKE_BLOCK = re.compile(
-    r"^("
-    r"\s*(?:export\s+)?(?:async\s+)?function\s+(?P<name>\w+)[^{]*"
-    r"|"
-    r"\s*def\s+(?P<name2>\w+)[^{]*"
-    r"|"
-    r"\s*(?:export\s+)?(?:async\s+)?class\s+(?P<name3>\w+)[^{]*"
-    r"|"
-    r"\s*(?:export\s+)?(?:async\s+)?interface\s+(?P<name4>\w+)[^{]*"
-    r"|"
-    r"\s*(?:export\s+)?(?:async\s+)?enum\s+(?P<name5>\w+)[^{]*"
-    r"|"
-    r"\s*(?:export\s+)?(?:async\s+)?struct\s+(?P<name6>\w+)[^{]*"
-    r"|"
-    r"\s*(?:export\s+)?(?:async\s+)?trait\s+(?P<name7>\w+)[^{]*"
-    r"|"
-    r"\s*(?:export\s+)?(?:async\s+)?impl\s+(?P<name8>\w+)[^{]*"
-    r"|"
-    r"\s*type\s+(?P<name9>\w+)\s+\w+[^{]*"
-    r"|"
-    r"\s*type\s+(?P<name10>\w+)[^{]*"
-    r"|"
-    r"\s*public\s+class\s+(?P<name11>\w+)[^{]*"
-    r"|"
-    r"\s*public\s+static\s+(?P<name12>\w+)[^{]*"
-    r"|"
-    r"\s*public\s+function\s+(?P<name13>\w+)[^{]*"
-    r"|"
-    r"\s*fn\s+(?P<name14>\w+)[^{]*"
-    r"|"
-    r"\s*func\s+(?P<name15>\w+)[^{]*"
-    r")",
-    re.MULTILINE,
-)
-
-
 def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
+    """Parse C-like blocks using _BLOCK_PATTERNS chain.
+
+    Each pattern in the chain extracts one declaration type.
+    First match wins — patterns are ordered by specificity.
+    """
     blocks = {}
-    try:
-        matches = _run_with_timeout(lambda: list(_RE_C_LIKE_BLOCK.finditer(text)))
-    except RegexTimeoutError:
-        logger.warning(
-            "_RE_C_LIKE_BLOCK timed out on input of length %d — skipping structural diff", len(text)
-        )
-        return {}
-    for m in matches:
-        sig = m.group(0).strip()
-        name = None
-        for group_name in [
-            "name",
-            "name2",
-            "name3",
-            "name4",
-            "name5",
-            "name6",
-            "name7",
-            "name8",
-            "name9",
-            "name10",
-            "name11",
-            "name12",
-            "name13",
-            "name14",
-            "name15",
-        ]:
-            try:
-                name = m.group(group_name)
-                if name is not None:
-                    break
-            except IndexError:
-                continue
-        if name is None:
+    for pattern, group_name in _BLOCK_PATTERNS:
+        try:
+            # Default argument captures current loop value — avoids B023
+            matches = _run_with_timeout(lambda p=pattern: list(p.finditer(text)))
+        except RegexTimeoutError:
+            logger.warning("Pattern timed out on input of length %d — skipping", len(text))
             continue
-        body_start = m.end()
-        if body_start < len(text) and text[body_start] == "{":
-            body = _extract_braced_block(text, body_start)
-        else:
-            body = ""
-        blocks[name] = (sig, body)
+        for m in matches:
+            sig = m.group(0).strip()
+            name = m.group(group_name)
+            if name is None or name in blocks:
+                continue
+            body_start = m.end()
+            if body_start < len(text) and text[body_start] == "{":
+                body = _extract_braced_block(text, body_start)
+            else:
+                body = ""
+            blocks[name] = (sig, body)
     return blocks
 
 

@@ -1,50 +1,56 @@
-"""Fuzzing tests for _RE_C_LIKE_BLOCK — ReDoS protection."""
+"""Fuzzing tests for _BLOCK_PATTERNS — ReDoS protection."""
 
 import time
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from arachna.differ_structural import _RE_C_LIKE_BLOCK
+from arachna.differ_structural import _BLOCK_PATTERNS
 
 
 @settings(deadline=500)
 @given(st.text(max_size=10000))
-def test_re_c_like_block_no_backtracking_explosion(text):
-    """_RE_C_LIKE_BLOCK.finditer completes under 100ms for any input up to 10KB."""
-    start = time.perf_counter()
-    list(_RE_C_LIKE_BLOCK.finditer(text))
-    elapsed = time.perf_counter() - start
-    assert elapsed < 0.1, f"_RE_C_LIKE_BLOCK took {elapsed:.3f}s on input of length {len(text)}"
+def test_block_patterns_no_backtracking_explosion(text):
+    """Each pattern in _BLOCK_PATTERNS completes under 100ms for any input up to 10KB."""
+    for pattern, _group_name in _BLOCK_PATTERNS:
+        start = time.perf_counter()
+        list(pattern.finditer(text))
+        elapsed = time.perf_counter() - start
+        assert elapsed < 0.1, (
+            f"Pattern {pattern.pattern[:60]} took {elapsed:.3f}s on input of length {len(text)}"
+        )
 
 
 @settings(deadline=500)
 @given(st.text(max_size=1000))
-def test_re_c_like_block_no_exception(text):
-    """_RE_C_LIKE_BLOCK.finditer never raises an exception."""
-    try:
-        list(_RE_C_LIKE_BLOCK.finditer(text))
-    except Exception as e:
-        raise AssertionError(
-            f"_RE_C_LIKE_BLOCK raised {type(e).__name__}: {e} on input of length {len(text)}"
-        ) from e
+def test_block_patterns_no_exception(text):
+    """No pattern raises an exception on any input."""
+    for pattern, _group_name in _BLOCK_PATTERNS:
+        try:
+            list(pattern.finditer(text))
+        except Exception as e:
+            raise AssertionError(
+                f"Pattern {pattern.pattern[:60]} raised {type(e).__name__}: {e} on input of length {len(text)}"
+            ) from e
 
 
-def test_re_c_like_block_crafted_nested_braces():
+def test_block_patterns_crafted_nested_braces():
     """Deeply nested braces should not cause exponential backtracking."""
-    # Crafted input: many nested {'s without closing
     text = "function foo() {" + "{" * 5000
-    start = time.perf_counter()
-    list(_RE_C_LIKE_BLOCK.finditer(text))
-    elapsed = time.perf_counter() - start
-    assert elapsed < 0.5, f"_RE_C_LIKE_BLOCK took {elapsed:.3f}s on nested braces"
+    for pattern, _group_name in _BLOCK_PATTERNS:
+        start = time.perf_counter()
+        list(pattern.finditer(text))
+        elapsed = time.perf_counter() - start
+        assert elapsed < 0.5, f"Pattern {pattern.pattern[:60]} took {elapsed:.3f}s on nested braces"
 
 
-def test_re_c_like_block_crafted_alternations():
-    """Many partial matches across alternations should not explode."""
-    # Crafted input: many keywords that partially match
+def test_block_patterns_crafted_alternations():
+    """Many partial matches across patterns should not explode."""
     text = "func " * 5000
-    start = time.perf_counter()
-    list(_RE_C_LIKE_BLOCK.finditer(text))
-    elapsed = time.perf_counter() - start
-    assert elapsed < 0.5, f"_RE_C_LIKE_BLOCK took {elapsed:.3f}s on repeated keywords"
+    for pattern, _group_name in _BLOCK_PATTERNS:
+        start = time.perf_counter()
+        list(pattern.finditer(text))
+        elapsed = time.perf_counter() - start
+        assert elapsed < 0.5, (
+            f"Pattern {pattern.pattern[:60]} took {elapsed:.3f}s on repeated keywords"
+        )

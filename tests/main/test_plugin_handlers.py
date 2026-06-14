@@ -4,7 +4,7 @@ from argparse import Namespace
 
 import pytest
 
-from arachna.__main__ import (
+from arachna.cli.plugins import (
     _cmd_plugins_install,
     _cmd_plugins_list,
     _cmd_plugins_uninstall,

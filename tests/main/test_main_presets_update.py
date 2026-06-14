@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch
 
-from arachna.__main__ import _cmd_presets_update
+from arachna.cli.presets import _cmd_presets_update
 
 
 def test_cmd_presets_update_success(tmp_path, monkeypatch):
@@ -18,7 +18,7 @@ def test_cmd_presets_update_success(tmp_path, monkeypatch):
         }
     }
 
-    with patch("arachna.presets.fetch_presets", return_value=mock_remote):
+    with patch("arachna.cli.presets.fetch_presets", return_value=mock_remote):
         _cmd_presets_update(_make_args(), {})
 
     assert (tmp_path / "presets.json").exists()
@@ -31,7 +31,7 @@ def test_cmd_presets_update_fetch_fails(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     with (
-        patch("arachna.presets.fetch_presets", return_value={}),
+        patch("arachna.cli.presets.fetch_presets", return_value={}),
         patch("sys.exit") as mock_exit,
     ):
         _cmd_presets_update(_make_args(), {})
@@ -63,7 +63,7 @@ def test_cmd_presets_update_preserves_local(tmp_path, monkeypatch):
         }
     }
 
-    with patch("arachna.presets.fetch_presets", return_value=mock_remote):
+    with patch("arachna.cli.presets.fetch_presets", return_value=mock_remote):
         _cmd_presets_update(_make_args(), {})
 
     data = json.loads((tmp_path / "presets.json").read_text())
@@ -84,7 +84,7 @@ def test_cmd_presets_update_with_custom_url(tmp_path, monkeypatch):
         }
     }
 
-    with patch("arachna.presets.fetch_presets") as mock_fetch:
+    with patch("arachna.cli.presets.fetch_presets") as mock_fetch:
         mock_fetch.return_value = mock_remote
         _cmd_presets_update(_make_args(url="https://custom.example.com/presets.json"), {})
         mock_fetch.assert_called_with("https://custom.example.com/presets.json")
