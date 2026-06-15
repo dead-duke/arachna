@@ -86,10 +86,10 @@
 </span><span id="L-25"><a href="#L-25"><span class="linenos">25</span></a>            <span class="sa">f</span><span class="s2">&quot;split_mode: &#39;</span><span class="si">{</span><span class="n">split_mode</span><span class="si">}</span><span class="s2">&#39; is not valid (use: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">VALID_SPLIT_MODES</span><span class="p">))</span><span class="si">}</span><span class="s2">)&quot;</span>
 </span><span id="L-26"><a href="#L-26"><span class="linenos">26</span></a>        <span class="p">)</span>
 </span><span id="L-27"><a href="#L-27"><span class="linenos">27</span></a>
-</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>    <span class="c1"># max_tokens</span>
+</span><span id="L-28"><a href="#L-28"><span class="linenos">28</span></a>    <span class="c1"># max_tokens: 0 means unlimited</span>
 </span><span id="L-29"><a href="#L-29"><span class="linenos">29</span></a>    <span class="n">max_tokens</span> <span class="o">=</span> <span class="n">profile</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_tokens&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>    <span class="k">if</span> <span class="n">max_tokens</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;max_tokens: must be &gt; 0, got </span><span class="si">{</span><span class="n">max_tokens</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="L-30"><a href="#L-30"><span class="linenos">30</span></a>    <span class="k">if</span> <span class="n">max_tokens</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+</span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;max_tokens: must be &gt;= 0, got </span><span class="si">{</span><span class="n">max_tokens</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>
 </span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>    <span class="c1"># split_marker required for by_marker</span>
 </span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>    <span class="k">if</span> <span class="n">split_mode</span> <span class="o">==</span> <span class="s2">&quot;by_marker&quot;</span><span class="p">:</span>
@@ -126,7 +126,7 @@
                 <section id="VALID_SPLIT_MODES">
                     <div class="attr variable">
             <span class="name">VALID_SPLIT_MODES</span>        =
-<span class="default_value">{&#39;by_marker&#39;, &#39;single&#39;, &#39;by_paragraph&#39;, &#39;by_file&#39;}</span>
+<span class="default_value">{&#39;by_marker&#39;, &#39;by_file&#39;, &#39;by_paragraph&#39;, &#39;single&#39;}</span>
 
         
     </div>
@@ -164,10 +164,10 @@
 </span><span id="validate_profile-26"><a href="#validate_profile-26"><span class="linenos">26</span></a>            <span class="sa">f</span><span class="s2">&quot;split_mode: &#39;</span><span class="si">{</span><span class="n">split_mode</span><span class="si">}</span><span class="s2">&#39; is not valid (use: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">VALID_SPLIT_MODES</span><span class="p">))</span><span class="si">}</span><span class="s2">)&quot;</span>
 </span><span id="validate_profile-27"><a href="#validate_profile-27"><span class="linenos">27</span></a>        <span class="p">)</span>
 </span><span id="validate_profile-28"><a href="#validate_profile-28"><span class="linenos">28</span></a>
-</span><span id="validate_profile-29"><a href="#validate_profile-29"><span class="linenos">29</span></a>    <span class="c1"># max_tokens</span>
+</span><span id="validate_profile-29"><a href="#validate_profile-29"><span class="linenos">29</span></a>    <span class="c1"># max_tokens: 0 means unlimited</span>
 </span><span id="validate_profile-30"><a href="#validate_profile-30"><span class="linenos">30</span></a>    <span class="n">max_tokens</span> <span class="o">=</span> <span class="n">profile</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_tokens&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-</span><span id="validate_profile-31"><a href="#validate_profile-31"><span class="linenos">31</span></a>    <span class="k">if</span> <span class="n">max_tokens</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-</span><span id="validate_profile-32"><a href="#validate_profile-32"><span class="linenos">32</span></a>        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;max_tokens: must be &gt; 0, got </span><span class="si">{</span><span class="n">max_tokens</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="validate_profile-31"><a href="#validate_profile-31"><span class="linenos">31</span></a>    <span class="k">if</span> <span class="n">max_tokens</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+</span><span id="validate_profile-32"><a href="#validate_profile-32"><span class="linenos">32</span></a>        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;max_tokens: must be &gt;= 0, got </span><span class="si">{</span><span class="n">max_tokens</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span><span id="validate_profile-33"><a href="#validate_profile-33"><span class="linenos">33</span></a>
 </span><span id="validate_profile-34"><a href="#validate_profile-34"><span class="linenos">34</span></a>    <span class="c1"># split_marker required for by_marker</span>
 </span><span id="validate_profile-35"><a href="#validate_profile-35"><span class="linenos">35</span></a>    <span class="k">if</span> <span class="n">split_mode</span> <span class="o">==</span> <span class="s2">&quot;by_marker&quot;</span><span class="p">:</span>

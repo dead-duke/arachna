@@ -133,6 +133,39 @@
 
             </li>
             <li>
+                    <a class="class" href="#PipelineMetrics">PipelineMetrics</a>
+                            <ul class="memberlist">
+                        <li>
+                                <a class="function" href="#PipelineMetrics.__init__">PipelineMetrics</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.extract_time_ms">extract_time_ms</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.transform_time_ms">transform_time_ms</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.load_time_ms">load_time_ms</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.files_read">files_read</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.files_skipped">files_skipped</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.tokens_raw">tokens_raw</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.tokens_compressed">tokens_compressed</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#PipelineMetrics.compression_ratio">compression_ratio</a>
+                        </li>
+                </ul>
+
+            </li>
+            <li>
                     <a class="class" href="#CollectResult">CollectResult</a>
                             <ul class="memberlist">
                         <li>
@@ -146,6 +179,9 @@
                         </li>
                         <li>
                                 <a class="variable" href="#CollectResult.tokens">tokens</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#CollectResult.metrics">metrics</a>
                         </li>
                 </ul>
 
@@ -311,57 +347,84 @@ Use dataclasses for type safety and IDE autocompletion.</p>
 </span><span id="L-94"><a href="#L-94"><span class="linenos"> 94</span></a>
 </span><span id="L-95"><a href="#L-95"><span class="linenos"> 95</span></a>
 </span><span id="L-96"><a href="#L-96"><span class="linenos"> 96</span></a><span class="nd">@dataclass</span>
-</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CollectResult</span><span class="p">:</span>
-</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a collection operation.</span>
+</span><span id="L-97"><a href="#L-97"><span class="linenos"> 97</span></a><span class="k">class</span><span class="w"> </span><span class="nc">PipelineMetrics</span><span class="p">:</span>
+</span><span id="L-98"><a href="#L-98"><span class="linenos"> 98</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Pipeline metrics for a collection operation.</span>
 </span><span id="L-99"><a href="#L-99"><span class="linenos"> 99</span></a>
-</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a><span class="sd">    Returned by collect().</span>
-</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a>
-</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a><span class="sd">    Attributes:</span>
-</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a><span class="sd">        parts: List of output file contents as strings.</span>
-</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a><span class="sd">        files: List of created file paths.</span>
-</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a><span class="sd">        tokens: Total token count across all output files.</span>
-</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a>
-</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a>    <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a>    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>    <span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>
-</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>
-</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a><span class="nd">@dataclass</span>
-</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreStats</span><span class="p">:</span>
-</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics about the content-addressable store.</span>
-</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>
-</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a><span class="sd">    Returned by store_stats().</span>
-</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>
-</span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a><span class="sd">    Attributes:</span>
-</span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a><span class="sd">        snapshots: Number of snapshots in the store.</span>
-</span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a><span class="sd">        objects: Number of object files on disk.</span>
-</span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a><span class="sd">        total_bytes: Total disk usage in bytes.</span>
-</span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a><span class="sd">        unique_bytes: Size of unique content (deduplicated).</span>
-</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a><span class="sd">        dedup_pct: Deduplication percentage (0.0-100.0).</span>
-</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a><span class="sd">                   Higher is better — more sharing between snapshots.</span>
-</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="L-127"><a href="#L-127"><span class="linenos">127</span></a>
-</span><span id="L-128"><a href="#L-128"><span class="linenos">128</span></a>    <span class="n">snapshots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="L-129"><a href="#L-129"><span class="linenos">129</span></a>    <span class="n">objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="L-130"><a href="#L-130"><span class="linenos">130</span></a>    <span class="n">total_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="L-131"><a href="#L-131"><span class="linenos">131</span></a>    <span class="n">unique_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="L-132"><a href="#L-132"><span class="linenos">132</span></a>    <span class="n">dedup_pct</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="L-100"><a href="#L-100"><span class="linenos">100</span></a><span class="sd">    Attributes:</span>
+</span><span id="L-101"><a href="#L-101"><span class="linenos">101</span></a><span class="sd">        extract_time_ms: Time spent reading files (I/O) in milliseconds.</span>
+</span><span id="L-102"><a href="#L-102"><span class="linenos">102</span></a><span class="sd">        transform_time_ms: Time spent formatting/compressing in milliseconds.</span>
+</span><span id="L-103"><a href="#L-103"><span class="linenos">103</span></a><span class="sd">        load_time_ms: Time spent writing output files in milliseconds.</span>
+</span><span id="L-104"><a href="#L-104"><span class="linenos">104</span></a><span class="sd">        files_read: Number of files successfully read.</span>
+</span><span id="L-105"><a href="#L-105"><span class="linenos">105</span></a><span class="sd">        files_skipped: Number of files skipped (binary, permission, etc.).</span>
+</span><span id="L-106"><a href="#L-106"><span class="linenos">106</span></a><span class="sd">        tokens_raw: Token count before compression.</span>
+</span><span id="L-107"><a href="#L-107"><span class="linenos">107</span></a><span class="sd">        tokens_compressed: Token count after compression.</span>
+</span><span id="L-108"><a href="#L-108"><span class="linenos">108</span></a><span class="sd">        compression_ratio: tokens_compressed / tokens_raw (1.0 if no compression).</span>
+</span><span id="L-109"><a href="#L-109"><span class="linenos">109</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-110"><a href="#L-110"><span class="linenos">110</span></a>
+</span><span id="L-111"><a href="#L-111"><span class="linenos">111</span></a>    <span class="n">extract_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="L-112"><a href="#L-112"><span class="linenos">112</span></a>    <span class="n">transform_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="L-113"><a href="#L-113"><span class="linenos">113</span></a>    <span class="n">load_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="L-114"><a href="#L-114"><span class="linenos">114</span></a>    <span class="n">files_read</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-115"><a href="#L-115"><span class="linenos">115</span></a>    <span class="n">files_skipped</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-116"><a href="#L-116"><span class="linenos">116</span></a>    <span class="n">tokens_raw</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-117"><a href="#L-117"><span class="linenos">117</span></a>    <span class="n">tokens_compressed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-118"><a href="#L-118"><span class="linenos">118</span></a>    <span class="n">compression_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+</span><span id="L-119"><a href="#L-119"><span class="linenos">119</span></a>
+</span><span id="L-120"><a href="#L-120"><span class="linenos">120</span></a>
+</span><span id="L-121"><a href="#L-121"><span class="linenos">121</span></a><span class="nd">@dataclass</span>
+</span><span id="L-122"><a href="#L-122"><span class="linenos">122</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CollectResult</span><span class="p">:</span>
+</span><span id="L-123"><a href="#L-123"><span class="linenos">123</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a collection operation.</span>
+</span><span id="L-124"><a href="#L-124"><span class="linenos">124</span></a>
+</span><span id="L-125"><a href="#L-125"><span class="linenos">125</span></a><span class="sd">    Returned by collect().</span>
+</span><span id="L-126"><a href="#L-126"><span class="linenos">126</span></a>
+</span><span id="L-127"><a href="#L-127"><span class="linenos">127</span></a><span class="sd">    Attributes:</span>
+</span><span id="L-128"><a href="#L-128"><span class="linenos">128</span></a><span class="sd">        parts: List of output file contents as strings.</span>
+</span><span id="L-129"><a href="#L-129"><span class="linenos">129</span></a><span class="sd">        files: List of created file paths.</span>
+</span><span id="L-130"><a href="#L-130"><span class="linenos">130</span></a><span class="sd">        tokens: Total token count across all output files.</span>
+</span><span id="L-131"><a href="#L-131"><span class="linenos">131</span></a><span class="sd">        metrics: Pipeline metrics (extract/transform/load times, file counts).</span>
+</span><span id="L-132"><a href="#L-132"><span class="linenos">132</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-133"><a href="#L-133"><span class="linenos">133</span></a>
-</span><span id="L-134"><a href="#L-134"><span class="linenos">134</span></a>
-</span><span id="L-135"><a href="#L-135"><span class="linenos">135</span></a><span class="nd">@dataclass</span>
-</span><span id="L-136"><a href="#L-136"><span class="linenos">136</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GCResult</span><span class="p">:</span>
-</span><span id="L-137"><a href="#L-137"><span class="linenos">137</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a garbage collection operation.</span>
+</span><span id="L-134"><a href="#L-134"><span class="linenos">134</span></a>    <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="L-135"><a href="#L-135"><span class="linenos">135</span></a>    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="L-136"><a href="#L-136"><span class="linenos">136</span></a>    <span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-137"><a href="#L-137"><span class="linenos">137</span></a>    <span class="n">metrics</span><span class="p">:</span> <span class="n">PipelineMetrics</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span id="L-138"><a href="#L-138"><span class="linenos">138</span></a>
-</span><span id="L-139"><a href="#L-139"><span class="linenos">139</span></a><span class="sd">    Returned by store_gc().</span>
-</span><span id="L-140"><a href="#L-140"><span class="linenos">140</span></a>
-</span><span id="L-141"><a href="#L-141"><span class="linenos">141</span></a><span class="sd">    Attributes:</span>
-</span><span id="L-142"><a href="#L-142"><span class="linenos">142</span></a><span class="sd">        removed_objects: Number of unreferenced objects deleted.</span>
-</span><span id="L-143"><a href="#L-143"><span class="linenos">143</span></a><span class="sd">        freed_bytes: Total bytes freed.</span>
-</span><span id="L-144"><a href="#L-144"><span class="linenos">144</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-139"><a href="#L-139"><span class="linenos">139</span></a>
+</span><span id="L-140"><a href="#L-140"><span class="linenos">140</span></a><span class="nd">@dataclass</span>
+</span><span id="L-141"><a href="#L-141"><span class="linenos">141</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreStats</span><span class="p">:</span>
+</span><span id="L-142"><a href="#L-142"><span class="linenos">142</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics about the content-addressable store.</span>
+</span><span id="L-143"><a href="#L-143"><span class="linenos">143</span></a>
+</span><span id="L-144"><a href="#L-144"><span class="linenos">144</span></a><span class="sd">    Returned by store_stats().</span>
 </span><span id="L-145"><a href="#L-145"><span class="linenos">145</span></a>
-</span><span id="L-146"><a href="#L-146"><span class="linenos">146</span></a>    <span class="n">removed_objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="L-147"><a href="#L-147"><span class="linenos">147</span></a>    <span class="n">freed_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-146"><a href="#L-146"><span class="linenos">146</span></a><span class="sd">    Attributes:</span>
+</span><span id="L-147"><a href="#L-147"><span class="linenos">147</span></a><span class="sd">        snapshots: Number of snapshots in the store.</span>
+</span><span id="L-148"><a href="#L-148"><span class="linenos">148</span></a><span class="sd">        objects: Number of object files on disk.</span>
+</span><span id="L-149"><a href="#L-149"><span class="linenos">149</span></a><span class="sd">        total_bytes: Total disk usage in bytes.</span>
+</span><span id="L-150"><a href="#L-150"><span class="linenos">150</span></a><span class="sd">        unique_bytes: Size of unique content (deduplicated).</span>
+</span><span id="L-151"><a href="#L-151"><span class="linenos">151</span></a><span class="sd">        dedup_pct: Deduplication percentage (0.0-100.0).</span>
+</span><span id="L-152"><a href="#L-152"><span class="linenos">152</span></a><span class="sd">                   Higher is better — more sharing between snapshots.</span>
+</span><span id="L-153"><a href="#L-153"><span class="linenos">153</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-154"><a href="#L-154"><span class="linenos">154</span></a>
+</span><span id="L-155"><a href="#L-155"><span class="linenos">155</span></a>    <span class="n">snapshots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-156"><a href="#L-156"><span class="linenos">156</span></a>    <span class="n">objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-157"><a href="#L-157"><span class="linenos">157</span></a>    <span class="n">total_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-158"><a href="#L-158"><span class="linenos">158</span></a>    <span class="n">unique_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-159"><a href="#L-159"><span class="linenos">159</span></a>    <span class="n">dedup_pct</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="L-160"><a href="#L-160"><span class="linenos">160</span></a>
+</span><span id="L-161"><a href="#L-161"><span class="linenos">161</span></a>
+</span><span id="L-162"><a href="#L-162"><span class="linenos">162</span></a><span class="nd">@dataclass</span>
+</span><span id="L-163"><a href="#L-163"><span class="linenos">163</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GCResult</span><span class="p">:</span>
+</span><span id="L-164"><a href="#L-164"><span class="linenos">164</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a garbage collection operation.</span>
+</span><span id="L-165"><a href="#L-165"><span class="linenos">165</span></a>
+</span><span id="L-166"><a href="#L-166"><span class="linenos">166</span></a><span class="sd">    Returned by store_gc().</span>
+</span><span id="L-167"><a href="#L-167"><span class="linenos">167</span></a>
+</span><span id="L-168"><a href="#L-168"><span class="linenos">168</span></a><span class="sd">    Attributes:</span>
+</span><span id="L-169"><a href="#L-169"><span class="linenos">169</span></a><span class="sd">        removed_objects: Number of unreferenced objects deleted.</span>
+</span><span id="L-170"><a href="#L-170"><span class="linenos">170</span></a><span class="sd">        freed_bytes: Total bytes freed.</span>
+</span><span id="L-171"><a href="#L-171"><span class="linenos">171</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="L-172"><a href="#L-172"><span class="linenos">172</span></a>
+</span><span id="L-173"><a href="#L-173"><span class="linenos">173</span></a>    <span class="n">removed_objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="L-174"><a href="#L-174"><span class="linenos">174</span></a>    <span class="n">freed_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 </span></pre></div>
 
 
@@ -857,6 +920,167 @@ Use dataclasses for type safety and IDE autocompletion.</p>
 
                             </div>
                 </section>
+                <section id="PipelineMetrics">
+                            <input id="PipelineMetrics-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
+<div class="attr class">
+                    <div class="decorator decorator-dataclass">@dataclass</div>
+
+    <span class="def">class</span>
+    <span class="name">PipelineMetrics</span>:
+
+                <label class="view-source-button" for="PipelineMetrics-view-source"><span>View Source</span></label>
+
+    </div>
+    <a class="headerlink" href="#PipelineMetrics"></a>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="PipelineMetrics-97"><a href="#PipelineMetrics-97"><span class="linenos"> 97</span></a><span class="nd">@dataclass</span>
+</span><span id="PipelineMetrics-98"><a href="#PipelineMetrics-98"><span class="linenos"> 98</span></a><span class="k">class</span><span class="w"> </span><span class="nc">PipelineMetrics</span><span class="p">:</span>
+</span><span id="PipelineMetrics-99"><a href="#PipelineMetrics-99"><span class="linenos"> 99</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Pipeline metrics for a collection operation.</span>
+</span><span id="PipelineMetrics-100"><a href="#PipelineMetrics-100"><span class="linenos">100</span></a>
+</span><span id="PipelineMetrics-101"><a href="#PipelineMetrics-101"><span class="linenos">101</span></a><span class="sd">    Attributes:</span>
+</span><span id="PipelineMetrics-102"><a href="#PipelineMetrics-102"><span class="linenos">102</span></a><span class="sd">        extract_time_ms: Time spent reading files (I/O) in milliseconds.</span>
+</span><span id="PipelineMetrics-103"><a href="#PipelineMetrics-103"><span class="linenos">103</span></a><span class="sd">        transform_time_ms: Time spent formatting/compressing in milliseconds.</span>
+</span><span id="PipelineMetrics-104"><a href="#PipelineMetrics-104"><span class="linenos">104</span></a><span class="sd">        load_time_ms: Time spent writing output files in milliseconds.</span>
+</span><span id="PipelineMetrics-105"><a href="#PipelineMetrics-105"><span class="linenos">105</span></a><span class="sd">        files_read: Number of files successfully read.</span>
+</span><span id="PipelineMetrics-106"><a href="#PipelineMetrics-106"><span class="linenos">106</span></a><span class="sd">        files_skipped: Number of files skipped (binary, permission, etc.).</span>
+</span><span id="PipelineMetrics-107"><a href="#PipelineMetrics-107"><span class="linenos">107</span></a><span class="sd">        tokens_raw: Token count before compression.</span>
+</span><span id="PipelineMetrics-108"><a href="#PipelineMetrics-108"><span class="linenos">108</span></a><span class="sd">        tokens_compressed: Token count after compression.</span>
+</span><span id="PipelineMetrics-109"><a href="#PipelineMetrics-109"><span class="linenos">109</span></a><span class="sd">        compression_ratio: tokens_compressed / tokens_raw (1.0 if no compression).</span>
+</span><span id="PipelineMetrics-110"><a href="#PipelineMetrics-110"><span class="linenos">110</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="PipelineMetrics-111"><a href="#PipelineMetrics-111"><span class="linenos">111</span></a>
+</span><span id="PipelineMetrics-112"><a href="#PipelineMetrics-112"><span class="linenos">112</span></a>    <span class="n">extract_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="PipelineMetrics-113"><a href="#PipelineMetrics-113"><span class="linenos">113</span></a>    <span class="n">transform_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="PipelineMetrics-114"><a href="#PipelineMetrics-114"><span class="linenos">114</span></a>    <span class="n">load_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span><span id="PipelineMetrics-115"><a href="#PipelineMetrics-115"><span class="linenos">115</span></a>    <span class="n">files_read</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="PipelineMetrics-116"><a href="#PipelineMetrics-116"><span class="linenos">116</span></a>    <span class="n">files_skipped</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="PipelineMetrics-117"><a href="#PipelineMetrics-117"><span class="linenos">117</span></a>    <span class="n">tokens_raw</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="PipelineMetrics-118"><a href="#PipelineMetrics-118"><span class="linenos">118</span></a>    <span class="n">tokens_compressed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="PipelineMetrics-119"><a href="#PipelineMetrics-119"><span class="linenos">119</span></a>    <span class="n">compression_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span>
+</span></pre></div>
+
+
+            <div class="docstring"><p>Pipeline metrics for a collection operation.</p>
+
+<p>Attributes:
+    extract_time_ms: Time spent reading files (I/O) in milliseconds.
+    transform_time_ms: Time spent formatting/compressing in milliseconds.
+    load_time_ms: Time spent writing output files in milliseconds.
+    files_read: Number of files successfully read.
+    files_skipped: Number of files skipped (binary, permission, etc.).
+    tokens_raw: Token count before compression.
+    tokens_compressed: Token count after compression.
+    compression_ratio: tokens_compressed / tokens_raw (1.0 if no compression).</p>
+</div>
+
+
+                            <div id="PipelineMetrics.__init__" class="classattr">
+                                <div class="attr function">
+            
+        <span class="name">PipelineMetrics</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">extract_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>,</span><span class="param">	<span class="n">transform_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>,</span><span class="param">	<span class="n">load_time_ms</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>,</span><span class="param">	<span class="n">files_read</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>,</span><span class="param">	<span class="n">files_skipped</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>,</span><span class="param">	<span class="n">tokens_raw</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>,</span><span class="param">	<span class="n">tokens_compressed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>,</span><span class="param">	<span class="n">compression_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span></span>)</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.__init__"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.extract_time_ms" class="classattr">
+                                <div class="attr variable">
+            <span class="name">extract_time_ms</span><span class="annotation">: float</span>        =
+<span class="default_value">0.0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.extract_time_ms"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.transform_time_ms" class="classattr">
+                                <div class="attr variable">
+            <span class="name">transform_time_ms</span><span class="annotation">: float</span>        =
+<span class="default_value">0.0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.transform_time_ms"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.load_time_ms" class="classattr">
+                                <div class="attr variable">
+            <span class="name">load_time_ms</span><span class="annotation">: float</span>        =
+<span class="default_value">0.0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.load_time_ms"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.files_read" class="classattr">
+                                <div class="attr variable">
+            <span class="name">files_read</span><span class="annotation">: int</span>        =
+<span class="default_value">0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.files_read"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.files_skipped" class="classattr">
+                                <div class="attr variable">
+            <span class="name">files_skipped</span><span class="annotation">: int</span>        =
+<span class="default_value">0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.files_skipped"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.tokens_raw" class="classattr">
+                                <div class="attr variable">
+            <span class="name">tokens_raw</span><span class="annotation">: int</span>        =
+<span class="default_value">0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.tokens_raw"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.tokens_compressed" class="classattr">
+                                <div class="attr variable">
+            <span class="name">tokens_compressed</span><span class="annotation">: int</span>        =
+<span class="default_value">0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.tokens_compressed"></a>
+    
+    
+
+                            </div>
+                            <div id="PipelineMetrics.compression_ratio" class="classattr">
+                                <div class="attr variable">
+            <span class="name">compression_ratio</span><span class="annotation">: float</span>        =
+<span class="default_value">1.0</span>
+
+        
+    </div>
+    <a class="headerlink" href="#PipelineMetrics.compression_ratio"></a>
+    
+    
+
+                            </div>
+                </section>
                 <section id="CollectResult">
                             <input id="CollectResult-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
 <div class="attr class">
@@ -869,21 +1093,23 @@ Use dataclasses for type safety and IDE autocompletion.</p>
 
     </div>
     <a class="headerlink" href="#CollectResult"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CollectResult-97"><a href="#CollectResult-97"><span class="linenos"> 97</span></a><span class="nd">@dataclass</span>
-</span><span id="CollectResult-98"><a href="#CollectResult-98"><span class="linenos"> 98</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CollectResult</span><span class="p">:</span>
-</span><span id="CollectResult-99"><a href="#CollectResult-99"><span class="linenos"> 99</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a collection operation.</span>
-</span><span id="CollectResult-100"><a href="#CollectResult-100"><span class="linenos">100</span></a>
-</span><span id="CollectResult-101"><a href="#CollectResult-101"><span class="linenos">101</span></a><span class="sd">    Returned by collect().</span>
-</span><span id="CollectResult-102"><a href="#CollectResult-102"><span class="linenos">102</span></a>
-</span><span id="CollectResult-103"><a href="#CollectResult-103"><span class="linenos">103</span></a><span class="sd">    Attributes:</span>
-</span><span id="CollectResult-104"><a href="#CollectResult-104"><span class="linenos">104</span></a><span class="sd">        parts: List of output file contents as strings.</span>
-</span><span id="CollectResult-105"><a href="#CollectResult-105"><span class="linenos">105</span></a><span class="sd">        files: List of created file paths.</span>
-</span><span id="CollectResult-106"><a href="#CollectResult-106"><span class="linenos">106</span></a><span class="sd">        tokens: Total token count across all output files.</span>
-</span><span id="CollectResult-107"><a href="#CollectResult-107"><span class="linenos">107</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="CollectResult-108"><a href="#CollectResult-108"><span class="linenos">108</span></a>
-</span><span id="CollectResult-109"><a href="#CollectResult-109"><span class="linenos">109</span></a>    <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span id="CollectResult-110"><a href="#CollectResult-110"><span class="linenos">110</span></a>    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span id="CollectResult-111"><a href="#CollectResult-111"><span class="linenos">111</span></a>    <span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CollectResult-122"><a href="#CollectResult-122"><span class="linenos">122</span></a><span class="nd">@dataclass</span>
+</span><span id="CollectResult-123"><a href="#CollectResult-123"><span class="linenos">123</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CollectResult</span><span class="p">:</span>
+</span><span id="CollectResult-124"><a href="#CollectResult-124"><span class="linenos">124</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a collection operation.</span>
+</span><span id="CollectResult-125"><a href="#CollectResult-125"><span class="linenos">125</span></a>
+</span><span id="CollectResult-126"><a href="#CollectResult-126"><span class="linenos">126</span></a><span class="sd">    Returned by collect().</span>
+</span><span id="CollectResult-127"><a href="#CollectResult-127"><span class="linenos">127</span></a>
+</span><span id="CollectResult-128"><a href="#CollectResult-128"><span class="linenos">128</span></a><span class="sd">    Attributes:</span>
+</span><span id="CollectResult-129"><a href="#CollectResult-129"><span class="linenos">129</span></a><span class="sd">        parts: List of output file contents as strings.</span>
+</span><span id="CollectResult-130"><a href="#CollectResult-130"><span class="linenos">130</span></a><span class="sd">        files: List of created file paths.</span>
+</span><span id="CollectResult-131"><a href="#CollectResult-131"><span class="linenos">131</span></a><span class="sd">        tokens: Total token count across all output files.</span>
+</span><span id="CollectResult-132"><a href="#CollectResult-132"><span class="linenos">132</span></a><span class="sd">        metrics: Pipeline metrics (extract/transform/load times, file counts).</span>
+</span><span id="CollectResult-133"><a href="#CollectResult-133"><span class="linenos">133</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="CollectResult-134"><a href="#CollectResult-134"><span class="linenos">134</span></a>
+</span><span id="CollectResult-135"><a href="#CollectResult-135"><span class="linenos">135</span></a>    <span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="CollectResult-136"><a href="#CollectResult-136"><span class="linenos">136</span></a>    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="CollectResult-137"><a href="#CollectResult-137"><span class="linenos">137</span></a>    <span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="CollectResult-138"><a href="#CollectResult-138"><span class="linenos">138</span></a>    <span class="n">metrics</span><span class="p">:</span> <span class="n">PipelineMetrics</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 </span></pre></div>
 
 
@@ -894,14 +1120,15 @@ Use dataclasses for type safety and IDE autocompletion.</p>
 <p>Attributes:
     parts: List of output file contents as strings.
     files: List of created file paths.
-    tokens: Total token count across all output files.</p>
+    tokens: Total token count across all output files.
+    metrics: Pipeline metrics (extract/transform/load times, file counts).</p>
 </div>
 
 
                             <div id="CollectResult.__init__" class="classattr">
                                 <div class="attr function">
             
-        <span class="name">CollectResult</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">factory</span><span class="o">&gt;</span>,</span><span class="param">	<span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">factory</span><span class="o">&gt;</span>,</span><span class="param">	<span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></span>)</span>
+        <span class="name">CollectResult</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">parts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">factory</span><span class="o">&gt;</span>,</span><span class="param">	<span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">factory</span><span class="o">&gt;</span>,</span><span class="param">	<span class="n">tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>,</span><span class="param">	<span class="n">metrics</span><span class="p">:</span> <span class="n"><a href="#PipelineMetrics">PipelineMetrics</a></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></span>)</span>
 
         
     </div>
@@ -944,6 +1171,18 @@ Use dataclasses for type safety and IDE autocompletion.</p>
     
 
                             </div>
+                            <div id="CollectResult.metrics" class="classattr">
+                                <div class="attr variable">
+            <span class="name">metrics</span><span class="annotation">: <a href="#PipelineMetrics">PipelineMetrics</a> | None</span>        =
+<span class="default_value">None</span>
+
+        
+    </div>
+    <a class="headerlink" href="#CollectResult.metrics"></a>
+    
+    
+
+                            </div>
                 </section>
                 <section id="StoreStats">
                             <input id="StoreStats-view-source" class="view-source-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
@@ -957,26 +1196,26 @@ Use dataclasses for type safety and IDE autocompletion.</p>
 
     </div>
     <a class="headerlink" href="#StoreStats"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="StoreStats-114"><a href="#StoreStats-114"><span class="linenos">114</span></a><span class="nd">@dataclass</span>
-</span><span id="StoreStats-115"><a href="#StoreStats-115"><span class="linenos">115</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreStats</span><span class="p">:</span>
-</span><span id="StoreStats-116"><a href="#StoreStats-116"><span class="linenos">116</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics about the content-addressable store.</span>
-</span><span id="StoreStats-117"><a href="#StoreStats-117"><span class="linenos">117</span></a>
-</span><span id="StoreStats-118"><a href="#StoreStats-118"><span class="linenos">118</span></a><span class="sd">    Returned by store_stats().</span>
-</span><span id="StoreStats-119"><a href="#StoreStats-119"><span class="linenos">119</span></a>
-</span><span id="StoreStats-120"><a href="#StoreStats-120"><span class="linenos">120</span></a><span class="sd">    Attributes:</span>
-</span><span id="StoreStats-121"><a href="#StoreStats-121"><span class="linenos">121</span></a><span class="sd">        snapshots: Number of snapshots in the store.</span>
-</span><span id="StoreStats-122"><a href="#StoreStats-122"><span class="linenos">122</span></a><span class="sd">        objects: Number of object files on disk.</span>
-</span><span id="StoreStats-123"><a href="#StoreStats-123"><span class="linenos">123</span></a><span class="sd">        total_bytes: Total disk usage in bytes.</span>
-</span><span id="StoreStats-124"><a href="#StoreStats-124"><span class="linenos">124</span></a><span class="sd">        unique_bytes: Size of unique content (deduplicated).</span>
-</span><span id="StoreStats-125"><a href="#StoreStats-125"><span class="linenos">125</span></a><span class="sd">        dedup_pct: Deduplication percentage (0.0-100.0).</span>
-</span><span id="StoreStats-126"><a href="#StoreStats-126"><span class="linenos">126</span></a><span class="sd">                   Higher is better — more sharing between snapshots.</span>
-</span><span id="StoreStats-127"><a href="#StoreStats-127"><span class="linenos">127</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="StoreStats-128"><a href="#StoreStats-128"><span class="linenos">128</span></a>
-</span><span id="StoreStats-129"><a href="#StoreStats-129"><span class="linenos">129</span></a>    <span class="n">snapshots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="StoreStats-130"><a href="#StoreStats-130"><span class="linenos">130</span></a>    <span class="n">objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="StoreStats-131"><a href="#StoreStats-131"><span class="linenos">131</span></a>    <span class="n">total_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="StoreStats-132"><a href="#StoreStats-132"><span class="linenos">132</span></a>    <span class="n">unique_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="StoreStats-133"><a href="#StoreStats-133"><span class="linenos">133</span></a>    <span class="n">dedup_pct</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="StoreStats-141"><a href="#StoreStats-141"><span class="linenos">141</span></a><span class="nd">@dataclass</span>
+</span><span id="StoreStats-142"><a href="#StoreStats-142"><span class="linenos">142</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreStats</span><span class="p">:</span>
+</span><span id="StoreStats-143"><a href="#StoreStats-143"><span class="linenos">143</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Statistics about the content-addressable store.</span>
+</span><span id="StoreStats-144"><a href="#StoreStats-144"><span class="linenos">144</span></a>
+</span><span id="StoreStats-145"><a href="#StoreStats-145"><span class="linenos">145</span></a><span class="sd">    Returned by store_stats().</span>
+</span><span id="StoreStats-146"><a href="#StoreStats-146"><span class="linenos">146</span></a>
+</span><span id="StoreStats-147"><a href="#StoreStats-147"><span class="linenos">147</span></a><span class="sd">    Attributes:</span>
+</span><span id="StoreStats-148"><a href="#StoreStats-148"><span class="linenos">148</span></a><span class="sd">        snapshots: Number of snapshots in the store.</span>
+</span><span id="StoreStats-149"><a href="#StoreStats-149"><span class="linenos">149</span></a><span class="sd">        objects: Number of object files on disk.</span>
+</span><span id="StoreStats-150"><a href="#StoreStats-150"><span class="linenos">150</span></a><span class="sd">        total_bytes: Total disk usage in bytes.</span>
+</span><span id="StoreStats-151"><a href="#StoreStats-151"><span class="linenos">151</span></a><span class="sd">        unique_bytes: Size of unique content (deduplicated).</span>
+</span><span id="StoreStats-152"><a href="#StoreStats-152"><span class="linenos">152</span></a><span class="sd">        dedup_pct: Deduplication percentage (0.0-100.0).</span>
+</span><span id="StoreStats-153"><a href="#StoreStats-153"><span class="linenos">153</span></a><span class="sd">                   Higher is better — more sharing between snapshots.</span>
+</span><span id="StoreStats-154"><a href="#StoreStats-154"><span class="linenos">154</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="StoreStats-155"><a href="#StoreStats-155"><span class="linenos">155</span></a>
+</span><span id="StoreStats-156"><a href="#StoreStats-156"><span class="linenos">156</span></a>    <span class="n">snapshots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="StoreStats-157"><a href="#StoreStats-157"><span class="linenos">157</span></a>    <span class="n">objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="StoreStats-158"><a href="#StoreStats-158"><span class="linenos">158</span></a>    <span class="n">total_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="StoreStats-159"><a href="#StoreStats-159"><span class="linenos">159</span></a>    <span class="n">unique_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="StoreStats-160"><a href="#StoreStats-160"><span class="linenos">160</span></a>    <span class="n">dedup_pct</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
 </span></pre></div>
 
 
@@ -1079,19 +1318,19 @@ Use dataclasses for type safety and IDE autocompletion.</p>
 
     </div>
     <a class="headerlink" href="#GCResult"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="GCResult-136"><a href="#GCResult-136"><span class="linenos">136</span></a><span class="nd">@dataclass</span>
-</span><span id="GCResult-137"><a href="#GCResult-137"><span class="linenos">137</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GCResult</span><span class="p">:</span>
-</span><span id="GCResult-138"><a href="#GCResult-138"><span class="linenos">138</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a garbage collection operation.</span>
-</span><span id="GCResult-139"><a href="#GCResult-139"><span class="linenos">139</span></a>
-</span><span id="GCResult-140"><a href="#GCResult-140"><span class="linenos">140</span></a><span class="sd">    Returned by store_gc().</span>
-</span><span id="GCResult-141"><a href="#GCResult-141"><span class="linenos">141</span></a>
-</span><span id="GCResult-142"><a href="#GCResult-142"><span class="linenos">142</span></a><span class="sd">    Attributes:</span>
-</span><span id="GCResult-143"><a href="#GCResult-143"><span class="linenos">143</span></a><span class="sd">        removed_objects: Number of unreferenced objects deleted.</span>
-</span><span id="GCResult-144"><a href="#GCResult-144"><span class="linenos">144</span></a><span class="sd">        freed_bytes: Total bytes freed.</span>
-</span><span id="GCResult-145"><a href="#GCResult-145"><span class="linenos">145</span></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="GCResult-146"><a href="#GCResult-146"><span class="linenos">146</span></a>
-</span><span id="GCResult-147"><a href="#GCResult-147"><span class="linenos">147</span></a>    <span class="n">removed_objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="GCResult-148"><a href="#GCResult-148"><span class="linenos">148</span></a>    <span class="n">freed_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="GCResult-163"><a href="#GCResult-163"><span class="linenos">163</span></a><span class="nd">@dataclass</span>
+</span><span id="GCResult-164"><a href="#GCResult-164"><span class="linenos">164</span></a><span class="k">class</span><span class="w"> </span><span class="nc">GCResult</span><span class="p">:</span>
+</span><span id="GCResult-165"><a href="#GCResult-165"><span class="linenos">165</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Result of a garbage collection operation.</span>
+</span><span id="GCResult-166"><a href="#GCResult-166"><span class="linenos">166</span></a>
+</span><span id="GCResult-167"><a href="#GCResult-167"><span class="linenos">167</span></a><span class="sd">    Returned by store_gc().</span>
+</span><span id="GCResult-168"><a href="#GCResult-168"><span class="linenos">168</span></a>
+</span><span id="GCResult-169"><a href="#GCResult-169"><span class="linenos">169</span></a><span class="sd">    Attributes:</span>
+</span><span id="GCResult-170"><a href="#GCResult-170"><span class="linenos">170</span></a><span class="sd">        removed_objects: Number of unreferenced objects deleted.</span>
+</span><span id="GCResult-171"><a href="#GCResult-171"><span class="linenos">171</span></a><span class="sd">        freed_bytes: Total bytes freed.</span>
+</span><span id="GCResult-172"><a href="#GCResult-172"><span class="linenos">172</span></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="GCResult-173"><a href="#GCResult-173"><span class="linenos">173</span></a>
+</span><span id="GCResult-174"><a href="#GCResult-174"><span class="linenos">174</span></a>    <span class="n">removed_objects</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="GCResult-175"><a href="#GCResult-175"><span class="linenos">175</span></a>    <span class="n">freed_bytes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
 </span></pre></div>
 
 

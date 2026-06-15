@@ -34,6 +34,7 @@
                     <li><a href="cli/diff.html">diff</a></li>
                     <li><a href="cli/doctor.html">doctor</a></li>
                     <li><a href="cli/init.html">init</a></li>
+                    <li><a href="cli/manifest.html">manifest</a></li>
                     <li><a href="cli/plugins.html">plugins</a></li>
                     <li><a href="cli/presets.html">presets</a></li>
                     <li><a href="cli/profile.html">profile</a></li>
@@ -108,12 +109,13 @@ Each handler signature: (args: argparse.Namespace, config: dict) -> None.</p>
 </span><span id="L-31"><a href="#L-31"><span class="linenos">31</span></a>    <span class="n">diff</span><span class="p">,</span>
 </span><span id="L-32"><a href="#L-32"><span class="linenos">32</span></a>    <span class="n">doctor</span><span class="p">,</span>
 </span><span id="L-33"><a href="#L-33"><span class="linenos">33</span></a>    <span class="n">init</span><span class="p">,</span>
-</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>    <span class="n">plugins</span><span class="p">,</span>
-</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>    <span class="n">presets</span><span class="p">,</span>
-</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a>    <span class="n">profile</span><span class="p">,</span>
-</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>    <span class="n">snapshot</span><span class="p">,</span>
-</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>    <span class="n">store</span><span class="p">,</span>
-</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a><span class="p">)</span>
+</span><span id="L-34"><a href="#L-34"><span class="linenos">34</span></a>    <span class="n">manifest</span><span class="p">,</span>
+</span><span id="L-35"><a href="#L-35"><span class="linenos">35</span></a>    <span class="n">plugins</span><span class="p">,</span>
+</span><span id="L-36"><a href="#L-36"><span class="linenos">36</span></a>    <span class="n">presets</span><span class="p">,</span>
+</span><span id="L-37"><a href="#L-37"><span class="linenos">37</span></a>    <span class="n">profile</span><span class="p">,</span>
+</span><span id="L-38"><a href="#L-38"><span class="linenos">38</span></a>    <span class="n">snapshot</span><span class="p">,</span>
+</span><span id="L-39"><a href="#L-39"><span class="linenos">39</span></a>    <span class="n">store</span><span class="p">,</span>
+</span><span id="L-40"><a href="#L-40"><span class="linenos">40</span></a><span class="p">)</span>
 </span></pre></div>
 
 
@@ -122,7 +124,7 @@ Each handler signature: (args: argparse.Namespace, config: dict) -> None.</p>
                     <div class="attr variable">
             <span class="name">COMMAND_HANDLERS</span><span class="annotation">: dict[str, Callable[[typing.Any, dict[str, typing.Any]], None]]</span>        =
 <input id="COMMAND_HANDLERS-view-value" class="view-value-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-            <label class="view-value-button pdoc-button" for="COMMAND_HANDLERS-view-value"></label><span class="default_value">{&#39;collect-profile&#39;: &lt;function _cmd_collect_profile&gt;, &#39;collect-all&#39;: &lt;function _cmd_collect_all&gt;, &#39;collect-list&#39;: &lt;function _cmd_collect_list&gt;, &#39;collect-validate&#39;: &lt;function _cmd_collect_validate&gt;, &#39;collect-clean&#39;: &lt;function _cmd_collect_clean&gt;, &#39;completion&#39;: &lt;function _cmd_completion&gt;, &#39;diff&#39;: &lt;function _cmd_diff&gt;, &#39;diff-all&#39;: &lt;function _cmd_diff_all&gt;, &#39;doctor&#39;: &lt;function _cmd_doctor&gt;, &#39;init&#39;: &lt;function _cmd_init&gt;, &#39;plugins-list&#39;: &lt;function _cmd_plugins_list&gt;, &#39;plugins-install&#39;: &lt;function _cmd_plugins_install&gt;, &#39;plugins-uninstall&#39;: &lt;function _cmd_plugins_uninstall&gt;, &#39;presets-update&#39;: &lt;function _cmd_presets_update&gt;, &#39;profile&#39;: &lt;function _cmd_benchmark&gt;, &#39;snapshot-create&#39;: &lt;function _cmd_snapshot_create&gt;, &#39;snapshot-list&#39;: &lt;function _cmd_snapshot_list&gt;, &#39;snapshot-update&#39;: &lt;function _cmd_snapshot_update&gt;, &#39;snapshot-delete&#39;: &lt;function _cmd_snapshot_delete&gt;, &#39;snapshot-info&#39;: &lt;function _cmd_snapshot_info&gt;, &#39;snapshot-rename&#39;: &lt;function _cmd_snapshot_rename&gt;, &#39;store-stats&#39;: &lt;function _cmd_store_stats&gt;, &#39;store-gc&#39;: &lt;function _cmd_store_gc&gt;}</span>
+            <label class="view-value-button pdoc-button" for="COMMAND_HANDLERS-view-value"></label><span class="default_value">{&#39;collect-profile&#39;: &lt;function _cmd_collect_profile&gt;, &#39;collect-all&#39;: &lt;function _cmd_collect_all&gt;, &#39;collect-list&#39;: &lt;function _cmd_collect_list&gt;, &#39;collect-validate&#39;: &lt;function _cmd_collect_validate&gt;, &#39;collect-clean&#39;: &lt;function _cmd_collect_clean&gt;, &#39;completion&#39;: &lt;function _cmd_completion&gt;, &#39;diff&#39;: &lt;function _cmd_diff&gt;, &#39;diff-all&#39;: &lt;function _cmd_diff_all&gt;, &#39;doctor&#39;: &lt;function _cmd_doctor&gt;, &#39;init&#39;: &lt;function _cmd_init&gt;, &#39;manifest&#39;: &lt;function _cmd_manifest&gt;, &#39;plugins-list&#39;: &lt;function _cmd_plugins_list&gt;, &#39;plugins-install&#39;: &lt;function _cmd_plugins_install&gt;, &#39;plugins-uninstall&#39;: &lt;function _cmd_plugins_uninstall&gt;, &#39;presets-update&#39;: &lt;function _cmd_presets_update&gt;, &#39;profile&#39;: &lt;function _cmd_benchmark&gt;, &#39;snapshot-create&#39;: &lt;function _cmd_snapshot_create&gt;, &#39;snapshot-list&#39;: &lt;function _cmd_snapshot_list&gt;, &#39;snapshot-update&#39;: &lt;function _cmd_snapshot_update&gt;, &#39;snapshot-delete&#39;: &lt;function _cmd_snapshot_delete&gt;, &#39;snapshot-info&#39;: &lt;function _cmd_snapshot_info&gt;, &#39;snapshot-rename&#39;: &lt;function _cmd_snapshot_rename&gt;, &#39;store-stats&#39;: &lt;function _cmd_store_stats&gt;, &#39;store-gc&#39;: &lt;function _cmd_store_gc&gt;}</span>
 
         
     </div>
