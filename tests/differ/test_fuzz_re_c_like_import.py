@@ -5,7 +5,7 @@ import time
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from arachna.formatter import _RE_C_LIKE_IMPORT
+from arachna.domain.formatter import _RE_C_LIKE_IMPORT
 
 
 @settings(deadline=500)

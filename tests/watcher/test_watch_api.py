@@ -2,8 +2,8 @@
 
 import pytest
 
-from arachna.api_errors import ProfileNotFoundError, SnapshotNotFoundError
-from arachna.watch import (
+from arachna.api.api_errors import ProfileNotFoundError, SnapshotNotFoundError
+from arachna.api.watch import (
     compute_diff,
     create_snapshot,
     snapshot_info,

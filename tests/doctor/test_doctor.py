@@ -3,7 +3,7 @@ from argparse import Namespace
 from unittest.mock import patch
 
 from arachna.cli.doctor import _cmd_doctor
-from arachna.doctor import print_doctor, run_doctor
+from arachna.config.doctor import print_doctor, run_doctor
 
 
 def test_valid_config(tmp_path):

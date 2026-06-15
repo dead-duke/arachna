@@ -1,7 +1,7 @@
 """TC-185, TC-186, TC-187: pre_commands executed with allow_file_args=True in watcher."""
 
-from arachna.store import load_snapshot
-from arachna.watcher import _collect_snapshot_content, compute_diff, create_snapshot
+from arachna.watch.store import load_snapshot
+from arachna.watch.watcher import _collect_snapshot_content, compute_diff, create_snapshot
 
 
 def test_collect_snapshot_content_pre_commands_with_pipes(tmp_path, setup_config):

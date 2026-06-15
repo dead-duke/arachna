@@ -2,7 +2,7 @@
 
 import json
 
-from arachna.collect_api import collect
+from arachna.api.collect_api import collect
 
 
 def test_collect_result_has_metrics(tmp_path):

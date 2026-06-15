@@ -1,7 +1,7 @@
 """Tests for watcher orchestration layer."""
 
-from arachna.store import load_snapshot
-from arachna.watcher import compute_diff, create_snapshot
+from arachna.watch.store import load_snapshot
+from arachna.watch.watcher import compute_diff, create_snapshot
 
 
 def test_create_snapshot_returns_id(tmp_path, setup_config, make_profile):

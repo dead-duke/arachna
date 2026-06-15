@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from arachna.formatter import (
+from arachna.domain.formatter import (
     _is_binary_allowed,
     _lang_from_shebang,
     _should_skip_binary,
@@ -58,7 +58,6 @@ def test_binary_skipped(tmp_path):
 
 
 def test_os_error_stat(tmp_path):
-    """File that raises OSError on stat returns empty string."""
     f = tmp_path / "gone.py"
     f.write_text("x")
     f.unlink()
@@ -66,7 +65,6 @@ def test_os_error_stat(tmp_path):
 
 
 def test_unicode_decode_error(tmp_path):
-    """Non-UTF8 file without binary include returns empty."""
     f = tmp_path / "data.bin"
     f.write_bytes(b"\x80\x81\x82")
     result = format_file_section(f, include_binary=False)
@@ -74,7 +72,6 @@ def test_unicode_decode_error(tmp_path):
 
 
 def test_unicode_decode_error_binary_included(tmp_path):
-    """Non-UTF8 file with binary include returns base64."""
     f = tmp_path / "data.bin"
     f.write_bytes(b"\x80\x81\x82")
     result = format_file_section(f, include_binary=True, binary_extensions=[".bin"])
@@ -82,7 +79,6 @@ def test_unicode_decode_error_binary_included(tmp_path):
 
 
 def test_null_bytes_in_text(tmp_path):
-    """File with null bytes treated as binary."""
     f = tmp_path / "data.txt"
     f.write_bytes(b"text\x00more")
     result = format_file_section(f)
@@ -90,7 +86,6 @@ def test_null_bytes_in_text(tmp_path):
 
 
 def test_null_bytes_binary_included(tmp_path):
-    """File with null bytes included as base64 when binary allowed."""
     f = tmp_path / "data.txt"
     f.write_bytes(b"text\x00more")
     result = format_file_section(f, include_binary=True, binary_extensions=[".txt"])
@@ -114,7 +109,6 @@ def test_lang_from_shebang_empty():
 
 
 def test_lang_from_shebang_env_only():
-    """#!/usr/bin/env with no args returns empty."""
     assert _lang_from_shebang("#!/usr/bin/env") == ""
 
 

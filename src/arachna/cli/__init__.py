@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI command handlers for arachna v3.4.0.
+"""CLI command handlers for arachna v4.0.0.
 
 COMMAND_HANDLERS maps argparse command names to handler functions.
 Each handler signature: (args: argparse.Namespace, config: dict) -> None.

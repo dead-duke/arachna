@@ -3,7 +3,7 @@
 
 import sys
 
-from ..doctor import print_doctor, run_doctor
+from ..config.doctor import print_doctor, run_doctor
 from . import register
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 import psutil
 import pytest
 
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 BASELINE_FILE = Path(__file__).parent / "baseline.json"
 RESULTS = []

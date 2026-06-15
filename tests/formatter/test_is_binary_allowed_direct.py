@@ -1,6 +1,6 @@
 """Direct unit tests for _is_binary_allowed (v2.9.2)."""
 
-from arachna.formatter import _is_binary_allowed
+from arachna.domain.formatter import _is_binary_allowed
 
 
 def test_is_binary_allowed_ok(tmp_path):

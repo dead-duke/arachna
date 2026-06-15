@@ -1,4 +1,4 @@
-from arachna.validator import validate_profile
+from arachna.config.validator import validate_profile
 
 
 def test_valid():
@@ -12,7 +12,6 @@ def test_invalid_split_mode():
 
 
 def test_zero_max_tokens_unlimited():
-    """max_tokens=0 means unlimited — valid, no error."""
     r = validate_profile("t", {"max_tokens": 0, "directories": ["src"]})
     assert r["errors"] == []
 

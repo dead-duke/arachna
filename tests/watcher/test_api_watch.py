@@ -2,12 +2,12 @@
 
 import pytest
 
-from arachna.api_errors import (
+from arachna.api.api_errors import (
     ProfileNotFoundError,
     SnapshotExistsError,
     SnapshotNotFoundError,
 )
-from arachna.watch import (
+from arachna.api.watch import (
     create_snapshot,
     delete_snapshot,
     list_snapshots,

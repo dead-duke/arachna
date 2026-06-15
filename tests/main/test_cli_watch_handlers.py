@@ -239,7 +239,7 @@ def test_cmd_snapshot_rename(tmp_path, make_config):
 
 def test_cmd_snapshot_rename_duplicate(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
-    from arachna.store import create_snapshot as store_create
+    from arachna.watch.store import create_snapshot as store_create
 
     store_create({"a.py": "x"}, name="first", root=tmp_path)
     store_create({"b.py": "y"}, name="second", root=tmp_path)
@@ -314,7 +314,7 @@ def test_cmd_diff_multiple_snapshots_hint(tmp_path, make_config):
 
 def test_cmd_diff_legacy_profile_error(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
-    from arachna.store import _store_root, write_object
+    from arachna.watch.store import _store_root, write_object
 
     store_dir = _store_root(tmp_path)
     snapshots_dir = store_dir / "snapshots"

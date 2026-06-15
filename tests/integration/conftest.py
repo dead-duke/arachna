@@ -7,13 +7,6 @@ from pathlib import Path
 
 
 def _arachna(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
-    """Run arachna as subprocess, return CompletedProcess.
-
-    Args:
-        *args: CLI arguments to pass to arachna.
-        cwd: Working directory for the subprocess. MUST be provided
-             to avoid inheriting a stale cwd from monkeypatch.chdir.
-    """
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     return subprocess.run(

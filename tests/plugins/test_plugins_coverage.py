@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from arachna.plugins import (
+from arachna.plugins.plugins import (
     _detect_environment,
     _is_installed,
     install_plugin,
@@ -13,8 +13,8 @@ from arachna.plugins import (
 
 def test_install_plugin_execute_success():
     with (
-        patch("arachna.plugins._is_installed", return_value=False),
-        patch("arachna.plugins._detect_environment", return_value="venv"),
+        patch("arachna.plugins.plugins._is_installed", return_value=False),
+        patch("arachna.plugins.plugins._detect_environment", return_value="venv"),
         patch("subprocess.run") as mock_run,
     ):
         result = install_plugin("tiktoken", execute=True)
@@ -27,8 +27,8 @@ def test_install_plugin_execute_failure():
     import subprocess
 
     with (
-        patch("arachna.plugins._is_installed", return_value=False),
-        patch("arachna.plugins._detect_environment", return_value="venv"),
+        patch("arachna.plugins.plugins._is_installed", return_value=False),
+        patch("arachna.plugins.plugins._detect_environment", return_value="venv"),
         patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "pip")),
     ):
         result = install_plugin("tiktoken", execute=True)
@@ -36,7 +36,7 @@ def test_install_plugin_execute_failure():
 
 
 def test_install_plugin_already_installed_detection():
-    with patch("arachna.plugins._is_installed", return_value=True):
+    with patch("arachna.plugins.plugins._is_installed", return_value=True):
         result = install_plugin("javascript")
         assert "already installed" in result
 
@@ -59,7 +59,7 @@ def test_list_plugins_all_have_fields():
 
 
 def test_uninstall_plugin_installed_detection():
-    with patch("arachna.plugins._is_installed", return_value=True):
+    with patch("arachna.plugins.plugins._is_installed", return_value=True):
         result = uninstall_plugin("tiktoken")
         assert "pip uninstall" in result
 

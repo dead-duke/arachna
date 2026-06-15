@@ -1,6 +1,6 @@
 """Tests for _generate_header with Elixir, Lua, Haskell, Gleam."""
 
-from arachna.formatter import _generate_header
+from arachna.domain.formatter import _generate_header
 
 
 def test_header_elixir(tmp_path):

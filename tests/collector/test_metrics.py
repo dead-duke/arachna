@@ -2,7 +2,7 @@
 
 import json
 
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 
 def test_metrics_file_written(tmp_path):
@@ -33,7 +33,6 @@ def test_metrics_file_written(tmp_path):
     assert metrics.load_time_ms >= 0
     assert metrics.tokens_raw > 0
     assert metrics.tokens_compressed > 0
-    # compression_ratio can be > 1.0 for small files due to title/toc overhead
 
     metrics_file = out / ".arachna_metrics.json"
     assert metrics_file.exists()

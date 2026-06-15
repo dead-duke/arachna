@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from arachna.runner import (
+from arachna.domain.runner import (
     _is_safe_command,
     run_command,
 )

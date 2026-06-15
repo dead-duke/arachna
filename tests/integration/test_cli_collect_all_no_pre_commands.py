@@ -1,12 +1,9 @@
-"""Integration test: collect --all --no-pre-commands."""
-
 import json
 
 from tests.integration.conftest import _arachna
 
 
 def test_collect_all_no_pre_commands(tmp_path):
-    """TC-206: collect --all --no-pre-commands skips pre_commands for all profiles."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     out_dir = tmp_path / "out"
@@ -34,10 +31,8 @@ def test_collect_all_no_pre_commands(tmp_path):
             }
         )
     )
-
     result = _arachna("collect", "--all", "--no-pre-commands", cwd=tmp_path)
     assert result.returncode == 0
-
     code_files = list(out_dir.glob("chat-code*"))
     assert len(code_files) >= 1
     content = code_files[0].read_text()
@@ -46,7 +41,6 @@ def test_collect_all_no_pre_commands(tmp_path):
 
 
 def test_collect_all_dry_run_no_pre_commands(tmp_path):
-    """TC-207: collect --all --dry-run --no-pre-commands shows stats without pre_commands."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
     out_dir = tmp_path / "out"
@@ -64,12 +58,11 @@ def test_collect_all_dry_run_no_pre_commands(tmp_path):
                         "split_mode": "by_file",
                         "use_gitignore": False,
                         "pre_commands": ["echo 'SHOULD_NOT_APPEAR'"],
-                    },
+                    }
                 },
             }
         )
     )
-
     result = _arachna("collect", "--all", "--dry-run", "--no-pre-commands", cwd=tmp_path)
     assert result.returncode == 0
     assert "SHOULD_NOT_APPEAR" not in result.stdout

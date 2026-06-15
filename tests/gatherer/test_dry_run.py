@@ -1,4 +1,4 @@
-from arachna.gatherer import dry_run
+from arachna.domain.gatherer import dry_run
 
 
 def test_single_file(tmp_path):

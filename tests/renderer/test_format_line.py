@@ -1,4 +1,4 @@
-from arachna.renderer import _format_line
+from arachna.cli.renderer import _format_line
 
 
 def test_basic():

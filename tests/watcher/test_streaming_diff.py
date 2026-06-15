@@ -1,6 +1,6 @@
 """Tests for compute_diff streaming parameter."""
 
-from arachna.watcher import compute_diff, create_snapshot
+from arachna.watch.watcher import compute_diff, create_snapshot
 
 
 def test_streaming_false_works(tmp_path, setup_config, make_profile):

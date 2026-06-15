@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from arachna.doctor import run_doctor
+from arachna.config.doctor import run_doctor
 
 
 def test_doctor_project_root_not_dir(tmp_path):
@@ -20,7 +20,7 @@ def test_doctor_gitignore_os_error(tmp_path):
     def failing_load_gitignore_patterns(root):
         raise OSError("Disk error")
 
-    with patch("arachna.doctor.load_gitignore_patterns", failing_load_gitignore_patterns):
+    with patch("arachna.config.doctor.load_gitignore_patterns", failing_load_gitignore_patterns):
         report = run_doctor(project_root=tmp_path)
     assert "gitignore" in report
     assert any("Error loading .gitignore" in msg for msg in report["gitignore"])

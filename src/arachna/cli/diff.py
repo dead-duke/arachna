@@ -4,12 +4,18 @@
 import sys
 from pathlib import Path
 
-from ..collector import _write_diff_parts, clean_manifest, collect, load_manifest, save_manifest
-from ..config import get_profile
-from ..differ import compute_diff_stats
-from ..store import list_snapshots, load_snapshot
-from ..tokenizer import count_tokens, load_tokenizer
-from ..watcher import compute_diff
+from ..config.config import get_profile
+from ..domain.collector import (
+    _write_diff_parts,
+    clean_manifest,
+    collect,
+    load_manifest,
+    save_manifest,
+)
+from ..domain.tokenizer import count_tokens, load_tokenizer
+from ..watch.differ import compute_diff_stats
+from ..watch.store import list_snapshots, load_snapshot
+from ..watch.watcher import compute_diff
 from . import register
 from ._helpers import parse_output_dir, print_collected
 
@@ -103,11 +109,11 @@ def _cmd_diff(args, config: dict):
         return
 
     if diff_mode == "structural":
-        from ..differ_structural import structural_diff_sections
+        from ..watch.differ_structural import structural_diff_sections
 
         sections = structural_diff_sections(sections, fmt)
     elif diff_mode == "repo-map":
-        from ..gatherer import _apply_repo_map_to_sections
+        from ..watch.watcher import _apply_repo_map_to_sections
 
         sections = _apply_repo_map_to_sections(
             sections, snapshot_id, to_snapshot_id, profile, root=root

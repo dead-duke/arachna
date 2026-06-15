@@ -1,6 +1,6 @@
 """Tests for _diff_pre_commands_* helpers in watcher.py."""
 
-from arachna.watcher import (
+from arachna.watch.watcher import (
     _diff_pre_commands_line,
     _diff_pre_commands_marker,
     _diff_pre_commands_structural,

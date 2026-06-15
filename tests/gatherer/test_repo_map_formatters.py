@@ -1,13 +1,12 @@
 """Tests for repo-map formatting helpers in gatherer.py."""
 
-from arachna.gatherer import _format_json_sigs, _format_markdown_sigs, _format_xml_sigs
+from arachna.domain.gatherer import _format_sigs_json, _format_sigs_markdown, _format_sigs_xml
 
 
 def test_format_markdown_sigs_with_lang(tmp_path):
-    """Markdown signatures with language code fence."""
     f = tmp_path / "main.py"
     sigs = "def foo():\n    ...\n\nclass Bar:\n    ..."
-    result = _format_markdown_sigs(f, "python", sigs)
+    result = _format_sigs_markdown(f, "python", sigs)
     assert "### " in result
     assert "```python" in result
     assert "def foo():" in result
@@ -15,19 +14,17 @@ def test_format_markdown_sigs_with_lang(tmp_path):
 
 
 def test_format_markdown_sigs_no_lang(tmp_path):
-    """Markdown signatures without language."""
     f = tmp_path / "script"
     sigs = "function main()"
-    result = _format_markdown_sigs(f, "", sigs)
+    result = _format_sigs_markdown(f, "", sigs)
     assert "```" in result
     assert "```python" not in result
 
 
 def test_format_xml_sigs_with_lang(tmp_path):
-    """XML signatures with language attribute."""
     f = tmp_path / "main.py"
     sigs = "def foo():\n    ..."
-    result = _format_xml_sigs(f, "python", sigs)
+    result = _format_sigs_xml(f, "python", sigs)
     assert '<file path="' in result
     assert 'language="python"' in result
     assert "<![CDATA[" in result
@@ -35,21 +32,19 @@ def test_format_xml_sigs_with_lang(tmp_path):
 
 
 def test_format_xml_sigs_no_lang(tmp_path):
-    """XML signatures without language attribute."""
     f = tmp_path / "script"
     sigs = "function main()"
-    result = _format_xml_sigs(f, "", sigs)
+    result = _format_sigs_xml(f, "", sigs)
     assert '<file path="' in result
     assert "language=" not in result
 
 
 def test_format_json_sigs_with_lang(tmp_path):
-    """JSON signatures with language key."""
     import json
 
     f = tmp_path / "main.py"
     sigs = "def foo():\n    ..."
-    result = _format_json_sigs(f, "python", sigs)
+    result = _format_sigs_json(f, "python", sigs)
     data = json.loads(result)
     assert data["language"] == "python"
     assert data["path"] == str(f)
@@ -57,12 +52,11 @@ def test_format_json_sigs_with_lang(tmp_path):
 
 
 def test_format_json_sigs_no_lang(tmp_path):
-    """JSON signatures without language key."""
     import json
 
     f = tmp_path / "script"
     sigs = "function main()"
-    result = _format_json_sigs(f, "", sigs)
+    result = _format_sigs_json(f, "", sigs)
     data = json.loads(result)
     assert "language" not in data
     assert data["path"] == str(f)

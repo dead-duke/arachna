@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from arachna.collector import (
+from arachna.domain.collector import (
     _build_toc,
     clean_manifest,
     save_manifest,
@@ -16,7 +16,7 @@ def test_merge_lock_no_fcntl_no_msvcrt(tmp_path):
     with patch.dict(sys.modules, {"fcntl": None, "msvcrt": None}):
         import importlib
 
-        import arachna.collector as collector_module
+        import arachna.domain.collector as collector_module
 
         importlib.reload(collector_module)
 

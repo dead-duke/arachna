@@ -1,7 +1,7 @@
 """Coverage for pre_commands handling in gatherer.py."""
 
-from arachna.gatherer import _collect_pre_commands
-from arachna.tokenizer import count_tokens
+from arachna.domain.gatherer import _collect_pre_commands
+from arachna.domain.tokenizer import count_tokens
 
 
 def test_collect_pre_commands_empty_list(tmp_path):

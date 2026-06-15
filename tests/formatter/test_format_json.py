@@ -2,7 +2,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from arachna.formatter import format_file_section
+from arachna.domain.formatter import format_file_section
 
 
 def test_format_json_python():

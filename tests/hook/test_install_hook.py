@@ -2,7 +2,7 @@ import json
 import stat
 import sys
 
-from arachna.hook import install_hook
+from arachna.config.hook import install_hook
 
 
 def test_install_hook_default_command(tmp_path):

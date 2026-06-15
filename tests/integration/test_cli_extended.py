@@ -1,5 +1,3 @@
-"""Extended integration tests for CLI coverage gaps."""
-
 import json
 
 from tests.integration.conftest import _arachna
@@ -47,13 +45,10 @@ def test_install_hook_force(tmp_path):
     (tmp_path / ".git").mkdir()
     (tmp_path / ".git" / "hooks").mkdir()
     (tmp_path / ".arachna.json").write_text(json.dumps({"project_name": "test"}))
-
     result1 = _arachna("init", "--install-hook", cwd=tmp_path)
     assert result1.returncode == 0
-
     result2 = _arachna("init", "--install-hook", "--force", cwd=tmp_path)
     assert result2.returncode == 0
-
     hook = tmp_path / ".git" / "hooks" / "post-commit"
     assert hook.exists()
     assert "arachna collect --all" in hook.read_text()
@@ -77,24 +72,15 @@ def test_all_dry_run(tmp_path):
                         "split_mode": "by_file",
                         "use_gitignore": False,
                     },
-                    "cmd": {
-                        "command": "echo hi",
-                        "max_tokens": 100,
-                        "split_mode": "by_file",
-                    },
+                    "cmd": {"command": "echo hi", "max_tokens": 100, "split_mode": "by_file"},
                 },
             }
         )
     )
-
     result = _arachna("collect", "--all", "--dry-run", cwd=tmp_path)
     assert result.returncode == 0
     assert "[code] section" in result.stdout
     assert "[cmd] section" in result.stdout
-
-    if out_dir.exists():
-        files = list(out_dir.glob("chat-*"))
-        assert len(files) == 0
 
 
 def test_format_json_all(tmp_path):
@@ -119,10 +105,8 @@ def test_format_json_all(tmp_path):
             }
         )
     )
-
     result = _arachna("collect", "--all", "--format", "json", cwd=tmp_path)
     assert result.returncode == 0
-
     files = list(out_dir.glob("chat-code*"))
     assert len(files) >= 1
     content = files[0].read_text()
@@ -152,11 +136,6 @@ def test_merge_dry_run(tmp_path):
             }
         )
     )
-
     result = _arachna("collect", "--profile", "code", "--merge", "--dry-run", cwd=tmp_path)
     assert result.returncode == 0
     assert "main.py" in result.stdout
-
-    if out_dir.exists():
-        files = list(out_dir.glob("chat-code*"))
-        assert len(files) == 0

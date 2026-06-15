@@ -1,7 +1,7 @@
 import time
 
-from arachna.gatherer import _collect_named_sections
-from arachna.tokenizer import count_tokens
+from arachna.domain.gatherer import _collect_named_sections
+from arachna.domain.tokenizer import count_tokens
 
 
 def test_collect_sections_incremental_new_files(tmp_path):

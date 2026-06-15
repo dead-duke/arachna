@@ -33,7 +33,6 @@ def _split_oversized_section(
         current_tokens = 0
         for para in paragraphs:
             para_tokens = tokenizer(para)
-            # If paragraph itself exceeds limit, flush current and add as chunk
             if para_tokens > max_tokens:
                 if current:
                     chunks.append(current)
@@ -63,7 +62,6 @@ def _split_oversized_section(
         current_tokens = 0
         for line in lines:
             line_tokens = tokenizer(line)
-            # If line itself exceeds limit, flush current and add as chunk
             if line_tokens > max_tokens:
                 if current:
                     chunks.append(current)
@@ -115,13 +113,10 @@ def pack_into_parts(
     separator: str = "\n\n",
     tokenizer: Callable[[str], int] | None = None,
 ) -> tuple[list[str], list[list[int]]]:
-    """Single token-packing primitive — packs formatted sections into token-limited parts.
+    """Single token-packing primitive - packs formatted sections into token-limited parts.
 
     Handles oversized sections via _split_oversized_section with
     continuation markers. Each chunk shares the original section index.
-
-    For formatted file sections where splitting oversized content
-    into chunks is meaningful (split_sections, _stream_full_mode).
 
     When max_tokens=0 (unlimited), returns single part with all sections.
 
@@ -130,7 +125,6 @@ def pack_into_parts(
     """
     tk = tokenizer if tokenizer is not None else count_tokens
 
-    # Unlimited mode — single part, no splitting
     if max_tokens == 0:
         all_content = separator.join(s.strip() for s in sections if s.strip())
         all_indices = list(range(len(sections)))
@@ -149,7 +143,6 @@ def pack_into_parts(
         section_tokens = tk(section)
 
         if section_tokens > max_tokens:
-            # Flush current part before splitting oversized section
             if current:
                 parts.append(current.strip())
                 indices.append(current_indices)
@@ -157,7 +150,6 @@ def pack_into_parts(
                 current_tokens = 0
                 current_indices = []
 
-            # Split oversized section
             chunks = _split_oversized_section(section, max_tokens, tokenizer=tk)
             logger.warning(
                 "Section too large: %s tokens exceeds limit of %s tokens, split into %s parts",
@@ -166,7 +158,6 @@ def pack_into_parts(
                 len(chunks),
             )
 
-            # Add continuation markers
             for j, chunk in enumerate(chunks):
                 if len(chunks) > 1:
                     if j == 0:
@@ -203,6 +194,44 @@ def pack_into_parts(
     return parts, indices
 
 
+# Mode dispatch mapping — single entry point for all split modes.
+# Each handler: (raw_content, max_tokens, marker, separator, tk) -> list[str]
+
+
+def _split_by_file(raw_content, max_tokens, marker, separator, tk):
+    sections = _split_to_sections(raw_content, "\n\n### ")
+    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
+
+
+def _split_by_paragraph(raw_content, max_tokens, marker, separator, tk):
+    sections = _split_to_sections(raw_content, "\n\n")
+    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
+
+
+def _split_by_marker(raw_content, max_tokens, marker, separator, tk):
+    sections = _split_to_sections(raw_content, marker)
+    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
+
+
+def _split_single(raw_content, max_tokens, marker, separator, tk):
+    parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
+    if was_truncated:
+        logger.warning(
+            "Content truncated: %s tokens exceeds limit of %s tokens",
+            tk(raw_content),
+            max_tokens,
+        )
+    return parts
+
+
+_SPLIT_MODE_DISPATCH = {
+    "by_file": _split_by_file,
+    "by_paragraph": _split_by_paragraph,
+    "by_marker": _split_by_marker,
+    "single": _split_single,
+}
+
+
 def split(
     raw_content: str,
     max_tokens: int,
@@ -213,28 +242,11 @@ def split(
 ) -> list[str]:
     tk = tokenizer if tokenizer is not None else count_tokens
 
-    # Unlimited mode — single part
     if max_tokens == 0:
         return [raw_content.strip()] if raw_content.strip() else []
 
-    if mode == "by_file":
-        sections = _split_to_sections(raw_content, "\n\n### ")
-    elif mode == "by_paragraph":
-        sections = _split_to_sections(raw_content, "\n\n")
-    elif mode == "by_marker":
-        sections = _split_to_sections(raw_content, marker)
-    elif mode == "single":
-        parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
-        if was_truncated:
-            logger.warning(
-                "Content truncated: %s tokens exceeds limit of %s tokens",
-                tk(raw_content),
-                max_tokens,
-            )
-        return parts
-    else:
-        sections = _split_to_sections(raw_content, "\n\n### ")
-    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
+    handler = _SPLIT_MODE_DISPATCH.get(mode, _split_by_file)
+    return handler(raw_content, max_tokens, marker, separator, tk)
 
 
 def split_sections(
@@ -243,11 +255,7 @@ def split_sections(
     separator: str = "\n\n",
     tokenizer: Callable[[str], int] | None = None,
 ) -> tuple[list[str], list[list[int]]]:
-    """Split pre-built sections into token-limited parts.
-
-    Thin wrapper around pack_into_parts — for formatted file sections
-    where oversized content can be split into chunks.
-    """
+    """Split pre-built sections into token-limited parts."""
     return pack_into_parts(sections, max_tokens, separator=separator, tokenizer=tokenizer)
 
 
@@ -279,17 +287,8 @@ def _build_parts(
     separator: str = "\n\n",
     tokenizer: Callable[[str], int] | None = None,
 ) -> list[str]:
-    """Pack raw content sections into token-limited parts.
-
-    For command mode — oversized sections are truncated via _handle_single.
-    Unlike pack_into_parts which splits oversized sections into chunks,
-    this truncates them since raw command output can't be meaningfully split.
-
-    When max_tokens=0 (unlimited), returns single part.
-    """
     tk = tokenizer if tokenizer is not None else count_tokens
 
-    # Unlimited mode
     if max_tokens == 0:
         content = separator.join(s.strip() for s in sections if s.strip())
         return [content] if content else []
@@ -356,6 +355,8 @@ def _handle_single(
     return [text.strip()], True
 
 
+# Signature extraction — dispatch by language
+
 _RE_C_LIKE_SIG = re.compile(
     r"^(\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
     r"type\s+\w+\s+\w+|type\s+|"
@@ -371,16 +372,6 @@ _RE_SCRIPT_SIG = re.compile(
     r"function\s+\w+.*))",
     re.MULTILINE,
 )
-
-
-def extract_signatures(text: str, lang: str) -> str:
-    if lang == "python":
-        return _extract_python_signatures(text)
-    elif lang in C_LIKE_LANGS or lang == "gdscript":
-        return _extract_c_like_signatures(text)
-    elif lang in SCRIPT_LANGS:
-        return _extract_script_signatures(text)
-    return text
 
 
 def _extract_python_signatures(text: str) -> str:
@@ -422,3 +413,29 @@ def _extract_script_signatures(text: str) -> str:
         sig = m.group(1).strip()
         sigs.append(sig)
     return "\n".join(sigs) if sigs else text
+
+
+def _extract_passthrough(text: str) -> str:
+    return text
+
+
+# Language dispatch for signature extraction.
+# Maps lang -> extractor function. C_LIKE_LANGS and SCRIPT_LANGS
+# are pre-expanded at module level for O(1) lookup.
+def _build_sig_extractors():
+    extractors = {}
+    extractors["python"] = _extract_python_signatures
+    extractors["gdscript"] = _extract_c_like_signatures
+    for lang in C_LIKE_LANGS:
+        extractors[lang] = _extract_c_like_signatures
+    for lang in SCRIPT_LANGS:
+        extractors[lang] = _extract_script_signatures
+    return extractors
+
+
+_SIG_EXTRACTORS = _build_sig_extractors()
+
+
+def extract_signatures(text: str, lang: str) -> str:
+    handler = _SIG_EXTRACTORS.get(lang, _extract_passthrough)
+    return handler(text)

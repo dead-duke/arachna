@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from arachna.formatter import (
+from arachna.domain.formatter import (
     _format_binary,
     _format_json,
     _format_markdown,

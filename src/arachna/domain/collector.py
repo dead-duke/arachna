@@ -1,4 +1,4 @@
-"""Orchestrator — gathers content, splits by tokens, writes output files."""
+"""Orchestrator - gathers content, splits by tokens, writes output files."""
 
 import contextlib
 import json
@@ -12,7 +12,6 @@ from typing import Any
 
 from .api_types import PipelineMetrics
 from .cache import load_cache, save_cache
-from .differ import DiffSection, compute_diff_stats
 from .gatherer import _assemble_content, _get_exclude_patterns
 from .runner import run_command
 from .splitter import split_sections
@@ -58,7 +57,7 @@ except ImportError:
                     Path(f._arachna_lock_path).unlink()
 
         logger.warning(
-            "Neither fcntl nor msvcrt available — using O_CREAT|O_EXCL file lock. "
+            "Neither fcntl nor msvcrt available - using O_CREAT|O_EXCL file lock. "
             "Merge mode may have reduced concurrency."
         )
 
@@ -216,7 +215,7 @@ def _diff_part_header(stats: dict, part_num: int, total_parts: int) -> str:
 
 
 def _write_diff_parts(
-    diff_sections: list[DiffSection],
+    diff_sections: list,
     out_path: Path,
     name_tmpl: str,
     title_tmpl: str,
@@ -238,7 +237,7 @@ def _write_diff_parts(
     part_stats = []
     for indices in section_indices:
         part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
-        part_stats.append(compute_diff_stats(part_sections))
+        part_stats.append(_compute_diff_stats_local(part_sections))
     created = []
     total_parts = len(parts)
     for i, part_content in enumerate(parts, 1):
@@ -261,6 +260,30 @@ def _write_diff_parts(
             f.write(part_content)
         created.append(str(filepath))
     return created
+
+
+def _compute_diff_stats_local(diffs: list) -> dict:
+    modified = added = deleted = renamed = moved = tokens = 0
+    for d in diffs:
+        if d.type == "modified":
+            modified += 1
+        elif d.type == "added":
+            added += 1
+        elif d.type == "deleted":
+            deleted += 1
+        elif d.type == "renamed":
+            renamed += 1
+        elif d.type == "moved":
+            moved += 1
+        tokens += count_tokens(d.content)
+    return {
+        "modified": modified,
+        "added": added,
+        "deleted": deleted,
+        "renamed": renamed,
+        "moved": moved,
+        "tokens": tokens,
+    }
 
 
 def _run_post_commands(commands: list[str], root: Path, verbose: bool = False):
@@ -299,6 +322,31 @@ def _write_metrics(out_path: Path, metrics: PipelineMetrics):
         metrics_path.write_text(json.dumps(payload, indent=2))
 
 
+# Tokenizer factory mapping
+
+
+def _make_default_tokenizer(chars_per_token):
+    if chars_per_token:
+        return lambda t: count_tokens(t, chars_per_token=chars_per_token)
+    return count_tokens
+
+
+def _make_plugin_tokenizer(spec, chars_per_token):
+    return load_tokenizer(spec, chars_per_token=chars_per_token)
+
+
+_TOKENIZER_FACTORIES = {
+    "default": _make_default_tokenizer,
+}
+
+
+def _build_tokenizer(spec, chars_per_token):
+    factory = _TOKENIZER_FACTORIES.get(spec, _make_plugin_tokenizer)
+    if factory is _make_default_tokenizer:
+        return factory(chars_per_token)
+    return factory(spec, chars_per_token)
+
+
 def collect(
     profile: dict[str, Any],
     project_name: str,
@@ -315,19 +363,9 @@ def collect(
     title_tmpl = profile["title_template"]
     out_path = root / output_dir
     out_path.mkdir(parents=True, exist_ok=True)
-    chars_per_token = profile.get("chars_per_token")
     tokenizer_spec = profile.get("tokenizer", "default")
-    tokenizer = (
-        load_tokenizer(tokenizer_spec, chars_per_token=chars_per_token)
-        if tokenizer_spec != "default"
-        else (
-            lambda t: (
-                count_tokens(t, chars_per_token=chars_per_token)
-                if chars_per_token
-                else count_tokens(t)
-            )
-        )
-    )
+    chars_per_token = profile.get("chars_per_token")
+    tokenizer = _build_tokenizer(tokenizer_spec, chars_per_token)
 
     t0 = time.perf_counter()
     exclude = _get_exclude_patterns(profile, root=root)

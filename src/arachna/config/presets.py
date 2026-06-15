@@ -5,6 +5,8 @@ import json
 import os as _os
 from pathlib import Path
 
+from ..domain.tokenizer import _is_safe_tokenizer as _tokenizer_is_safe
+
 _SEPARATOR = "-" * 50
 DEFAULT_PRESETS_PATH = "presets.json"
 
@@ -37,7 +39,7 @@ _VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 
 
 def _load_builtin_presets_raw() -> dict[str, dict]:
-    presets_dir = Path(__file__).parent / "presets"
+    presets_dir = Path(__file__).parent.parent / "presets"
     if not presets_dir.is_dir():
         return {}
     result = {}
@@ -57,7 +59,7 @@ _builtin_cache: tuple[float, dict[str, dict]] | None = None
 
 def _load_builtin_presets() -> dict[str, dict]:
     global _builtin_cache
-    presets_dir = Path(__file__).parent / "presets"
+    presets_dir = Path(__file__).parent.parent / "presets"
     if presets_dir.is_dir():
         try:
             dir_mtime = presets_dir.stat().st_mtime
@@ -75,9 +77,7 @@ def _load_builtin_presets() -> dict[str, dict]:
 
 
 def _is_safe_tokenizer(spec: str) -> bool:
-    from .tokenizer import _is_safe_tokenizer as _tok_safe
-
-    return _tok_safe(spec)
+    return _tokenizer_is_safe(spec)
 
 
 def _validate_preset(name: str, preset: dict) -> dict | None:

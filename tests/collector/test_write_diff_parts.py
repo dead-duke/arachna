@@ -1,8 +1,8 @@
 """Tests for _write_diff_parts in collector.py (v1.7.1)."""
 
-from arachna.collector import _write_diff_parts
-from arachna.differ import DiffSection
-from arachna.tokenizer import count_tokens
+from arachna.domain.collector import _write_diff_parts
+from arachna.domain.tokenizer import count_tokens
+from arachna.watch.differ import DiffSection
 
 
 def test_write_diff_parts_single_file(tmp_path):
@@ -207,7 +207,6 @@ def test_write_diff_parts_toc_built_from_names(tmp_path):
     out = tmp_path / "out"
     out.mkdir()
 
-    # Content with identical text but different file names
     sections = [
         DiffSection(
             type="added",

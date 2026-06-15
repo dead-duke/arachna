@@ -1,10 +1,9 @@
 """Tests for extract_signatures in splitter.py."""
 
-from arachna.splitter import extract_signatures
+from arachna.domain.splitter import extract_signatures
 
 
 def test_repo_map_python(tmp_path):
-    """Python: ast extracts signatures, strips bodies."""
     text = (
         "import os\n"
         "\n"
@@ -31,21 +30,18 @@ def test_repo_map_python(tmp_path):
     assert "@dataclass" in sigs
     assert "def calculate_total" in sigs
     assert "async def fetch_data" in sigs
-    # Bodies stripped, only '...' placeholder
     assert "total = 0" not in sigs
     assert "aiohttp" not in sigs
     assert "..." in sigs
 
 
 def test_repo_map_python_syntax_error():
-    """Python with syntax error returns full text."""
     text = "def foo(:\n    pass\n"
     sigs = extract_signatures(text, "python")
     assert sigs == text
 
 
 def test_repo_map_javascript():
-    """JavaScript: regex extracts signatures."""
     text = (
         "import React from 'react';\n"
         "\n"
@@ -69,14 +65,12 @@ def test_repo_map_javascript():
     assert "export function App" in sigs
     assert "export async function fetchUsers" in sigs
     assert "export class UserProfile" in sigs
-    # Bodies stripped
     assert "useState" not in sigs
     assert "fetch('/api/users')" not in sigs
     assert "render()" not in sigs
 
 
 def test_repo_map_go():
-    """Go: regex extracts signatures."""
     text = (
         "package main\n"
         "\n"
@@ -102,7 +96,6 @@ def test_repo_map_go():
 
 
 def test_repo_map_ruby():
-    """Ruby: regex extracts signatures."""
     text = (
         "def initialize(name)\n"
         "    @name = name\n"
@@ -124,21 +117,17 @@ def test_repo_map_ruby():
 
 
 def test_repo_map_unknown_language():
-    """Unknown language returns full text."""
     text = "some content\nwith multiple lines\n"
     sigs = extract_signatures(text, "")
     assert sigs == text
 
 
 def test_repo_map_empty():
-    """Empty input returns empty."""
     sigs = extract_signatures("", "python")
     assert sigs == ""
 
 
 def test_repo_map_no_signatures():
-    """File with no functions/classes returns empty for C-like, full for unknown."""
     text = "just some text\nno functions here\n"
     sigs = extract_signatures(text, "rust")
-    # Rust: no signatures found → returns full text as fallback
     assert sigs == text

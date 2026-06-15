@@ -1,4 +1,4 @@
-from arachna.config import find_config
+from arachna.config.config import find_config
 
 
 def test_finds_in_cwd(tmp_path):

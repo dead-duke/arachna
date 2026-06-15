@@ -4,8 +4,8 @@
 import json
 from pathlib import Path
 
-from ..collector import load_manifest
-from ..tokenizer import count_tokens
+from ..domain.collector import load_manifest
+from ..domain.tokenizer import count_tokens
 from . import register
 from ._helpers import parse_output_dir
 

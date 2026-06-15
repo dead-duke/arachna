@@ -1,7 +1,7 @@
 """Isolated unit tests for watcher helper functions (v2.9.2)."""
 
-from arachna.differ import DiffSection
-from arachna.watcher import (
+from arachna.watch.differ import DiffSection
+from arachna.watch.watcher import (
     _detect_renames_and_moves,
     _diff_pre_commands_line,
     _diff_pre_commands_marker,
@@ -36,8 +36,6 @@ def test_group_diff_sections_order():
     ]
     grouped = _group_diff_sections(sections, "snap1", "current")
     types = [s.type for s in grouped if s.type != "header"]
-    # Group order: renamed, moved, modified, added, deleted
-    # Within each group, original order is preserved
     assert types[0] == "modified"
     assert types[1] == "modified"
     assert "added" in types

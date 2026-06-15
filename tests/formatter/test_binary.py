@@ -2,7 +2,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from arachna.formatter import format_file_section
+from arachna.domain.formatter import format_file_section
 
 
 def test_binary_skipped_by_default():

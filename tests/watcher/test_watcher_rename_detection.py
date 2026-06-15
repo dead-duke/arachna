@@ -1,6 +1,6 @@
 """Tests for rename/move detection in watcher.py (v1.7.0)."""
 
-from arachna.watcher import (
+from arachna.watch.watcher import (
     _detect_renames_and_moves,
     _diff_file_sets,
     _is_binary_content,

@@ -1,11 +1,11 @@
 """Tests for decomposed query pipeline: _score_files, _build_reverse_graph, _expand_import_chain."""
 
-from arachna.gatherer import (
+from arachna.domain.gatherer import (
     _build_reverse_graph,
     _expand_import_chain,
     _score_files,
 )
-from arachna.tokenizer import count_tokens
+from arachna.domain.tokenizer import count_tokens
 
 
 def _make_section(filepath: str, content: str) -> tuple[str, str, int]:
@@ -17,7 +17,7 @@ def test_score_files_filename_match():
         _make_section("src/auth.py", "x = 1"),
         _make_section("src/utils.py", "y = 2"),
     ]
-    scores = _score_files(sections, ["auth"])
+    scores = _score_files(sections, ["auth"], {})
     assert "src/auth.py" in scores
     assert scores["src/auth.py"] >= 10
 
@@ -27,7 +27,7 @@ def test_score_files_content_match():
         _make_section("src/main.py", "authentication middleware here"),
         _make_section("src/utils.py", "unrelated stuff"),
     ]
-    scores = _score_files(sections, ["authentication"])
+    scores = _score_files(sections, ["authentication"], {})
     assert "src/main.py" in scores
     assert scores["src/main.py"] >= 3
 
@@ -36,7 +36,7 @@ def test_score_files_no_match():
     sections = [
         _make_section("src/main.py", "print('hello')"),
     ]
-    scores = _score_files(sections, ["nonexistent"])
+    scores = _score_files(sections, ["nonexistent"], {})
     assert scores == {}
 
 
@@ -45,7 +45,7 @@ def test_score_files_skips_pre_commands():
         _make_section("pre: tree src", "tree output"),
         _make_section("src/auth.py", "def login(): pass"),
     ]
-    scores = _score_files(sections, ["tree"])
+    scores = _score_files(sections, ["tree"], {})
     assert "pre: tree src" not in scores
 
 

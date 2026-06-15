@@ -10,18 +10,15 @@ def _make_args(output_dir=None):
 
 
 def test_parse_output_dir_flag():
-    """--output-dir extracts value from args."""
     result = parse_output_dir(_make_args(output_dir="/custom/path"), {"output_dir": "default"})
     assert result == "/custom/path"
 
 
 def test_parse_output_dir_fallback():
-    """No flag — uses config default."""
     result = parse_output_dir(_make_args(), {"output_dir": "config_default"})
     assert result == "config_default"
 
 
 def test_parse_output_dir_no_config_key():
-    """No output_dir in config — returns '.'."""
     result = parse_output_dir(_make_args(), {})
     assert result == "."

@@ -1,6 +1,6 @@
 """Tests for structural diff in differ_structural.py."""
 
-from arachna.differ_structural import (
+from arachna.watch.differ_structural import (
     _extract_old_new_from_section,
     _parse_python_blocks,
     structural_diff,
@@ -94,7 +94,7 @@ def test_extract_old_new_from_section_empty():
 
 def test_structural_diff_sections_integration():
     """structural_diff_sections applies structural diff to DiffSections."""
-    from arachna.differ import DiffSection
+    from arachna.watch.differ import DiffSection
 
     sections = [
         DiffSection(

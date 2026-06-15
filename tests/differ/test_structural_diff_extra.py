@@ -1,6 +1,6 @@
 """Extra coverage for differ_structural.py — C-like, script, fallback, formatting."""
 
-from arachna.differ_structural import (
+from arachna.watch.differ_structural import (
     _block_label,
     _extract_braced_block,
     _fallback_diff,
@@ -125,13 +125,11 @@ def test_fallback_diff():
 
 
 def test_structural_diff_javascript():
-    """Structural diff for JS uses tree-sitter when available, regex fallback otherwise."""
     old = "function foo() {\n    return 1;\n}\n"
     new = "function foo() {\n    return 2;\n}\n"
     result = structural_diff(old, new, "src/app.js", "javascript", "markdown")
     assert "src/app.js" in result
     assert len(result) > 0
-    # With tree-sitter: block-level MODIFIED. Without: text diff REMOVED/ADDED. Both valid.
     assert any(kw in result for kw in ["MODIFIED", "REMOVED", "ADDED"])
 
 

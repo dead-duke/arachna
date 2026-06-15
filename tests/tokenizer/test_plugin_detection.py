@@ -2,14 +2,13 @@
 
 import pytest
 
-from arachna.tokenizer import _has_tiktoken, _has_transformers, load_tokenizer
+from arachna.domain.tokenizer import _has_tiktoken, _has_transformers, load_tokenizer
 
 _HAS_TIKTOKEN = _has_tiktoken()
 _HAS_TRANSFORMERS = _has_transformers()
 
 
 def test_check_tokenizer_plugins_detection():
-    """Plugin detection reports correct status."""
     if _HAS_TIKTOKEN:
         assert _has_tiktoken()
     if _HAS_TRANSFORMERS:
@@ -17,7 +16,6 @@ def test_check_tokenizer_plugins_detection():
 
 
 def test_load_tokenizer_tiktoken_fallback():
-    """When tiktoken not installed, raises error with install instructions."""
     if _HAS_TIKTOKEN:
         pytest.skip("tiktoken is installed — fallback not testable")
     with pytest.raises(ValueError, match="tiktoken is not installed"):
@@ -25,7 +23,6 @@ def test_load_tokenizer_tiktoken_fallback():
 
 
 def test_load_tokenizer_transformers_fallback():
-    """When transformers not installed, raises error with install instructions."""
     if _HAS_TRANSFORMERS:
         pytest.skip("transformers is installed — fallback not testable")
     with pytest.raises(ValueError, match="transformers is not installed"):
@@ -34,7 +31,6 @@ def test_load_tokenizer_transformers_fallback():
 
 @pytest.mark.skipif(not _HAS_TIKTOKEN, reason="tiktoken not installed")
 def test_load_tokenizer_tiktoken_real():
-    """Real tiktoken: loads and counts tokens."""
     tok = load_tokenizer("tiktoken")
     result = tok("hello world")
     assert isinstance(result, int)
@@ -43,7 +39,6 @@ def test_load_tokenizer_tiktoken_real():
 
 @pytest.mark.skipif(not _HAS_TIKTOKEN, reason="tiktoken not installed")
 def test_load_tokenizer_tiktoken_custom_encoding():
-    """Real tiktoken with custom encoding."""
     tok = load_tokenizer("tiktoken:cl100k_base")
     result = tok("hello world")
     assert isinstance(result, int)
@@ -52,7 +47,6 @@ def test_load_tokenizer_tiktoken_custom_encoding():
 
 @pytest.mark.skipif(not _HAS_TRANSFORMERS, reason="transformers not installed")
 def test_load_tokenizer_transformers_real():
-    """Real transformers: loads and counts tokens."""
     tok = load_tokenizer("transformers")
     result = tok("hello world")
     assert isinstance(result, int)

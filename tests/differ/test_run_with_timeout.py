@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from arachna.differ_structural import RegexTimeoutError, _run_with_timeout
+from arachna.watch.differ_structural import RegexTimeoutError, _run_with_timeout
 
 
 def test_run_with_timeout_completes_fast():

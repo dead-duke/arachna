@@ -2,7 +2,7 @@
 
 import json
 
-from arachna.config import get_profile, load_config
+from arachna.config.config import get_profile, load_config
 
 
 def test_config_extends_warns_on_conflict(tmp_path, capsys):

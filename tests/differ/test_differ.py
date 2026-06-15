@@ -1,6 +1,6 @@
 """Tests for LLM-optimized differ."""
 
-from arachna.differ import DiffSection, compute_diff, compute_diff_stats
+from arachna.watch.differ import DiffSection, compute_diff, compute_diff_stats
 
 
 def test_modified_file_markdown():
@@ -132,5 +132,4 @@ def test_diff_section_defaults():
 def test_binary_changed_markdown():
     """Binary files can still be diffed as text (no special handling in MVP)."""
     result = compute_diff("binary\x00data", "binary\x01data", "data.bin")
-    # Should not crash — difflib handles any string
     assert "### data.bin" in result

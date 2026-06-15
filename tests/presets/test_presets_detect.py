@@ -1,6 +1,6 @@
 """Test for BUG-004: c_cpp preset falsely detected in Python-only projects."""
 
-from arachna.presets import detect_presets
+from arachna.config.presets import detect_presets
 
 
 def test_c_cpp_detected_with_cmake(tmp_path):

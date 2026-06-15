@@ -7,7 +7,7 @@ def test_fetch_presets_timeout_param():
     """fetch_presets accepts explicit timeout parameter."""
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = TimeoutError("timed out")
-        from arachna.presets import fetch_presets
+        from arachna.config.presets import fetch_presets
 
         result = fetch_presets("https://example.com/presets.json", timeout=3)
         assert result == {}
@@ -19,7 +19,7 @@ def test_fetch_presets_timeout_env(monkeypatch):
     monkeypatch.setenv("ARACHNA_PRESETS_TIMEOUT", "5")
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = TimeoutError("timed out")
-        from arachna.presets import fetch_presets
+        from arachna.config.presets import fetch_presets
 
         result = fetch_presets("https://example.com/presets.json")
         assert result == {}
@@ -31,7 +31,7 @@ def test_fetch_presets_timeout_default(monkeypatch):
     monkeypatch.delenv("ARACHNA_PRESETS_TIMEOUT", raising=False)
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = TimeoutError("timed out")
-        from arachna.presets import fetch_presets
+        from arachna.config.presets import fetch_presets
 
         result = fetch_presets("https://example.com/presets.json")
         assert result == {}

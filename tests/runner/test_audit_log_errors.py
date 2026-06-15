@@ -2,7 +2,7 @@
 
 import json
 
-from arachna.runner import _get_audit_log_path
+from arachna.domain.runner import _get_audit_log_path
 
 
 def test_get_audit_log_path_corrupted_json(tmp_path):

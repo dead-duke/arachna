@@ -1,7 +1,7 @@
 """Tests for unified split mode (v1.4.1)."""
 
-from arachna.gatherer import _assemble_content
-from arachna.tokenizer import count_tokens
+from arachna.domain.gatherer import _assemble_content
+from arachna.domain.tokenizer import count_tokens
 
 
 def test_unified_split_pre_commands_and_files_together(tmp_path):

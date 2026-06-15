@@ -1,6 +1,6 @@
 """Tests for _find_module_path and _import_local_module in tokenizer.py."""
 
-from arachna.tokenizer import _find_module_path, _import_local_module
+from arachna.domain.tokenizer import _find_module_path, _import_local_module
 
 
 def test_find_module_path_py_file(tmp_path):

@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 
-from arachna.cache import get_changed_files, load_cache, save_cache, update_cache
+from arachna.domain.cache import get_changed_files, load_cache, save_cache, update_cache
 
 
 def _make_entry(filepath: Path) -> dict:
@@ -156,7 +156,7 @@ def test_get_changed_files_missing_from_disk(tmp_path):
 
 def test_save_cache_fallback(tmp_path, monkeypatch):
     """save_cache falls back to direct write when tempfile fails."""
-    import arachna.cache as cache_module
+    import arachna.domain.cache as cache_module
 
     def failing_mkstemp(*args, **kwargs):
         raise OSError("No space left on device")

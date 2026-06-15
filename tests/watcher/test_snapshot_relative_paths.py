@@ -1,7 +1,7 @@
 """Tests for snapshot relative paths (v2.9.2)."""
 
-from arachna.store import load_snapshot
-from arachna.watcher import create_snapshot
+from arachna.watch.store import load_snapshot
+from arachna.watch.watcher import create_snapshot
 
 
 def test_snapshot_relative_paths(tmp_path, setup_config, make_profile):

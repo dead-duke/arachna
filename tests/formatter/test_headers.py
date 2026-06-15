@@ -1,10 +1,9 @@
 """Tests for _generate_header in formatter.py."""
 
-from arachna.formatter import _generate_header
+from arachna.domain.formatter import _generate_header
 
 
 def test_header_python_ast(tmp_path):
-    """Python: ast extracts imports and exports."""
     f = tmp_path / "utils.py"
     text = (
         "import os\n"
@@ -29,16 +28,13 @@ def test_header_python_ast(tmp_path):
 
 
 def test_header_python_syntax_error(tmp_path):
-    """Python with syntax error falls back to regex."""
     f = tmp_path / "broken.py"
     text = "def foo(:\n    pass\n"
     header = _generate_header(f, text, "python")
-    # Should not crash, may produce empty or partial header
     assert isinstance(header, str)
 
 
 def test_header_python_import_comma(tmp_path):
-    """Python: 'import a, b' should capture both modules."""
     f = tmp_path / "multi.py"
     text = "import os, sys\nfrom pathlib import Path\n\ndef foo(): pass\n"
     header = _generate_header(f, text, "python")
@@ -49,7 +45,6 @@ def test_header_python_import_comma(tmp_path):
 
 
 def test_header_javascript(tmp_path):
-    """JavaScript: regex extracts imports and exports."""
     f = tmp_path / "main.js"
     text = (
         "import { useState } from 'react';\n"
@@ -75,7 +70,6 @@ def test_header_javascript(tmp_path):
 
 
 def test_header_typescript(tmp_path):
-    """TypeScript: regex extracts imports and exports."""
     f = tmp_path / "types.ts"
     text = (
         "import type { User } from './types';\n"
@@ -99,7 +93,6 @@ def test_header_typescript(tmp_path):
 
 
 def test_header_php_use_statements(tmp_path):
-    """PHP: use statements are extracted as imports (MEDIUM-14)."""
     f = tmp_path / "UserController.php"
     text = (
         "<?php\n\n"
@@ -119,7 +112,6 @@ def test_header_php_use_statements(tmp_path):
 
 
 def test_header_ruby(tmp_path):
-    """Ruby: regex extracts require and def."""
     f = tmp_path / "helper.rb"
     text = (
         "require 'json'\n"
@@ -142,7 +134,6 @@ def test_header_ruby(tmp_path):
 
 
 def test_header_unknown_language(tmp_path):
-    """Unknown language returns empty header (no crash)."""
     f = tmp_path / "data.xyz"
     text = "some unknown content"
     header = _generate_header(f, text, "")
@@ -150,7 +141,6 @@ def test_header_unknown_language(tmp_path):
 
 
 def test_header_no_deps_no_exports(tmp_path):
-    """File with no imports or exports returns empty header."""
     f = tmp_path / "empty.py"
     text = "x = 1\ny = 2\n"
     header = _generate_header(f, text, "python")
@@ -158,7 +148,6 @@ def test_header_no_deps_no_exports(tmp_path):
 
 
 def test_header_go(tmp_path):
-    """Go: regex extracts imports and functions."""
     f = tmp_path / "main.go"
     text = (
         'import "fmt"\n'

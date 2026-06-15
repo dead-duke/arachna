@@ -9,11 +9,10 @@ from arachna.cli.plugins import (
     _cmd_plugins_list,
     _cmd_plugins_uninstall,
 )
-from arachna.plugins import _is_installed
+from arachna.plugins.plugins import _is_installed
 
 
 def test_cmd_plugins_list_with_real_plugins():
-    """_cmd_plugins_list shows installed plugins (tree-sitter, tiktoken are installed)."""
     import sys
     from io import StringIO
 
@@ -30,7 +29,6 @@ def test_cmd_plugins_list_with_real_plugins():
 
 @pytest.mark.skipif(not _is_installed("tree_sitter"), reason="tree_sitter not installed")
 def test_cmd_plugins_install_already_installed():
-    """_cmd_plugins_install for already installed plugin shows 'already installed'."""
     import sys
     from io import StringIO
 
@@ -45,7 +43,6 @@ def test_cmd_plugins_install_already_installed():
 
 @pytest.mark.skipif(not _is_installed("tiktoken"), reason="tiktoken not installed")
 def test_cmd_plugins_uninstall_installed():
-    """_cmd_plugins_uninstall for installed plugin shows pip uninstall command."""
     import sys
     from io import StringIO
 

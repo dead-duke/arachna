@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from arachna.gatherer import gather_files
+from arachna.domain.gatherer import gather_files
 
 
 def test_single():

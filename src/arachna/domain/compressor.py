@@ -13,7 +13,7 @@ def compress(text: str) -> str:
     - Collapses 3+ blank lines into 2
     - Strips trailing whitespace
 
-    Safe for all code and markup — does not modify indentation.
+    Safe for all code and markup - does not modify indentation.
     """
     text = _RE_BLANK_LINES.sub("\n\n", text)
     text = _RE_TRAILING_WS.sub("", text)

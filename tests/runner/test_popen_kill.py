@@ -2,13 +2,12 @@
 
 from unittest.mock import MagicMock, patch
 
-from arachna.runner import _run_popen
+from arachna.domain.runner import _run_popen
 
 
 def test_run_popen_kill_on_exceed():
     """Process killed when output exceeds max_output_size."""
     mock_proc = MagicMock()
-    # Return chunk larger than limit
     mock_proc.stdout.read.side_effect = ["a" * 1000, ""]
     mock_proc.wait.return_value = 0
 

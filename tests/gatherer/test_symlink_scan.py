@@ -1,6 +1,6 @@
 """Coverage for _scan_directories symlink handling."""
 
-from arachna.gatherer import _scan_directories
+from arachna.domain.gatherer import _scan_directories
 
 
 def test_scan_skips_symlink_directory(tmp_path):

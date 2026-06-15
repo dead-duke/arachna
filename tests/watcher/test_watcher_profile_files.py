@@ -4,8 +4,8 @@ import sys
 
 import pytest
 
-from arachna.store import load_snapshot
-from arachna.watcher import _read_profile_files, compute_diff, create_snapshot
+from arachna.watch.store import load_snapshot
+from arachna.watch.watcher import _read_profile_files, compute_diff, create_snapshot
 
 
 def test_create_snapshot_includes_profile_files(tmp_path, setup_config, make_profile):

@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from arachna.api_errors import ProfileNotFoundError
-from arachna.collect_api import collect
+from arachna.api.api_errors import ProfileNotFoundError
+from arachna.api.collect_api import collect
 
 
 def test_collect_api_with_profile_dict(tmp_path):

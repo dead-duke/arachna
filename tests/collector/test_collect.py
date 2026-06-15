@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from arachna.collector import (
+from arachna.domain.collector import (
     _find_next_part_num,
     clean_manifest,
     collect,
@@ -215,7 +215,7 @@ def test_post_commands_executed(tmp_path):
     out = tmp_path / "post_out"
     out.mkdir()
 
-    with patch("arachna.collector.run_command") as mock_run:
+    with patch("arachna.domain.collector.run_command") as mock_run:
         mock_run.return_value = "done"
         collect(
             {

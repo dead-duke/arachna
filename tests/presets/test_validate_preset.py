@@ -1,6 +1,6 @@
 """Direct tests for _validate_preset in presets.py (v3.5.0)."""
 
-from arachna.presets import _validate_preset
+from arachna.config.presets import _validate_preset
 
 
 def test_validate_preset_valid():
@@ -28,7 +28,6 @@ def test_validate_preset_invalid_split_mode():
 
 
 def test_validate_preset_zero_max_tokens_allowed():
-    """max_tokens=0 means unlimited — valid."""
     result = _validate_preset("ok", {"split_mode": "by_file", "max_tokens": 0})
     assert result is not None
 
@@ -94,7 +93,6 @@ def test_validate_preset_unknown_keys():
 
 
 def test_validate_preset_without_split_mode_gets_default():
-    """_validate_preset uses split_mode from preset dict, default is 'by_file'."""
     result = _validate_preset("ok", {"max_tokens": 100})
     assert result is not None
     assert result.get("split_mode", "by_file") == "by_file"

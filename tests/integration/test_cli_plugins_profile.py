@@ -1,5 +1,3 @@
-"""Integration tests for plugins and profile CLI commands."""
-
 import json
 
 from tests.integration.conftest import _arachna
@@ -53,7 +51,6 @@ def test_profile_benchmark(tmp_path):
             }
         )
     )
-
     result = _arachna("profile", "--profile", "code", cwd=tmp_path)
     assert result.returncode == 0
     assert "Mode" in result.stdout
@@ -81,7 +78,6 @@ def test_profile_benchmark_json(tmp_path):
             }
         )
     )
-
     result = _arachna("profile", "--profile", "code", "--format", "json", cwd=tmp_path)
     assert result.returncode == 0
     assert "full" in result.stdout

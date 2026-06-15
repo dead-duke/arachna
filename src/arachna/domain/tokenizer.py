@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Token estimation for AI models.
 
-Default: 4 chars ≈ 1 token (conservative, zero dependencies).
+Default: 4 chars ~ 1 token (conservative, zero dependencies).
 Supports pluggable tokenizers via tokenizer spec string.
 chars_per_token configurable via profile field or ARACHNA_CHARS_PER_TOKEN env var.
 Safe tokenizers list configurable via ARACHNA_SAFE_TOKENIZERS env var.
@@ -91,7 +91,7 @@ def _is_safe_tokenizer(spec: str, root: Path | None = None) -> bool:
     if root is None:
         root = Path.cwd()
 
-    # Extract module name — strip function name after :
+    # Extract module name - strip function name after :
     module_name = spec.split(":", 1)[0]
     safe_tokenizers = _get_safe_tokenizers()
 
@@ -177,7 +177,7 @@ def _safe_local_imports(filepath: Path) -> bool:
     return _validate_top_level_statements(filepath)
 
 
-# ── Plugin checks — lazy on first use ────────────────────────────
+# Plugin checks - lazy on first use
 
 _plugins_checked = False
 _HAS_TIKTOKEN = False

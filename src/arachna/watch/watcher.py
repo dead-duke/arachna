@@ -8,10 +8,10 @@ import logging
 import re
 from pathlib import Path
 
+from ..domain.gatherer import _get_exclude_patterns, _scan_directories
+from ..domain.runner import run_command
 from .differ import DiffSection, compute_diff_stats
 from .differ import compute_diff as differ_compute_diff
-from .gatherer import _get_exclude_patterns, _scan_directories
-from .runner import run_command
 from .store import create_snapshot as store_create_snapshot
 from .store import load_snapshot, read_object, write_object
 from .store import update_snapshot as store_update_snapshot
@@ -377,7 +377,7 @@ def _group_diff_sections(sections: list, from_id: str, to_id: str | None) -> lis
     return result
 
 
-def _diff_pre_commands_line(old_content: str, new_content: str, label: str) -> str:
+def _diff_pre_commands_line(old_content, new_content, label):
     old_lines = old_content.strip().split("\n")
     new_lines = new_content.strip().split("\n")
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
@@ -397,10 +397,8 @@ def _diff_pre_commands_line(old_content: str, new_content: str, label: str) -> s
     return "".join(parts) if len(parts) > 1 else ""
 
 
-def _diff_pre_commands_marker(
-    old_content: str, new_content: str, label: str, marker: str, fmt: str
-) -> str:
-    from .splitter import _split_to_sections
+def _diff_pre_commands_marker(old_content, new_content, label, marker, fmt):
+    from ..domain.splitter import _split_to_sections
 
     old_sections = _split_to_sections(old_content, marker)
     new_sections = _split_to_sections(new_content, marker)
@@ -424,9 +422,7 @@ def _diff_pre_commands_marker(
     return "\n".join(result_parts)
 
 
-def _diff_pre_commands_structural(
-    old_content: str, new_content: str, label: str, cmd: str, fmt: str = "markdown"
-) -> str:
+def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt="markdown"):
     cmd_basename = Path(cmd.strip().split()[0]).name if cmd.strip() else ""
     if cmd_basename == "tree" or (cmd_basename == "git" and "tag" in cmd):
         return _diff_pre_commands_line(old_content, new_content, label)
@@ -435,14 +431,7 @@ def _diff_pre_commands_structural(
     return differ_compute_diff(old_content, new_content, label, fmt=fmt)
 
 
-def _diff_files_sections(
-    snapshot_id: str,
-    profile: dict,
-    exclude: list[str],
-    to_snapshot_id: str | None,
-    fmt: str,
-    root: Path,
-) -> list[DiffSection]:
+def _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt, root):
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
     old_files = {
@@ -463,13 +452,7 @@ def _diff_files_sections(
     return _diff_file_sets(old_files, new_files, fmt)
 
 
-def _diff_pre_commands_sections(
-    snapshot_id: str,
-    profile: dict,
-    to_snapshot_id: str | None,
-    fmt: str,
-    root: Path,
-) -> list[DiffSection]:
+def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root):
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_pre = manifest.get("pre_commands", {})
     current_pre: dict[str, str] = {}
@@ -521,13 +504,7 @@ def _diff_pre_commands_sections(
     return sections
 
 
-def _diff_command_section(
-    snapshot_id: str,
-    profile: dict,
-    to_snapshot_id: str | None,
-    fmt: str,
-    root: Path,
-) -> list[DiffSection]:
+def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_cmd = manifest.get("command", {})
     current_cmd_output = ""
@@ -606,3 +583,150 @@ def _path_matches_profile(path: str, profile: dict, root: Path) -> bool:
             if fnmatch.fnmatch(path_obj.name, pat):
                 return True
     return False
+
+
+# ── Repo-map diff pipeline (v4.0.0: moved from gatherer.py) ──────
+
+
+def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, root):
+    from ..domain.formatter import lang_for_path
+    from .differ_structural import _parse_c_like_blocks, _parse_python_blocks, _parse_script_blocks
+
+    manifest = load_snapshot(snapshot_id, root=root)
+    snapshot_files = manifest.get("files", {})
+    to_files = None
+    if to_snapshot_id:
+        to_manifest = load_snapshot(to_snapshot_id, root=root)
+        to_files = to_manifest.get("files", {})
+    result = []
+    for s in sections:
+        if s.type in ("header",) or not s.path:
+            result.append(s)
+            continue
+        lang = lang_for_path(Path(s.path))
+        if s.type == "modified":
+            old_content = _read_file_from_store(s.path, snapshot_files, root)
+            new_content = (
+                _read_file_from_disk(root / s.path)
+                if to_files is None
+                else _read_file_from_store(s.path, to_files, root)
+            )
+            if old_content is not None and new_content is not None:
+                old_blocks = _parse_blocks_dispatch(
+                    old_content,
+                    lang,
+                    _parse_python_blocks,
+                    _parse_c_like_blocks,
+                    _parse_script_blocks,
+                )
+                new_blocks = _parse_blocks_dispatch(
+                    new_content,
+                    lang,
+                    _parse_python_blocks,
+                    _parse_c_like_blocks,
+                    _parse_script_blocks,
+                )
+                s.content = _format_repo_map_diff(s.path, lang, old_blocks, new_blocks)
+        elif s.type == "added":
+            new_content = (
+                _read_file_from_disk(root / s.path)
+                if to_files is None
+                else _read_file_from_store(s.path, to_files, root)
+            )
+            if new_content is not None:
+                blocks = _parse_blocks_dispatch(
+                    new_content,
+                    lang,
+                    _parse_python_blocks,
+                    _parse_c_like_blocks,
+                    _parse_script_blocks,
+                )
+                s.content = _format_repo_map_added(s.path, lang, blocks)
+        elif s.type == "deleted":
+            old_content = _read_file_from_store(s.path, snapshot_files, root)
+            if old_content is not None:
+                blocks = _parse_blocks_dispatch(
+                    old_content,
+                    lang,
+                    _parse_python_blocks,
+                    _parse_c_like_blocks,
+                    _parse_script_blocks,
+                )
+                sig_lines = [f"  {sig}" for sig, _body in blocks.values()]
+                if sig_lines:
+                    s.content = (
+                        f"### {s.path}\n\n[DELETED]\n\nRemoved signatures:\n"
+                        + "\n".join(sig_lines)
+                        + "\n"
+                    )
+        result.append(s)
+    return result
+
+
+def _parse_blocks_dispatch(text, lang, parse_python, parse_c_like, parse_script):
+    from ..domain.formatter import C_LIKE_LANGS, SCRIPT_LANGS
+
+    if lang == "python":
+        blocks = parse_python(text)
+        return blocks if blocks is not None else {}
+    elif lang in C_LIKE_LANGS or lang == "gdscript":
+        return parse_c_like(text, lang)
+    elif lang in SCRIPT_LANGS:
+        return parse_script(text)
+    return {}
+
+
+def _read_file_from_store(path, files, root):
+    for fpath, hash_spec in files.items():
+        if fpath == path:
+            try:
+                return read_object(hash_spec[7:], root=root).decode("utf-8")
+            except Exception:
+                return None
+    return None
+
+
+def _read_file_from_disk(path):
+    fp = Path(path)
+    if not fp.is_file():
+        return None
+    try:
+        return fp.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _format_repo_map_diff(path, lang, old_blocks, new_blocks):
+    import hashlib
+
+    all_names = set(old_blocks.keys()) | set(new_blocks.keys())
+    parts = [f"### {path}\n"]
+    for name in sorted(all_names):
+        old = old_blocks.get(name)
+        new = new_blocks.get(name)
+        if old is None and new is not None:
+            sig, _body = new
+            parts.append(f"+ {sig}\n")
+        elif old is not None and new is None:
+            sig, _body = old
+            parts.append(f"- {sig}\n")
+        elif old is not None and new is not None:
+            old_sig, old_body = old
+            new_sig, new_body = new
+            sig_changed = old_sig != new_sig
+            body_changed = (
+                hashlib.sha256(old_body.encode()).hexdigest()
+                != hashlib.sha256(new_body.encode()).hexdigest()
+            )
+            if sig_changed:
+                parts.append(f"~ {old_sig}\n  -> {new_sig}\n")
+            elif body_changed:
+                parts.append(f"  {old_sig}  (body changed)\n")
+    return "".join(parts) if len(parts) > 1 else ""
+
+
+def _format_repo_map_added(path, lang, blocks):
+    parts = [f"### {path}\n"]
+    for _name, (sig, _body) in blocks.items():
+        parts.append(f"+ {sig}\n")
+    return "".join(parts) if len(parts) > 1 else ""

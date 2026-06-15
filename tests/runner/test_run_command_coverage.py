@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from arachna.runner import (
+from arachna.domain.runner import (
     _resolve_base,
     _validate_command,
     run_command,

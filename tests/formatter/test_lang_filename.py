@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from arachna.formatter import lang_for_path
+from arachna.domain.formatter import lang_for_path
 
 
 def test_dockerfile():

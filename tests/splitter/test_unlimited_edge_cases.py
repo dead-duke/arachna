@@ -1,8 +1,8 @@
 """Edge cases for max_tokens=0 unlimited mode."""
 
-from arachna.collector import collect
-from arachna.gatherer import dry_run
-from arachna.splitter import split
+from arachna.domain.collector import collect
+from arachna.domain.gatherer import dry_run
+from arachna.domain.splitter import split
 
 
 def test_unlimited_split_by_file(tmp_path):

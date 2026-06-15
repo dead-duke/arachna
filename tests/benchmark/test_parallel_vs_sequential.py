@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 
 def _make_small_files(tmp_path, count):

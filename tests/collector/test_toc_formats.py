@@ -1,6 +1,6 @@
 """Tests for _build_toc with different output formats."""
 
-from arachna.collector import _build_toc
+from arachna.domain.collector import _build_toc
 
 
 def test_toc_markdown():
@@ -80,12 +80,7 @@ def test_toc_pre_commands():
 
 
 def test_toc_with_compress():
-    """TOC works correctly after compression — built from names, not content matching.
-
-    Previous behaviour (MEDIUM-17): TOC matched by content.strip() in part_content,
-    which broke after compression changed whitespace.
-    New behaviour: TOC uses section indices directly — always correct.
-    """
+    """TOC works correctly after compression — built from names, not content matching."""
     raw_content = "### src/main.py\n\n```python\nhello\n\n\n\nworld\n```\n"
     sections = [
         ("src/main.py", raw_content, 10),

@@ -80,8 +80,7 @@ _SHEBANG_MAP = {
     "perl": "perl",
 }
 
-# Language sets for dispatch — single source of truth.
-# Used by formatter, differ_structural, splitter, and watch.
+# Language sets for dispatch - single source of truth.
 C_LIKE_LANGS = frozenset(
     {
         "javascript",
@@ -136,23 +135,19 @@ def _should_skip_binary(
     binary_extensions: list[str] | None,
     binary_max_mb: float,
 ) -> bool:
-    """Check if a file should be skipped as binary — decision table."""
-    # Text extensions are never binary
+    """Check if a file should be skipped as binary - decision table."""
     ext = path.suffix.lower()
     if ext in _TEXT_EXTENSIONS:
         return False
 
-    # Get file size (fail → skip)
     try:
         size_mb = path.stat().st_size / (1024 * 1024)
     except OSError:
         return True
 
-    # Size too large → skip
     if size_mb > binary_max_mb:
         return True
 
-    # No extension
     if not ext:
         if not include_binary:
             try:
@@ -163,13 +158,10 @@ def _should_skip_binary(
                 return True
         return bool(binary_extensions is not None and "" not in binary_extensions)
 
-    # Has extension
     if binary_extensions is not None and ext not in binary_extensions:
         return True
     return not include_binary
 
-
-# ── Header generation ──────────────────────────────────────────────
 
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
@@ -331,7 +323,6 @@ def format_file_section(
                 print(f"  Skipped (binary): {path}")
         return ""
 
-    # BUG-006: Check file size before reading to prevent OOM
     try:
         st_size = path.stat().st_size
     except OSError as e:

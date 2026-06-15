@@ -1,11 +1,11 @@
 """TC-179: C_LIKE_LANGS and SCRIPT_LANGS consistency across modules."""
 
-from arachna.differ_structural import C_LIKE_LANGS as DS_C_LIKE
-from arachna.differ_structural import SCRIPT_LANGS as DS_SCRIPT
-from arachna.formatter import C_LIKE_LANGS as FMT_C_LIKE
-from arachna.formatter import SCRIPT_LANGS as FMT_SCRIPT
-from arachna.splitter import C_LIKE_LANGS as SP_C_LIKE
-from arachna.splitter import SCRIPT_LANGS as SP_SCRIPT
+from arachna.domain.formatter import C_LIKE_LANGS as FMT_C_LIKE
+from arachna.domain.formatter import SCRIPT_LANGS as FMT_SCRIPT
+from arachna.domain.splitter import C_LIKE_LANGS as SP_C_LIKE
+from arachna.domain.splitter import SCRIPT_LANGS as SP_SCRIPT
+from arachna.watch.differ_structural import C_LIKE_LANGS as DS_C_LIKE
+from arachna.watch.differ_structural import SCRIPT_LANGS as DS_SCRIPT
 
 
 def test_c_like_langs_identical():

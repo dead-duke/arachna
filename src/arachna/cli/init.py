@@ -4,7 +4,7 @@
 import sys
 from pathlib import Path
 
-from ..hook import install_hook
+from ..config.hook import install_hook
 from . import register
 from ._helpers import parse_output_dir
 
@@ -15,7 +15,7 @@ def _get_root(config: dict) -> Path:
 
 @register("init")
 def _cmd_init(args, config: dict):
-    from ..init import run_defaults, run_interactive
+    from ..config.init import run_defaults, run_interactive
 
     root = _get_root(config)
     output_dir = parse_output_dir(args, config)

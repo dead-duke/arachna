@@ -1,10 +1,9 @@
 """Tests for verbose output branches in format_file_section."""
 
-from arachna.formatter import format_file_section
+from arachna.domain.formatter import format_file_section
 
 
 def test_verbose_os_error_on_stat(tmp_path, capsys):
-    """Verbose mode prints skip reason when stat fails."""
     f = tmp_path / "gone.py"
     f.write_text("x")
     f.unlink()
@@ -15,7 +14,6 @@ def test_verbose_os_error_on_stat(tmp_path, capsys):
 
 
 def test_verbose_skip_binary(tmp_path, capsys):
-    """Verbose mode prints skip reason for binary files."""
     f = tmp_path / "data.bin"
     f.write_bytes(b"\x00\x01\x02")
     result = format_file_section(f, verbose=True)
@@ -25,7 +23,6 @@ def test_verbose_skip_binary(tmp_path, capsys):
 
 
 def test_verbose_skip_unicode_decode_error(tmp_path, capsys):
-    """Verbose mode prints skip reason for non-UTF8 files."""
     f = tmp_path / "data.bin"
     f.write_bytes(b"\x80\x81\x82")
     result = format_file_section(f, include_binary=False, verbose=True)
@@ -35,7 +32,6 @@ def test_verbose_skip_unicode_decode_error(tmp_path, capsys):
 
 
 def test_verbose_skip_null_bytes(tmp_path, capsys):
-    """Verbose mode prints skip reason for files with null bytes."""
     f = tmp_path / "data.txt"
     f.write_bytes(b"text\x00more")
     result = format_file_section(f, include_binary=False, verbose=True)
@@ -45,7 +41,6 @@ def test_verbose_skip_null_bytes(tmp_path, capsys):
 
 
 def test_verbose_skip_binary_large(tmp_path, capsys):
-    """Verbose mode prints skip reason for large binary files."""
     f = tmp_path / "large.bin"
     f.write_bytes(b"\x00" * 2000)
     result = format_file_section(f, verbose=True)
@@ -55,7 +50,6 @@ def test_verbose_skip_binary_large(tmp_path, capsys):
 
 
 def test_verbose_skip_binary_not_in_allowlist(tmp_path, capsys):
-    """Verbose mode prints skip reason when binary extension not in allowlist."""
     f = tmp_path / "data.bin"
     f.write_bytes(b"\x00\x01\x02")
     result = format_file_section(
@@ -67,7 +61,6 @@ def test_verbose_skip_binary_not_in_allowlist(tmp_path, capsys):
 
 
 def test_verbose_skip_permission_error(tmp_path, capsys):
-    """Verbose mode prints permission error skip."""
     import sys
 
     import pytest
@@ -88,7 +81,6 @@ def test_verbose_skip_permission_error(tmp_path, capsys):
 
 
 def test_verbose_text_file_not_skipped(tmp_path, capsys):
-    """Verbose mode does not print skip for valid text files."""
     f = tmp_path / "main.py"
     f.write_text("print('hello')")
     result = format_file_section(f, verbose=True)

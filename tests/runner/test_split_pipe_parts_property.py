@@ -3,7 +3,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from arachna.runner import _split_pipe_parts
+from arachna.domain.runner import _split_pipe_parts
 
 
 @given(st.text())

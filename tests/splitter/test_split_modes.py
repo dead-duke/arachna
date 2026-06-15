@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from arachna.splitter import split
+from arachna.domain.splitter import split
 
 
 def test_by_file_single():
@@ -73,7 +73,6 @@ def test_empty_content():
 
 
 def test_custom_tokenizer_by_file():
-    """Custom tokenizer is called when passed to split in by_file mode."""
     mock_tok = MagicMock(return_value=1)
     content = "### a.py\n\n```python\nprint('hello')\n```"
     split(content, max_tokens=10000, mode="by_file", tokenizer=mock_tok)
@@ -81,14 +80,12 @@ def test_custom_tokenizer_by_file():
 
 
 def test_custom_tokenizer_single():
-    """Custom tokenizer is called when passed to split in single mode."""
     mock_tok = MagicMock(return_value=5)
     split("hello world", max_tokens=10000, mode="single", tokenizer=mock_tok)
     assert mock_tok.called
 
 
 def test_custom_tokenizer_by_paragraph():
-    """Custom tokenizer is called when passed to split in by_paragraph mode."""
     mock_tok = MagicMock(return_value=1)
     split("para1\n\npara2", max_tokens=10000, mode="by_paragraph", tokenizer=mock_tok)
     assert mock_tok.called

@@ -4,7 +4,7 @@
 import sys
 from pathlib import Path
 
-from ..store import gc, stats
+from ..watch.store import gc, stats
 from . import register
 
 

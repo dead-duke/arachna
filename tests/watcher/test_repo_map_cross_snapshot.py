@@ -1,8 +1,7 @@
 """Test _apply_repo_map_to_sections with to_snapshot_id (cross-snapshot)."""
 
-from arachna.differ import DiffSection
-from arachna.gatherer import _apply_repo_map_to_sections
-from arachna.watcher import create_snapshot
+from arachna.watch.differ import DiffSection
+from arachna.watch.watcher import _apply_repo_map_to_sections, create_snapshot
 
 
 def test_apply_repo_map_cross_snapshot(tmp_path, setup_config, make_profile):

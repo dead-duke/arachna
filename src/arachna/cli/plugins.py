@@ -3,7 +3,7 @@
 
 import sys
 
-from ..plugins import install_plugin, list_plugins, uninstall_plugin
+from ..plugins.plugins import install_plugin, list_plugins, uninstall_plugin
 from . import register
 
 

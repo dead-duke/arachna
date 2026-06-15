@@ -3,23 +3,12 @@
 
 from pathlib import Path
 
+from ..domain.gitignore import load_gitignore_patterns
 from .config import load_config
-from .gitignore import load_gitignore_patterns
 from .validator import validate_profile
 
 
 def run_doctor(project_root: Path | None = None, config: dict | None = None) -> dict:
-    """Run diagnostic checks on the project configuration.
-
-    Args:
-        project_root: Project root directory for gitignore checks.
-        config: Pre-loaded config dict. If None, loads from project_root or cwd.
-
-    Returns dict with:
-        profiles: dict of profile_name -> {errors, warnings}
-        gitignore: list of gitignore warnings
-        total_errors, total_warnings: ints
-    """
     if project_root is None:
         project_root = Path.cwd()
 
@@ -47,7 +36,6 @@ def run_doctor(project_root: Path | None = None, config: dict | None = None) -> 
         result["total_errors"] += len(validation["errors"])
         result["total_warnings"] += len(validation["warnings"])
 
-    # Gitignore checks
     if project_root.is_dir():
         try:
             patterns = load_gitignore_patterns(project_root)

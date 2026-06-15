@@ -1,12 +1,9 @@
-"""Integration test: diff --all --compress --mode repo-map."""
-
 import json
 
 from tests.integration.conftest import _arachna
 
 
 def test_diff_all_compress_repo_map(tmp_path):
-    """TC-208: diff --all --compress --mode repo-map combines flags."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("def foo():\n\n\n\n    return 1\n")
     out_dir = tmp_path / "out"
@@ -28,12 +25,10 @@ def test_diff_all_compress_repo_map(tmp_path):
             }
         )
     )
-
     result = _arachna(
         "diff", "--all", "--profile", "code", "--compress", "--mode", "repo-map", cwd=tmp_path
     )
     assert result.returncode == 0
-
     files = list(out_dir.glob("chat-diff-all*"))
     assert len(files) >= 1
     content = files[0].read_text()

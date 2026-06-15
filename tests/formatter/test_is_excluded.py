@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from arachna.formatter import is_excluded
+from arachna.domain.formatter import is_excluded
 
 
 def test_by_name():

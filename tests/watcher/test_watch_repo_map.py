@@ -2,9 +2,15 @@
 
 import pytest
 
-from arachna.api_errors import ProfileNotFoundError, SnapshotNotFoundError
-from arachna.differ import DiffSection
-from arachna.gatherer import (
+from arachna.api.api_errors import ProfileNotFoundError, SnapshotNotFoundError
+from arachna.api.watch import compute_diff, create_snapshot
+from arachna.watch.differ import DiffSection
+from arachna.watch.differ_structural import (
+    _parse_c_like_blocks,
+    _parse_python_blocks,
+    _parse_script_blocks,
+)
+from arachna.watch.watcher import (
     _apply_repo_map_to_sections,
     _format_repo_map_added,
     _format_repo_map_diff,
@@ -12,7 +18,6 @@ from arachna.gatherer import (
     _read_file_from_disk,
     _read_file_from_store,
 )
-from arachna.watch import compute_diff, create_snapshot
 
 
 def test_format_repo_map_diff_sig_changed():
@@ -200,17 +205,27 @@ def test_read_file_from_disk_unreadable(tmp_path):
 
 
 def test_parse_blocks_dispatch_unknown_language():
-    result = _parse_blocks_dispatch("function foo() {}", "unknown_lang")
+    result = _parse_blocks_dispatch(
+        "function foo() {}",
+        "unknown_lang",
+        _parse_python_blocks,
+        _parse_c_like_blocks,
+        _parse_script_blocks,
+    )
     assert result == {}
 
 
 def test_parse_blocks_dispatch_c_like_go():
     text = "package main\n\nfunc main() {\n    return\n}\n"
-    result = _parse_blocks_dispatch(text, "go")
+    result = _parse_blocks_dispatch(
+        text, "go", _parse_python_blocks, _parse_c_like_blocks, _parse_script_blocks
+    )
     assert "main" in result
 
 
 def test_parse_blocks_dispatch_script_ruby():
     text = "def hello\n    puts 'hi'\nend\n"
-    result = _parse_blocks_dispatch(text, "ruby")
+    result = _parse_blocks_dispatch(
+        text, "ruby", _parse_python_blocks, _parse_c_like_blocks, _parse_script_blocks
+    )
     assert "hello" in result

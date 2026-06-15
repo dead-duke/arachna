@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from arachna.plugins import (
+from arachna.plugins.plugins import (
     _build_install_command,
     _detect_environment,
     _has_pep668,

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from arachna.gatherer import gather_files
+from arachna.domain.gatherer import gather_files
 
 
 def test_gitignore_excludes_matched_files(tmp_path):
@@ -62,7 +62,7 @@ def test_gitignore_patterns_tracked_in_manifest(tmp_path):
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / "src" / "debug.txt").write_text("log")
 
-    from arachna.collector import collect
+    from arachna.domain.collector import collect
 
     created, _, _, _ = collect(
         {

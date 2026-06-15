@@ -2,7 +2,7 @@
 
 import os
 
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 
 def test_parallel_io_fallback_sequential(tmp_path):
@@ -14,7 +14,6 @@ def test_parallel_io_fallback_sequential(tmp_path):
     out = tmp_path / "out"
     out.mkdir()
 
-    # Set workers=1 to force sequential path
     old = os.environ.get("ARACHNA_MAX_WORKERS")
     os.environ["ARACHNA_MAX_WORKERS"] = "1"
     try:
@@ -50,7 +49,6 @@ def test_parallel_io_with_workers(tmp_path):
     out = tmp_path / "out"
     out.mkdir()
 
-    # Set workers=2 to test parallel path
     old = os.environ.get("ARACHNA_MAX_WORKERS")
     os.environ["ARACHNA_MAX_WORKERS"] = "2"
     try:
@@ -145,7 +143,6 @@ def test_parallel_io_preserves_order(tmp_path):
             del os.environ["ARACHNA_MAX_WORKERS"]
 
     content = parts[0]
-    # Check order: file_00 before file_01 before file_02 ...
     idx_00 = content.index("file_00.py")
     idx_10 = content.index("file_10.py")
     idx_19 = content.index("file_19.py")

@@ -1,6 +1,6 @@
 """Tests for cross-snapshot diff in watcher.py (v1.7.0)."""
 
-from arachna.watcher import (
+from arachna.watch.watcher import (
     _build_current_files,
     _diff_file_sets,
     _get_content_from_manifest,
@@ -82,7 +82,7 @@ def test_cross_snapshot_diff_same_snapshot(tmp_path, setup_config, make_profile)
 
 def test_get_content_from_manifest(tmp_path, setup_config):
     root = setup_config()
-    from arachna.store import write_object
+    from arachna.watch.store import write_object
 
     obj_hash = write_object(b"hello world", root=root)
     hash_spec = f"sha256:{obj_hash}"

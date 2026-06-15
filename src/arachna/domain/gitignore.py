@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-r"""Gitignore parser — reads .gitignore patterns for auto-exclusion.
+r"""Gitignore parser - reads .gitignore patterns for auto-exclusion.
 
 Limitations:
 - Negation patterns (!important.log) are treated as regular patterns
@@ -16,7 +16,18 @@ explicit exclude_patterns in .arachna.json for edge cases.
 
 from pathlib import Path
 
-from .config import _COMMON_EXCLUDE_DIRS
+_COMMON_EXCLUDE_DIRS = frozenset(
+    {
+        ".git",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "__pycache__",
+        "venv",
+        "node_modules",
+    }
+)
 
 _MAX_GITIGNORE_SIZE = 100 * 1024
 

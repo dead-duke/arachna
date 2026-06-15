@@ -2,7 +2,7 @@
 
 import sys
 
-from arachna.tokenizer import _is_safe_tokenizer
+from arachna.domain.tokenizer import _is_safe_tokenizer
 
 
 def test_local_py_file_in_cwd(tmp_path):

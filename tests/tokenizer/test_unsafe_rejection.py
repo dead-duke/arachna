@@ -2,7 +2,7 @@
 
 import pytest
 
-from arachna.tokenizer import _is_safe_tokenizer, load_tokenizer
+from arachna.domain.tokenizer import _is_safe_tokenizer, load_tokenizer
 
 
 def test_is_safe_tokenizer_blocks_os():
@@ -55,6 +55,4 @@ def test_load_tokenizer_raises_value_error_for_shutil():
 
 
 def test_load_tokenizer_allows_tiktoken():
-    """tiktoken is in whitelist and should NOT raise."""
-    # Note: tiktoken may not be installed, but _is_safe_tokenizer should still pass
     assert _is_safe_tokenizer("tiktoken:cl100k_base")

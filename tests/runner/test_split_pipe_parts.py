@@ -1,6 +1,6 @@
 """Tests for _split_pipe_parts edge cases in runner.py."""
 
-from arachna.runner import _split_pipe_parts
+from arachna.domain.runner import _split_pipe_parts
 
 
 def test_escaped_pipe_treated_as_literal():

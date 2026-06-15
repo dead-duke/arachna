@@ -1,5 +1,3 @@
-"""Integration tests for arachna manifest --json."""
-
 import json
 
 from tests.integration.conftest import _arachna
@@ -27,11 +25,9 @@ def test_manifest_json_output(tmp_path):
             }
         )
     )
-
     _arachna("collect", "--profile", "code", cwd=tmp_path)
     result = _arachna("manifest", "--json", cwd=tmp_path)
     assert result.returncode == 0
-
     data = json.loads(result.stdout)
     assert data["project_name"] == "test"
     assert "profiles" in data
@@ -47,7 +43,6 @@ def test_manifest_json_empty(tmp_path):
     )
     out_dir = tmp_path / "out"
     out_dir.mkdir()
-
     result = _arachna("manifest", "--json", cwd=tmp_path)
     assert result.returncode == 0
     data = json.loads(result.stdout)
@@ -76,7 +71,6 @@ def test_manifest_text_output(tmp_path):
             }
         )
     )
-
     _arachna("collect", "--profile", "code", cwd=tmp_path)
     result = _arachna("manifest", cwd=tmp_path)
     assert result.returncode == 0

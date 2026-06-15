@@ -2,7 +2,7 @@ import sys
 from io import StringIO
 from unittest.mock import patch
 
-from arachna.completion import generate_bash, generate_zsh, main
+from arachna.config.completion import generate_bash, generate_zsh, main
 
 
 def test_generate_bash_contains_arachna():

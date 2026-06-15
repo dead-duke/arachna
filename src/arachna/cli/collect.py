@@ -5,11 +5,10 @@ import json
 import sys
 from pathlib import Path
 
-from ..collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
-from ..config import get_profile
-from ..gatherer import dry_run
-from ..renderer import render_dry_run
-from ..validator import validate_profile
+from ..config.config import get_profile
+from ..config.validator import validate_profile
+from ..domain.collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
+from ..domain.gatherer import dry_run
 from . import register
 from ._helpers import (
     apply_args_to_profile,
@@ -18,6 +17,7 @@ from ._helpers import (
     print_collected,
     write_manifest,
 )
+from .renderer import render_dry_run
 
 
 def _get_root(config: dict) -> Path:

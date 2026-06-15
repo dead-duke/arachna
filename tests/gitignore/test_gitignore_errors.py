@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from arachna.gitignore import load_gitignore_patterns
+from arachna.domain.gitignore import load_gitignore_patterns
 
 
 def test_gitignore_os_error_on_st_size(tmp_path, monkeypatch):

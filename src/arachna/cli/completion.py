@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna completion' command."""
 
-from ..completion import generate_bash, generate_zsh
+from ..config.completion import generate_bash, generate_zsh
 from . import register
 
 

@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from arachna.runner import _validate_command, run_command
+from arachna.domain.runner import _validate_command, run_command
 
 
 def _mock_popen(stdout=""):

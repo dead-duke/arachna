@@ -1,6 +1,6 @@
 """Tests for progress output to stderr."""
 
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 
 def test_progress_stderr_large_collection(tmp_path, capsys):

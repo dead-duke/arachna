@@ -1,4 +1,4 @@
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 
 def test_collect_incremental_skips_unchanged(tmp_path):

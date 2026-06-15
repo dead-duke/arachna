@@ -1,10 +1,10 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Shared helpers for CLI handlers — extracted from __main__.py."""
+"""Shared helpers for CLI handlers."""
 
 import copy
 from pathlib import Path
 
-from ..tokenizer import count_tokens
+from ..domain.tokenizer import count_tokens
 
 
 def list_profiles(config: dict) -> list[str]:

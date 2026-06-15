@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from arachna.collect_api import collect
+from arachna.api.collect_api import collect
 
 
 def test_collect_api_write_to_disk_false(tmp_path):

@@ -1,7 +1,7 @@
 """Test command mode with compress in _assemble_content."""
 
-from arachna.gatherer import _assemble_content
-from arachna.tokenizer import count_tokens
+from arachna.domain.gatherer import _assemble_content
+from arachna.domain.tokenizer import count_tokens
 
 
 def test_command_mode_with_compress(tmp_path):

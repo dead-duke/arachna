@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI entry point for arachna v3.4.0 — argparse subparsers."""
+"""CLI entry point for arachna v4.0.0 — argparse subparsers."""
 
 import argparse
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import __version__
 from .cli import COMMAND_HANDLERS
-from .config import find_config, load_config
+from .config.config import find_config, load_config
 
 
 def build_argparse() -> argparse.ArgumentParser:

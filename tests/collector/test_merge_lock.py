@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from arachna.collector import _find_next_part_num, _merge_lock
+from arachna.domain.collector import _find_next_part_num, _merge_lock
 
 
 def test_merge_lock_context_manager(tmp_path):
@@ -54,10 +54,9 @@ def test_merge_lock_msvcrt_on_unix_mocked(tmp_path):
     mock_msvcrt.LK_UNLCK = 2
 
     with patch.dict(sys.modules, {"fcntl": None, "msvcrt": mock_msvcrt}):
-        # Re-import collector to trigger the msvcrt import path
         import importlib
 
-        import arachna.collector as collector_module
+        import arachna.domain.collector as collector_module
 
         importlib.reload(collector_module)
 

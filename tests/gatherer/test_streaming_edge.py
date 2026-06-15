@@ -1,7 +1,11 @@
 """Coverage for streaming pipeline edge cases in gatherer.py."""
 
-from arachna.gatherer import _assemble_content, _assemble_file_content, _filter_filenames_by_query
-from arachna.tokenizer import count_tokens
+from arachna.domain.gatherer import (
+    _assemble_content,
+    _assemble_file_content,
+    _filter_filenames_by_query,
+)
+from arachna.domain.tokenizer import count_tokens
 
 
 def test_stream_full_mode_pre_commands_only(tmp_path):

@@ -2,7 +2,7 @@
 
 import json
 
-from arachna.config import find_config, load_config
+from arachna.config.config import find_config, load_config
 
 
 def test_find_config_with_explicit_root(tmp_path):

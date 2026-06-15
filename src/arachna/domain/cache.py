@@ -14,14 +14,14 @@ Cache format v2:
     }
 
 Smart hybrid algorithm:
-1. stat() → size, mtime_ns
+1. stat() -> size, mtime_ns
 2. If size == cached.size AND abs(mtime_ns - cached.mtime_ns) < 1ms:
-   FAST PATH — file unchanged, skip. (99% of cases)
-3. Else — compute SHA256.
+   FAST PATH - file unchanged, skip. (99% of cases)
+3. Else - compute SHA256.
    If hash == cached.hash:
-       FALSE POSITIVE (git checkout, touch, etc.) — update mtime_ns, skip.
+       FALSE POSITIVE (git checkout, touch, etc.) - update mtime_ns, skip.
    If hash != cached.hash:
-       REAL CHANGE — mark as modified.
+       REAL CHANGE - mark as modified.
 
 NOTE: get_changed_files mutates the cache dict to update mtime_ns
 for false positives. Callers must save the mutated cache after use.

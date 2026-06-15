@@ -5,7 +5,12 @@ import json
 import sys
 from pathlib import Path
 
-from ..presets import _load_builtin_presets, fetch_presets, load_presets_from_file, merge_presets
+from ..config.presets import (
+    _load_builtin_presets,
+    fetch_presets,
+    load_presets_from_file,
+    merge_presets,
+)
 from . import register
 
 

@@ -1,13 +1,13 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Public Collection API for arachna v2.0.0."""
+"""Public Collection API for arachna v4.0.0."""
 
 import contextlib
 from pathlib import Path
 
+from ..config.config import get_profile, load_config
+from ..domain.api_types import CollectResult
+from ..domain.collector import collect as _collect
 from .api_errors import ProfileNotFoundError
-from .api_types import CollectResult
-from .collector import collect as _collect
-from .config import get_profile, load_config
 
 
 def collect(

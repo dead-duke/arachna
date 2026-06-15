@@ -1,6 +1,6 @@
 """Edge cases for compute_diff streaming=True."""
 
-from arachna.watcher import compute_diff, create_snapshot
+from arachna.watch.watcher import compute_diff, create_snapshot
 
 
 def _profile(tmp_path):

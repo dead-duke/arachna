@@ -26,9 +26,6 @@ def _config(tmp_path, profiles=None):
     }
 
 
-# ── Snapshot error paths ──────────────────────────────────────────
-
-
 def test_snapshot_create_no_name(tmp_path, make_config):
     config = make_config(tmp_path)
     (tmp_path / "src").mkdir()
@@ -92,14 +89,11 @@ def test_snapshot_update_not_found(tmp_path, make_config):
 
 def test_snapshot_update_profile_not_found(tmp_path, make_config):
     config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
-    from arachna.store import create_snapshot as store_create
+    from arachna.watch.store import create_snapshot as store_create
 
     store_create({"a.py": "x"}, name="test-snap", root=tmp_path)
     with pytest.raises(SystemExit):
         _cmd_snapshot_update(Namespace(id="test-snap", profile="nonexistent"), config)
-
-
-# ── Diff error paths ──────────────────────────────────────────────
 
 
 def test_diff_all_and_from_conflict(tmp_path, make_config):
@@ -146,7 +140,7 @@ def test_diff_no_snapshots(tmp_path, make_config):
 
 def test_diff_profile_not_found(tmp_path, make_config):
     config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
-    from arachna.store import create_snapshot as store_create
+    from arachna.watch.store import create_snapshot as store_create
 
     store_create({"a.py": "x"}, name="test-snap", root=tmp_path)
     with pytest.raises(SystemExit):
@@ -189,9 +183,6 @@ def test_diff_all_profile_not_found(tmp_path, make_config):
         )
 
 
-# ── Collect error paths ───────────────────────────────────────────
-
-
 def test_collect_profile_not_found(tmp_path, make_config):
     config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     with pytest.raises(SystemExit):
@@ -227,9 +218,6 @@ def test_collect_validate_multi_profile(tmp_path, make_config):
     with pytest.raises(SystemExit) as exc_info:
         _cmd_collect_validate(Namespace(), config)
     assert exc_info.value.code == 1
-
-
-# ── Print collected / write manifest ──────────────────────────────
 
 
 def test_print_collected_with_files(tmp_path):
@@ -270,9 +258,6 @@ def test_write_manifest_basic(tmp_path):
     content = mf.read_text()
     assert "Test" in content
     assert "chat-c.md" in content
-
-
-# ── Clean edge cases ──────────────────────────────────────────────
 
 
 def test_clean_with_diff_files(tmp_path, make_config):

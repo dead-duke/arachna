@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from xml.sax.saxutils import escape as _xml_escape
 
-from .tokenizer import count_tokens
+from ..domain.tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.differ")
 

@@ -1,6 +1,6 @@
 """Explicit test for SHA256 fallback path in cache (v2.9.2)."""
 
-from arachna.cache import get_changed_files
+from arachna.domain.cache import get_changed_files
 
 
 def test_mtime_tolerance_size_differs_hash_same(tmp_path):

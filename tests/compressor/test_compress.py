@@ -1,7 +1,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from arachna.compressor import compress, estimate_savings
+from arachna.domain.compressor import compress, estimate_savings
 
 
 def test_collapse_blank_lines():
@@ -40,12 +40,8 @@ def test_estimate_savings():
     assert pct > 0
 
 
-# ── Property-based tests ──────────────────────────────────────────
-
-
 @given(st.text())
 def test_compress_idempotent(text):
-    """compress(compress(x)) == compress(x)."""
     once = compress(text)
     twice = compress(once)
     assert twice == once
@@ -53,13 +49,11 @@ def test_compress_idempotent(text):
 
 @given(st.text())
 def test_compress_never_longer(text):
-    """Compressed text is never longer than original (or equal)."""
     assert len(compress(text)) <= len(text)
 
 
 @given(st.text())
 def test_compress_preserves_non_whitespace(text):
-    """All non-whitespace characters survive compression."""
     compressed = compress(text)
     for ch in text:
         if ch not in (" ", "\t", "\n"):

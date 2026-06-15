@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from arachna.store import load_snapshot
-from arachna.watcher import _collect_snapshot_content, create_snapshot, update_snapshot
+from arachna.watch.store import load_snapshot
+from arachna.watch.watcher import _collect_snapshot_content, create_snapshot, update_snapshot
 
 
 def test_collect_snapshot_content_files(tmp_path, setup_config, make_profile):
@@ -121,7 +121,7 @@ def test_watcher_update_snapshot_uses_existing_profile(tmp_path, setup_config, m
 
 def test_watcher_update_snapshot_legacy_profile_raises(tmp_path, setup_config):
     root = setup_config()
-    from arachna.store import _store_root, write_object
+    from arachna.watch.store import _store_root, write_object
 
     store_dir = _store_root(root=root)
     snapshots_dir = store_dir / "snapshots"

@@ -1,7 +1,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from arachna.tokenizer import count_tokens
+from arachna.domain.tokenizer import count_tokens
 
 
 def test_empty_string():
@@ -69,28 +69,21 @@ def test_zero_width_joiners():
     assert count_tokens(text) == 1
 
 
-# ── Property-based tests ──────────────────────────────────────────
-
-
 @given(st.text())
 def test_count_tokens_always_positive(text):
-    """count_tokens never returns less than 1."""
     assert count_tokens(text) >= 1
 
 
 @given(st.text())
 def test_count_tokens_reasonable_upper_bound(text):
-    """count_tokens never exceeds len(text) + 1."""
     assert count_tokens(text) <= len(text) + 1
 
 
 @given(st.text(min_size=4))
 def test_count_tokens_monotonic_approx(text):
-    """Longer text never has fewer tokens."""
     assert count_tokens(text) >= count_tokens(text[: len(text) // 2])
 
 
 @given(st.text(), st.text())
 def test_count_tokens_concatenation_upper_bound(a, b):
-    """tokens(a + b) <= tokens(a) + tokens(b) + 1 (rounding)."""
     assert count_tokens(a + b) <= count_tokens(a) + count_tokens(b) + 1

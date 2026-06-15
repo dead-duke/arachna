@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from arachna.cache import _file_hash, get_changed_files, save_cache
+from arachna.domain.cache import _file_hash, get_changed_files, save_cache
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o000 does not prevent reads on Windows")
@@ -32,7 +32,7 @@ def test_get_changed_files_both_none_hash(tmp_path):
 
 
 def test_save_cache_fallback_direct_write(tmp_path, monkeypatch):
-    import arachna.cache as cache_module
+    import arachna.domain.cache as cache_module
 
     def failing_mkstemp(*args, **kwargs):
         raise OSError("No space left on device")
@@ -57,7 +57,7 @@ def test_get_changed_files_new_hash_none(tmp_path, monkeypatch):
     def mock_file_hash(filepath):
         return None
 
-    monkeypatch.setattr("arachna.cache._file_hash", mock_file_hash)
+    monkeypatch.setattr("arachna.domain.cache._file_hash", mock_file_hash)
     cache = {str(a): {"mtime": 0.0, "hash": "abc"}}
     changed, new, deleted = get_changed_files([a], cache)
     assert len(changed) == 1

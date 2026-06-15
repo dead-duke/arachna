@@ -1,22 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Content-addressable store for Watch snapshots.
-
-Storage layout under .arachna/ (created lazily on first write):
-
-    .arachna/
-      .gitignore          # "*" — never commit this directory
-      store/
-        objects/
-          ab/cd1234...    # zlib-compressed file content (atomic write)
-        snapshots/
-          20260603T103000.json   # manifest
-        HEAD                     # text file with latest snapshot ID
-
-Objects are stored by SHA256 hash. Atomic writes via tempfile + os.replace.
-Snapshots are NOT atomic: objects are written first, then manifest.
-If process crashes between object write and manifest write, orphan objects
-remain — gc() cleans them up.
-"""
+"""Content-addressable store for Watch snapshots."""
 
 import contextlib
 import hashlib

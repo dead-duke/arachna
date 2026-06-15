@@ -25,3 +25,17 @@ def make_config():
         }
 
     return _make_config
+
+
+def make_profile(**kw):
+    """Shared profile factory for tests — single source of truth."""
+    return {
+        "name_template": "c",
+        "title_template": "# T (part {part})\n\n",
+        "max_tokens": 16000,
+        "split_mode": "by_file",
+        "directories": ["src"],
+        "patterns": ["*.py"],
+        "use_gitignore": False,
+        **kw,
+    }

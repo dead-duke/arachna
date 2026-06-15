@@ -1,4 +1,4 @@
-from arachna.presets import get_detected_summary
+from arachna.config.presets import get_detected_summary
 
 
 def test_get_detected_summary_python(tmp_path):

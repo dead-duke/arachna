@@ -1,21 +1,12 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Structural diff — understands code blocks, not just text lines.
 
-For Python: uses ast to parse source into named blocks (functions,
-classes, async functions) and compares them by name.
-For C-like languages: uses regex to find declarations with brace
-matching for body extraction. Strings and comments are stripped
-before brace matching to handle braces in literals.
+For Python: uses ast to parse source into named blocks.
+For C-like languages: uses regex to find declarations with brace matching.
 For Ruby/Elixir/Lua: regex-based block parsing.
 For all other languages: falls back to text-based difflib.
 
-v3.1: Tree-sitter plugin support for accurate structural diff.
-When tree-sitter plugin is installed for a language, uses it
-instead of regex brace matching. Falls back to text diff with
-clear warning when plugin is not installed.
-
-v3.4: _BLOCK_PATTERNS replaces _RE_C_LIKE_BLOCK — chain of
-single-purpose patterns instead of one 15-group monster regex.
+v4.0.0: Moved to watch/ package. Imports from domain/formatter.
 """
 
 import logging
@@ -23,7 +14,7 @@ import re
 import threading
 from pathlib import Path
 
-from .formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
+from ..domain.formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
 
 logger = logging.getLogger("arachna.differ_structural")
 
@@ -36,7 +27,7 @@ _HAS_TS_JS = False
 _HAS_TS_TS = False
 _HAS_TS_GO = False
 
-_REGEX_TIMEOUT = 0.1  # 100ms timeout for regex operations
+_REGEX_TIMEOUT = 0.1
 
 
 class RegexTimeoutError(Exception):
@@ -46,7 +37,6 @@ class RegexTimeoutError(Exception):
 
 
 def _run_with_timeout(func, timeout=_REGEX_TIMEOUT):
-    """Run func with a timeout via threading.Timer."""
     result = [None]
     error = [None]
     done = threading.Event()
@@ -123,57 +113,36 @@ def _strip_strings_and_comments(text: str) -> str:
     return text
 
 
-# ── Block pattern chain — single-purpose patterns ────────────────
-# Replaces _RE_C_LIKE_BLOCK (one 15-group regex) with a chain of
-# single-purpose patterns. Each pattern extracts one declaration
-# type. Applied in priority order: more specific first.
-
 _BLOCK_PATTERNS = [
-    # (pattern, group_name)
-    # function declarations
     (
         re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+(?P<name>\w+)[^{]*", re.MULTILINE),
         "name",
     ),
-    # def (Python-like in C-like files)
     (re.compile(r"^\s*def\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # class declarations
     (
         re.compile(r"^\s*(?:export\s+)?(?:async\s+)?class\s+(?P<name>\w+)[^{]*", re.MULTILINE),
         "name",
     ),
-    # interface declarations
     (
         re.compile(r"^\s*(?:export\s+)?(?:async\s+)?interface\s+(?P<name>\w+)[^{]*", re.MULTILINE),
         "name",
     ),
-    # enum declarations
     (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?enum\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # struct declarations
     (
         re.compile(r"^\s*(?:export\s+)?(?:async\s+)?struct\s+(?P<name>\w+)[^{]*", re.MULTILINE),
         "name",
     ),
-    # trait declarations
     (
         re.compile(r"^\s*(?:export\s+)?(?:async\s+)?trait\s+(?P<name>\w+)[^{]*", re.MULTILINE),
         "name",
     ),
-    # impl declarations
     (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?impl\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # type alias with struct/interface
     (re.compile(r"^\s*type\s+(?P<name>\w+)\s+\w+[^{]*", re.MULTILINE), "name"),
-    # type alias simple
     (re.compile(r"^\s*type\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # Java public class
     (re.compile(r"^\s*public\s+class\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # Java public static
     (re.compile(r"^\s*public\s+static\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # Java public function
     (re.compile(r"^\s*public\s+function\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # Rust fn
     (re.compile(r"^\s*fn\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    # Go func
     (re.compile(r"^\s*func\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
 ]
 
@@ -224,9 +193,7 @@ def structural_diff_for_lang(
     return _format_block_diff(blocks_old, blocks_new, path, fmt)
 
 
-def _structural_diff_tree_sitter(
-    old_content: str, new_content: str, path: str, lang: str, fmt: str
-) -> str:
+def _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt):
     try:
         import tree_sitter
 
@@ -257,13 +224,13 @@ def _structural_diff_tree_sitter(
         return _fallback_diff(old_content, new_content, path, fmt)
 
 
-def _extract_ts_blocks(node, text: str, lang: str) -> dict[str, tuple[str, str]]:
+def _extract_ts_blocks(node, text, lang):
     blocks = {}
     _walk_ts_tree(node, text, blocks, lang)
     return blocks
 
 
-def _walk_ts_tree(node, text: str, blocks: dict, lang: str):
+def _walk_ts_tree(node, text, blocks, lang):
     func_types = {"function_declaration", "method_definition", "arrow_function"}
     class_types = {"class_declaration"}
     if lang == "go":
@@ -288,13 +255,11 @@ def _walk_ts_tree(node, text: str, blocks: dict, lang: str):
         _walk_ts_tree(child, text, blocks, lang)
 
 
-def structural_diff(
-    old_content: str, new_content: str, path: str, lang: str, fmt: str = "markdown"
-) -> str:
+def structural_diff(old_content, new_content, path, lang, fmt="markdown"):
     return structural_diff_for_lang(old_content, new_content, path, lang, fmt)
 
 
-def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]:
+def _extract_old_new_from_section(content):
     old_lines = []
     new_lines = []
     in_removed = False
@@ -325,7 +290,7 @@ def _extract_old_new_from_section(content: str) -> tuple[str | None, str | None]
     return "\n".join(old_lines), "\n".join(new_lines)
 
 
-def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]] | None:
+def _parse_python_blocks(text):
     import ast as _ast
 
     try:
@@ -351,16 +316,10 @@ def _parse_python_blocks(text: str) -> dict[str, tuple[str, str]] | None:
     return blocks
 
 
-def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
-    """Parse C-like blocks using _BLOCK_PATTERNS chain.
-
-    Each pattern in the chain extracts one declaration type.
-    First match wins — patterns are ordered by specificity.
-    """
+def _parse_c_like_blocks(text, lang):
     blocks = {}
     for pattern, group_name in _BLOCK_PATTERNS:
         try:
-            # Default argument captures current loop value — avoids B023
             matches = _run_with_timeout(lambda p=pattern: list(p.finditer(text)))
         except RegexTimeoutError:
             logger.warning("Pattern timed out on input of length %d — skipping", len(text))
@@ -379,7 +338,7 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict[str, tuple[str, str]]:
     return blocks
 
 
-def _extract_braced_block(text: str, start: int) -> str:
+def _extract_braced_block(text, start):
     if start >= len(text) or text[start] != "{":
         return ""
     clean = _strip_strings_and_comments(text[start:])
@@ -406,7 +365,7 @@ def _extract_braced_block(text: str, start: int) -> str:
     return text[start:]
 
 
-def _parse_script_blocks(text: str) -> dict[str, tuple[str, str]]:
+def _parse_script_blocks(text):
     sig_pattern = re.compile(
         r"^(\s*(?:def\s+(?:self\.)?(\w+[?!]?).*|"
         r"defmodule\s+([\w.]+).*|"
@@ -424,7 +383,7 @@ def _parse_script_blocks(text: str) -> dict[str, tuple[str, str]]:
     return blocks
 
 
-def _format_block_diff(old_blocks: dict, new_blocks: dict, path: str, fmt: str) -> str:
+def _format_block_diff(old_blocks, new_blocks, path, fmt):
     all_names = set(old_blocks.keys()) | set(new_blocks.keys())
     parts = [f"### {path}\n"]
     for name in sorted(all_names):
@@ -460,7 +419,7 @@ def _format_block_diff(old_blocks: dict, new_blocks: dict, path: str, fmt: str) 
     return "".join(parts)
 
 
-def _block_label(name: str, signature: str) -> str:
+def _block_label(name, signature):
     if signature.startswith("class ") or signature.startswith("interface "):
         return f"class {name}"
     elif (
@@ -474,9 +433,9 @@ def _block_label(name: str, signature: str) -> str:
         return name
 
 
-def _fallback_diff(old: str, new: str, path: str, fmt: str) -> str:
-    from .differ import compute_diff
+def _fallback_diff(old, new, path, fmt):
+    from .differ import compute_diff as differ_compute_diff
 
     if not old and not new:
         return ""
-    return compute_diff(old, new, path, fmt=fmt)
+    return differ_compute_diff(old, new, path, fmt=fmt)

@@ -1,6 +1,6 @@
 """Test _detect_renames_and_moves with ambiguous hash cases."""
 
-from arachna.watcher import _detect_renames_and_moves
+from arachna.watch.watcher import _detect_renames_and_moves
 
 
 def test_multiple_same_hash_deleted_single_added():
@@ -8,7 +8,6 @@ def test_multiple_same_hash_deleted_single_added():
     deleted = {"a.py": "same", "b.py": "same"}
     added = {"c.py": "same"}
     sections, matched_del, matched_add = _detect_renames_and_moves(deleted, added, "markdown")
-    # Ambiguous — no rename, all files go to deleted/added
     assert len(sections) == 0
 
 

@@ -4,11 +4,11 @@
 import sys
 from pathlib import Path
 
-from ..config import get_profile
-from ..store import delete_snapshot, list_snapshots, validate_snapshot_id
-from ..store_errors import SnapshotExistsError
-from ..watcher import create_snapshot as watch_create_snapshot
-from ..watcher import update_snapshot as watch_update_snapshot
+from ..config.config import get_profile
+from ..watch.store import delete_snapshot, list_snapshots, validate_snapshot_id
+from ..watch.store_errors import SnapshotExistsError
+from ..watch.watcher import create_snapshot as watch_create_snapshot
+from ..watch.watcher import update_snapshot as watch_update_snapshot
 from . import register
 from ._helpers import format_profile_section
 
@@ -163,7 +163,7 @@ def _cmd_snapshot_info(args, config: dict):
 
 @register("snapshot-rename")
 def _cmd_snapshot_rename(args, config: dict):
-    from ..store import rename_snapshot as store_rename_snapshot
+    from ..watch.store import rename_snapshot as store_rename_snapshot
 
     try:
         validate_snapshot_id(args.old)

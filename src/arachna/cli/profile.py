@@ -4,8 +4,9 @@
 import sys
 from pathlib import Path
 
-from ..config import get_profile
-from ..profiler import print_benchmark_table, run_benchmark
+from ..config.config import get_profile
+from ..config.profiler import print_benchmark_table, run_benchmark
+from ..watch.benchmarks import benchmark_plugins
 from . import register
 from ._helpers import parse_output_dir
 
@@ -25,4 +26,7 @@ def _cmd_benchmark(args, config: dict):
 
     print(f"Running benchmark on '{profile_name}' profile...")
     results = run_benchmark(profile, output_dir, root=root)
+    plugin_results = benchmark_plugins(profile, output_dir, root=root)
+    if plugin_results:
+        results.update(plugin_results)
     print_benchmark_table(results, fmt)

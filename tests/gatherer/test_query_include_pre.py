@@ -1,7 +1,7 @@
 """Test _filter_by_query with include_pre_commands parameter."""
 
-from arachna.gatherer import _filter_by_query
-from arachna.tokenizer import count_tokens
+from arachna.domain.gatherer import _filter_by_query
+from arachna.domain.tokenizer import count_tokens
 
 
 def _make_section(filepath: str, content: str) -> tuple[str, str, int]:
@@ -9,7 +9,6 @@ def _make_section(filepath: str, content: str) -> tuple[str, str, int]:
 
 
 def test_filter_by_query_include_pre_commands_true():
-    """include_pre_commands=True keeps pre_commands sections."""
     sections = [
         _make_section("pre: tree src", "tree output"),
         _make_section("src/auth.py", "def login(): pass"),
@@ -22,7 +21,6 @@ def test_filter_by_query_include_pre_commands_true():
 
 
 def test_filter_by_query_include_pre_commands_false():
-    """include_pre_commands=False filters out pre_commands sections."""
     sections = [
         _make_section("pre: tree src", "tree output"),
         _make_section("src/auth.py", "def login(): pass"),
@@ -34,7 +32,6 @@ def test_filter_by_query_include_pre_commands_false():
 
 
 def test_filter_by_query_only_pre_commands_match():
-    """Query that only matches pre_commands with include_pre_commands=True."""
     sections = [
         _make_section("pre: git log", "commit history"),
         _make_section("src/main.py", "unrelated"),

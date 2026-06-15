@@ -1,7 +1,7 @@
 import io
 import sys
 
-from arachna.renderer import render_dry_run
+from arachna.cli.renderer import render_dry_run
 
 
 def test_single_part():

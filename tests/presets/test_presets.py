@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from arachna.presets import (
+from arachna.config.presets import (
     _detect_any,
     _detect_dir,
     _detect_file,
@@ -11,8 +11,6 @@ from arachna.presets import (
     load_presets_from_file,
     preset_to_profile,
 )
-
-# ── _load_builtin_presets ──────────────────────────────────────────
 
 
 def test_load_builtin_presets_has_all():
@@ -48,9 +46,6 @@ def test_load_builtin_presets_git_command():
     assert "git log" in presets["git"]["pre_commands"][0]
 
 
-# ── _detect_dir ─────────────────────────────────────────────────────
-
-
 def test_detect_dir_found(tmp_path):
     d = tmp_path / "src"
     d.mkdir()
@@ -68,9 +63,6 @@ def test_detect_dir_not_found(tmp_path):
     assert not _detect_dir(str(tmp_path / "nope"))
 
 
-# ── _detect_file ────────────────────────────────────────────────────
-
-
 def test_detect_file_found(tmp_path):
     f = tmp_path / "README.md"
     f.write_text("x")
@@ -79,9 +71,6 @@ def test_detect_file_found(tmp_path):
 
 def test_detect_file_not_found(tmp_path):
     assert not _detect_file(str(tmp_path / "nope.txt"))
-
-
-# ── _detect_any ─────────────────────────────────────────────────────
 
 
 def test_detect_any_dir(tmp_path):
@@ -102,9 +91,6 @@ def test_detect_any_glob(tmp_path):
 
 def test_detect_any_none(tmp_path):
     assert not _detect_any(["nonexistent_dir", "missing.txt"], root=tmp_path)
-
-
-# ── detect_presets ──────────────────────────────────────────────────
 
 
 def test_detect_python(tmp_path):
@@ -221,9 +207,6 @@ def test_detect_multiple(tmp_path):
     assert "docker" in detected
 
 
-# ── detect_presets with explicit preset_name ────────────────────────
-
-
 def test_detect_presets_explicit_valid(tmp_path):
     (tmp_path / "project.godot").write_text("x")
     detected = detect_presets(preset_name="godot", root=tmp_path)
@@ -265,9 +248,6 @@ def test_detect_presets_explicit_config_no_detect_paths(tmp_path):
     assert detected == ["config"]
 
 
-# ── preset_to_profile ───────────────────────────────────────────────
-
-
 def test_preset_to_profile_python(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("x")
@@ -305,9 +285,6 @@ def test_preset_to_profile_filters_missing(tmp_path):
     assert profile is not None
     for f in profile.get("files", []):
         assert Path(f).exists()
-
-
-# ── load_presets_from_file ──────────────────────────────────────────
 
 
 def test_load_presets_valid(tmp_path):
@@ -364,7 +341,6 @@ def test_load_presets_invalid_split_mode(tmp_path):
 
 
 def test_load_presets_zero_max_tokens_allowed(tmp_path):
-    """max_tokens=0 means unlimited — valid."""
     f = tmp_path / "presets.json"
     f.write_text(json.dumps({"ok": {"split_mode": "by_file", "max_tokens": 0}}))
     result = load_presets_from_file(f)
@@ -473,9 +449,6 @@ def test_load_presets_utf16_encoded(tmp_path):
     assert result == {}
 
 
-# ── get_all_presets ─────────────────────────────────────────────────
-
-
 def test_get_all_presets_builtin():
     all_presets = get_all_presets(external_path="/nonexistent.json")
     assert "python" in all_presets
@@ -512,9 +485,6 @@ def test_get_all_presets_merged(tmp_path):
 def test_get_all_presets_default_path():
     all_presets = get_all_presets()
     assert "python" in all_presets
-
-
-# ── detect_presets with external ────────────────────────────────────
 
 
 def test_detect_presets_with_external_custom(tmp_path):
@@ -565,9 +535,6 @@ def test_preset_to_profile_external(tmp_path):
     assert "*.lua" in profile["patterns"]
 
 
-# ── Unreal Engine ───────────────────────────────────────────────────
-
-
 def test_detect_unreal(tmp_path):
     (tmp_path / "MyProject.uproject").write_text("{}")
     (tmp_path / "Source").mkdir()
@@ -606,22 +573,16 @@ def test_unreal_not_detected_without_uproject(tmp_path):
     assert "unreal" not in detected
 
 
-# ── No _SERVICE_PRESETS ─────────────────────────────────────────────
-
-
 def test_no_service_presets_hardcoded():
-    import arachna.presets as p
+    import arachna.config.presets as p
 
     assert not hasattr(p, "_SERVICE_PRESETS")
 
 
 def test_no_presets_dict_hardcoded():
-    import arachna.presets as p
+    import arachna.config.presets as p
 
     assert not hasattr(p, "PRESETS")
-
-
-# ── detect_presets with external and explicit preset_name ────────────
 
 
 def test_detect_presets_explicit_external_with_name(tmp_path):

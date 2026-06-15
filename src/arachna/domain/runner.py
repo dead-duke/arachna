@@ -291,7 +291,7 @@ def run_command(
     is_safe, reason = _validate_command(cmd, allow_dangerous, allow_file_args=allow_file_args)
 
     if not is_safe:
-        logger.warning("Blocked command: %s — %s", cmd, reason)
+        logger.warning("Blocked command: %s - %s", cmd, reason)
         if interactive and sys.stdin.isatty():
             print("\n⚠  Potentially dangerous command blocked:")
             print(f"   {cmd}")
@@ -344,6 +344,6 @@ def run_pre_commands(
             output = run_command(cmd, root=root, allow_file_args=True)
             results.append((cmd, output))
         except Exception as e:
-            logger.warning("pre_command failed: %s — %s", cmd[:80], e)
+            logger.warning("pre_command failed: %s - %s", cmd[:80], e)
             results.append((cmd, ""))
     return results

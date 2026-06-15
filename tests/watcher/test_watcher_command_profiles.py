@@ -2,8 +2,8 @@
 
 import json
 
-from arachna.store import load_snapshot
-from arachna.watcher import compute_diff, create_snapshot
+from arachna.watch.store import load_snapshot
+from arachna.watch.watcher import compute_diff, create_snapshot
 
 
 def test_create_snapshot_with_pre_commands(tmp_path, setup_config):
@@ -118,7 +118,7 @@ def test_compute_diff_command_unchanged(tmp_path, setup_config):
 
 def test_manifest_backward_compatible(tmp_path, setup_config):
     root = setup_config()
-    from arachna.store import _store_root, write_object
+    from arachna.watch.store import _store_root, write_object
 
     store_dir = _store_root(root=root)
     snapshots_dir = store_dir / "snapshots"

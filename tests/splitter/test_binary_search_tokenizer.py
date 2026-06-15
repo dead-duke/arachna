@@ -1,6 +1,6 @@
 """Tests for binary search with custom tokenizers (v2.9.2)."""
 
-from arachna.splitter import _handle_single
+from arachna.domain.splitter import _handle_single
 
 
 def test_binary_search_custom_tokenizer():
@@ -29,7 +29,7 @@ def test_binary_search_max_iterations_guard():
     text = "x" * 1000
     parts, was_truncated = _handle_single(text, 100, tokenizer=non_monotonic)
     assert was_truncated
-    assert call_count[0] <= 110  # 100 max iterations + some
+    assert call_count[0] <= 110
 
 
 def test_default_tokenizer_fast_path():
@@ -38,5 +38,4 @@ def test_default_tokenizer_fast_path():
     parts, was_truncated = _handle_single(text, 100)
     assert was_truncated
     assert "truncated" in parts[0]
-    # Fast path: 4 chars ≈ 1 token → limit = 100 * 4 = 400 chars
     assert len(parts[0]) <= 500

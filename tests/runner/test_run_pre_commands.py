@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from arachna.runner import run_pre_commands
+from arachna.domain.runner import run_pre_commands
 
 
 def _mock_popen(stdout=""):
@@ -43,7 +43,7 @@ def test_run_pre_commands_empty(tmp_path):
 def test_run_pre_commands_with_delay(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
-        patch("arachna.runner.time.sleep") as mock_sleep,
+        patch("arachna.domain.runner.time.sleep") as mock_sleep,
     ):
         mock_popen.side_effect = [
             _mock_popen(stdout="a\n"),
@@ -62,7 +62,7 @@ def test_run_pre_commands_with_delay(tmp_path):
 def test_run_pre_commands_no_delay_default(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
-        patch("arachna.runner.time.sleep") as mock_sleep,
+        patch("arachna.domain.runner.time.sleep") as mock_sleep,
     ):
         mock_popen.return_value = _mock_popen(stdout="x\n")
         run_pre_commands(["echo x", "echo y"], root=tmp_path)

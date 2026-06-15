@@ -1,15 +1,11 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Public Watch API for arachna v2.0.0."""
+"""Public Watch API for arachna v4.0.0."""
 
 import logging
 from pathlib import Path
 
-from .api_errors import (
-    ProfileNotFoundError,
-    SnapshotExistsError,
-    SnapshotNotFoundError,
-)
-from .api_types import (
+from ..config.config import get_profile
+from ..domain.api_types import (
     DiffResult,
     DiffSection,
     DiffStats,
@@ -17,34 +13,38 @@ from .api_types import (
     SnapshotInfo,
     StoreStats,
 )
-from .config import get_profile
-from .differ import compute_diff_stats
-from .gatherer import _apply_repo_map_to_sections
-from .store import (
+from ..watch.differ import compute_diff_stats
+from ..watch.differ_structural import structural_diff_sections
+from ..watch.store import (
     create_snapshot as _store_create,
 )
-from .store import (
+from ..watch.store import (
     delete_snapshot as _store_delete,
 )
-from .store import (
+from ..watch.store import (
     gc as _store_gc,
 )
-from .store import (
+from ..watch.store import (
     list_snapshots as _store_list,
 )
-from .store import (
+from ..watch.store import (
     load_snapshot as _store_load,
 )
-from .store import (
+from ..watch.store import (
     stats as _store_stats,
 )
-from .store import (
+from ..watch.store import (
     update_snapshot as _store_update,
 )
-from .store_errors import ObjectNotFoundError as _ObjectNotFoundError
-from .store_errors import SnapshotExistsError as _StoreSnapshotExistsError
-from .watcher import _collect_snapshot_content
-from .watcher import compute_diff as _watcher_compute_diff
+from ..watch.store_errors import ObjectNotFoundError as _ObjectNotFoundError
+from ..watch.store_errors import SnapshotExistsError as _StoreSnapshotExistsError
+from ..watch.watcher import _apply_repo_map_to_sections, _collect_snapshot_content
+from ..watch.watcher import compute_diff as _watcher_compute_diff
+from .api_errors import (
+    ProfileNotFoundError,
+    SnapshotExistsError,
+    SnapshotNotFoundError,
+)
 
 logger = logging.getLogger("arachna.watch")
 
@@ -187,8 +187,6 @@ def compute_diff(
         streaming=streaming,
     )
     if mode == "structural" and sections:
-        from .differ_structural import structural_diff_sections
-
         sections = structural_diff_sections(sections, fmt)
     elif mode == "repo-map" and sections:
         sections = _apply_repo_map_to_sections(

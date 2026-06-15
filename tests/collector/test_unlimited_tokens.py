@@ -1,6 +1,6 @@
 """Tests for max_tokens=0 unlimited mode."""
 
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 
 def test_unlimited_single_part(tmp_path):
@@ -26,7 +26,6 @@ def test_unlimited_single_part(tmp_path):
         root=tmp_path,
     )
 
-    # With max_tokens=0, everything in one part
     assert len(parts) == 1
     assert len(created) == 1
 

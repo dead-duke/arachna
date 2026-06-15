@@ -1,6 +1,6 @@
 """Edge cases for progress to stderr."""
 
-from arachna.collector import collect
+from arachna.domain.collector import collect
 
 
 def _profile(**kw):

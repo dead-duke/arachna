@@ -1,6 +1,6 @@
 """Tests for _diff_part_header in collector.py (v2.8.2)."""
 
-from arachna.collector import _diff_part_header
+from arachna.domain.collector import _diff_part_header
 
 
 def test_diff_part_header_all_types():

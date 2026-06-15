@@ -1,7 +1,7 @@
 """Tests for unlimited mode in splitter.py."""
 
-from arachna.splitter import pack_into_parts, split, split_sections
-from arachna.tokenizer import count_tokens
+from arachna.domain.splitter import pack_into_parts, split, split_sections
+from arachna.domain.tokenizer import count_tokens
 
 
 def test_pack_into_parts_unlimited():

@@ -6,7 +6,7 @@ Previously tested only indirectly through _detect_renames_and_moves.
 
 import hashlib
 
-from arachna.watcher import _match_exact_renames, _match_similar_renames
+from arachna.watch.watcher import _match_exact_renames, _match_similar_renames
 
 
 def _content_hash(content: str) -> str:
@@ -274,5 +274,4 @@ def test_match_similar_renames_first_match_wins():
     )
     assert len(sections) == 1
     assert "old.py" in matched_del
-    # First match wins, second candidate stays in remaining_add
     assert len(matched_add) == 1
