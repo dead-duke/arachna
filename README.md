@@ -15,7 +15,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1305 tests, 92% coverage, 200+ commits.
+day one. 1363 tests, 93% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -585,7 +585,7 @@ Full security documentation: [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Performance
 
-Quick benchmarks on 1000 Python files (Apple M-series, macOS, Python 3.14):
+Quick benchmarks on 1000 Python files (Apple M-series, macOS 26.x, Python 3.14):
 
 | Mode | Tokens | Time | Throughput | vs full |
 |------|--------|------|------------|---------|

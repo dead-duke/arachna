@@ -1,10 +1,10 @@
-# Benchmarks: arachna v3.2.0
+# Benchmarks
 
-Run: `make benchmark`
-Date: 2026-06-09
-Machine: macOS 15.x, Apple M-series, Python 3.14.0
+Run: make benchmark
+Date: 2026-06-15
+Machine: macOS 26.x, Apple M-series, Python 3.14.0
 
-Methodology: Time measured with `time.perf_counter()`, warm-up run before measurement.
+Methodology: Time measured with time.perf_counter(), warm-up run before measurement.
 Token counts from arachna's default tokenizer (4 chars/token).
 
 ## Mode comparison (1000 Python files)

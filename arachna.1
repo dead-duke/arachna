@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-10" "arachna 3.2.0" "User Commands"
+.TH ARACHNA 1 "2026-06-15" "arachna v3.5.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -140,6 +140,25 @@ transformers;HuggingFace tokenizers
 Install: \fBpip install arachna[javascript]\fR
 .br
 Or: \fBarachna plugins install javascript \-\-execute\fR
+.SH ENVIRONMENT
+.TP
+ARACHNA_CHARS_PER_TOKEN
+Token estimation ratio (default: 4). Use 2.5 for Cyrillic, 1.5 for CJK.
+.TP
+ARACHNA_MAX_HASH_SIZE
+Max file size in bytes for SHA256 hashing (default: 10485760).
+.TP
+ARACHNA_MAX_OUTPUT_SIZE
+Max stdout size in bytes for sandbox commands (default: 10485760).
+.TP
+ARACHNA_PRE_COMMAND_DELAY
+Seconds to sleep between pre_commands (default: 0).
+.TP
+ARACHNA_PRESETS_TIMEOUT
+Timeout in seconds for presets update HTTP fetch (default: 10).
+.TP
+ARACHNA_SAFE_TOKENIZERS
+Comma-separated safe tokenizer modules (default: tiktoken,transformers).
 .SH EXAMPLES
 .PP
 Create a config with auto-detected profiles:
@@ -191,5 +210,7 @@ Error.
 Artem Terenin
 .SH SEE ALSO
 .BR https://github.com/dead-duke/arachna
+.br
+.BR https://dead-duke.github.io/arachna/api/
 .SH LICENSE
 GNU Affero General Public License v3.0
