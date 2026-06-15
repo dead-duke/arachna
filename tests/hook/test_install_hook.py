@@ -16,7 +16,7 @@ def test_install_hook_default_command(tmp_path):
     hook = git_dir / "hooks" / "post-commit"
     assert hook.exists()
     content = hook.read_text()
-    assert "arachna --all" in content
+    assert "arachna collect --all" in content
     if sys.platform != "win32":
         assert hook.stat().st_mode & stat.S_IXUSR
 
@@ -26,13 +26,15 @@ def test_install_hook_custom_command_from_config(tmp_path):
     git_dir.mkdir()
     (git_dir / "hooks").mkdir()
     (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "hook": {"post-commit": "arachna --all --incremental"}})
+        json.dumps(
+            {"project_name": "test", "hook": {"post-commit": "arachna collect --all --incremental"}}
+        )
     )
 
     success, msg = install_hook(root=tmp_path)
     assert success
     content = (git_dir / "hooks" / "post-commit").read_text()
-    assert "arachna --all --incremental" in content
+    assert "arachna collect --all --incremental" in content
 
 
 def test_install_hook_explicit_command(tmp_path):
@@ -40,13 +42,13 @@ def test_install_hook_explicit_command(tmp_path):
     git_dir.mkdir()
     (git_dir / "hooks").mkdir()
     (tmp_path / ".arachna.json").write_text(
-        json.dumps({"project_name": "test", "hook": {"post-commit": "arachna --all"}})
+        json.dumps({"project_name": "test", "hook": {"post-commit": "arachna collect --all"}})
     )
 
-    success, msg = install_hook(command="arachna --profile code", root=tmp_path)
+    success, msg = install_hook(command="arachna collect --profile code", root=tmp_path)
     assert success
     content = (git_dir / "hooks" / "post-commit").read_text()
-    assert "arachna --profile code" in content
+    assert "arachna collect --profile code" in content
 
 
 def test_install_hook_not_git_repo(tmp_path):
@@ -65,7 +67,7 @@ def test_install_hook_no_config(tmp_path):
     success, msg = install_hook(root=tmp_path)
     assert success
     content = (git_dir / "hooks" / "post-commit").read_text()
-    assert "arachna --all" in content
+    assert "arachna collect --all" in content
 
 
 def test_install_hook_existing_refuses(tmp_path):
@@ -93,7 +95,7 @@ def test_install_hook_existing_force_overwrites(tmp_path):
     success, msg = install_hook(force=True, root=tmp_path)
     assert success
     content = hook.read_text()
-    assert "arachna --all" in content
+    assert "arachna collect --all" in content
     assert "echo old" not in content
 
 

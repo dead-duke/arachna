@@ -18,7 +18,7 @@ def install_hook(
 
     Args:
         command: Shell command to run in the hook. If None, reads from
-                 .arachna.json hook.post-commit, falls back to "arachna --all".
+                 .arachna.json hook.post-commit, falls back to "arachna collect --all".
         force: Overwrite existing hook without confirmation prompt.
         root: Project root directory (default: cwd).
 
@@ -42,9 +42,9 @@ def install_hook(
         try:
             config = load_config(root=root)
             hook_config = config.get("hook", {})
-            command = hook_config.get("post-commit", "arachna --all")
+            command = hook_config.get("post-commit", "arachna collect --all")
         except Exception:
-            command = "arachna --all"
+            command = "arachna collect --all"
 
     # Check if hook already exists
     if hook_path.exists():

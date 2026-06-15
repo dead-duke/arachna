@@ -56,7 +56,7 @@ def test_install_hook_force(tmp_path):
 
     hook = tmp_path / ".git" / "hooks" / "post-commit"
     assert hook.exists()
-    assert "arachna --all" in hook.read_text()
+    assert "arachna collect --all" in hook.read_text()
 
 
 def test_all_dry_run(tmp_path):
