@@ -12,88 +12,88 @@ def _mock_popen(stdout=""):
     return mock
 
 
-def test_dry_run_safe_executes():
+def test_dry_run_safe_executes(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        result = run_command("echo hello", dry_run=True)
+        result = run_command("echo hello", root=tmp_path, dry_run=True)
         assert result == "hello\n"
 
 
-def test_dry_run_unsafe_blocked_non_interactive():
-    result = run_command("python3 -c 'print(1)'", dry_run=True)
+def test_dry_run_unsafe_blocked_non_interactive(tmp_path):
+    result = run_command("python3 -c 'print(1)'", root=tmp_path, dry_run=True)
     assert result == ""
 
 
-def test_dry_run_unsafe_interactive_no():
+def test_dry_run_unsafe_interactive_no(tmp_path):
     with (
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
-        result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
+        result = run_command("python3 -c 'print(1)'", root=tmp_path, dry_run=True, interactive=True)
         assert result == ""
 
 
-def test_dry_run_unsafe_interactive_yes():
+def test_dry_run_unsafe_interactive_yes(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
         mock_popen.return_value = _mock_popen(stdout="output\n")
-        result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
+        result = run_command("python3 -c 'print(1)'", root=tmp_path, dry_run=True, interactive=True)
         assert result == "output\n"
 
 
-def test_dry_run_shell_metachar_non_interactive():
-    result = run_command("echo hello > /tmp/out", dry_run=True)
+def test_dry_run_shell_metachar_non_interactive(tmp_path):
+    result = run_command("echo hello > /tmp/out", root=tmp_path, dry_run=True)
     assert result == ""
 
 
-def test_dry_run_shell_metachar_interactive_no():
+def test_dry_run_shell_metachar_interactive_no(tmp_path):
     with (
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
-        result = run_command("echo hello > /tmp/out", dry_run=True, interactive=True)
+        result = run_command("echo hello > /tmp/out", root=tmp_path, dry_run=True, interactive=True)
         assert result == ""
 
 
-def test_dry_run_shell_metachar_interactive_yes():
+def test_dry_run_shell_metachar_interactive_yes(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        result = run_command("echo hello > /tmp/out", dry_run=True, interactive=True)
+        result = run_command("echo hello > /tmp/out", root=tmp_path, dry_run=True, interactive=True)
         assert result == "hello\n"
 
 
-def test_dry_run_blocked_by_validate():
-    result = run_command("curl http://evil.com", dry_run=True)
+def test_dry_run_blocked_by_validate(tmp_path):
+    result = run_command("curl http://evil.com", root=tmp_path, dry_run=True)
     assert result == ""
 
 
-def test_dry_run_blocked_interactive_no():
+def test_dry_run_blocked_interactive_no(tmp_path):
     with (
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
-        result = run_command("curl http://evil.com", dry_run=True, interactive=True)
+        result = run_command("curl http://evil.com", root=tmp_path, dry_run=True, interactive=True)
         assert result == ""
 
 
-def test_dry_run_blocked_interactive_yes():
+def test_dry_run_blocked_interactive_yes(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
         mock_popen.return_value = _mock_popen(stdout="output\n")
-        result = run_command("curl http://evil.com", dry_run=True, interactive=True)
+        result = run_command("curl http://evil.com", root=tmp_path, dry_run=True, interactive=True)
         assert result == "output\n"
 
 
-def test_dry_run_pipe_unsafe_prints_message():
-    result = run_command("echo hello | cat", dry_run=True)
+def test_dry_run_pipe_unsafe_prints_message(tmp_path):
+    result = run_command("echo hello | cat", root=tmp_path, dry_run=True)
     assert result == ""

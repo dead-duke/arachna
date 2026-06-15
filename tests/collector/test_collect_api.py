@@ -16,9 +16,6 @@ def test_collect_api_with_profile_dict(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
-    import os
-
-    os.chdir(tmp_path)
     profile = {
         "name_template": "chat-api",
         "title_template": "# T (part {part})\n\n",
@@ -29,7 +26,7 @@ def test_collect_api_with_profile_dict(tmp_path):
         "use_gitignore": False,
     }
 
-    result = collect(profile=profile, output_dir="out")
+    result = collect(profile=profile, output_dir="out", root=tmp_path)
     assert len(result.files) == 1
     assert len(result.parts) == 1
     assert result.tokens > 0
@@ -58,10 +55,7 @@ def test_collect_api_with_profile_name(tmp_path):
         )
     )
 
-    import os
-
-    os.chdir(tmp_path)
-    result = collect(profile="code")
+    result = collect(profile="code", root=tmp_path)
     assert len(result.files) == 1
 
 
@@ -70,11 +64,8 @@ def test_collect_api_profile_not_found(tmp_path):
         json.dumps({"profiles": {"x": {"command": "echo hi", "max_tokens": 100}}})
     )
 
-    import os
-
-    os.chdir(tmp_path)
     with pytest.raises(ProfileNotFoundError):
-        collect(profile="nonexistent")
+        collect(profile="nonexistent", root=tmp_path)
 
 
 def test_collect_api_with_query(tmp_path):
@@ -86,9 +77,6 @@ def test_collect_api_with_query(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
-    import os
-
-    os.chdir(tmp_path)
     profile = {
         "name_template": "chat-q",
         "title_template": "# T (part {part})\n\n",
@@ -99,7 +87,7 @@ def test_collect_api_with_query(tmp_path):
         "use_gitignore": False,
     }
 
-    result = collect(profile=profile, output_dir="out", query="auth")
+    result = collect(profile=profile, output_dir="out", query="auth", root=tmp_path)
     assert len(result.files) == 1
     assert "auth.py" in result.parts[0]
 
@@ -112,9 +100,6 @@ def test_collect_api_with_mode_repo_map(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
-    import os
-
-    os.chdir(tmp_path)
     profile = {
         "name_template": "chat-rm",
         "title_template": "# T (part {part})\n\n",
@@ -125,7 +110,7 @@ def test_collect_api_with_mode_repo_map(tmp_path):
         "use_gitignore": False,
     }
 
-    result = collect(profile=profile, output_dir="out", mode="repo-map")
+    result = collect(profile=profile, output_dir="out", mode="repo-map", root=tmp_path)
     assert len(result.files) == 1
     assert "def foo():" in result.parts[0]
     assert "return 1" not in result.parts[0]
@@ -139,9 +124,6 @@ def test_collect_api_merge_mode(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
-    import os
-
-    os.chdir(tmp_path)
     profile = {
         "name_template": "chat-m",
         "title_template": "# T (part {part})\n\n",
@@ -152,8 +134,8 @@ def test_collect_api_merge_mode(tmp_path):
         "use_gitignore": False,
     }
 
-    r1 = collect(profile=profile, output_dir="out", merge=True)
-    r2 = collect(profile=profile, output_dir="out", merge=True)
+    r1 = collect(profile=profile, output_dir="out", merge=True, root=tmp_path)
+    r2 = collect(profile=profile, output_dir="out", merge=True, root=tmp_path)
     assert len(r1.files) == 1
     assert len(r2.files) == 1
 
@@ -166,9 +148,6 @@ def test_collect_api_incremental(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
-    import os
-
-    os.chdir(tmp_path)
     profile = {
         "name_template": "chat-inc",
         "title_template": "# T (part {part})\n\n",
@@ -179,7 +158,7 @@ def test_collect_api_incremental(tmp_path):
         "use_gitignore": False,
     }
 
-    r1 = collect(profile=profile, output_dir="out", incremental=True)
-    r2 = collect(profile=profile, output_dir="out", incremental=True)
+    r1 = collect(profile=profile, output_dir="out", incremental=True, root=tmp_path)
+    r2 = collect(profile=profile, output_dir="out", incremental=True, root=tmp_path)
     assert len(r1.files) == 1
     assert len(r2.files) == 0

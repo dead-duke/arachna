@@ -2,6 +2,7 @@
 """Public Watch API for arachna v2.0.0."""
 
 import logging
+from pathlib import Path
 
 from .api_errors import (
     ProfileNotFoundError,
@@ -48,20 +49,21 @@ from .watcher import compute_diff as _watcher_compute_diff
 logger = logging.getLogger("arachna.watch")
 
 
-def create_snapshot(profile: str | dict = "full", name: str | None = None) -> str:
+def create_snapshot(root: Path, profile: str | dict = "full", name: str | None = None) -> str:
     if name is None:
         raise ValueError("name is required for create_snapshot()")
     if isinstance(profile, str):
         try:
-            profile_dict = get_profile(profile)
+            profile_dict = get_profile(profile, root=root)
         except KeyError:
             raise ProfileNotFoundError(f"Profile '{profile}' not found.") from None
     else:
         profile_dict = profile
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile_dict)
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile_dict, root)
     try:
         return _store_create(
             files,
+            root=root,
             profile_dict=profile_dict,
             name=name,
             pre_commands=pre_commands_data if pre_commands_data else None,
@@ -71,8 +73,8 @@ def create_snapshot(profile: str | dict = "full", name: str | None = None) -> st
         raise SnapshotExistsError(str(e)) from e
 
 
-def list_snapshots() -> list[SnapshotInfo]:
-    manifests = _store_list()
+def list_snapshots(root: Path) -> list[SnapshotInfo]:
+    manifests = _store_list(root=root)
     result = []
     for m in manifests:
         result.append(
@@ -89,10 +91,10 @@ def list_snapshots() -> list[SnapshotInfo]:
     return result
 
 
-def update_snapshot(snapshot_id: str, profile: str | dict | None = None) -> str:
+def update_snapshot(snapshot_id: str, root: Path, profile: str | dict | None = None) -> str:
     if isinstance(profile, str):
         try:
-            profile_dict = get_profile(profile)
+            profile_dict = get_profile(profile, root=root)
         except KeyError:
             raise ProfileNotFoundError(f"Profile '{profile}' not found.") from None
     elif isinstance(profile, dict):
@@ -100,7 +102,7 @@ def update_snapshot(snapshot_id: str, profile: str | dict | None = None) -> str:
     else:
         profile_dict = None
     try:
-        manifest = _store_load(snapshot_id)
+        manifest = _store_load(snapshot_id, root=root)
     except _ObjectNotFoundError as e:
         raise SnapshotNotFoundError(str(e)) from e
     if profile_dict is None:
@@ -111,11 +113,12 @@ def update_snapshot(snapshot_id: str, profile: str | dict | None = None) -> str:
             raise ValueError(
                 f"Snapshot '{snapshot_id}' has legacy format. Provide profile explicitly."
             )
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile_dict)
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile_dict, root)
     try:
         return _store_update(
             snapshot_id,
             files,
+            root=root,
             profile_dict=profile_dict,
             pre_commands=pre_commands_data if pre_commands_data else None,
             command=command_data if command_data else None,
@@ -124,16 +127,16 @@ def update_snapshot(snapshot_id: str, profile: str | dict | None = None) -> str:
         raise SnapshotNotFoundError(str(e)) from e
 
 
-def delete_snapshot(snapshot_id: str) -> None:
+def delete_snapshot(snapshot_id: str, root: Path) -> None:
     try:
-        _store_delete(snapshot_id)
+        _store_delete(snapshot_id, root=root)
     except _ObjectNotFoundError as e:
         raise SnapshotNotFoundError(str(e)) from e
 
 
-def snapshot_info(snapshot_id: str) -> SnapshotInfo:
+def snapshot_info(snapshot_id: str, root: Path) -> SnapshotInfo:
     try:
-        manifest = _store_load(snapshot_id)
+        manifest = _store_load(snapshot_id, root=root)
     except _ObjectNotFoundError as e:
         raise SnapshotNotFoundError(str(e)) from e
     return SnapshotInfo(
@@ -148,6 +151,7 @@ def snapshot_info(snapshot_id: str) -> SnapshotInfo:
 
 
 def compute_diff(
+    root: Path,
     snapshot_id: str | None = None,
     profile: str | dict = "full",
     fmt: str = "markdown",
@@ -158,13 +162,13 @@ def compute_diff(
 ) -> DiffResult:
     if isinstance(profile, str):
         try:
-            profile_dict = get_profile(profile)
+            profile_dict = get_profile(profile, root=root)
         except KeyError:
             raise ProfileNotFoundError(f"Profile '{profile}' not found.") from None
     else:
         profile_dict = profile
     if snapshot_id is None:
-        snaps = _store_list()
+        snaps = _store_list(root=root)
         if len(snaps) == 0:
             raise SnapshotNotFoundError("No snapshots found.")
         elif len(snaps) == 1:
@@ -176,6 +180,7 @@ def compute_diff(
     sections = _watcher_compute_diff(
         snapshot_id,
         profile_dict,
+        root,
         fmt=fmt,
         to_snapshot_id=to_snapshot_id,
         flat=flat,
@@ -186,7 +191,9 @@ def compute_diff(
 
         sections = structural_diff_sections(sections, fmt)
     elif mode == "repo-map" and sections:
-        sections = _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile_dict)
+        sections = _apply_repo_map_to_sections(
+            sections, snapshot_id, to_snapshot_id, profile_dict, root
+        )
     api_sections = [
         DiffSection(
             type=s.type,
@@ -211,8 +218,8 @@ def compute_diff(
     )
 
 
-def store_stats() -> StoreStats:
-    raw = _store_stats()
+def store_stats(root: Path) -> StoreStats:
+    raw = _store_stats(root=root)
     return StoreStats(
         snapshots=raw["snapshots"],
         objects=raw["objects"],
@@ -222,6 +229,6 @@ def store_stats() -> StoreStats:
     )
 
 
-def store_gc() -> GCResult:
-    raw = _store_gc()
+def store_gc(root: Path) -> GCResult:
+    raw = _store_gc(root=root)
     return GCResult(removed_objects=raw["removed"], freed_bytes=raw["freed_bytes"])

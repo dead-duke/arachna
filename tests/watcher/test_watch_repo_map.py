@@ -52,10 +52,7 @@ def test_format_repo_map_diff_empty():
 
 
 def test_format_repo_map_added_with_blocks():
-    blocks = {
-        "foo": ("def foo():", "    pass"),
-        "bar": ("def bar():", "    pass"),
-    }
+    blocks = {"foo": ("def foo():", "    pass"), "bar": ("def bar():", "    pass")}
     result = _format_repo_map_added("src/new.py", "python", blocks)
     assert "+ def foo():" in result
     assert "+ def bar():" in result
@@ -67,15 +64,13 @@ def test_format_repo_map_added_empty():
 
 
 def test_apply_repo_map_to_sections_modified(tmp_path, setup_config, make_profile):
-    setup_config()
+    root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-
     profile = make_profile("src", ["*.py"])
-    create_snapshot(profile=profile, name="rm-mod")
+    create_snapshot(root=root, profile=profile, name="rm-mod")
     (src / "main.py").write_text("def foo():\n    return 2\n")
-
     sections = [
         DiffSection(
             type="modified",
@@ -83,20 +78,18 @@ def test_apply_repo_map_to_sections_modified(tmp_path, setup_config, make_profil
             content="### src/main.py\n\nREMOVED lines 1:\n    old\n\nADDED lines 1:\n    new\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, "rm-mod", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-mod", None, profile, root=root)
     assert len(result) == 1
     assert "foo" in result[0].content
 
 
 def test_apply_repo_map_to_sections_added(tmp_path, setup_config, make_profile):
-    setup_config()
+    root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-
     profile = make_profile("src", ["*.py"])
-    create_snapshot(profile=profile, name="rm-add")
-
+    create_snapshot(root=root, profile=profile, name="rm-add")
     sections = [
         DiffSection(
             type="added",
@@ -104,54 +97,44 @@ def test_apply_repo_map_to_sections_added(tmp_path, setup_config, make_profile):
             content="ADDED (new file):\n\n```\ndef new_func():\n    pass\n```\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, "rm-add", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-add", None, profile, root=root)
     assert len(result) == 1
     assert "new.py" in result[0].path or "new_func" in result[0].content
 
 
 def test_apply_repo_map_to_sections_header_passthrough(tmp_path, setup_config, make_profile):
-    setup_config()
+    root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-
     profile = make_profile("src", ["*.py"])
-    create_snapshot(profile=profile, name="rm-header")
-
-    sections = [
-        DiffSection(type="header", path="", content="## Changes\n"),
-    ]
-    result = _apply_repo_map_to_sections(sections, "rm-header", None, profile)
+    create_snapshot(root=root, profile=profile, name="rm-header")
+    sections = [DiffSection(type="header", path="", content="## Changes\n")]
+    result = _apply_repo_map_to_sections(sections, "rm-header", None, profile, root=root)
     assert result[0].type == "header"
     assert result[0].content == "## Changes\n"
 
 
 def test_apply_repo_map_to_sections_deleted(tmp_path, setup_config, make_profile):
-    setup_config()
+    root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-
     profile = make_profile("src", ["*.py"])
-    create_snapshot(profile=profile, name="rm-del")
-
-    sections = [
-        DiffSection(type="deleted", path="src/main.py", content="[DELETED]\n"),
-    ]
-    result = _apply_repo_map_to_sections(sections, "rm-del", None, profile)
+    create_snapshot(root=root, profile=profile, name="rm-del")
+    sections = [DiffSection(type="deleted", path="src/main.py", content="[DELETED]\n")]
+    result = _apply_repo_map_to_sections(sections, "rm-del", None, profile, root=root)
     assert len(result) == 1
     assert "Removed signatures" in result[0].content or "DELETED" in result[0].content
 
 
 def test_apply_repo_map_to_sections_cannot_read(tmp_path, setup_config, make_profile):
-    setup_config()
+    root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-
     profile = make_profile("src", ["*.py"])
-    create_snapshot(profile=profile, name="rm-readfail")
-
+    create_snapshot(root=root, profile=profile, name="rm-readfail")
     sections = [
         DiffSection(
             type="modified",
@@ -159,37 +142,35 @@ def test_apply_repo_map_to_sections_cannot_read(tmp_path, setup_config, make_pro
             content="### nonexistent.py\n\nREMOVED lines 1:\n    old\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, "rm-readfail", None, profile)
+    result = _apply_repo_map_to_sections(sections, "rm-readfail", None, profile, root=root)
     assert len(result) == 1
     assert "REMOVED" in result[0].content
 
 
 def test_compute_diff_profile_not_found(tmp_path, setup_config):
-    setup_config(profiles={"x": {"command": "echo hi", "max_tokens": 100}})
+    root = setup_config(profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.py").write_text("x")
-
     with pytest.raises(ProfileNotFoundError):
-        compute_diff(profile="nonexistent", snapshot_id="no-such")
+        compute_diff(root=root, profile="nonexistent", snapshot_id="no-such")
 
 
 def test_compute_diff_snapshot_not_found(tmp_path, setup_config, make_profile):
-    setup_config()
+    root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("x")
-
     with pytest.raises(SnapshotNotFoundError):
-        compute_diff(profile=make_profile("src", ["*.py"]))
+        compute_diff(root=root, profile=make_profile("src", ["*.py"]))
 
 
-def test_read_file_from_store_not_found():
-    result = _read_file_from_store("nonexistent.py", {"other.py": "sha256:abc123"})
+def test_read_file_from_store_not_found(tmp_path):
+    result = _read_file_from_store("nonexistent.py", {"other.py": "sha256:abc123"}, root=tmp_path)
     assert result is None
 
 
-def test_read_file_from_store_invalid_hash():
-    result = _read_file_from_store("test.py", {"test.py": "sha256:invalidhash"})
+def test_read_file_from_store_invalid_hash(tmp_path):
+    result = _read_file_from_store("test.py", {"test.py": "sha256:invalidhash"}, root=tmp_path)
     assert result is None
 
 
@@ -208,7 +189,6 @@ def test_read_file_from_disk_unreadable(tmp_path):
 
     if sys.platform == "win32":
         pytest.skip("chmod 0o000 does not work on Windows")
-
     f = tmp_path / "secret.py"
     f.write_text("secret")
     f.chmod(0o000)

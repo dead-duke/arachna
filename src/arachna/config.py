@@ -28,10 +28,8 @@ _MERGE_APPEND = {"exclude_patterns", "patterns"}
 _MAX_EXTENDS_DEPTH = 5
 
 
-def find_config(root: Path | None = None) -> Path | None:
-    """Find .arachna.json by walking up from root (default: cwd)."""
-    if root is None:
-        root = Path.cwd()
+def find_config(root: Path) -> Path | None:
+    """Find .arachna.json by walking up from root."""
     for parent in [root, *root.parents]:
         cfg = parent / ".arachna.json"
         if cfg.exists():
@@ -39,8 +37,8 @@ def find_config(root: Path | None = None) -> Path | None:
     return None
 
 
-def load_config(root: Path | None = None) -> dict[str, Any]:
-    """Load config from .arachna.json found from root (default: cwd)."""
+def load_config(root: Path) -> dict[str, Any]:
+    """Load config from .arachna.json found from root."""
     cfg_path = find_config(root)
     if not cfg_path:
         return _default_config()
@@ -89,10 +87,10 @@ def _merge_profiles(base: dict, child: dict) -> dict:
     return merged
 
 
-def get_profile(name: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Get profile by name from config. Falls back to load_config() if config is empty."""
-    if config is None or not config.get("profiles"):
-        config = load_config()
+def get_profile(name: str, root: Path, config: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Get profile by name from config. Falls back to load_config(root) if config is None."""
+    if config is None:
+        config = load_config(root)
     project_name = config.get("project_name", "Project")
     profiles = config.get("profiles", {})
     if not profiles:

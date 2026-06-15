@@ -13,10 +13,6 @@ def test_collect_result_has_metrics(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
-    import os
-
-    os.chdir(tmp_path)
-
     result = collect(
         profile={
             "name_template": "chat-api",
@@ -28,6 +24,7 @@ def test_collect_result_has_metrics(tmp_path):
             "use_gitignore": False,
         },
         output_dir="out",
+        root=tmp_path,
     )
 
     assert result.metrics is not None
@@ -43,10 +40,6 @@ def test_collect_result_metrics_empty(tmp_path):
     )
     (tmp_path / "empty").mkdir()
 
-    import os
-
-    os.chdir(tmp_path)
-
     result = collect(
         profile={
             "name_template": "chat-api",
@@ -58,6 +51,7 @@ def test_collect_result_metrics_empty(tmp_path):
             "use_gitignore": False,
         },
         output_dir="out",
+        root=tmp_path,
     )
 
     assert result.metrics is not None

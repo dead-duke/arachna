@@ -44,8 +44,10 @@ def test_empty_dir(tmp_path):
     assert len(stats["parts"]) == 0
 
 
-def test_command_mode():
-    stats = dry_run({"command": "echo hi", "max_tokens": 16000, "name_template": "chat"})
+def test_command_mode(tmp_path):
+    stats = dry_run(
+        {"command": "echo hi", "max_tokens": 16000, "name_template": "chat"}, root=tmp_path
+    )
     assert len(stats["parts"]) == 1
 
 

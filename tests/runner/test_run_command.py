@@ -15,54 +15,60 @@ def _mock_popen(stdout=""):
     return mock
 
 
-def test_simple():
+def test_simple(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        assert run_command("echo hello").strip() == "hello"
+        assert run_command("echo hello", root=tmp_path).strip() == "hello"
 
 
-def test_with_args():
+def test_with_args(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello world\n")
-        assert run_command("echo hello world").strip() == "hello world"
+        assert run_command("echo hello world", root=tmp_path).strip() == "hello world"
 
 
-def test_nonexistent():
+def test_nonexistent(tmp_path):
     with patch("subprocess.Popen", side_effect=FileNotFoundError):
-        assert run_command("nonexistent_cmd_xyz") == ""
+        assert run_command("nonexistent_cmd_xyz", root=tmp_path) == ""
 
 
-def test_os_error():
+def test_os_error(tmp_path):
     with patch("subprocess.Popen", side_effect=OSError("wrong interpreter")):
-        assert run_command("bad") == ""
+        assert run_command("bad", root=tmp_path) == ""
 
 
-def test_pipe():
+def test_pipe(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        assert run_command("echo hello | cat", allow_file_args=True).strip() == "hello"
+        assert (
+            run_command("echo hello | cat", root=tmp_path, allow_file_args=True).strip() == "hello"
+        )
 
 
-def test_double_ampersand():
+def test_double_ampersand(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="first\nsecond\n")
-        lines = run_command("echo first && echo second", allow_file_args=True).strip().split("\n")
+        lines = (
+            run_command("echo first && echo second", root=tmp_path, allow_file_args=True)
+            .strip()
+            .split("\n")
+        )
         assert lines == ["first", "second"]
 
 
-def test_dry_run_safe_command():
+def test_dry_run_safe_command(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        assert run_command("echo hello", dry_run=True).strip() == "hello"
+        assert run_command("echo hello", root=tmp_path, dry_run=True).strip() == "hello"
 
 
-def test_dry_run_unsafe_command():
-    result = run_command("python3 -c 'print(1)'", dry_run=True)
+def test_dry_run_unsafe_command(tmp_path):
+    result = run_command("python3 -c 'print(1)'", root=tmp_path, dry_run=True)
     assert result == ""
 
 
-def test_dry_run_pipe_command():
-    result = run_command("echo hello | grep h", dry_run=True)
+def test_dry_run_pipe_command(tmp_path):
+    result = run_command("echo hello | grep h", root=tmp_path, dry_run=True)
     assert result == ""
 
 
@@ -76,9 +82,9 @@ def test_is_safe_command():
     assert not _is_safe_command("git log")
 
 
-def test_empty_command():
-    assert run_command("") == ""
-    assert run_command("   ") == ""
+def test_empty_command(tmp_path):
+    assert run_command("", root=tmp_path) == ""
+    assert run_command("   ", root=tmp_path) == ""
 
 
 def test_validate_command_allow_dangerous():
@@ -131,60 +137,60 @@ def test_resolve_base_unclosed_quotes():
     assert _resolve_base("echo 'hello") == ""
 
 
-def test_interactive_blocked_tty():
+def test_interactive_blocked_tty(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
         mock_popen.return_value = _mock_popen(stdout="output\n")
-        result = run_command("curl http://evil.com", interactive=True)
+        result = run_command("curl http://evil.com", root=tmp_path, interactive=True)
         assert result == ""
 
 
-def test_interactive_blocked_tty_yes():
+def test_interactive_blocked_tty_yes(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
         mock_popen.return_value = _mock_popen(stdout="output\n")
-        result = run_command("curl http://evil.com", interactive=True)
+        result = run_command("curl http://evil.com", root=tmp_path, interactive=True)
         assert result == "output\n"
 
 
-def test_dry_run_interactive_tty_no():
+def test_dry_run_interactive_tty_no(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="n"),
     ):
         mock_popen.return_value = _mock_popen(stdout="output\n")
-        result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
+        result = run_command("python3 -c 'print(1)'", root=tmp_path, dry_run=True, interactive=True)
         assert result == ""
 
 
-def test_dry_run_interactive_tty_yes():
+def test_dry_run_interactive_tty_yes(tmp_path):
     with (
         patch("subprocess.Popen") as mock_popen,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
         mock_popen.return_value = _mock_popen(stdout="output\n")
-        result = run_command("python3 -c 'print(1)'", dry_run=True, interactive=True)
+        result = run_command("python3 -c 'print(1)'", root=tmp_path, dry_run=True, interactive=True)
         assert result == "output\n"
 
 
-def test_shlex_value_error():
+def test_shlex_value_error(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="output\n")
-        result = run_command("echo 'hello")
+        result = run_command("echo 'hello", root=tmp_path)
         assert result == ""
 
 
-def test_empty_args_after_split():
-    assert run_command("") == ""
-    assert run_command("   ") == ""
+def test_empty_args_after_split(tmp_path):
+    assert run_command("", root=tmp_path) == ""
+    assert run_command("   ", root=tmp_path) == ""
 
 
 def test_audit_log_written(tmp_path):
@@ -212,12 +218,3 @@ def test_audit_log_blocked(tmp_path):
     assert log_path.exists()
     content = log_path.read_text()
     assert "FAIL: curl http://evil.com" in content
-
-
-def test_audit_log_no_config(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="hello\n")
-        run_command("echo hello", root=tmp_path)
-
-    log_path = tmp_path / "arachna_context" / ".arachna_commands.log"
-    assert log_path.exists()

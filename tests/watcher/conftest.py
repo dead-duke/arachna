@@ -22,12 +22,12 @@ def make_profile():
 
 
 @pytest.fixture
-def setup_config(tmp_path, monkeypatch):
-    """Create minimal .arachna.json and chdir to tmp_path."""
+def setup_config(tmp_path):
+    """Create minimal .arachna.json in tmp_path. No chdir."""
 
     def _setup(profiles=None):
-        monkeypatch.chdir(tmp_path)
         config = {"project_name": "test", "output_dir": "out", "profiles": profiles or {}}
         (tmp_path / ".arachna.json").write_text(json.dumps(config))
+        return tmp_path
 
     return _setup

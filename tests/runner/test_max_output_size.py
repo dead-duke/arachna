@@ -6,7 +6,6 @@ from arachna.runner import _run_popen, run_command
 
 
 def _mock_popen_chunks(chunks):
-    """Mock Popen that yields chunks then empty string."""
     mock = MagicMock()
     mock.stdout.read.side_effect = chunks + [""]
     mock.wait.return_value = 0
@@ -14,7 +13,6 @@ def _mock_popen_chunks(chunks):
 
 
 def test_max_output_size_truncation():
-    """Output exceeding limit gets truncated."""
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen_chunks(["a" * 5000, "b" * 5000])
         output, was_truncated = _run_popen("echo test", False, 7000)
@@ -24,7 +22,6 @@ def test_max_output_size_truncation():
 
 
 def test_max_output_size_within_limit():
-    """Output within limit passes through."""
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen_chunks(["hello\n"])
         output, was_truncated = _run_popen("echo hello", False, 10000)
@@ -32,9 +29,8 @@ def test_max_output_size_within_limit():
     assert output == "hello\n"
 
 
-def test_run_command_truncation_warning():
-    """run_command with huge output gets truncated via max_output_size param."""
+def test_run_command_truncation_warning(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen_chunks(["a" * 100])
-        result = run_command("echo huge output", max_output_size=5)
+        result = run_command("echo huge output", root=tmp_path, max_output_size=5)
     assert "truncated" in result

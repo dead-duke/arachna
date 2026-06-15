@@ -1,23 +1,6 @@
 """Content gatherer — collects files and runs commands.
 
-Streaming pipeline for full mode:
-1. Pre_commands run immediately, output goes to first part (compressed if needed).
-2. Metadata pass: stat files, run query filter on filenames.
-3. Streaming pass: read -> format -> compress -> pack -> flush when full.
-   Memory: O(max_tokens + metadata), not O(total content).
-
-Repo-map and headers modes stay in-memory — they need file content
-for signature extraction and header generation before token counting.
-Note: mode="headers" means mode="full" with dependency/export headers
-prepended to each file section. It does NOT mean "headers only" —
-for signatures-only output use mode="repo-map".
-
-v3.5: Strategy pattern for mode dispatch — FullModeStrategy (streaming),
-RepoMapModeStrategy (signatures), HeadersModeStrategy (dependency headers).
-root parameter propagates through scan/collect/assemble chain.
-
-v3.6: max_tokens=0 means unlimited — no splitting, single part.
-v3.6: Optional parallel file I/O via ARACHNA_MAX_WORKERS env var (default 1).
+v3.6: root parameter required throughout the pipeline.
 """
 
 import contextlib
@@ -30,7 +13,7 @@ from .cache import get_changed_files, update_cache
 from .compressor import compress as _compress
 from .formatter import _generate_header, format_file_section, is_excluded, lang_for_path
 from .gitignore import load_gitignore_patterns
-from .runner import run_command
+from .runner import run_command, run_pre_commands
 from .splitter import extract_signatures, split, split_sections
 from .tokenizer import count_tokens
 
@@ -38,14 +21,13 @@ from .tokenizer import count_tokens
 def _collect_pre_commands(
     profile: dict[str, Any],
     tokenizer: Callable[[str], int],
+    root: Path,
 ) -> list[tuple[str, str, int]]:
-    from .runner import run_pre_commands
-
     results = []
     commands = profile.get("pre_commands", [])
     if not commands:
         return results
-    for cmd, output in run_pre_commands(commands):
+    for cmd, output in run_pre_commands(commands, root=root):
         if output.strip():
             tokens = tokenizer(output)
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
@@ -56,11 +38,8 @@ def _collect_pre_commands(
 def _scan_directories(
     profile: dict[str, Any],
     exclude: list[str],
-    root: Path | None = None,
+    root: Path,
 ) -> list[Path]:
-    """Scan directories from profile, relative to root (default: cwd)."""
-    if root is None:
-        root = Path.cwd()
     seen = []
     for directory in profile.get("directories", []):
         dir_path = root / directory
@@ -154,8 +133,7 @@ def _format_file_list(
 
 
 def _format_markdown_sigs(filepath: Path, lang: str, sigs: str) -> str:
-    fence_lang = lang if lang else ""
-    return f"### {filepath}\n\n```{fence_lang}\n{sigs}\n```\n"
+    return f"### {filepath}\n\n```{lang if lang else ''}\n{sigs}\n```\n"
 
 
 def _format_xml_sigs(filepath: Path, lang: str, sigs: str) -> str:
@@ -176,18 +154,18 @@ def _collect_directory_sections(
     profile: dict[str, Any],
     exclude: list[str],
     tokenizer: Callable[[str], int],
+    root: Path,
     incremental: bool = False,
     cache: dict[str, float] | None = None,
     verbose: bool = False,
     include_header: bool = False,
     mode: str = "full",
-    root: Path | None = None,
 ) -> tuple[list[tuple[str, str, int]], dict[str, float] | None]:
     fmt = profile.get("section_format", "markdown")
     include_binary = profile.get("include_binary", False)
     binary_extensions = profile.get("binary_extensions")
     binary_max_mb = profile.get("binary_max_mb", 1.0)
-    seen_files = _scan_directories(profile, exclude, root=root)
+    seen_files = _scan_directories(profile, exclude, root)
     if incremental and cache is not None:
         changed, new, deleted = get_changed_files(seen_files, cache)
         target_files = changed + new
@@ -216,6 +194,7 @@ def _collect_file_sections(
     profile: dict[str, Any],
     exclude: list[str],
     tokenizer: Callable[[str], int],
+    root: Path,
     verbose: bool = False,
     include_header: bool = False,
     mode: str = "full",
@@ -255,7 +234,6 @@ def _collect_import_graph(named_sections: list[tuple[str, str, int]]) -> dict[st
     cache_key = tuple((fp, hash(content) & 0xFFFFFFFF) for fp, content, _tokens in named_sections)
     if cache_key in _import_graph_cache:
         return _import_graph_cache[cache_key]
-
     graph: dict[str, list[str]] = {}
     for filepath, content, _tokens in named_sections:
         deps = _extract_deps_from_content(content)
@@ -264,7 +242,6 @@ def _collect_import_graph(named_sections: list[tuple[str, str, int]]) -> dict[st
             header = _generate_header(Path(filepath), content, lang)
             deps = _extract_deps_from_content(header) or []
         graph[filepath] = deps
-
     if len(_import_graph_cache) > 128:
         _import_graph_cache.clear()
     _import_graph_cache[cache_key] = graph
@@ -274,14 +251,12 @@ def _collect_import_graph(named_sections: list[tuple[str, str, int]]) -> dict[st
 def _extract_deps_from_content(content: str) -> list[str] | None:
     for line in content.split("\n"):
         if line.startswith("deps: "):
-            deps_str = line[6:]
-            return [d.strip() for d in deps_str.split(",") if d.strip()]
+            return [d.strip() for d in line[6:].split(",") if d.strip()]
     return None
 
 
 def _score_files(
-    named_sections: list[tuple[str, str, int]],
-    query_words: list[str],
+    named_sections: list[tuple[str, str, int]], query_words: list[str]
 ) -> dict[str, int]:
     scores: dict[str, int] = {}
     for filepath, content, _tokens in named_sections:
@@ -297,14 +272,12 @@ def _score_files(
                 score += 3
         for line in content.split("\n"):
             if line.startswith("exports: "):
-                exports_str = line[9:]
                 for word in query_words:
-                    if word in exports_str.lower():
+                    if word in line[9:].lower():
                         score += 8
                 break
         if score > 0:
             scores[filepath] = score
-
     graph = _collect_import_graph(named_sections)
     for filepath in scores:
         for dep in graph.get(filepath, []):
@@ -314,9 +287,7 @@ def _score_files(
     return scores
 
 
-def _build_reverse_graph(
-    graph: dict[str, list[str]],
-) -> dict[str, list[str]]:
+def _build_reverse_graph(graph: dict[str, list[str]]) -> dict[str, list[str]]:
     reverse: dict[str, list[str]] = {}
     for fpath, deps in graph.items():
         for dep in deps:
@@ -327,9 +298,7 @@ def _build_reverse_graph(
 
 
 def _expand_import_chain(
-    matched: set[str],
-    reverse_graph: dict[str, list[str]],
-    depth: int = 2,
+    matched: set[str], reverse_graph: dict[str, list[str]], depth: int = 2
 ) -> set[str]:
     result = set(matched)
     for _ in range(depth):
@@ -355,19 +324,16 @@ def _filter_by_query(
 ) -> list[tuple[str, str, int]]:
     if not query or not query.strip():
         return named_sections
-
     query_words = query.lower().split()
     scores = _score_files(named_sections, query_words)
     if not scores:
         return (
             [s for s in named_sections if s[0].startswith("pre: ")] if include_pre_commands else []
         )
-
     matched = set(scores.keys())
     graph = _collect_import_graph(named_sections)
     reverse_graph = _build_reverse_graph(graph)
     matched = _expand_import_chain(matched, reverse_graph)
-
     result = []
     for section in named_sections:
         if section[0].startswith("pre: "):
@@ -384,9 +350,8 @@ def _filter_filenames_by_query(filepaths: list[Path], query: str) -> list[Path]:
     query_words = query.lower().split()
     result = []
     for fp in filepaths:
-        fname_lower = fp.name.lower()
         for word in query_words:
-            if word in fname_lower:
+            if word in fp.name.lower():
                 result.append(fp)
                 break
     return result
@@ -420,7 +385,6 @@ def _format_one_file(
     include_header: bool,
     do_compress: bool,
 ) -> tuple[str, str, int] | None:
-    """Format a single file — used by ThreadPoolExecutor for parallel I/O."""
     section = format_file_section(
         fp,
         fmt=fmt,
@@ -437,41 +401,28 @@ def _format_one_file(
     return (str(fp), section, 0)
 
 
-# ── Strategy pattern for mode dispatch ───────────────────────────
-
-
 class _FullModeStrategy:
-    """Streaming mode — reads and packs files on the fly, O(max_tokens) memory.
-
-    v3.6: Optional parallel file I/O via ThreadPoolExecutor.
-    Controlled by ARACHNA_MAX_WORKERS env var (default 1, sequential).
-    Set to >1 to enable parallel I/O for large files on slow disks.
-    Note: on SSDs with warm cache, parallel may be slower due to GIL.
-    """
-
     def assemble(
         self,
         profile: dict[str, Any],
         exclude: list[str],
         tokenizer: Callable[[str], int],
+        root: Path,
         incremental: bool,
         cache: dict[str, float] | None,
         verbose: bool,
         query: str | None,
-        root: Path | None = None,
     ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
         from .splitter import pack_into_parts
 
         do_compress = profile.get("compress", False)
         max_tokens = profile.get("max_tokens", 16000)
         include_header = bool(query and query.strip())
-
-        filepaths = _scan_directories(profile, exclude, root=root)
+        filepaths = _scan_directories(profile, exclude, root)
         profile_files = _get_profile_files(profile, exclude)
         for fp in profile_files:
             if fp not in filepaths:
                 filepaths.append(fp)
-
         if incremental and cache is not None:
             changed, new, deleted = get_changed_files(filepaths, cache)
             target_files = changed + new
@@ -481,31 +432,23 @@ class _FullModeStrategy:
                 print(f"  Deleted: {len(deleted)} file(s)")
         else:
             target_files = filepaths
-
         if query and query.strip():
             target_files = _filter_filenames_by_query(target_files, query)
-
-        pre_sections = _collect_pre_commands(profile, tokenizer)
+        pre_sections = _collect_pre_commands(profile, tokenizer, root)
         new_cache = update_cache(target_files, cache or {})
-
         fmt = profile.get("section_format", "markdown")
         include_binary = profile.get("include_binary", False)
         binary_extensions = profile.get("binary_extensions")
         binary_max_mb = profile.get("binary_max_mb", 1.0)
-
         sections = []
         named_sections = list(pre_sections)
-
         for _i, (_label, output, _tokens) in enumerate(pre_sections):
             content = _compress(output) if do_compress and output.strip() else output
             sections.append(content)
-
         total_files = len(target_files)
         if verbose and total_files > 100:
             print(f"  Collecting... 0/{total_files} files", file=__import__("sys").stderr)
-
         max_workers = int(_os.environ.get("ARACHNA_MAX_WORKERS", "1"))
-
         if max_workers > 1 and total_files > 1:
             self._collect_parallel(
                 target_files,
@@ -537,7 +480,6 @@ class _FullModeStrategy:
                 named_sections,
                 tokenizer,
             )
-
         if max_tokens == 0:
             all_content = "\n\n".join(s.strip() for s in sections if s.strip())
             all_indices = [list(range(len(named_sections)))]
@@ -545,12 +487,10 @@ class _FullModeStrategy:
             indices = all_indices
         else:
             parts, indices = pack_into_parts(sections, max_tokens, tokenizer=tokenizer)
-
         if verbose and do_compress:
             raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
             comp_tokens = sum(tokenizer(p) for p in parts)
             _print_compress_stats(raw_tokens, comp_tokens)
-
         return named_sections, parts, indices, new_cache
 
     def _collect_parallel(
@@ -597,7 +537,6 @@ class _FullModeStrategy:
                             f"  collected {len(results_map)}/{total_files} files...",
                             file=__import__("sys").stderr,
                         )
-
             for idx in range(len(target_files)):
                 if idx in results_map:
                     fp_str, content, _ = results_map[idx]
@@ -653,46 +592,21 @@ class _FullModeStrategy:
                 named_sections.append((fp_str, content, tokens))
             if verbose and total_files > 100 and (idx + 1) % 100 == 0:
                 print(
-                    f"  collected {idx + 1}/{total_files} files...",
-                    file=__import__("sys").stderr,
+                    f"  collected {idx + 1}/{total_files} files...", file=__import__("sys").stderr
                 )
 
 
 class _RepoMapModeStrategy:
-    """In-memory mode — extracts signatures, O(total content) memory."""
-
-    def assemble(
-        self,
-        profile: dict[str, Any],
-        exclude: list[str],
-        tokenizer: Callable[[str], int],
-        incremental: bool,
-        cache: dict[str, float] | None,
-        verbose: bool,
-        query: str | None,
-        root: Path | None = None,
-    ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+    def assemble(self, profile, exclude, tokenizer, root, incremental, cache, verbose, query):
         return _assemble_in_memory(
-            profile, exclude, tokenizer, incremental, cache, verbose, query, "repo-map", root=root
+            profile, exclude, tokenizer, root, incremental, cache, verbose, query, "repo-map"
         )
 
 
 class _HeadersModeStrategy:
-    """In-memory mode — includes dependency/export headers, O(total content) memory."""
-
-    def assemble(
-        self,
-        profile: dict[str, Any],
-        exclude: list[str],
-        tokenizer: Callable[[str], int],
-        incremental: bool,
-        cache: dict[str, float] | None,
-        verbose: bool,
-        query: str | None,
-        root: Path | None = None,
-    ) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+    def assemble(self, profile, exclude, tokenizer, root, incremental, cache, verbose, query):
         return _assemble_in_memory(
-            profile, exclude, tokenizer, incremental, cache, verbose, query, "headers", root=root
+            profile, exclude, tokenizer, root, incremental, cache, verbose, query, "headers"
         )
 
 
@@ -704,31 +618,30 @@ _MODE_STRATEGIES = {
 
 
 def _assemble_in_memory(
-    profile: dict[str, Any],
-    exclude: list[str],
-    tokenizer: Callable[[str], int],
-    incremental: bool,
-    cache: dict[str, float] | None,
-    verbose: bool,
-    query: str | None,
-    mode: str,
-    root: Path | None = None,
-) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+    profile,
+    exclude,
+    tokenizer,
+    root,
+    incremental,
+    cache,
+    verbose,
+    query,
+    mode,
+):
     do_compress = profile.get("compress", False)
     max_tokens = profile.get("max_tokens", 16000)
     include_header = bool(query and query.strip()) or mode == "headers"
-
     named_sections, new_cache = _collect_named_sections(
         profile,
         exclude,
-        tokenizer=tokenizer,
+        tokenizer,
+        root,
         incremental=incremental,
         cache=cache,
         verbose=verbose,
         include_header=include_header,
         query=query,
         mode=mode,
-        root=root,
     )
     sections = []
     raw_tokens = 0
@@ -738,7 +651,6 @@ def _assemble_in_memory(
             sections.append(_compress(content))
         else:
             sections.append(content)
-
     if max_tokens == 0:
         all_content = "\n\n".join(s.strip() for s in sections if s.strip())
         all_indices = [list(range(len(named_sections)))]
@@ -749,34 +661,33 @@ def _assemble_in_memory(
             comp_tokens = sum(tokenizer(s) for s in sections)
             _print_compress_stats(raw_tokens, comp_tokens)
         parts, indices = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
-
     return named_sections, parts, indices, new_cache
 
 
 def _collect_named_sections(
-    profile: dict[str, Any],
-    exclude: list[str],
-    tokenizer: Callable[[str], int],
-    incremental: bool = False,
-    cache: dict[str, float] | None = None,
-    verbose: bool = False,
-    include_header: bool = False,
-    query: str | None = None,
-    mode: str = "full",
-    root: Path | None = None,
-) -> tuple[list[tuple[str, str, int]], dict[str, float]]:
+    profile,
+    exclude,
+    tokenizer,
+    root,
+    incremental=False,
+    cache=None,
+    verbose=False,
+    include_header=False,
+    query=None,
+    mode="full",
+):
     named_sections = []
-    named_sections.extend(_collect_pre_commands(profile, tokenizer))
+    named_sections.extend(_collect_pre_commands(profile, tokenizer, root))
     dir_sections, new_cache = _collect_directory_sections(
         profile,
         exclude,
         tokenizer,
+        root,
         incremental=incremental,
         cache=cache,
         verbose=verbose,
         include_header=include_header,
         mode=mode,
-        root=root,
     )
     named_sections.extend(dir_sections)
     named_sections.extend(
@@ -784,6 +695,7 @@ def _collect_named_sections(
             profile,
             exclude,
             tokenizer,
+            root,
             verbose=verbose,
             include_header=include_header,
             mode=mode,
@@ -794,18 +706,13 @@ def _collect_named_sections(
     return named_sections, new_cache
 
 
-def _assemble_command_content(
-    profile: dict[str, Any],
-    tokenizer: Callable[[str], int],
-    query: str | None = None,
-    mode: str = "full",
-) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+def _assemble_command_content(profile, tokenizer, root, query=None, mode="full"):
     command = profile["command"]
     do_compress = profile.get("compress", False)
     split_mode = profile.get("split_mode", "by_file")
     split_marker = profile.get("split_marker", "\n\n")
     max_tokens = profile.get("max_tokens", 16000)
-    raw_content = gather_command(command)
+    raw_content = gather_command(command, root=root)
     if do_compress and raw_content.strip():
         raw_content = _compress(raw_content)
     named_sections = [("command output", raw_content, tokenizer(raw_content))]
@@ -815,59 +722,51 @@ def _assemble_command_content(
 
 
 def _assemble_file_content(
-    profile: dict[str, Any],
-    exclude: list[str],
-    tokenizer: Callable[[str], int],
-    incremental: bool = False,
-    cache: dict[str, float] | None = None,
-    verbose: bool = False,
-    query: str | None = None,
-    mode: str = "full",
-    root: Path | None = None,
-) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+    profile,
+    exclude,
+    tokenizer,
+    root,
+    incremental=False,
+    cache=None,
+    verbose=False,
+    query=None,
+    mode="full",
+):
     strategy = _MODE_STRATEGIES.get(mode, _MODE_STRATEGIES["full"])
-    return strategy.assemble(
-        profile, exclude, tokenizer, incremental, cache, verbose, query, root=root
-    )
+    return strategy.assemble(profile, exclude, tokenizer, root, incremental, cache, verbose, query)
 
 
 def _assemble_content(
-    profile: dict[str, Any],
-    exclude: list[str],
-    tokenizer: Callable[[str], int],
-    incremental: bool = False,
-    cache: dict[str, float] | None = None,
-    verbose: bool = False,
-    query: str | None = None,
-    mode: str = "full",
-    root: Path | None = None,
-) -> tuple[list[tuple[str, str, int]], list[str], list[list[int]], dict[str, float]]:
+    profile,
+    exclude,
+    tokenizer,
+    root,
+    incremental=False,
+    cache=None,
+    verbose=False,
+    query=None,
+    mode="full",
+):
     if profile.get("command"):
         if profile.get("directories") or profile.get("files"):
             print(
                 "  Warning: profile has both 'command' and 'directories'/'files'. Using 'command', ignoring directories and files."
             )
-        return _assemble_command_content(profile, tokenizer, query=query, mode=mode)
+        return _assemble_command_content(profile, tokenizer, root, query=query, mode=mode)
     return _assemble_file_content(
         profile,
         exclude,
         tokenizer,
+        root,
         incremental=incremental,
         cache=cache,
         verbose=verbose,
         query=query,
         mode=mode,
-        root=root,
     )
 
 
-def _apply_repo_map_to_sections(
-    sections: list,
-    snapshot_id: str,
-    to_snapshot_id: str | None,
-    profile: dict,
-    root: Path | None = None,
-) -> list:
+def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, root):
     from .formatter import lang_for_path
     from .store import load_snapshot
 
@@ -884,11 +783,11 @@ def _apply_repo_map_to_sections(
             continue
         lang = lang_for_path(Path(s.path))
         if s.type == "modified":
-            old_content = _read_file_from_store(s.path, snapshot_files, root=root)
+            old_content = _read_file_from_store(s.path, snapshot_files, root)
             new_content = (
-                _read_file_from_disk(s.path)
+                _read_file_from_disk(root / s.path)
                 if to_files is None
-                else _read_file_from_store(s.path, to_files, root=root)
+                else _read_file_from_store(s.path, to_files, root)
             )
             if old_content is not None and new_content is not None:
                 old_blocks = _parse_blocks_dispatch(old_content, lang)
@@ -896,15 +795,15 @@ def _apply_repo_map_to_sections(
                 s.content = _format_repo_map_diff(s.path, lang, old_blocks, new_blocks)
         elif s.type == "added":
             new_content = (
-                _read_file_from_disk(s.path)
+                _read_file_from_disk(root / s.path)
                 if to_files is None
-                else _read_file_from_store(s.path, to_files, root=root)
+                else _read_file_from_store(s.path, to_files, root)
             )
             if new_content is not None:
                 blocks = _parse_blocks_dispatch(new_content, lang)
                 s.content = _format_repo_map_added(s.path, lang, blocks)
         elif s.type == "deleted":
-            old_content = _read_file_from_store(s.path, snapshot_files, root=root)
+            old_content = _read_file_from_store(s.path, snapshot_files, root)
             if old_content is not None:
                 blocks = _parse_blocks_dispatch(old_content, lang)
                 sig_lines = [f"  {sig}" for sig, _body in blocks.values()]
@@ -918,7 +817,7 @@ def _apply_repo_map_to_sections(
     return result
 
 
-def _parse_blocks_dispatch(text: str, lang: str) -> dict[str, tuple[str, str]]:
+def _parse_blocks_dispatch(text, lang):
     from .differ_structural import _parse_c_like_blocks, _parse_python_blocks, _parse_script_blocks
     from .formatter import C_LIKE_LANGS, SCRIPT_LANGS
 
@@ -932,20 +831,19 @@ def _parse_blocks_dispatch(text: str, lang: str) -> dict[str, tuple[str, str]]:
     return {}
 
 
-def _read_file_from_store(path: str, files: dict, root: Path | None = None) -> str | None:
+def _read_file_from_store(path, files, root):
     from .store import read_object
 
     for fpath, hash_spec in files.items():
         if fpath == path:
-            obj_hash = hash_spec[7:]
             try:
-                return read_object(obj_hash, root=root).decode("utf-8")
+                return read_object(hash_spec[7:], root=root).decode("utf-8")
             except Exception:
                 return None
     return None
 
 
-def _read_file_from_disk(path: str) -> str | None:
+def _read_file_from_disk(path):
     fp = Path(path)
     if not fp.is_file():
         return None
@@ -955,7 +853,7 @@ def _read_file_from_disk(path: str) -> str | None:
         return None
 
 
-def _format_repo_map_diff(path: str, lang: str, old_blocks: dict, new_blocks: dict) -> str:
+def _format_repo_map_diff(path, lang, old_blocks, new_blocks):
     import hashlib
 
     all_names = set(old_blocks.keys()) | set(new_blocks.keys())
@@ -984,38 +882,27 @@ def _format_repo_map_diff(path: str, lang: str, old_blocks: dict, new_blocks: di
     return "".join(parts) if len(parts) > 1 else ""
 
 
-def _format_repo_map_added(path: str, lang: str, blocks: dict) -> str:
+def _format_repo_map_added(path, lang, blocks):
     parts = [f"### {path}\n"]
     for _name, (sig, _body) in blocks.items():
         parts.append(f"+ {sig}\n")
     return "".join(parts) if len(parts) > 1 else ""
 
 
-def gather_files(
-    profile: dict[str, Any],
-    verbose: bool = False,
-    tokenizer: Callable[[str], int] | None = None,
-    root: Path | None = None,
-) -> list[str]:
+def gather_files(profile, root, verbose=False, tokenizer=None):
     tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns(profile, root=root)
     sections, _ = _collect_named_sections(
-        profile, exclude, tokenizer=tk, verbose=verbose, root=root
+        profile, exclude, tokenizer=tk, root=root, verbose=verbose
     )
     return [content for _, content, _ in sections]
 
 
-def gather_command(cmd: str) -> str:
-    return run_command(cmd, allow_file_args=True)
+def gather_command(cmd, root):
+    return run_command(cmd, root=root, allow_file_args=True)
 
 
-def dry_run(
-    profile: dict[str, Any],
-    tokenizer: Callable[[str], int] | None = None,
-    query: str | None = None,
-    mode: str = "full",
-    root: Path | None = None,
-) -> dict:
+def dry_run(profile, root, tokenizer=None, query=None, mode="full"):
     tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns(profile, root=root)
     max_tokens = profile.get("max_tokens", 16000)
@@ -1024,12 +911,12 @@ def dry_run(
         profile,
         exclude,
         tk,
+        root,
         incremental=False,
         cache=None,
         verbose=False,
         query=query,
         mode=mode,
-        root=root,
     )
     part_list = []
     for i, (content, idxs) in enumerate(zip(parts, indices, strict=True), 1):
@@ -1041,9 +928,7 @@ def dry_run(
     return {"name_tmpl": name_tmpl, "max_tokens": max_tokens, "parts": part_list}
 
 
-def _get_exclude_patterns(profile: dict[str, Any], root: Path | None = None) -> list[str]:
-    if root is None:
-        root = Path.cwd()
+def _get_exclude_patterns(profile, root):
     exclude = list(profile.get("exclude_patterns", []))
     if profile.get("use_gitignore", True):
         exclude.extend(load_gitignore_patterns(root))

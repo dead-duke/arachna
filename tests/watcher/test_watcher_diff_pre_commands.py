@@ -8,8 +8,6 @@ from arachna.watcher import (
     create_snapshot,
 )
 
-# ── _diff_pre_commands_line ──────────────────────────────────────
-
 
 def test_diff_pre_commands_line_added_only():
     old = "src/main.py\nsrc/utils.py\n"
@@ -56,9 +54,6 @@ def test_diff_pre_commands_line_empty_new():
     assert "- src/main.py" in result
 
 
-# ── _diff_pre_commands_marker ────────────────────────────────────
-
-
 def test_diff_pre_commands_marker_modified_section():
     marker = "\n=== COMMIT:"
     old = "=== COMMIT: abc ===\nold message\n\n=== COMMIT: def ===\nsame\n"
@@ -90,9 +85,6 @@ def test_diff_pre_commands_marker_unchanged():
     assert result == ""
 
 
-# ── _diff_pre_commands_structural ────────────────────────────────
-
-
 def test_diff_pre_commands_structural_tree_line_diff():
     old = "src/main.py\nsrc/old.py\n"
     new = "src/main.py\nsrc/new.py\n"
@@ -121,9 +113,6 @@ def test_diff_pre_commands_structural_unknown_fallback():
     new = "line1\nchanged\nline3\n"
     result = _diff_pre_commands_structural(old, new, "pre: unknown", "unknown_cmd arg")
     assert "REMOVED" in result or "ADDED" in result
-
-
-# ── Integration: structural pre_commands diff through compute_diff ─
 
 
 def test_compute_diff_pre_commands_tree_changed(tmp_path):

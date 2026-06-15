@@ -194,10 +194,8 @@ def _is_safe_command(cmd: str, allow_file_args: bool = False) -> bool:
     return base in allowlist
 
 
-def _get_audit_log_path(root: Path | None = None) -> Path | None:
+def _get_audit_log_path(root: Path) -> Path | None:
     try:
-        if root is None:
-            root = Path.cwd()
         for i, parent in enumerate([root, *root.parents]):
             if i > 5:
                 break
@@ -229,8 +227,8 @@ def _write_log(log_path: Path, entry: str):
         pass
 
 
-def _log_command(cmd: str, success: bool, root: Path | None = None):
-    log_path = _get_audit_log_path(root=root)
+def _log_command(cmd: str, success: bool, root: Path):
+    log_path = _get_audit_log_path(root)
     if log_path is None:
         return
     from datetime import datetime
@@ -242,7 +240,6 @@ def _log_command(cmd: str, success: bool, root: Path | None = None):
 
 
 def _run_popen(cmd: str, needs_shell: bool, max_output_size: int) -> tuple[str, bool]:
-    """Execute command via Popen with output size limit."""
     try:
         if needs_shell:
             process = subprocess.Popen(
@@ -278,12 +275,12 @@ def _run_popen(cmd: str, needs_shell: bool, max_output_size: int) -> tuple[str, 
 
 def run_command(
     cmd: str,
+    root: Path,
     allow_dangerous: bool = False,
     interactive: bool = False,
     dry_run: bool = False,
     allow_file_args: bool = False,
     max_output_size: int | None = None,
-    root: Path | None = None,
 ) -> str:
     if not cmd.strip():
         return ""
@@ -301,10 +298,10 @@ def run_command(
             print(f"   Reason: {reason}")
             response = input("   Execute anyway? [y/N]: ").strip().lower()
             if response not in ("y", "yes"):
-                _log_command(cmd, False, root=root)
+                _log_command(cmd, False, root)
                 return ""
         else:
-            _log_command(cmd, False, root=root)
+            _log_command(cmd, False, root)
             return ""
 
     if dry_run:
@@ -317,29 +314,25 @@ def run_command(
                 print(f"   {cmd}")
                 response = input("   Execute anyway? [y/N]: ").strip().lower()
                 if response not in ("y", "yes"):
-                    _log_command(cmd, False, root=root)
+                    _log_command(cmd, False, root)
                     return ""
             else:
-                _log_command(cmd, False, root=root)
+                _log_command(cmd, False, root)
                 return ""
 
     needs_shell = any(c in cmd for c in _SHELL_CHARS)
     output, was_truncated = _run_popen(cmd, needs_shell, max_output_size)
     if was_truncated:
         logger.warning("Command output truncated: %s", cmd[:80])
-    _log_command(cmd, True, root=root)
+    _log_command(cmd, True, root)
     return output
 
 
 def run_pre_commands(
     commands: list[str],
+    root: Path,
     pre_command_delay: float | None = None,
 ) -> list[tuple[str, str]]:
-    """Run pre_commands with optional delay between them.
-
-    Each command is wrapped in try-except — failures log a warning
-    and continue, they don't fail the pipeline.
-    """
     if pre_command_delay is None:
         pre_command_delay = float(_os.environ.get("ARACHNA_PRE_COMMAND_DELAY", "0"))
 
@@ -348,7 +341,7 @@ def run_pre_commands(
         if i > 0 and pre_command_delay > 0:
             time.sleep(pre_command_delay)
         try:
-            output = run_command(cmd, allow_file_args=True)
+            output = run_command(cmd, root=root, allow_file_args=True)
             results.append((cmd, output))
         except Exception as e:
             logger.warning("pre_command failed: %s — %s", cmd[:80], e)

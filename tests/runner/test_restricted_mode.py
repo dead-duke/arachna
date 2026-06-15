@@ -12,10 +12,10 @@ def _mock_popen(stdout=""):
     return mock
 
 
-def test_restricted_mode_allows_safe_commands():
+def test_restricted_mode_allows_safe_commands(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="hello\n")
-        result = run_command("echo hello")
+        result = run_command("echo hello", root=tmp_path)
         assert result == "hello\n"
 
 
@@ -46,13 +46,13 @@ def test_restricted_mode_blocks_shell_redirect():
     assert not is_safe
 
 
-def test_run_command_restricted_blocks_cat():
-    result = run_command("cat /etc/passwd")
+def test_run_command_restricted_blocks_cat(tmp_path):
+    result = run_command("cat /etc/passwd", root=tmp_path)
     assert result == ""
 
 
-def test_run_command_pre_commands_allows_cat():
+def test_run_command_pre_commands_allows_cat(tmp_path):
     with patch("subprocess.Popen") as mock_popen:
         mock_popen.return_value = _mock_popen(stdout="content\n")
-        result = run_command("cat file.txt", allow_file_args=True)
+        result = run_command("cat file.txt", root=tmp_path, allow_file_args=True)
         assert result == "content\n"

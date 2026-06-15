@@ -3,6 +3,7 @@
 
 import argparse
 import sys
+from pathlib import Path
 
 from . import __version__
 from .cli import COMMAND_HANDLERS
@@ -10,15 +11,10 @@ from .config import find_config, load_config
 
 
 def build_argparse() -> argparse.ArgumentParser:
-    """Build argparse parser for all commands."""
-    parser = argparse.ArgumentParser(
-        description="arachna — context collector for AI",
-    )
+    parser = argparse.ArgumentParser(description="arachna — context collector for AI")
     parser.add_argument("--version", action="version", version=f"arachna v{__version__}")
-
     sub = parser.add_subparsers(dest="command")
 
-    # ── collect ────────────────────────────────────────────────
     collect_p = sub.add_parser("collect", help="Collect project context")
     collect_p.add_argument("--profile", "-p", help="Profile name to collect")
     collect_p.add_argument("--all", "-a", action="store_true", help="Collect all profiles")
@@ -36,40 +32,31 @@ def build_argparse() -> argparse.ArgumentParser:
     collect_p.add_argument("--no-pre-commands", action="store_true")
     collect_p.add_argument("--mode", choices=["full", "headers", "repo-map"], default="full")
 
-    # ── manifest ───────────────────────────────────────────────
     manifest_p = sub.add_parser("manifest", help="Show collected files manifest")
     manifest_p.add_argument("--json", action="store_true", help="Machine-readable JSON output")
     manifest_p.add_argument("--output-dir", "-o", help="Output directory")
 
-    # ── snapshot ───────────────────────────────────────────────
     snap_p = sub.add_parser("snapshot", help="Manage snapshots")
     snap_subs = snap_p.add_subparsers(dest="snap_command")
-
     snap_create = snap_subs.add_parser("create", help="Create a named snapshot")
     snap_create.add_argument("--profile", "-p", help="Profile name (default: full)")
     snap_create.add_argument("--name", required=True, help="Snapshot name")
-
     snap_subs.add_parser("list", help="List all snapshots")
-
     snap_update = snap_subs.add_parser("update", help="Update an existing snapshot")
     snap_update.add_argument("id", help="Snapshot ID to update")
     snap_update.add_argument("--profile", "-p", help="Profile name (optional)")
-
     snap_delete = snap_subs.add_parser("delete", help="Delete a snapshot")
     snap_delete.add_argument("id", help="Snapshot ID to delete")
-
     snap_info = snap_subs.add_parser("info", help="Show snapshot details")
     snap_info.add_argument("id", help="Snapshot ID")
     snap_info.add_argument(
         "--profile", dest="profile_only", action="store_true", help="Profile only"
     )
     snap_info.add_argument("--stats", dest="stats_only", action="store_true", help="Stats only")
-
     snap_rename = snap_subs.add_parser("rename", help="Rename a snapshot")
     snap_rename.add_argument("old", help="Old snapshot ID")
     snap_rename.add_argument("new", help="New snapshot ID")
 
-    # ── diff ───────────────────────────────────────────────────
     diff_p = sub.add_parser("diff", help="Diff from snapshot")
     diff_p.add_argument("--from", dest="from_snapshot", help="Source snapshot ID")
     diff_p.add_argument("--to", help="Target snapshot ID (cross-snapshot)")
@@ -83,13 +70,11 @@ def build_argparse() -> argparse.ArgumentParser:
     diff_p.add_argument("--output-dir", "-o", help="Output directory")
     diff_p.add_argument("--query", help="Filter files by query")
 
-    # ── store ──────────────────────────────────────────────────
     store_p = sub.add_parser("store", help="Store management")
     store_subs = store_p.add_subparsers(dest="store_command")
     store_subs.add_parser("stats", help="Show store statistics")
     store_subs.add_parser("gc", help="Garbage collect store")
 
-    # ── plugins ────────────────────────────────────────────────
     plugins_p = sub.add_parser("plugins", help="Plugin management")
     plugins_subs = plugins_p.add_subparsers(dest="plugins_command")
     plugins_subs.add_parser("list", help="List plugins")
@@ -101,22 +86,18 @@ def build_argparse() -> argparse.ArgumentParser:
     plugins_uninstall = plugins_subs.add_parser("uninstall", help="Uninstall plugin")
     plugins_uninstall.add_argument("language", help="Language to uninstall")
 
-    # ── presets ────────────────────────────────────────────────
     presets_p = sub.add_parser("presets", help="Preset management")
     presets_subs = presets_p.add_subparsers(dest="presets_command")
     presets_update = presets_subs.add_parser("update", help="Update presets from remote")
     presets_update.add_argument("--url", help="Remote presets URL")
 
-    # ── benchmark ──────────────────────────────────────────────
     bench_p = sub.add_parser("profile", help="Profile project — measure token savings across modes")
     bench_p.add_argument("--profile", "-p", help="Profile name (default: full)")
     bench_p.add_argument("--format", choices=["terminal", "json"], default="terminal")
     bench_p.add_argument("--output-dir", "-o", help="Output directory")
 
-    # ── doctor ─────────────────────────────────────────────────
     sub.add_parser("doctor", help="Run configuration diagnostic")
 
-    # ── init ───────────────────────────────────────────────────
     init_p = sub.add_parser("init", help="Create .arachna.json interactively")
     init_p.add_argument("--defaults", action="store_true", help="Use defaults (non-interactive)")
     init_p.add_argument("--preset", help="Use specific preset")
@@ -124,7 +105,6 @@ def build_argparse() -> argparse.ArgumentParser:
     init_p.add_argument("--force", action="store_true")
     init_p.add_argument("--output-dir", "-o", help="Output directory")
 
-    # ── completion ─────────────────────────────────────────────
     comp_p = sub.add_parser("completion", help="Generate shell completion")
     comp_p.add_argument("shell", nargs="?", choices=["bash", "zsh"], help="Shell: bash or zsh")
 
@@ -154,8 +134,9 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    cfg_path = find_config()
-    config = load_config()
+    root = Path.cwd()
+    cfg_path = find_config(root)
+    config = load_config(root)
     if cfg_path is not None:
         config["_root"] = str(cfg_path.parent)
 

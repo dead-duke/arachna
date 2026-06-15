@@ -56,14 +56,16 @@ def test_specific_files():
         assert len(sections) == 1
 
 
-def test_nonexistent_file():
-    sections = gather_files({"directories": [], "files": ["/nonexistent"], "use_gitignore": False})
+def test_nonexistent_file(tmp_path):
+    sections = gather_files(
+        {"directories": [], "files": ["/nonexistent"], "use_gitignore": False}, root=tmp_path
+    )
     assert len(sections) == 0
 
 
-def test_pre_commands():
+def test_pre_commands(tmp_path):
     sections = gather_files(
-        {"pre_commands": ["echo hi"], "directories": [], "use_gitignore": False}
+        {"pre_commands": ["echo hi"], "directories": [], "use_gitignore": False}, root=tmp_path
     )
     assert len(sections) == 1
 

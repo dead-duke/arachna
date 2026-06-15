@@ -43,9 +43,7 @@ def validate_snapshot_id(sid: str) -> None:
         )
 
 
-def _store_root(root: Path | None = None) -> Path:
-    if root is None:
-        root = Path.cwd()
+def _store_root(root: Path) -> Path:
     arachna_dir = root / ".arachna"
     gitignore = arachna_dir / ".gitignore"
     if not arachna_dir.is_dir():
@@ -77,13 +75,7 @@ def _hash_path(store_dir: Path, object_hash: str, mkdir: bool = False) -> Path:
     return obj_dir / rest
 
 
-def write_object(data: bytes, root: Path | None = None) -> str:
-    """Write an object to the store.
-
-    Atomicity is best-effort: tries tempfile + os.replace first.
-    Falls back to direct write if mkstemp fails (e.g. permissions, disk full).
-    Crash during fallback may corrupt the object file.
-    """
+def write_object(data: bytes, root: Path) -> str:
     object_hash = hashlib.sha256(data).hexdigest()
     store_dir = _store_root(root)
     path = _hash_path(store_dir, object_hash, mkdir=True)
@@ -106,7 +98,7 @@ def write_object(data: bytes, root: Path | None = None) -> str:
     return object_hash
 
 
-def read_object(object_hash: str, root: Path | None = None) -> bytes:
+def read_object(object_hash: str, root: Path) -> bytes:
     store_dir = _store_root(root)
     path = _hash_path(store_dir, object_hash, mkdir=False)
     if not path.exists():
@@ -126,18 +118,13 @@ def read_object(object_hash: str, root: Path | None = None) -> bytes:
 
 def create_snapshot(
     files: dict[str, str],
+    root: Path,
     profile_dict: dict | None = None,
     profile: str = "full",
     name: str | None = None,
     pre_commands: dict[str, str] | None = None,
     command: dict[str, str] | None = None,
-    root: Path | None = None,
 ) -> str:
-    """Create a snapshot. Not atomic — objects written first, then manifest.
-
-    If process crashes between object writes and manifest write, orphan
-    objects remain in store/. Run gc() to clean them up.
-    """
     if name is not None:
         validate_snapshot_id(name)
     store_dir = _store_root(root)
@@ -171,10 +158,10 @@ def create_snapshot(
 def update_snapshot(
     snapshot_id: str,
     files: dict[str, str],
+    root: Path,
     profile_dict: dict | None = None,
     pre_commands: dict[str, str] | None = None,
     command: dict[str, str] | None = None,
-    root: Path | None = None,
 ) -> str:
     validate_snapshot_id(snapshot_id)
     manifest = load_snapshot(snapshot_id, root=root)
@@ -203,7 +190,7 @@ def update_snapshot(
     return snapshot_id
 
 
-def load_snapshot(snapshot_id: str, root: Path | None = None) -> dict:
+def load_snapshot(snapshot_id: str, root: Path) -> dict:
     validate_snapshot_id(snapshot_id)
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
@@ -212,7 +199,7 @@ def load_snapshot(snapshot_id: str, root: Path | None = None) -> dict:
     return json.loads(manifest_path.read_text())
 
 
-def list_snapshots(root: Path | None = None) -> list[dict]:
+def list_snapshots(root: Path) -> list[dict]:
     store_dir = _store_root(root)
     snapshots_dir = store_dir / "snapshots"
     if not snapshots_dir.is_dir():
@@ -255,7 +242,7 @@ def _collect_referenced_hashes(manifests: list[dict]) -> set[str]:
     return referenced
 
 
-def delete_snapshot(snapshot_id: str, root: Path | None = None) -> None:
+def delete_snapshot(snapshot_id: str, root: Path) -> None:
     validate_snapshot_id(snapshot_id)
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
@@ -271,7 +258,7 @@ def delete_snapshot(snapshot_id: str, root: Path | None = None) -> None:
             head_path.unlink()
 
 
-def rename_snapshot(old_id: str, new_id: str, root: Path | None = None) -> str:
+def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     validate_snapshot_id(old_id)
     validate_snapshot_id(new_id)
     store_dir = _store_root(root)
@@ -293,7 +280,7 @@ def rename_snapshot(old_id: str, new_id: str, root: Path | None = None) -> str:
     return new_id
 
 
-def gc(root: Path | None = None) -> dict:
+def gc(root: Path) -> dict:
     store_dir = _store_root(root)
     objects_dir = store_dir / "objects"
     if not objects_dir.is_dir():
@@ -319,7 +306,7 @@ def gc(root: Path | None = None) -> dict:
     return {"removed": removed, "freed_bytes": freed_bytes}
 
 
-def stats(root: Path | None = None) -> dict:
+def stats(root: Path) -> dict:
     store_dir = _store_root(root)
     objects_dir = store_dir / "objects"
     manifests = _load_all_manifests(store_dir)

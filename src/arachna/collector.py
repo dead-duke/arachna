@@ -263,15 +263,14 @@ def _write_diff_parts(
     return created
 
 
-def _run_post_commands(commands: list[str], verbose: bool = False):
+def _run_post_commands(commands: list[str], root: Path, verbose: bool = False):
     for cmd in commands:
-        output = run_command(cmd, allow_file_args=True)
+        output = run_command(cmd, root=root, allow_file_args=True)
         if verbose and output.strip():
             print(f"  post: {output.strip()}")
 
 
 def _write_metrics(out_path: Path, metrics: PipelineMetrics):
-    """Write pipeline metrics to .arachna_metrics.json — atomic write via tempfile."""
     out_path.mkdir(parents=True, exist_ok=True)
     metrics_path = out_path / _METRICS_FILE
     payload = {
@@ -304,16 +303,14 @@ def collect(
     profile: dict[str, Any],
     project_name: str,
     output_dir: str,
+    root: Path,
     verbose: bool = False,
     incremental: bool = False,
     merge: bool = False,
     query: str | None = None,
     mode: str = "full",
     name_template: str | None = None,
-    root: Path | None = None,
 ) -> tuple[list[str], dict[str, int], list[str], PipelineMetrics]:
-    if root is None:
-        root = Path.cwd()
     name_tmpl = name_template if name_template is not None else profile["name_template"]
     title_tmpl = profile["title_template"]
     out_path = root / output_dir
@@ -332,7 +329,6 @@ def collect(
         )
     )
 
-    # Phase 1: Extract — scan + pre_commands + read files
     t0 = time.perf_counter()
     exclude = _get_exclude_patterns(profile, root=root)
     cache = load_cache(out_path) if incremental else None
@@ -340,12 +336,12 @@ def collect(
         profile,
         exclude,
         tokenizer,
+        root,
         incremental=incremental,
         cache=cache,
         verbose=verbose,
         query=query,
         mode=mode,
-        root=root,
     )
     if incremental:
         save_cache(out_path, new_cache)
@@ -365,12 +361,10 @@ def collect(
         _write_metrics(out_path, metrics)
         return [], [], [], metrics
 
-    # Phase 2: Transform — measure overhead between extract and load
     t1 = time.perf_counter()
     tokens_raw = sum(tokens for _name, _content, tokens in named_sections)
     transform_time_ms = (time.perf_counter() - t1) * 1000
 
-    # Phase 3: Load — write parts + manifest + post_commands
     t2 = time.perf_counter()
     created, tokens_by_file = _write_parts(
         parts,
@@ -383,10 +377,9 @@ def collect(
         tokenizer,
         merge=merge,
     )
-    _run_post_commands(profile.get("post_commands", []), verbose=verbose)
+    _run_post_commands(profile.get("post_commands", []), root=root, verbose=verbose)
     load_time_ms = (time.perf_counter() - t2) * 1000
 
-    # Metrics
     tokens_compressed_val = sum(tokens_by_file.values()) if tokens_by_file else 0
     file_sections = [s for s in named_sections if not s[0].startswith("pre: ")]
     files_read = len(file_sections)

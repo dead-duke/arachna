@@ -89,6 +89,7 @@ def test_command_mode(tmp_path):
         },
         "P",
         str(out),
+        root=tmp_path,
     )
     assert len(created) == 1
 
@@ -231,7 +232,7 @@ def test_post_commands_executed(tmp_path):
             str(out),
             root=tmp_path,
         )
-        mock_run.assert_called_with("echo done", allow_file_args=True)
+        mock_run.assert_called_with("echo done", root=tmp_path, allow_file_args=True)
 
 
 def test_metrics_written(tmp_path):
@@ -259,7 +260,6 @@ def test_metrics_written(tmp_path):
     assert metrics.load_time_ms >= 0
     assert metrics.tokens_raw > 0
     assert metrics.tokens_compressed > 0
-    # Check .arachna_metrics.json written
     metrics_file = out / ".arachna_metrics.json"
     assert metrics_file.exists()
     import json

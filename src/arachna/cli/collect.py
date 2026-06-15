@@ -5,13 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from ..collector import (
-    _MANIFEST,
-    clean_manifest,
-    collect,
-    load_manifest,
-    save_manifest,
-)
+from ..collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
 from ..config import get_profile
 from ..gatherer import dry_run
 from ..renderer import render_dry_run
@@ -26,9 +20,8 @@ from ._helpers import (
 )
 
 
-def _get_root(config: dict) -> Path | None:
-    root_str = config.get("_root")
-    return Path(root_str) if root_str else None
+def _get_root(config: dict) -> Path:
+    return Path(config.get("_root", Path.cwd()))
 
 
 @register("collect-profile")
@@ -41,7 +34,7 @@ def _cmd_collect_profile(args, config: dict):
 
     print(f"[{args.profile}] Collecting...")
     try:
-        profile = get_profile(args.profile, config=config)
+        profile = get_profile(args.profile, root=root, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -54,7 +47,7 @@ def _cmd_collect_profile(args, config: dict):
     if args.dry_run:
         query = getattr(args, "query", None)
         mode = getattr(args, "mode", "full")
-        stats = dry_run(profile, query=query, mode=mode, root=root)
+        stats = dry_run(profile, root=root, query=query, mode=mode)
         stats["name"] = args.profile
         render_dry_run([stats])
         return
@@ -68,12 +61,12 @@ def _cmd_collect_profile(args, config: dict):
         profile,
         project_name,
         str(out_path),
+        root=root,
         verbose=args.verbose,
         incremental=args.incremental,
         merge=args.merge,
         query=getattr(args, "query", None),
         mode=getattr(args, "mode", "full"),
-        root=root,
     )
 
     prev = load_manifest(out_path)
@@ -104,7 +97,7 @@ def _cmd_collect_all(args, config: dict):
     for name in list_profiles(config):
         print(f"[{name}] Collecting...")
         try:
-            profile = get_profile(name, config=config)
+            profile = get_profile(name, root=root, config=config)
         except KeyError:
             continue
         profile = apply_args_to_profile(profile, args)
@@ -115,7 +108,7 @@ def _cmd_collect_all(args, config: dict):
         if args.dry_run:
             query = getattr(args, "query", None)
             mode = getattr(args, "mode", "full")
-            stats = dry_run(profile, query=query, mode=mode, root=root)
+            stats = dry_run(profile, root=root, query=query, mode=mode)
             stats["name"] = name
             all_created_stats = getattr(args, "_all_stats", None)
             if all_created_stats is None:
@@ -131,12 +124,12 @@ def _cmd_collect_all(args, config: dict):
             profile,
             project_name,
             str(out_path),
+            root=root,
             verbose=args.verbose,
             incremental=args.incremental,
             merge=False,
             query=getattr(args, "query", None),
             mode=getattr(args, "mode", "full"),
-            root=root,
         )
 
         if created:
@@ -160,9 +153,10 @@ def _cmd_collect_all(args, config: dict):
 
 @register("collect-list")
 def _cmd_collect_list(args, config: dict):
+    root = _get_root(config)
     for name in list_profiles(config):
         try:
-            prof = get_profile(name, config=config)
+            prof = get_profile(name, root=root, config=config)
         except KeyError:
             print(f"  Warning: profile '{name}' not found, skipping")
             continue
@@ -177,14 +171,15 @@ def _cmd_collect_list(args, config: dict):
 
 @register("collect-validate")
 def _cmd_collect_validate(args, config: dict):
+    root = _get_root(config)
     profiles = config.get("profiles", {})
     if not profiles:
-        profiles = {"default": get_profile("default", config=config)}
+        profiles = {"default": get_profile("default", root=root, config=config)}
     else:
         valid_profiles = {}
         for name in profiles:
             try:
-                valid_profiles[name] = get_profile(name, config=config)
+                valid_profiles[name] = get_profile(name, root=root, config=config)
             except KeyError as e:
                 print(f"  Warning: profile '{name}': {e}")
         profiles = valid_profiles
@@ -212,7 +207,7 @@ def _cmd_collect_validate(args, config: dict):
 def _cmd_collect_clean(args, config: dict):
     root = _get_root(config)
     output_dir = parse_output_dir(args, config)
-    out_path = root / output_dir if root else Path(output_dir)
+    out_path = root / output_dir
     cleaned = 0
     mf = out_path / _MANIFEST
     if mf.exists():

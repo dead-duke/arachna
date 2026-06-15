@@ -14,9 +14,8 @@ from . import register
 from ._helpers import parse_output_dir, print_collected
 
 
-def _get_root(config: dict) -> Path | None:
-    root_str = config.get("_root")
-    return Path(root_str) if root_str else None
+def _get_root(config: dict) -> Path:
+    return Path(config.get("_root", Path.cwd()))
 
 
 @register("diff")
@@ -38,7 +37,7 @@ def _cmd_diff(args, config: dict):
     profile = None
     if args.profile:
         try:
-            profile = get_profile(args.profile, config=config)
+            profile = get_profile(args.profile, root=root, config=config)
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
@@ -79,7 +78,12 @@ def _cmd_diff(args, config: dict):
         profile["compress"] = True
 
     sections = compute_diff(
-        snapshot_id, profile, fmt=fmt, to_snapshot_id=to_snapshot_id, flat=flat_mode, root=root
+        snapshot_id,
+        profile,
+        root=root,
+        fmt=fmt,
+        to_snapshot_id=to_snapshot_id,
+        flat=flat_mode,
     )
 
     if stat_only:
@@ -158,7 +162,7 @@ def _cmd_diff_all(args, config: dict):
     compress = args.compress
 
     try:
-        profile = get_profile(profile_name, config=config)
+        profile = get_profile(profile_name, root=root, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -174,13 +178,13 @@ def _cmd_diff_all(args, config: dict):
         profile,
         project_name,
         str(out_path),
+        root=root,
         verbose=False,
         incremental=False,
         merge=False,
         query=query,
         mode=diff_mode,
         name_template=name_tmpl,
-        root=root,
     )
 
     if created:

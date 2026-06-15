@@ -13,9 +13,8 @@ from . import register
 from ._helpers import format_profile_section
 
 
-def _get_root(config: dict) -> Path | None:
-    root_str = config.get("_root")
-    return Path(root_str) if root_str else None
+def _get_root(config: dict) -> Path:
+    return Path(config.get("_root", Path.cwd()))
 
 
 @register("snapshot-create")
@@ -29,15 +28,15 @@ def _cmd_snapshot_create(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
+    root = _get_root(config)
     profile_name = args.profile or "full"
     try:
-        profile = get_profile(profile_name, config=config)
+        profile = get_profile(profile_name, root=root, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
 
     try:
-        root = _get_root(config)
         sid = watch_create_snapshot(profile, name=args.name, root=root)
         print(f"Snapshot '{sid}' created.")
     except SnapshotExistsError as e:
@@ -68,17 +67,17 @@ def _cmd_snapshot_update(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
+    root = _get_root(config)
     profile = None
     if args.profile:
         try:
-            profile = get_profile(args.profile, config=config)
+            profile = get_profile(args.profile, root=root, config=config)
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
 
     try:
-        root = _get_root(config)
-        watch_update_snapshot(sid, profile=profile, root=root)
+        watch_update_snapshot(sid, root=root, profile=profile)
         print(f"Snapshot '{sid}' updated.")
     except Exception as e:
         print(f"Error: {e}")
@@ -94,8 +93,8 @@ def _cmd_snapshot_delete(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
+    root = _get_root(config)
     try:
-        root = _get_root(config)
         delete_snapshot(sid, root=root)
         print(f"Snapshot '{sid}' deleted.")
     except Exception as e:
@@ -112,8 +111,8 @@ def _cmd_snapshot_info(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
+    root = _get_root(config)
     try:
-        root = _get_root(config)
         all_manifests = list_snapshots(root=root)
         target = None
         for m in all_manifests:
@@ -173,8 +172,8 @@ def _cmd_snapshot_rename(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
+    root = _get_root(config)
     try:
-        root = _get_root(config)
         store_rename_snapshot(args.old, args.new, root=root)
         print(f"Snapshot '{args.old}' renamed to '{args.new}'.")
     except Exception as e:

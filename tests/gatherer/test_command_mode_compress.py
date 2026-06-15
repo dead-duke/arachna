@@ -4,7 +4,7 @@ from arachna.gatherer import _assemble_content
 from arachna.tokenizer import count_tokens
 
 
-def test_command_mode_with_compress():
+def test_command_mode_with_compress(tmp_path):
     profile = {
         "command": "echo 'hello\n\n\n\nworld'",
         "max_tokens": 16000,
@@ -16,13 +16,14 @@ def test_command_mode_with_compress():
         profile,
         exclude=[],
         tokenizer=count_tokens,
+        root=tmp_path,
     )
 
     assert len(parts) == 1
     assert "\n\n\n\n" not in parts[0]
 
 
-def test_command_mode_without_compress():
+def test_command_mode_without_compress(tmp_path):
     profile = {
         "command": "echo 'hello\n\n\n\nworld'",
         "max_tokens": 16000,
@@ -34,6 +35,7 @@ def test_command_mode_without_compress():
         profile,
         exclude=[],
         tokenizer=count_tokens,
+        root=tmp_path,
     )
 
     assert len(parts) == 1

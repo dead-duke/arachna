@@ -5,7 +5,6 @@ import difflib
 import fnmatch
 import hashlib
 import logging
-import os as _os
 import re
 from pathlib import Path
 
@@ -22,14 +21,11 @@ logger = logging.getLogger("arachna.watcher")
 _MAX_SIMILARITY_SIZE = 1_048_576
 
 
-def _project_root() -> Path | None:
-    """Find project root from .arachna.json location, fallback to cwd."""
-    from .config import find_config
-
-    cfg = find_config()
-    if cfg is not None:
-        return cfg.parent
-    return None
+def _rel_path(absolute_path: Path, root: Path) -> str:
+    try:
+        return _normalize_path(str(absolute_path.resolve().relative_to(root)))
+    except ValueError:
+        return _normalize_path(str(absolute_path))
 
 
 def _normalize_path(path: str) -> str:
@@ -38,18 +34,7 @@ def _normalize_path(path: str) -> str:
     return path
 
 
-def _rel_path(absolute_path: Path) -> str:
-    """Convert absolute path to project-relative, fallback to normalized absolute."""
-    root = _project_root()
-    if root is not None:
-        try:
-            return _normalize_path(str(absolute_path.resolve().relative_to(root)))
-        except ValueError:
-            pass
-    return _normalize_path(str(absolute_path))
-
-
-def _read_profile_files(profile: dict) -> dict[str, str]:
+def _read_profile_files(profile: dict, root: Path) -> dict[str, str]:
     result = {}
     for filepath_str in profile.get("files", []):
         fp = Path(filepath_str)
@@ -59,13 +44,11 @@ def _read_profile_files(profile: dict) -> dict[str, str]:
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        result[_rel_path(fp.resolve())] = content
+        result[_rel_path(fp.resolve(), root)] = content
     return result
 
 
-def _collect_snapshot_content(profile: dict, root: Path | None = None) -> tuple[dict, dict, dict]:
-    if root is None:
-        root = Path.cwd()
+def _collect_snapshot_content(profile: dict, root: Path) -> tuple[dict, dict, dict]:
     exclude = _get_exclude_patterns(profile, root=root)
     filepaths = _scan_directories(profile, exclude, root=root)
     files = {}
@@ -74,12 +57,12 @@ def _collect_snapshot_content(profile: dict, root: Path | None = None) -> tuple[
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        files[_rel_path(fp.resolve())] = content
-    profile_files = _read_profile_files(profile)
+        files[_rel_path(fp.resolve(), root)] = content
+    profile_files = _read_profile_files(profile, root)
     files.update(profile_files)
     pre_commands_data = {}
     for cmd in profile.get("pre_commands", []):
-        output = run_command(cmd, allow_file_args=True)
+        output = run_command(cmd, root=root, allow_file_args=True)
         if output.strip():
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
             obj_hash = write_object(output.encode("utf-8"), root=root)
@@ -89,7 +72,7 @@ def _collect_snapshot_content(profile: dict, root: Path | None = None) -> tuple[
     command_data = {}
     cmd = profile.get("command")
     if cmd:
-        output = run_command(cmd, allow_file_args=True)
+        output = run_command(cmd, root=root, allow_file_args=True)
         if output.strip():
             obj_hash = write_object(output.encode("utf-8"), root=root)
             command_data["command output"] = f"sha256:{obj_hash}"
@@ -98,23 +81,19 @@ def _collect_snapshot_content(profile: dict, root: Path | None = None) -> tuple[
     return files, pre_commands_data, command_data
 
 
-def create_snapshot(profile: dict, name: str, root: Path | None = None) -> str:
-    if root is None:
-        root = Path.cwd()
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile, root=root)
+def create_snapshot(profile: dict, name: str, root: Path) -> str:
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile, root)
     return store_create_snapshot(
         files,
+        root=root,
         profile_dict=profile,
         name=name,
         pre_commands=pre_commands_data if pre_commands_data else None,
         command=command_data if command_data else None,
-        root=root,
     )
 
 
-def update_snapshot(snapshot_id: str, profile: dict | None = None, root: Path | None = None) -> str:
-    if root is None:
-        root = Path.cwd()
+def update_snapshot(snapshot_id: str, root: Path, profile: dict | None = None) -> str:
     if profile is None:
         manifest = load_snapshot(snapshot_id, root=root)
         stored = manifest.get("profile", {})
@@ -124,14 +103,14 @@ def update_snapshot(snapshot_id: str, profile: dict | None = None, root: Path | 
             raise ValueError(
                 f"Snapshot '{snapshot_id}' has legacy format. Provide profile explicitly."
             )
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile, root=root)
+    files, pre_commands_data, command_data = _collect_snapshot_content(profile, root)
     return store_update_snapshot(
         snapshot_id,
         files,
+        root=root,
         profile_dict=profile,
         pre_commands=pre_commands_data if pre_commands_data else None,
         command=command_data if command_data else None,
-        root=root,
     )
 
 
@@ -140,13 +119,11 @@ def _get_profile_from_manifest(manifest: dict) -> dict | None:
     return stored if isinstance(stored, dict) else None
 
 
-def _get_content_from_manifest(path: str, hash_spec: str, root: Path | None = None) -> str:
+def _get_content_from_manifest(path: str, hash_spec: str, root: Path) -> str:
     return read_object(hash_spec[7:], root=root).decode("utf-8")
 
 
-def _build_current_files(
-    profile: dict, exclude: list[str], root: Path | None = None
-) -> dict[str, str]:
+def _build_current_files(profile: dict, exclude: list[str], root: Path) -> dict[str, str]:
     current_filepaths = _scan_directories(profile, exclude, root=root)
     current_files = {}
     for fp in current_filepaths:
@@ -154,8 +131,8 @@ def _build_current_files(
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        current_files[_rel_path(fp.resolve())] = content
-    profile_files = _read_profile_files(profile)
+        current_files[_rel_path(fp.resolve(), root)] = content
+    profile_files = _read_profile_files(profile, root)
     for rel_path, content in profile_files.items():
         if rel_path not in current_files:
             current_files[rel_path] = content
@@ -170,18 +147,11 @@ def _is_binary_content(content: str) -> bool:
     return "\x00" in content
 
 
-# ── Rename/move detection — decomposed pipeline ──────────────────
-
-
 def _match_exact_renames(
     deleted: dict[str, str],
     added: dict[str, str],
     fmt: str,
 ) -> tuple[list[DiffSection], set[str], set[str], dict[str, str], dict[str, str]]:
-    """Match exact renames/moves by SHA256 hash.
-
-    Returns: (sections, matched_deleted, matched_added, remaining_deleted, remaining_added)
-    """
     rename_sections: list[DiffSection] = []
     matched_deleted: set[str] = set()
     matched_added: set[str] = set()
@@ -216,7 +186,7 @@ def _match_exact_renames(
                         path=new_path,
                         old_path=old_path,
                         similarity=1.0,
-                        content=f"RENAMED: {old_path} → {new_path}\n",
+                        content=f"RENAMED: {old_path} -> {new_path}\n",
                     )
                 )
             elif old_dir != new_dir and old_name == new_name:
@@ -226,7 +196,7 @@ def _match_exact_renames(
                         path=new_path,
                         old_path=old_path,
                         similarity=1.0,
-                        content=f"MOVED: {old_path} → {new_path}\n",
+                        content=f"MOVED: {old_path} -> {new_path}\n",
                     )
                 )
             else:
@@ -236,7 +206,7 @@ def _match_exact_renames(
                         path=new_path,
                         old_path=old_path,
                         similarity=1.0,
-                        content=f"MOVED AND RENAMED: {old_path} → {new_path}\n",
+                        content=f"MOVED AND RENAMED: {old_path} -> {new_path}\n",
                     )
                 )
             matched_deleted.add(old_path)
@@ -259,12 +229,6 @@ def _match_similar_renames(
     matched_added: set[str],
     fmt: str,
 ) -> tuple[list[DiffSection], set[str], set[str]]:
-    """Match similar renames by difflib ratio (>0.7).
-
-    Only considers files with same extension, under 1MB, non-binary.
-
-    Returns: (sections, newly_matched_deleted, newly_matched_added)
-    """
     rename_sections: list[DiffSection] = []
     matched_deleted: set[str] = set()
     newly_matched_added: set[str] = set()
@@ -294,13 +258,13 @@ def _match_similar_renames(
                 old_name = Path(del_path).name
                 new_name = Path(add_path).name
                 if old_dir == new_dir:
-                    action = f"RENAMED: {del_path} → {add_path} ({ratio:.0%} similar)"
+                    action = f"RENAMED: {del_path} -> {add_path} ({ratio:.0%} similar)"
                     section_type = "renamed"
                 elif old_name == new_name:
-                    action = f"MOVED: {del_path} → {add_path} ({ratio:.0%} similar)"
+                    action = f"MOVED: {del_path} -> {add_path} ({ratio:.0%} similar)"
                     section_type = "moved"
                 else:
-                    action = f"MOVED AND RENAMED: {del_path} → {add_path} ({ratio:.0%} similar)"
+                    action = f"MOVED AND RENAMED: {del_path} -> {add_path} ({ratio:.0%} similar)"
                     section_type = "renamed"
                 diff_output = differ_compute_diff(del_content, add_content, add_path, fmt=fmt)
                 content = f"{action}\n\n{diff_output}" if diff_output else f"{action}\n"
@@ -322,26 +286,15 @@ def _match_similar_renames(
 
 
 def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
-    """Detect renames and moves between deleted and added files.
-
-    Pipeline: exact hash match → similar content match.
-
-    Returns: (all_sections, matched_deleted, matched_added)
-    """
-    # Phase 1: exact hash match
     exact_sections, exact_del, exact_add, remaining_del, remaining_add = _match_exact_renames(
         deleted, added, fmt
     )
-
-    # Phase 2: similar content match
     similar_sections, similar_del, similar_add = _match_similar_renames(
         remaining_del, remaining_add, exact_add, fmt
     )
-
     all_sections = exact_sections + similar_sections
     all_matched_del = exact_del | similar_del
     all_matched_add = exact_add | similar_add
-
     return all_sections, all_matched_del, all_matched_add
 
 
@@ -488,7 +441,7 @@ def _diff_files_sections(
     exclude: list[str],
     to_snapshot_id: str | None,
     fmt: str,
-    root: Path | None = None,
+    root: Path,
 ) -> list[DiffSection]:
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
@@ -503,9 +456,9 @@ def _diff_files_sections(
             for path, h in to_snapshot_files.items()
         }
     else:
-        new_files = _build_current_files(profile, exclude, root=root)
+        new_files = _build_current_files(profile, exclude, root)
         for path in list(old_files.keys()):
-            if path not in new_files and not _path_matches_profile(path, profile):
+            if path not in new_files and not _path_matches_profile(path, profile, root):
                 del old_files[path]
     return _diff_file_sets(old_files, new_files, fmt)
 
@@ -515,7 +468,7 @@ def _diff_pre_commands_sections(
     profile: dict,
     to_snapshot_id: str | None,
     fmt: str,
-    root: Path | None = None,
+    root: Path,
 ) -> list[DiffSection]:
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_pre = manifest.get("pre_commands", {})
@@ -527,7 +480,7 @@ def _diff_pre_commands_sections(
             current_pre[label] = _get_content_from_manifest(label, hash_spec, root=root)
     else:
         for cmd in profile.get("pre_commands", []):
-            output = run_command(cmd, allow_file_args=True)
+            output = run_command(cmd, root=root, allow_file_args=True)
             if output.strip():
                 label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
                 current_pre[label] = output
@@ -573,7 +526,7 @@ def _diff_command_section(
     profile: dict,
     to_snapshot_id: str | None,
     fmt: str,
-    root: Path | None = None,
+    root: Path,
 ) -> list[DiffSection]:
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_cmd = manifest.get("command", {})
@@ -586,7 +539,7 @@ def _diff_command_section(
     else:
         cmd = profile.get("command")
         if cmd:
-            output = run_command(cmd, allow_file_args=True)
+            output = run_command(cmd, root=root, allow_file_args=True)
             if output.strip():
                 current_cmd_output = output
     sections: list[DiffSection] = []
@@ -615,34 +568,30 @@ def _diff_command_section(
 
 def compute_diff(
     snapshot_id: str,
-    profile: dict | None = None,
+    profile: dict | None,
+    root: Path,
     fmt: str = "markdown",
     to_snapshot_id: str | None = None,
     flat: bool = False,
     streaming: bool = False,
-    root: Path | None = None,
 ) -> list[DiffSection]:
-    if root is None:
-        root = Path.cwd()
     manifest = load_snapshot(snapshot_id, root=root)
     if profile is None:
         profile = _get_profile_from_manifest(manifest)
         if profile is None:
             raise ValueError(f"Snapshot '{snapshot_id}' has legacy format. Use --profile.")
     exclude = _get_exclude_patterns(profile, root=root)
-    sections = _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt, root=root)
-    sections.extend(
-        _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root=root)
-    )
-    sections.extend(_diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root=root))
+    sections = _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt, root)
+    sections.extend(_diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root))
+    sections.extend(_diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root))
     if not flat and sections:
         sections = _group_diff_sections(sections, snapshot_id, to_snapshot_id)
     return sections
 
 
-def _path_matches_profile(path: str, profile: dict) -> bool:
-    normalized_files = [_os.path.normpath(f) for f in profile.get("files", [])]
-    if _os.path.normpath(path) in normalized_files:
+def _path_matches_profile(path: str, profile: dict, root: Path) -> bool:
+    normalized_files = [_rel_path(Path(f), root) for f in profile.get("files", [])]
+    if path in normalized_files:
         return True
     directories = profile.get("directories", [])
     patterns = profile.get("patterns", ["*"])

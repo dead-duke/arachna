@@ -2,6 +2,7 @@
 """CLI handlers for 'arachna profile' command."""
 
 import sys
+from pathlib import Path
 
 from ..config import get_profile
 from ..profiler import print_benchmark_table, run_benchmark
@@ -12,8 +13,9 @@ from ._helpers import parse_output_dir
 @register("profile")
 def _cmd_benchmark(args, config: dict):
     profile_name = args.profile or "full"
+    root = Path(config.get("_root", Path.cwd()))
     try:
-        profile = get_profile(profile_name, config=config)
+        profile = get_profile(profile_name, root=root)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -22,5 +24,5 @@ def _cmd_benchmark(args, config: dict):
     fmt = args.format or "terminal"
 
     print(f"Running benchmark on '{profile_name}' profile...")
-    results = run_benchmark(profile, output_dir)
+    results = run_benchmark(profile, output_dir, root=root)
     print_benchmark_table(results, fmt)

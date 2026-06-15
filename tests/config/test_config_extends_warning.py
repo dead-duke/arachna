@@ -19,7 +19,7 @@ def test_config_extends_warns_on_conflict(tmp_path, capsys):
         )
     )
     config = load_config(root=tmp_path)
-    get_profile("child", config=config)
+    get_profile("child", root=tmp_path, config=config)
     captured = capsys.readouterr()
     assert "Warning" in captured.out
     assert "max_tokens" in captured.out
