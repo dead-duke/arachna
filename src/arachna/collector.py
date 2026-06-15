@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .api_types import PipelineMetrics
 from .cache import load_cache, save_cache
 from .differ import DiffSection, compute_diff_stats
 from .gatherer import _assemble_content, _get_exclude_patterns
@@ -21,6 +22,7 @@ logger = logging.getLogger("arachna.collector")
 
 _MANIFEST = ".arachna_manifest.json"
 _MERGE_LOCK_FILE = ".arachna_merge.lock"
+_METRICS_FILE = ".arachna_metrics.json"
 
 try:
     import fcntl
@@ -268,6 +270,36 @@ def _run_post_commands(commands: list[str], verbose: bool = False):
             print(f"  post: {output.strip()}")
 
 
+def _write_metrics(out_path: Path, metrics: PipelineMetrics):
+    """Write pipeline metrics to .arachna_metrics.json — atomic write via tempfile."""
+    out_path.mkdir(parents=True, exist_ok=True)
+    metrics_path = out_path / _METRICS_FILE
+    payload = {
+        "extract_time_ms": metrics.extract_time_ms,
+        "transform_time_ms": metrics.transform_time_ms,
+        "load_time_ms": metrics.load_time_ms,
+        "files_read": metrics.files_read,
+        "files_skipped": metrics.files_skipped,
+        "tokens_raw": metrics.tokens_raw,
+        "tokens_compressed": metrics.tokens_compressed,
+        "compression_ratio": metrics.compression_ratio,
+    }
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(out_path), prefix=".arachna_metrics_", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            os.replace(tmp_path, metrics_path)
+        except Exception:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_path)
+            raise
+    except OSError:
+        metrics_path.write_text(json.dumps(payload, indent=2))
+
+
 def collect(
     profile: dict[str, Any],
     project_name: str,
@@ -279,7 +311,7 @@ def collect(
     mode: str = "full",
     name_template: str | None = None,
     root: Path | None = None,
-) -> tuple[list[str], dict[str, int], list[str]]:
+) -> tuple[list[str], dict[str, int], list[str], PipelineMetrics]:
     if root is None:
         root = Path.cwd()
     name_tmpl = name_template if name_template is not None else profile["name_template"]
@@ -299,6 +331,9 @@ def collect(
             )
         )
     )
+
+    # Phase 1: Extract — scan + pre_commands + read files
+    t0 = time.perf_counter()
     exclude = _get_exclude_patterns(profile, root=root)
     cache = load_cache(out_path) if incremental else None
     named_sections, parts, section_indices, new_cache = _assemble_content(
@@ -314,8 +349,29 @@ def collect(
     )
     if incremental:
         save_cache(out_path, new_cache)
+    extract_time_ms = (time.perf_counter() - t0) * 1000
+
     if not parts:
-        return [], [], []
+        metrics = PipelineMetrics(
+            extract_time_ms=extract_time_ms,
+            transform_time_ms=0.0,
+            load_time_ms=0.0,
+            files_read=0,
+            files_skipped=0,
+            tokens_raw=0,
+            tokens_compressed=0,
+            compression_ratio=1.0,
+        )
+        _write_metrics(out_path, metrics)
+        return [], [], [], metrics
+
+    # Phase 2: Transform — measure overhead between extract and load
+    t1 = time.perf_counter()
+    tokens_raw = sum(tokens for _name, _content, tokens in named_sections)
+    transform_time_ms = (time.perf_counter() - t1) * 1000
+
+    # Phase 3: Load — write parts + manifest + post_commands
+    t2 = time.perf_counter()
     created, tokens_by_file = _write_parts(
         parts,
         section_indices,
@@ -328,4 +384,24 @@ def collect(
         merge=merge,
     )
     _run_post_commands(profile.get("post_commands", []), verbose=verbose)
-    return created, tokens_by_file, parts
+    load_time_ms = (time.perf_counter() - t2) * 1000
+
+    # Metrics
+    tokens_compressed_val = sum(tokens_by_file.values()) if tokens_by_file else 0
+    file_sections = [s for s in named_sections if not s[0].startswith("pre: ")]
+    files_read = len(file_sections)
+    compression_ratio_val = tokens_compressed_val / tokens_raw if tokens_raw > 0 else 1.0
+
+    metrics = PipelineMetrics(
+        extract_time_ms=extract_time_ms,
+        transform_time_ms=transform_time_ms,
+        load_time_ms=load_time_ms,
+        files_read=files_read,
+        files_skipped=0,
+        tokens_raw=tokens_raw,
+        tokens_compressed=tokens_compressed_val,
+        compression_ratio=round(compression_ratio_val, 4),
+    )
+    _write_metrics(out_path, metrics)
+
+    return created, tokens_by_file, parts, metrics

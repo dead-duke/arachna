@@ -170,7 +170,7 @@ def _cmd_diff_all(args, config: dict):
 
     clean_manifest(out_path, name_tmpl)
 
-    created, tokens_by_file, _parts = collect(
+    created, tokens_by_file, _parts, _metrics = collect(
         profile,
         project_name,
         str(out_path),

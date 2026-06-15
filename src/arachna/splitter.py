@@ -123,10 +123,19 @@ def pack_into_parts(
     For formatted file sections where splitting oversized content
     into chunks is meaningful (split_sections, _stream_full_mode).
 
+    When max_tokens=0 (unlimited), returns single part with all sections.
+
     Returns (parts, indices) where indices[i] = list of section positions
     packed into parts[i]. Indices may contain duplicates for split sections.
     """
     tk = tokenizer if tokenizer is not None else count_tokens
+
+    # Unlimited mode — single part, no splitting
+    if max_tokens == 0:
+        all_content = separator.join(s.strip() for s in sections if s.strip())
+        all_indices = list(range(len(sections)))
+        return [all_content], [all_indices]
+
     parts = []
     indices = []
     current = ""
@@ -203,6 +212,11 @@ def split(
     tokenizer: Callable[[str], int] | None = None,
 ) -> list[str]:
     tk = tokenizer if tokenizer is not None else count_tokens
+
+    # Unlimited mode — single part
+    if max_tokens == 0:
+        return [raw_content.strip()] if raw_content.strip() else []
+
     if mode == "by_file":
         sections = _split_to_sections(raw_content, "\n\n### ")
     elif mode == "by_paragraph":
@@ -270,8 +284,16 @@ def _build_parts(
     For command mode — oversized sections are truncated via _handle_single.
     Unlike pack_into_parts which splits oversized sections into chunks,
     this truncates them since raw command output can't be meaningfully split.
+
+    When max_tokens=0 (unlimited), returns single part.
     """
     tk = tokenizer if tokenizer is not None else count_tokens
+
+    # Unlimited mode
+    if max_tokens == 0:
+        content = separator.join(s.strip() for s in sections if s.strip())
+        return [content] if content else []
+
     parts = []
     current = ""
     current_tokens = 0

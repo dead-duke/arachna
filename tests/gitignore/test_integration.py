@@ -64,7 +64,7 @@ def test_gitignore_patterns_tracked_in_manifest(tmp_path):
 
     from arachna.collector import collect
 
-    created, _, _ = collect(
+    created, _, _, _ = collect(
         {
             "name_template": "chat-test",
             "title_template": "# T (part {part})\n\n",

@@ -11,9 +11,10 @@ def test_invalid_split_mode():
     assert len(r["errors"]) == 1
 
 
-def test_zero_max_tokens():
+def test_zero_max_tokens_unlimited():
+    """max_tokens=0 means unlimited — valid, no error."""
     r = validate_profile("t", {"max_tokens": 0, "directories": ["src"]})
-    assert len(r["errors"]) == 1
+    assert r["errors"] == []
 
 
 def test_negative_max_tokens():

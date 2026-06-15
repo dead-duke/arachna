@@ -94,6 +94,31 @@ class DiffResult:
 
 
 @dataclass
+class PipelineMetrics:
+    """Pipeline metrics for a collection operation.
+
+    Attributes:
+        extract_time_ms: Time spent reading files (I/O) in milliseconds.
+        transform_time_ms: Time spent formatting/compressing in milliseconds.
+        load_time_ms: Time spent writing output files in milliseconds.
+        files_read: Number of files successfully read.
+        files_skipped: Number of files skipped (binary, permission, etc.).
+        tokens_raw: Token count before compression.
+        tokens_compressed: Token count after compression.
+        compression_ratio: tokens_compressed / tokens_raw (1.0 if no compression).
+    """
+
+    extract_time_ms: float = 0.0
+    transform_time_ms: float = 0.0
+    load_time_ms: float = 0.0
+    files_read: int = 0
+    files_skipped: int = 0
+    tokens_raw: int = 0
+    tokens_compressed: int = 0
+    compression_ratio: float = 1.0
+
+
+@dataclass
 class CollectResult:
     """Result of a collection operation.
 
@@ -103,11 +128,13 @@ class CollectResult:
         parts: List of output file contents as strings.
         files: List of created file paths.
         tokens: Total token count across all output files.
+        metrics: Pipeline metrics (extract/transform/load times, file counts).
     """
 
     parts: list[str] = field(default_factory=list)
     files: list[str] = field(default_factory=list)
     tokens: int = 0
+    metrics: PipelineMetrics | None = None
 
 
 @dataclass

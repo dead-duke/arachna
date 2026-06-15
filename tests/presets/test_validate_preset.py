@@ -27,9 +27,10 @@ def test_validate_preset_invalid_split_mode():
     assert result is None
 
 
-def test_validate_preset_zero_max_tokens():
-    result = _validate_preset("bad", {"split_mode": "by_file", "max_tokens": 0})
-    assert result is None
+def test_validate_preset_zero_max_tokens_allowed():
+    """max_tokens=0 means unlimited — valid."""
+    result = _validate_preset("ok", {"split_mode": "by_file", "max_tokens": 0})
+    assert result is not None
 
 
 def test_validate_preset_negative_max_tokens():

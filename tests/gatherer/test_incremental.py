@@ -18,10 +18,10 @@ def test_collect_incremental_skips_unchanged(tmp_path):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
+    created1, _, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created1) == 1
 
-    created2, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
+    created2, _, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created2) == 0
 
 
@@ -45,13 +45,13 @@ def test_collect_incremental_detects_modified(tmp_path):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
+    created1, _, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created1) == 1
 
     time.sleep(0.01)
     fp.write_text("modified content that is longer")
 
-    created2, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
+    created2, _, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created2) == 1
 
 
@@ -72,10 +72,10 @@ def test_collect_incremental_detects_new_file(tmp_path):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
+    created1, _, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created1) == 1
 
     (src / "b.py").write_text("new file")
 
-    created2, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
+    created2, _, _, _ = collect(profile, "P", "out", incremental=True, root=tmp_path)
     assert len(created2) == 1

@@ -15,7 +15,7 @@ def test_single_file(tmp_path):
     (src / "main.py").write_text("print('hi')")
     out = tmp_path / "single_out"
     out.mkdir()
-    created, tokens_by_file, _parts = collect(
+    created, tokens_by_file, _parts, _metrics = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -39,7 +39,7 @@ def test_multiple_parts(tmp_path):
     (src / "b.py").write_text("y" * 2000)
     out = tmp_path / "multi_out"
     out.mkdir()
-    created, tokens_by_file, _parts = collect(
+    created, tokens_by_file, _parts, _metrics = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -60,7 +60,7 @@ def test_empty(tmp_path):
     src.mkdir()
     out = tmp_path / "empty_out"
     out.mkdir()
-    created, tokens_by_file, _parts = collect(
+    created, tokens_by_file, _parts, _metrics = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -79,7 +79,7 @@ def test_empty(tmp_path):
 def test_command_mode(tmp_path):
     out = tmp_path / "cmd_out"
     out.mkdir()
-    created, tokens_by_file, _parts = collect(
+    created, tokens_by_file, _parts, _metrics = collect(
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
@@ -110,11 +110,11 @@ def test_merge_mode_single_part(tmp_path):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
+    created1, _, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created1) == 1
     assert "c_1.md" in created1[0]
 
-    created2, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
+    created2, _, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created2) == 1
     assert "c_2.md" in created2[0]
 
@@ -137,11 +137,11 @@ def test_merge_mode_multiple_parts(tmp_path):
         "use_gitignore": False,
     }
 
-    created1, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
+    created1, _, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created1) >= 4
     assert any("c_1.md" in f for f in created1)
 
-    created2, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
+    created2, _, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created2) >= 4
 
 
@@ -232,3 +232,37 @@ def test_post_commands_executed(tmp_path):
             root=tmp_path,
         )
         mock_run.assert_called_with("echo done", allow_file_args=True)
+
+
+def test_metrics_written(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "main.py").write_text("print('hi')")
+    out = tmp_path / "metrics_out"
+    out.mkdir()
+    created, tokens_by_file, parts, metrics = collect(
+        {
+            "name_template": "c",
+            "title_template": "# T (part {part})\n\n",
+            "max_tokens": 16000,
+            "split_mode": "by_file",
+            "directories": ["src"],
+            "patterns": ["*.py"],
+        },
+        "P",
+        str(out),
+        root=tmp_path,
+    )
+    assert metrics is not None
+    assert metrics.files_read >= 1
+    assert metrics.extract_time_ms >= 0
+    assert metrics.load_time_ms >= 0
+    assert metrics.tokens_raw > 0
+    assert metrics.tokens_compressed > 0
+    # Check .arachna_metrics.json written
+    metrics_file = out / ".arachna_metrics.json"
+    assert metrics_file.exists()
+    import json
+
+    data = json.loads(metrics_file.read_text())
+    assert data["files_read"] >= 1

@@ -1,0 +1,152 @@
+"""Tests for ThreadPoolExecutor parallel I/O in gatherer.py."""
+
+import os
+
+from arachna.collector import collect
+
+
+def test_parallel_io_fallback_sequential(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    for i in range(5):
+        (src / f"file_{i}.py").write_text(f"# file {i}\n")
+
+    out = tmp_path / "out"
+    out.mkdir()
+
+    # Set workers=1 to force sequential path
+    old = os.environ.get("ARACHNA_MAX_WORKERS")
+    os.environ["ARACHNA_MAX_WORKERS"] = "1"
+    try:
+        created, tokens_by_file, parts, metrics = collect(
+            {
+                "name_template": "c",
+                "title_template": "# T (part {part})\n\n",
+                "max_tokens": 16000,
+                "split_mode": "by_file",
+                "directories": ["src"],
+                "patterns": ["*.py"],
+            },
+            "P",
+            str(out),
+            root=tmp_path,
+        )
+    finally:
+        if old is not None:
+            os.environ["ARACHNA_MAX_WORKERS"] = old
+        else:
+            del os.environ["ARACHNA_MAX_WORKERS"]
+
+    assert len(created) >= 1
+    assert metrics.files_read == 5
+
+
+def test_parallel_io_with_workers(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    for i in range(10):
+        (src / f"file_{i}.py").write_text(f"# file {i}\n")
+
+    out = tmp_path / "out"
+    out.mkdir()
+
+    # Set workers=2 to test parallel path
+    old = os.environ.get("ARACHNA_MAX_WORKERS")
+    os.environ["ARACHNA_MAX_WORKERS"] = "2"
+    try:
+        created, tokens_by_file, parts, metrics = collect(
+            {
+                "name_template": "c",
+                "title_template": "# T (part {part})\n\n",
+                "max_tokens": 16000,
+                "split_mode": "by_file",
+                "directories": ["src"],
+                "patterns": ["*.py"],
+            },
+            "P",
+            str(out),
+            root=tmp_path,
+        )
+    finally:
+        if old is not None:
+            os.environ["ARACHNA_MAX_WORKERS"] = old
+        else:
+            del os.environ["ARACHNA_MAX_WORKERS"]
+
+    assert len(created) >= 1
+    assert metrics.files_read == 10
+
+
+def test_parallel_io_single_file(tmp_path):
+    """Single file should use sequential path even with workers > 1."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "only.py").write_text("# only\n")
+
+    out = tmp_path / "out"
+    out.mkdir()
+
+    old = os.environ.get("ARACHNA_MAX_WORKERS")
+    os.environ["ARACHNA_MAX_WORKERS"] = "4"
+    try:
+        created, tokens_by_file, parts, metrics = collect(
+            {
+                "name_template": "c",
+                "title_template": "# T (part {part})\n\n",
+                "max_tokens": 16000,
+                "split_mode": "by_file",
+                "directories": ["src"],
+                "patterns": ["*.py"],
+            },
+            "P",
+            str(out),
+            root=tmp_path,
+        )
+    finally:
+        if old is not None:
+            os.environ["ARACHNA_MAX_WORKERS"] = old
+        else:
+            del os.environ["ARACHNA_MAX_WORKERS"]
+
+    assert len(created) == 1
+    assert metrics.files_read == 1
+
+
+def test_parallel_io_preserves_order(tmp_path):
+    """Parallel I/O must preserve file order in output."""
+    src = tmp_path / "src"
+    src.mkdir()
+    for i in range(20):
+        (src / f"file_{i:02d}.py").write_text(f"# file {i}\n")
+
+    out = tmp_path / "out"
+    out.mkdir()
+
+    old = os.environ.get("ARACHNA_MAX_WORKERS")
+    os.environ["ARACHNA_MAX_WORKERS"] = "4"
+    try:
+        created, tokens_by_file, parts, metrics = collect(
+            {
+                "name_template": "c",
+                "title_template": "# T (part {part})\n\n",
+                "max_tokens": 0,
+                "split_mode": "by_file",
+                "directories": ["src"],
+                "patterns": ["*.py"],
+            },
+            "P",
+            str(out),
+            root=tmp_path,
+        )
+    finally:
+        if old is not None:
+            os.environ["ARACHNA_MAX_WORKERS"] = old
+        else:
+            del os.environ["ARACHNA_MAX_WORKERS"]
+
+    content = parts[0]
+    # Check order: file_00 before file_01 before file_02 ...
+    idx_00 = content.index("file_00.py")
+    idx_10 = content.index("file_10.py")
+    idx_19 = content.index("file_19.py")
+    assert idx_00 < idx_10 < idx_19

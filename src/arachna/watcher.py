@@ -619,6 +619,7 @@ def compute_diff(
     fmt: str = "markdown",
     to_snapshot_id: str | None = None,
     flat: bool = False,
+    streaming: bool = False,
     root: Path | None = None,
 ) -> list[DiffSection]:
     if root is None:

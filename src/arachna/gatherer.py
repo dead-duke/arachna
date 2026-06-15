@@ -3,7 +3,7 @@
 Streaming pipeline for full mode:
 1. Pre_commands run immediately, output goes to first part (compressed if needed).
 2. Metadata pass: stat files, run query filter on filenames.
-3. Streaming pass: read → format → compress → pack → flush when full.
+3. Streaming pass: read -> format -> compress -> pack -> flush when full.
    Memory: O(max_tokens + metadata), not O(total content).
 
 Repo-map and headers modes stay in-memory — they need file content
@@ -15,9 +15,13 @@ for signatures-only output use mode="repo-map".
 v3.5: Strategy pattern for mode dispatch — FullModeStrategy (streaming),
 RepoMapModeStrategy (signatures), HeadersModeStrategy (dependency headers).
 root parameter propagates through scan/collect/assemble chain.
+
+v3.6: max_tokens=0 means unlimited — no splitting, single part.
+v3.6: Optional parallel file I/O via ARACHNA_MAX_WORKERS env var (default 1).
 """
 
 import contextlib
+import os as _os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -406,11 +410,44 @@ def _print_compress_stats(raw_tokens: int, comp_tokens: int):
         print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
 
 
+def _format_one_file(
+    fp: Path,
+    fmt: str,
+    include_binary: bool,
+    binary_extensions: list[str] | None,
+    binary_max_mb: float,
+    verbose: bool,
+    include_header: bool,
+    do_compress: bool,
+) -> tuple[str, str, int] | None:
+    """Format a single file — used by ThreadPoolExecutor for parallel I/O."""
+    section = format_file_section(
+        fp,
+        fmt=fmt,
+        include_binary=include_binary,
+        binary_extensions=binary_extensions,
+        binary_max_mb=binary_max_mb,
+        verbose=verbose,
+        include_header=include_header,
+    )
+    if not section:
+        return None
+    if do_compress:
+        section = _compress(section)
+    return (str(fp), section, 0)
+
+
 # ── Strategy pattern for mode dispatch ───────────────────────────
 
 
 class _FullModeStrategy:
-    """Streaming mode — reads and packs files on the fly, O(max_tokens) memory."""
+    """Streaming mode — reads and packs files on the fly, O(max_tokens) memory.
+
+    v3.6: Optional parallel file I/O via ThreadPoolExecutor.
+    Controlled by ARACHNA_MAX_WORKERS env var (default 1, sequential).
+    Set to >1 to enable parallel I/O for large files on slow disks.
+    Note: on SSDs with warm cache, parallel may be slower due to GIL.
+    """
 
     def assemble(
         self,
@@ -463,25 +500,51 @@ class _FullModeStrategy:
             content = _compress(output) if do_compress and output.strip() else output
             sections.append(content)
 
-        for fp in target_files:
-            section = format_file_section(
-                fp,
-                fmt=fmt,
-                include_binary=include_binary,
-                binary_extensions=binary_extensions,
-                binary_max_mb=binary_max_mb,
-                verbose=verbose,
-                include_header=include_header,
-            )
-            if not section:
-                continue
-            if do_compress:
-                section = _compress(section)
-            tokens = tokenizer(section)
-            sections.append(section)
-            named_sections.append((str(fp), section, tokens))
+        total_files = len(target_files)
+        if verbose and total_files > 100:
+            print(f"  Collecting... 0/{total_files} files", file=__import__("sys").stderr)
 
-        parts, indices = pack_into_parts(sections, max_tokens, tokenizer=tokenizer)
+        max_workers = int(_os.environ.get("ARACHNA_MAX_WORKERS", "1"))
+
+        if max_workers > 1 and total_files > 1:
+            self._collect_parallel(
+                target_files,
+                fmt,
+                include_binary,
+                binary_extensions,
+                binary_max_mb,
+                verbose,
+                include_header,
+                do_compress,
+                max_workers,
+                total_files,
+                sections,
+                named_sections,
+                tokenizer,
+            )
+        else:
+            self._collect_sequential(
+                target_files,
+                fmt,
+                include_binary,
+                binary_extensions,
+                binary_max_mb,
+                verbose,
+                include_header,
+                do_compress,
+                total_files,
+                sections,
+                named_sections,
+                tokenizer,
+            )
+
+        if max_tokens == 0:
+            all_content = "\n\n".join(s.strip() for s in sections if s.strip())
+            all_indices = [list(range(len(named_sections)))]
+            parts = [all_content]
+            indices = all_indices
+        else:
+            parts, indices = pack_into_parts(sections, max_tokens, tokenizer=tokenizer)
 
         if verbose and do_compress:
             raw_tokens = sum(tokens for _name, _content, tokens in named_sections)
@@ -489,6 +552,110 @@ class _FullModeStrategy:
             _print_compress_stats(raw_tokens, comp_tokens)
 
         return named_sections, parts, indices, new_cache
+
+    def _collect_parallel(
+        self,
+        target_files,
+        fmt,
+        include_binary,
+        binary_extensions,
+        binary_max_mb,
+        verbose,
+        include_header,
+        do_compress,
+        max_workers,
+        total_files,
+        sections,
+        named_sections,
+        tokenizer,
+    ):
+        try:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(
+                        _format_one_file,
+                        fp,
+                        fmt,
+                        include_binary,
+                        binary_extensions,
+                        binary_max_mb,
+                        verbose,
+                        include_header,
+                        do_compress,
+                    ): idx
+                    for idx, fp in enumerate(target_files)
+                }
+                results_map: dict[int, tuple[str, str, int]] = {}
+                for future in as_completed(futures):
+                    result = future.result()
+                    if result is not None:
+                        results_map[futures[future]] = result
+                    if verbose and total_files > 100 and len(results_map) % 100 == 0:
+                        print(
+                            f"  collected {len(results_map)}/{total_files} files...",
+                            file=__import__("sys").stderr,
+                        )
+
+            for idx in range(len(target_files)):
+                if idx in results_map:
+                    fp_str, content, _ = results_map[idx]
+                    tokens = tokenizer(content)
+                    sections.append(content)
+                    named_sections.append((fp_str, content, tokens))
+        except ImportError:
+            self._collect_sequential(
+                target_files,
+                fmt,
+                include_binary,
+                binary_extensions,
+                binary_max_mb,
+                verbose,
+                include_header,
+                do_compress,
+                total_files,
+                sections,
+                named_sections,
+                tokenizer,
+            )
+
+    def _collect_sequential(
+        self,
+        target_files,
+        fmt,
+        include_binary,
+        binary_extensions,
+        binary_max_mb,
+        verbose,
+        include_header,
+        do_compress,
+        total_files,
+        sections,
+        named_sections,
+        tokenizer,
+    ):
+        for idx, fp in enumerate(target_files):
+            result = _format_one_file(
+                fp,
+                fmt,
+                include_binary,
+                binary_extensions,
+                binary_max_mb,
+                verbose,
+                include_header,
+                do_compress,
+            )
+            if result is not None:
+                fp_str, content, _ = result
+                tokens = tokenizer(content)
+                sections.append(content)
+                named_sections.append((fp_str, content, tokens))
+            if verbose and total_files > 100 and (idx + 1) % 100 == 0:
+                print(
+                    f"  collected {idx + 1}/{total_files} files...",
+                    file=__import__("sys").stderr,
+                )
 
 
 class _RepoMapModeStrategy:
@@ -571,10 +738,18 @@ def _assemble_in_memory(
             sections.append(_compress(content))
         else:
             sections.append(content)
-    if verbose and do_compress:
-        comp_tokens = sum(tokenizer(s) for s in sections)
-        _print_compress_stats(raw_tokens, comp_tokens)
-    parts, indices = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
+
+    if max_tokens == 0:
+        all_content = "\n\n".join(s.strip() for s in sections if s.strip())
+        all_indices = [list(range(len(named_sections)))]
+        parts = [all_content]
+        indices = all_indices
+    else:
+        if verbose and do_compress:
+            comp_tokens = sum(tokenizer(s) for s in sections)
+            _print_compress_stats(raw_tokens, comp_tokens)
+        parts, indices = split_sections(sections, max_tokens, separator="\n\n", tokenizer=tokenizer)
+
     return named_sections, parts, indices, new_cache
 
 

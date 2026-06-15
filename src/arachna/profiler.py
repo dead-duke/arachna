@@ -33,7 +33,7 @@ def _run_one(
     name_tmpl = f"bench-{mode}"
     p = _make_profile(profile, name_template=name_tmpl)
     t0 = time.perf_counter()
-    created, tokens_by_file, parts = collect(
+    created, tokens_by_file, parts, _metrics = collect(
         p, "Bench", str(out), mode=mode, query=query, incremental=incremental
     )
     elapsed = time.perf_counter() - t0
@@ -174,7 +174,7 @@ def _benchmark_tiktoken(profile: dict, output_dir: str) -> dict[str, Any]:
     # Run full collect with tiktoken
     p_tik = _make_profile(profile, tokenizer="tiktoken")
     t0 = time.perf_counter()
-    created, tokens_by_file, parts = collect(
+    created, tokens_by_file, parts, _metrics = collect(
         p_tik, "Bench", str(out), mode="full", incremental=False
     )
     elapsed = time.perf_counter() - t0

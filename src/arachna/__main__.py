@@ -36,6 +36,11 @@ def build_argparse() -> argparse.ArgumentParser:
     collect_p.add_argument("--no-pre-commands", action="store_true")
     collect_p.add_argument("--mode", choices=["full", "headers", "repo-map"], default="full")
 
+    # ── manifest ───────────────────────────────────────────────
+    manifest_p = sub.add_parser("manifest", help="Show collected files manifest")
+    manifest_p.add_argument("--json", action="store_true", help="Machine-readable JSON output")
+    manifest_p.add_argument("--output-dir", "-o", help="Output directory")
+
     # ── snapshot ───────────────────────────────────────────────
     snap_p = sub.add_parser("snapshot", help="Manage snapshots")
     snap_subs = snap_p.add_subparsers(dest="snap_command")
@@ -156,6 +161,9 @@ def main():
 
     if args.command == "collect":
         _dispatch_collect(args, config)
+
+    elif args.command == "manifest":
+        COMMAND_HANDLERS["manifest"](args, config)
 
     elif args.command == "snapshot":
         from .cli.snapshot import _dispatch_snapshot

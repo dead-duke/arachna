@@ -38,7 +38,7 @@ def collect(
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    created_files, tokens_by_file, parts = _collect(
+    created_files, tokens_by_file, parts, metrics = _collect(
         profile_dict,
         project_name,
         str(out_path),
@@ -61,4 +61,5 @@ def collect(
         parts=parts,
         files=created_files,
         tokens=total_tokens,
+        metrics=metrics,
     )

@@ -64,7 +64,7 @@ def _cmd_collect_profile(args, config: dict):
     if not args.merge:
         clean_manifest(out_path, name_tmpl)
 
-    created, tokens_by_file, _parts = collect(
+    created, tokens_by_file, _parts, _metrics = collect(
         profile,
         project_name,
         str(out_path),
@@ -127,7 +127,7 @@ def _cmd_collect_all(args, config: dict):
         name_tmpl = profile.get("name_template", f"chat-{name}")
         clean_manifest(out_path, name_tmpl)
 
-        created, tokens_by_file, _parts = collect(
+        created, tokens_by_file, _parts, _metrics = collect(
             profile,
             project_name,
             str(out_path),

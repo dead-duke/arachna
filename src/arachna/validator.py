@@ -25,10 +25,10 @@ def validate_profile(name: str, profile: dict[str, Any]) -> dict:
             f"split_mode: '{split_mode}' is not valid (use: {', '.join(sorted(VALID_SPLIT_MODES))})"
         )
 
-    # max_tokens
+    # max_tokens: 0 means unlimited
     max_tokens = profile.get("max_tokens", 0)
-    if max_tokens <= 0:
-        errors.append(f"max_tokens: must be > 0, got {max_tokens}")
+    if max_tokens < 0:
+        errors.append(f"max_tokens: must be >= 0, got {max_tokens}")
 
     # split_marker required for by_marker
     if split_mode == "by_marker":

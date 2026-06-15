@@ -154,6 +154,7 @@ def compute_diff(
     to_snapshot_id: str | None = None,
     mode: str = "full",
     flat: bool = False,
+    streaming: bool = False,
 ) -> DiffResult:
     if isinstance(profile, str):
         try:
@@ -173,7 +174,12 @@ def compute_diff(
                 f"Multiple snapshots found. Specify snapshot_id from: {', '.join(s['id'] for s in snaps)}"
             )
     sections = _watcher_compute_diff(
-        snapshot_id, profile_dict, fmt=fmt, to_snapshot_id=to_snapshot_id, flat=flat
+        snapshot_id,
+        profile_dict,
+        fmt=fmt,
+        to_snapshot_id=to_snapshot_id,
+        flat=flat,
+        streaming=streaming,
     )
     if mode == "structural" and sections:
         from .differ_structural import structural_diff_sections

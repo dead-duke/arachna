@@ -86,9 +86,19 @@ def test_no_config(tmp_path):
     assert "default" in report["profiles"]
 
 
-def test_zero_max_tokens(tmp_path):
+def test_zero_max_tokens_unlimited(tmp_path):
+    """max_tokens=0 means unlimited — valid, no error."""
     (tmp_path / ".arachna.json").write_text(
-        json.dumps({"profiles": {"bad": {"max_tokens": 0, "command": "echo hi"}}})
+        json.dumps({"profiles": {"ok": {"max_tokens": 0, "command": "echo hi"}}})
+    )
+    config = json.loads((tmp_path / ".arachna.json").read_text())
+    report = run_doctor(project_root=tmp_path, config=config)
+    assert report["total_errors"] == 0
+
+
+def test_negative_max_tokens(tmp_path):
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps({"profiles": {"bad": {"max_tokens": -1, "command": "echo hi"}}})
     )
     config = json.loads((tmp_path / ".arachna.json").read_text())
     report = run_doctor(project_root=tmp_path, config=config)
@@ -138,7 +148,7 @@ def test_print_doctor_with_errors():
     report = {
         "profiles": {
             "bad": {
-                "errors": ["max_tokens: must be > 0, got 0"],
+                "errors": ["max_tokens: must be >= 0, got -1"],
                 "warnings": ["file not found: x.txt"],
             }
         },
@@ -170,7 +180,7 @@ def test_cmd_doctor_invalid(tmp_path):
         "project_name": "test",
         "output_dir": str(tmp_path / "out"),
         "_root": str(tmp_path),
-        "profiles": {"bad": {"max_tokens": 0, "command": "echo hi"}},
+        "profiles": {"bad": {"max_tokens": -1, "command": "echo hi"}},
     }
     (tmp_path / ".arachna.json").write_text(json.dumps(config))
     with patch("sys.exit") as mock_exit:
