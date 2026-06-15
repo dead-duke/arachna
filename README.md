@@ -758,6 +758,7 @@ Fetch updated presets from the remote repository:
 - [GitHub Repository](https://github.com/dead-duke/arachna)
 - [Issue Tracker](https://github.com/dead-duke/arachna/issues)
 - [Changelog](https://github.com/dead-duke/arachna/blob/main/CHANGELOG.md)
+- [API Reference](https://dead-duke.github.io/arachna/api/)
 - [Architecture](https://github.com/dead-duke/arachna/blob/main/docs/ARCHITECTURE.md)
 - [Security Architecture](https://github.com/dead-duke/arachna/blob/main/docs/SECURITY.md)
 - [Security Policy](https://github.com/dead-duke/arachna/blob/main/SECURITY.md)
