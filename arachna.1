@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-15" "arachna v3.5.0" "User Commands"
+.TH ARACHNA 1 "2026-06-15" "arachna v3.6.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -38,6 +38,12 @@ Validate configuration for errors. Exits 1 if problems found.
 .TP
 \fBcollect \-\-clean\fR
 Remove all collected files.
+.TP
+\fBmanifest\fR
+Show collected files manifest.
+.TP
+\fBmanifest \-\-json\fR
+Machine-readable JSON manifest for AI agents.
 .TP
 \fBprofile\fR
 Measure token savings across all modes on the current project.
@@ -151,6 +157,9 @@ Max file size in bytes for SHA256 hashing (default: 10485760).
 ARACHNA_MAX_OUTPUT_SIZE
 Max stdout size in bytes for sandbox commands (default: 10485760).
 .TP
+ARACHNA_MAX_WORKERS
+Parallel file I/O workers (default: 1, sequential). Set to 4 for HDD/network drives.
+.TP
 ARACHNA_PRE_COMMAND_DELAY
 Seconds to sleep between pre_commands (default: 0).
 .TP
@@ -188,6 +197,11 @@ Create a snapshot and diff later:
 .I ... make changes ...
 .br
 .B arachna diff \-\-from baseline
+.RE
+.PP
+Machine-readable manifest for AI agents:
+.RS
+.B arachna manifest \-\-json
 .RE
 .SH FILES
 .TP

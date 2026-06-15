@@ -111,5 +111,6 @@ All command executions logged to `.arachna_commands.log`:
 | `ARACHNA_SAFE_TOKENIZERS` | tiktoken,transformers | Additional safe tokenizer modules |
 | `ARACHNA_PRE_COMMAND_DELAY` | 0 | Seconds delay between pre_commands |
 | `ARACHNA_MAX_OUTPUT_SIZE` | 10MB | Max bytes from a single command |
+| `ARACHNA_MAX_WORKERS` | 1 | Parallel file I/O workers (opt-in for HDD/network drives) |
 | `ARACHNA_CHARS_PER_TOKEN` | 4 | Token estimation ratio |
 | `ARACHNA_PRESETS_TIMEOUT` | 10 | Timeout for presets update HTTP fetch |

@@ -12,6 +12,8 @@ Run:
     python examples/delirium_agent.py
 """
 
+from pathlib import Path
+
 from arachna import watch
 from arachna.collect_api import collect
 
@@ -19,8 +21,9 @@ from arachna.collect_api import collect
 class DeliriumAgent:
     """AI agent that uses arachna for efficient context management."""
 
-    def __init__(self, profile: str = "full"):
+    def __init__(self, profile: str = "full", root: Path | None = None):
         self.profile = profile
+        self.root = root or Path.cwd()
         self.snapshot_id = None
         self.task_name = None
 
@@ -31,13 +34,13 @@ class DeliriumAgent:
         """
         self.task_name = task_name
         self.snapshot_id = watch.create_snapshot(
+            root=self.root,
             profile=self.profile,
             name=f"task-{task_name}",
         )
         print(f"[{task_name}] Snapshot '{self.snapshot_id}' created")
 
-        # First run — repo-map for overview (saves 50-70% tokens)
-        result = collect(profile=self.profile, mode="repo-map")
+        result = collect(root=self.root, profile=self.profile, mode="repo-map")
         overview = result.parts[0] if result.parts else ""
         print(f"[{task_name}] Overview: {result.tokens} tokens")
         return overview
@@ -45,26 +48,25 @@ class DeliriumAgent:
     def get_context(self, query: str | None = None) -> str:
         """Get current context for the AI.
 
-        If a snapshot exists, returns only changes since the baseline
-        (10-50x token savings). If no snapshot, returns full context.
+        If a snapshot exists, returns only changes since the baseline.
         If query is provided, filters to relevant files.
         """
         if not self.snapshot_id:
-            result = collect(profile=self.profile, query=query)
+            result = collect(root=self.root, profile=self.profile, query=query)
             return result.parts[0] if result.parts else ""
 
         diff = watch.compute_diff(
+            root=self.root,
             snapshot_id=self.snapshot_id,
             profile=self.profile,
         )
 
-        # If changes are too large, fall back to full context
         if diff.stats.tokens > 10000:
             print(
                 f"[{self.task_name}] Changes too large "
                 f"({diff.stats.tokens} tokens), using full context"
             )
-            result = collect(profile=self.profile, query=query)
+            result = collect(root=self.root, profile=self.profile, query=query)
             return result.parts[0] if result.parts else ""
 
         print(
@@ -72,7 +74,6 @@ class DeliriumAgent:
             f"{diff.stats.added} added, {diff.stats.tokens} tokens"
         )
 
-        # Build diff content for the AI
         parts = []
         for section in diff.sections:
             if section.content.strip():
@@ -82,7 +83,7 @@ class DeliriumAgent:
     def finish_task(self) -> None:
         """Clean up after task completion."""
         if self.snapshot_id:
-            watch.delete_snapshot(self.snapshot_id)
+            watch.delete_snapshot(self.snapshot_id, root=self.root)
             print(f"[{self.task_name}] Snapshot '{self.snapshot_id}' deleted")
             self.snapshot_id = None
             self.task_name = None
@@ -90,29 +91,25 @@ class DeliriumAgent:
     def update_baseline(self) -> None:
         """Update the baseline snapshot to current state."""
         if self.snapshot_id:
-            watch.update_snapshot(self.snapshot_id)
+            watch.update_snapshot(self.snapshot_id, root=self.root)
             print(f"[{self.task_name}] Snapshot '{self.snapshot_id}' updated")
 
 
 def main():
     """Demo: simulate agent workflow."""
-    import os
+    import json
     import tempfile
     from pathlib import Path
 
-    # Setup: create a temporary project
     with tempfile.TemporaryDirectory() as tmpdir:
-        os.chdir(tmpdir)
+        root = Path(tmpdir)
 
-        src = Path("src")
+        src = root / "src"
         src.mkdir()
         (src / "main.py").write_text("def main():\n    print('hello')\n")
         (src / "utils.py").write_text("def helper():\n    return 42\n")
 
-        # Create minimal config
-        import json
-
-        Path(".arachna.json").write_text(
+        (root / ".arachna.json").write_text(
             json.dumps(
                 {
                     "project_name": "demo",
@@ -130,26 +127,20 @@ def main():
             )
         )
 
-        # Agent workflow
-        agent = DeliriumAgent(profile="code")
+        agent = DeliriumAgent(profile="code", root=root)
 
-        # 1. Start task — create baseline, get overview
         overview = agent.start_task("fix-bug-42")
         print(f"\n=== Overview (repo-map) ===\n{overview[:200]}...\n")
 
-        # 2. Agent makes changes to the project
         (src / "main.py").write_text("def main():\n    print('hello world')\n")
         (src / "new_feature.py").write_text("def new_func():\n    return 'feature'\n")
 
-        # 3. Get context — only changes since baseline
         context = agent.get_context()
         print(f"=== Context (diff) ===\n{context[:300]}...\n")
 
-        # 4. Filter by query
         context = agent.get_context(query="main")
         print(f"=== Context (query: 'main') ===\n{context[:300]}...\n")
 
-        # 5. Finish task
         agent.finish_task()
 
 

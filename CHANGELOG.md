@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.6.0 — Data pipeline: manifest API + metrics + unlimited tokens + parallel I/O
+- arachna manifest --json: machine-readable manifest for AI agents
+- PipelineMetrics dataclass + CollectResult.metrics
+- .arachna_metrics.json: extract/transform/load times + file/token counts
+- max_tokens=0 unlimited mode
+- compute_diff streaming=True parameter
+- ThreadPoolExecutor parallel I/O (ARACHNA_MAX_WORKERS=1 default, opt-in)
+- Progress to stderr for large collections
+- root parameter required throughout entire codebase
+- 1429 tests, 93% coverage, 0 os.chdir
+
 ## v3.5.0 — Ecosystem: testability, CI, docs, man page, ADR
 - find_config/load_config: explicit root parameter
 - store/gatherer/collector tests: 0 monkeypatch.chdir

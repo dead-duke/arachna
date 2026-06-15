@@ -21,6 +21,7 @@ doctor.py           doctor handler
 init.py             init handler + _dispatch_init for --install-hook
 completion.py       completion bash/zsh handler
 profile.py          profile (benchmark) handler
+manifest.py         manifest --json handler
 
 ### Core modules — src/arachna/
 
@@ -90,7 +91,7 @@ Environment detector (plugins.py) recognizes: pipx, poetry, uv, conda, venv, sys
 
 ## Testing
 
-1363 tests, 93% coverage. Plugin code tested with real packages locally,
+1429 tests, 93% coverage. Plugin code tested with real packages locally,
 fallback paths tested in CI without plugins.
 
 tests/

@@ -3,21 +3,24 @@
 ## Quick start
 
 ```python
+from pathlib import Path
 from arachna import watch
 from arachna.collect_api import collect
 
+root = Path.cwd()
+
 # 1. Create a snapshot of your project
-snapshot_id = watch.create_snapshot(profile="full", name="baseline")
+snapshot_id = watch.create_snapshot(root=root, profile="full", name="baseline")
 print(f"Snapshot '{snapshot_id}' created")
 
 # 2. Collect full context for the AI
-result = collect(profile="full")
+result = collect(root=root, profile="full")
 print(f"Collected {result.tokens} tokens in {len(result.parts)} parts")
 
 # 3. Make changes to your project...
 
 # 4. See what changed
-diff = watch.compute_diff(snapshot_id="baseline", profile="full")
+diff = watch.compute_diff(root=root, snapshot_id="baseline", profile="full")
 print(f"Modified: {diff.stats.modified}, Added: {diff.stats.added}")
 
 # 5. Send diff to the AI (only 1-5K tokens instead of 50K+)
@@ -43,7 +46,7 @@ print(result)
 
 ```python
 # Collect without writing files to disk — for AI agents
-result = collect(profile="full", write_to_disk=False)
+result = collect(root=root, profile="full", write_to_disk=False)
 print(f"Collected {result.tokens} tokens in {len(result.parts)} parts")
 
 # Stream content directly to the model
@@ -55,51 +58,64 @@ for part in result.parts:
 
 ```python
 # Adjust chars_per_token for Russian/Cyrillic
-result = collect(profile={"directories": ["src"], "patterns": ["*.py"], "chars_per_token": 2.5})
+result = collect(root=root, profile={"directories": ["src"], "patterns": ["*.py"], "chars_per_token": 2.5})
 # Default 4 chars/token underestimates Cyrillic by ~60%
+```
+
+## Pipeline metrics (v3.6.0+)
+
+```python
+result = collect(root=root, profile="full")
+print(f"Extract: {result.metrics.extract_time_ms:.1f}ms")
+print(f"Transform: {result.metrics.transform_time_ms:.1f}ms")
+print(f"Load: {result.metrics.load_time_ms:.1f}ms")
+print(f"Files read: {result.metrics.files_read}")
+print(f"Tokens raw: {result.metrics.tokens_raw}")
+print(f"Tokens compressed: {result.metrics.tokens_compressed}")
 ```
 
 ## Integration with AI agents
 
 ```python
+from pathlib import Path
 import arachna.watch as watch
 from arachna.collect_api import collect
 
 class AIAgent:
-    def __init__(self, profile="full"):
+    def __init__(self, profile="full", root=None):
         self.profile = profile
+        self.root = root or Path.cwd()
         self.snapshot_id = None
 
     def start_task(self, task_name: str):
         """Create a baseline snapshot before making changes."""
         self.snapshot_id = watch.create_snapshot(
+            root=self.root,
             profile=self.profile,
             name=f"task-{task_name}"
         )
-        # First run — repo-map for project overview
-        return collect(profile=self.profile, mode="repo-map", write_to_disk=False)
+        return collect(root=self.root, profile=self.profile, mode="repo-map", write_to_disk=False)
 
     def get_context(self) -> str:
         """Get only what changed since the baseline."""
         if not self.snapshot_id:
-            return collect(profile=self.profile, write_to_disk=False).parts[0]
+            return collect(root=self.root, profile=self.profile, write_to_disk=False).parts[0]
 
         diff = watch.compute_diff(
+            root=self.root,
             snapshot_id=self.snapshot_id,
             profile=self.profile,
         )
 
-        # If changes are too large, treat as full context
         if diff.stats.tokens > 10000:
-            return collect(profile=self.profile, write_to_disk=False).parts[0]
+            return collect(root=self.root, profile=self.profile, write_to_disk=False).parts[0]
 
-        # Otherwise send only the diff
         return "\n".join(s.content for s in diff.sections)
 
     def finish_task(self):
         """Clean up after task completion."""
         if self.snapshot_id:
-            watch.delete_snapshot(self.snapshot_id)
+            watch.delete_snapshot(self.snapshot_id, root=self.root)
             self.snapshot_id = None
 ```
 
@@ -114,9 +130,9 @@ from arachna.api_errors import (
 )
 
 try:
-    sid = watch.create_snapshot(profile="full", name="my-snap")
+    sid = watch.create_snapshot(root=root, profile="full", name="my-snap")
 except SnapshotExistsError:
-    watch.update_snapshot("my-snap")
+    watch.update_snapshot("my-snap", root=root)
 except ProfileNotFoundError:
     print("Profile 'full' not found in .arachna.json")
 except ArachnaError as e:

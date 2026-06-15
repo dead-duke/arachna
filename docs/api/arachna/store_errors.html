@@ -77,23 +77,24 @@
 
                         <label class="view-source-button" for="mod-store_errors-view-source"><span>View Source</span></label>
 
-                        <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="sd">&quot;&quot;&quot;Exceptions for the Watch store subsystem.&quot;&quot;&quot;</span>
-</span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a>
+                        <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="c1"># Copyright (C) 2026 Artem Terenin / arachna — AGPLv3</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="sd">&quot;&quot;&quot;Exceptions for the Watch store subsystem.&quot;&quot;&quot;</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a>
-</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for store errors.&quot;&quot;&quot;</span>
-</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a>
+</span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a>
+</span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+</span><span id="L-6"><a href="#L-6"><span class="linenos"> 6</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for store errors.&quot;&quot;&quot;</span>
 </span><span id="L-7"><a href="#L-7"><span class="linenos"> 7</span></a>
-</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CorruptedStoreError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
-</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object content doesn&#39;t match its SHA256 hash.&quot;&quot;&quot;</span>
-</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a>
+</span><span id="L-8"><a href="#L-8"><span class="linenos"> 8</span></a>
+</span><span id="L-9"><a href="#L-9"><span class="linenos"> 9</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CorruptedStoreError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+</span><span id="L-10"><a href="#L-10"><span class="linenos">10</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object content doesn&#39;t match its SHA256 hash.&quot;&quot;&quot;</span>
 </span><span id="L-11"><a href="#L-11"><span class="linenos">11</span></a>
-</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a><span class="k">class</span><span class="w"> </span><span class="nc">ObjectNotFoundError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
-</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object not found in the store.&quot;&quot;&quot;</span>
-</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a>
+</span><span id="L-12"><a href="#L-12"><span class="linenos">12</span></a>
+</span><span id="L-13"><a href="#L-13"><span class="linenos">13</span></a><span class="k">class</span><span class="w"> </span><span class="nc">ObjectNotFoundError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+</span><span id="L-14"><a href="#L-14"><span class="linenos">14</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object not found in the store.&quot;&quot;&quot;</span>
 </span><span id="L-15"><a href="#L-15"><span class="linenos">15</span></a>
-</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a><span class="k">class</span><span class="w"> </span><span class="nc">SnapshotExistsError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
-</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Snapshot with this name already exists.&quot;&quot;&quot;</span>
+</span><span id="L-16"><a href="#L-16"><span class="linenos">16</span></a>
+</span><span id="L-17"><a href="#L-17"><span class="linenos">17</span></a><span class="k">class</span><span class="w"> </span><span class="nc">SnapshotExistsError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+</span><span id="L-18"><a href="#L-18"><span class="linenos">18</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Snapshot with this name already exists.&quot;&quot;&quot;</span>
 </span></pre></div>
 
 
@@ -109,8 +110,8 @@
 
     </div>
     <a class="headerlink" href="#StoreError"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="StoreError-5"><a href="#StoreError-5"><span class="linenos">5</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-</span><span id="StoreError-6"><a href="#StoreError-6"><span class="linenos">6</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for store errors.&quot;&quot;&quot;</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="StoreError-6"><a href="#StoreError-6"><span class="linenos">6</span></a><span class="k">class</span><span class="w"> </span><span class="nc">StoreError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+</span><span id="StoreError-7"><a href="#StoreError-7"><span class="linenos">7</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Base exception for store errors.&quot;&quot;&quot;</span>
 </span></pre></div>
 
 
@@ -130,8 +131,8 @@
 
     </div>
     <a class="headerlink" href="#CorruptedStoreError"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="CorruptedStoreError-9"><a href="#CorruptedStoreError-9"><span class="linenos"> 9</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CorruptedStoreError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
-</span><span id="CorruptedStoreError-10"><a href="#CorruptedStoreError-10"><span class="linenos">10</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object content doesn&#39;t match its SHA256 hash.&quot;&quot;&quot;</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="CorruptedStoreError-10"><a href="#CorruptedStoreError-10"><span class="linenos">10</span></a><span class="k">class</span><span class="w"> </span><span class="nc">CorruptedStoreError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+</span><span id="CorruptedStoreError-11"><a href="#CorruptedStoreError-11"><span class="linenos">11</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object content doesn&#39;t match its SHA256 hash.&quot;&quot;&quot;</span>
 </span></pre></div>
 
 
@@ -151,8 +152,8 @@
 
     </div>
     <a class="headerlink" href="#ObjectNotFoundError"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="ObjectNotFoundError-13"><a href="#ObjectNotFoundError-13"><span class="linenos">13</span></a><span class="k">class</span><span class="w"> </span><span class="nc">ObjectNotFoundError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
-</span><span id="ObjectNotFoundError-14"><a href="#ObjectNotFoundError-14"><span class="linenos">14</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object not found in the store.&quot;&quot;&quot;</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="ObjectNotFoundError-14"><a href="#ObjectNotFoundError-14"><span class="linenos">14</span></a><span class="k">class</span><span class="w"> </span><span class="nc">ObjectNotFoundError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+</span><span id="ObjectNotFoundError-15"><a href="#ObjectNotFoundError-15"><span class="linenos">15</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Object not found in the store.&quot;&quot;&quot;</span>
 </span></pre></div>
 
 
@@ -172,8 +173,8 @@
 
     </div>
     <a class="headerlink" href="#SnapshotExistsError"></a>
-            <div class="pdoc-code codehilite"><pre><span></span><span id="SnapshotExistsError-17"><a href="#SnapshotExistsError-17"><span class="linenos">17</span></a><span class="k">class</span><span class="w"> </span><span class="nc">SnapshotExistsError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
-</span><span id="SnapshotExistsError-18"><a href="#SnapshotExistsError-18"><span class="linenos">18</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Snapshot with this name already exists.&quot;&quot;&quot;</span>
+            <div class="pdoc-code codehilite"><pre><span></span><span id="SnapshotExistsError-18"><a href="#SnapshotExistsError-18"><span class="linenos">18</span></a><span class="k">class</span><span class="w"> </span><span class="nc">SnapshotExistsError</span><span class="p">(</span><span class="n">StoreError</span><span class="p">):</span>
+</span><span id="SnapshotExistsError-19"><a href="#SnapshotExistsError-19"><span class="linenos">19</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Snapshot with this name already exists.&quot;&quot;&quot;</span>
 </span></pre></div>
 
 

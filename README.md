@@ -15,7 +15,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1363 tests, 93% coverage, 200+ commits.
+day one. 1429 tests, 93% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -208,6 +208,8 @@ Creates arachna_context/ with .md files ready for AI.
     arachna doctor            run full diagnostic
     arachna presets update    update presets from remote repository
     arachna completion bash   generate shell completion
+    arachna manifest          show collected files manifest
+    arachna manifest --json   machine-readable JSON manifest
 
 ### Watch commands
 
@@ -267,6 +269,7 @@ Creates arachna_context/ with .md files ready for AI.
 | ARACHNA_MAX_OUTPUT_SIZE | 10485760 | Max stdout size in bytes for sandbox commands |
 | ARACHNA_CHARS_PER_TOKEN | 4 | Characters per token for default tokenizer |
 | ARACHNA_PRESETS_TIMEOUT | 10 | Timeout in seconds for --presets-update |
+| ARACHNA_MAX_WORKERS | 1 | Parallel file I/O workers (set to 4 for HDD/network drives)
 
 ## Profiles
 

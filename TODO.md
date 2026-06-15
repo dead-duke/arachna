@@ -1,18 +1,5 @@
 # TODO
 
-## v3.6.0 — Data pipeline: manifest API + metrics + performance (details: llm_docs/specs/spec-v3.6.0-data-pipeline.md)
-- [x] Add arachna manifest command with --json flag
-- [x] manifest --json output: {project_name, profiles, parts: [{file, tokens, hash, dependencies}]}
-- [x] collect() writes .arachna_metrics.json: extract_time_ms, transform_time_ms, load_time_ms, files_read, files_skipped, tokens_raw, tokens_compressed, compression_ratio
-- [x] CollectResult.metrics: PipelineMetrics | None in collect_api.py
-- [x] Add PipelineMetrics dataclass to api_types.py
-- [x] ThreadPoolExecutor for parallel file reading + formatting in _stream_full_mode (ARACHNA_MAX_WORKERS env, default 4)
-- [x] compute_diff streaming=True parameter — read files from store one-by-one
-- [x] max_tokens=0 unlimited mode — config.py, validator, splitter, gatherer
-- [x] Progress output to stderr: file count every 100 files when verbose
-- [x] Unit tests for all new features
-- [x] Benchmark: parallel vs sequential collect on 1000 files
-
 ## v4.0.0 — Layered architecture (details: llm_docs/specs/spec-v4.0.0-layered-architecture.md)
 - [ ] Create domain/ package: collector.py, gatherer.py, splitter.py, formatter.py, compressor.py, tokenizer.py, cache.py
 - [ ] Create watch/ package: store.py, watcher.py, differ.py, differ_structural.py, store_errors.py

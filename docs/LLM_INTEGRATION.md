@@ -17,9 +17,7 @@ arachna solves the whole cycle. It understands that:
 
 arachna is built around a multi-agent workflow:
 
-```
 Architect -> [Programmer <-> Tester] -> Architect
-```
 
 1. **Architect** plans the work in TODO.md, creates specs for complex tasks
 2. **Programmer** writes code, runs `make context` to see the project
@@ -60,24 +58,27 @@ chars_per_token estimate). Plugins activate automatically when installed.
 For LLM agents that want to call arachna directly:
 
 ```python
+from pathlib import Path
 from arachna import watch
 from arachna.collect_api import collect
 
+root = Path.cwd()
+
 # Create a baseline snapshot
-sid = watch.create_snapshot(profile="full", name="before-fix")
+sid = watch.create_snapshot(root=root, profile="full", name="before-fix")
 
 # Collect context filtered by query
-result = collect(profile="full", query="authentication", mode="repo-map")
+result = collect(root=root, profile="full", query="authentication", mode="repo-map")
 for part in result.parts:
     print(part)  # send to LLM
 
 # After changes, get the diff
-diff = watch.compute_diff(snapshot_id="before-fix", mode="structural")
+diff = watch.compute_diff(root=root, snapshot_id="before-fix", mode="structural")
 for section in diff.sections:
     print(section.content)  # send to LLM
 
 # Update snapshot for next iteration
-watch.update_snapshot("before-fix")
+watch.update_snapshot("before-fix", root=root)
 ```
 
 ## Performance tips
