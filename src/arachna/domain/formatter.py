@@ -80,7 +80,6 @@ _SHEBANG_MAP = {
     "perl": "perl",
 }
 
-# Language sets for dispatch - single source of truth.
 C_LIKE_LANGS = frozenset(
     {
         "javascript",
@@ -129,25 +128,16 @@ def lang_for_path(path: Path) -> str:
     return ""
 
 
-def _should_skip_binary(
-    path: Path,
-    include_binary: bool,
-    binary_extensions: list[str] | None,
-    binary_max_mb: float,
-) -> bool:
-    """Check if a file should be skipped as binary - decision table."""
+def _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
     ext = path.suffix.lower()
     if ext in _TEXT_EXTENSIONS:
         return False
-
     try:
         size_mb = path.stat().st_size / (1024 * 1024)
     except OSError:
         return True
-
     if size_mb > binary_max_mb:
         return True
-
     if not ext:
         if not include_binary:
             try:
@@ -157,7 +147,6 @@ def _should_skip_binary(
             except OSError:
                 return True
         return bool(binary_extensions is not None and "" not in binary_extensions)
-
     if binary_extensions is not None and ext not in binary_extensions:
         return True
     return not include_binary
@@ -165,7 +154,6 @@ def _should_skip_binary(
 
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
-
 _RE_C_LIKE_IMPORT = re.compile(
     r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]"
     r"|import\s+['\"]([^'\"]+)['\"]"
@@ -175,22 +163,19 @@ _RE_C_LIKE_IMPORT = re.compile(
     r"|use\s+([\w\\]+)\s*;)",
     re.MULTILINE,
 )
-
 _RE_C_LIKE_EXPORT = re.compile(
     r"^\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
-    r"type\s+|"
+    r"type\s+\w+\s+\w+|type\s+|"
     r"public\s+class|public\s+static|public\s+function|"
     r"fn|func)\s+(\w+)",
     re.MULTILINE,
 )
-
 _RE_SCRIPT_IMPORT = re.compile(
     r"^\s*(?:require\s+['\"]([^'\"]+)['\"]"
     r"|import\s+['\"]([^'\"]+)['\"]"
     r"|use\s+([\w.]+))",
     re.MULTILINE,
 )
-
 _RE_SCRIPT_EXPORT = re.compile(
     r"^\s*(?:def\s+(?:self\.)?(\w+[?!]?)"
     r"|defmodule\s+([\w.]+)"
@@ -201,19 +186,14 @@ _RE_SCRIPT_EXPORT = re.compile(
 
 
 def _generate_header(path: Path, text: str, lang: str) -> str:
-    deps: list[str] = []
-    exports: list[str] = []
+    from .language_dispatch import get_header_parser
 
-    if lang == "python":
-        deps, exports = _parse_python(text)
-    elif lang in C_LIKE_LANGS or lang == "gdscript":
-        deps, exports = _parse_c_like(text)
-    elif lang in SCRIPT_LANGS:
-        deps, exports = _parse_script(text)
-
+    parser = get_header_parser(lang)
+    if parser is None:
+        return ""
+    deps, exports = parser(text)
     if not deps and not exports:
         return ""
-
     lines = [f"### {path}\n"]
     if deps:
         lines.append(f"deps: {', '.join(sorted(set(deps)))}\n")
@@ -225,7 +205,6 @@ def _generate_header(path: Path, text: str, lang: str) -> str:
 def _parse_python(text: str) -> tuple[list[str], list[str]]:
     deps: list[str] = []
     exports: list[str] = []
-
     try:
         tree = _ast.parse(text)
     except SyntaxError:
@@ -246,7 +225,6 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
                 if part:
                     deps.append(part)
         return deps, exports
-
     for node in _ast.iter_child_nodes(tree):
         if isinstance(node, _ast.Import):
             for alias in node.names:
@@ -256,53 +234,46 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
                 deps.append(node.module)
         elif isinstance(node, (_ast.FunctionDef, _ast.ClassDef, _ast.AsyncFunctionDef)):
             exports.append(node.name)
-
     return deps, exports
 
 
 def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
     deps: list[str] = []
     exports: list[str] = []
-
     for m in _RE_C_LIKE_IMPORT.finditer(text):
         dep = m.group(1) or m.group(2) or m.group(3) or m.group(4) or m.group(5) or m.group(6)
         if dep:
             deps.append(dep)
-
     for m in _RE_C_LIKE_EXPORT.finditer(text):
         name = m.group(1)
         if name:
             exports.append(name)
-
     return deps, exports
 
 
 def _parse_script(text: str) -> tuple[list[str], list[str]]:
     deps: list[str] = []
     exports: list[str] = []
-
     for m in _RE_SCRIPT_IMPORT.finditer(text):
         dep = m.group(1) or m.group(2) or m.group(3)
         if dep:
             deps.append(dep)
-
     for m in _RE_SCRIPT_EXPORT.finditer(text):
         name = m.group(1) or m.group(2) or m.group(3) or m.group(4)
         if name:
             exports.append(name)
-
     return deps, exports
 
 
 def format_file_section(
-    path: Path,
-    fmt: str = "markdown",
-    include_binary: bool = False,
-    binary_extensions: list[str] | None = None,
-    binary_max_mb: float = 1.0,
-    verbose: bool = False,
-    include_header: bool = False,
-) -> str:
+    path,
+    fmt="markdown",
+    include_binary=False,
+    binary_extensions=None,
+    binary_max_mb=1.0,
+    verbose=False,
+    include_header=False,
+):
     if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
         try:
             path.stat()
@@ -322,7 +293,6 @@ def format_file_section(
             else:
                 print(f"  Skipped (binary): {path}")
         return ""
-
     try:
         st_size = path.stat().st_size
     except OSError as e:
@@ -335,7 +305,6 @@ def format_file_section(
             limit_mb = _ARACHNA_MAX_FILE_SIZE / (1024 * 1024)
             print(f"  Skipped (file too large: {size_mb:.1f}MB > {limit_mb:.0f}MB): {path}")
         return ""
-
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
@@ -352,23 +321,19 @@ def format_file_section(
         if verbose:
             print(f"  Skipped (error): {path} - {e}")
         return ""
-
     if "\x00" in text:
         if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
             return _format_binary(path, fmt)
         if verbose:
             print(f"  Skipped (binary): {path}")
         return ""
-
     lang = lang_for_path(path)
     if not lang:
         first_line = text.split("\n")[0] if text else ""
         lang = _lang_from_shebang(first_line)
-
     header = ""
     if include_header:
         header = _generate_header(path, text, lang)
-
     if fmt == "xml":
         return header + _format_xml(path, lang, text)
     elif fmt == "json":
@@ -377,8 +342,7 @@ def format_file_section(
         return header + _format_markdown(path, lang, text)
 
 
-def _is_binary_allowed(path: Path, extensions: list[str] | None, max_mb: float) -> bool:
-    """Check if a binary file is allowed based on extension and size."""
+def _is_binary_allowed(path, extensions, max_mb):
     if extensions is not None and path.suffix.lower() not in extensions:
         return False
     try:
@@ -388,7 +352,7 @@ def _is_binary_allowed(path: Path, extensions: list[str] | None, max_mb: float) 
     return size_mb <= max_mb
 
 
-def _format_binary(path: Path, fmt: str) -> str:
+def _format_binary(path, fmt):
     data = path.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
     ext = path.suffix.lstrip(".").lower()
@@ -405,25 +369,60 @@ def _format_binary(path: Path, fmt: str) -> str:
         return f"### {path}\n\n```base64\n{b64}\n```\n"
 
 
-def _format_markdown(path: Path, lang: str, text: str) -> str:
+def _format_markdown(path, lang, text):
     return f"### {path}\n\n```{lang}\n{text}\n```\n"
 
 
-def _format_xml(path: Path, lang: str, text: str) -> str:
+def _format_xml(path, lang, text):
     lang_attr = f' language="{lang}"' if lang else ""
     return f'<file path="{path}"{lang_attr}>\n<![CDATA[\n{text}\n]]>\n</file>\n'
 
 
-def _format_json(path: Path, lang: str, text: str) -> str:
+def _format_json(path, lang, text):
     obj = {"path": str(path), "content": text}
     if lang:
         obj["language"] = lang
     return json.dumps(obj, ensure_ascii=False) + "\n"
 
 
-def is_excluded(path: Path, exclude_patterns: list[str]) -> bool:
+def is_excluded(path, exclude_patterns):
     path_str = str(path)
     for pat in exclude_patterns:
         if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):
             return True
     return False
+
+
+def _format_sigs_markdown(filepath, lang, sigs):
+    return f"### {filepath}\n\n```{lang if lang else ''}\n{sigs}\n```\n"
+
+
+def _format_sigs_xml(filepath, lang, sigs):
+    lang_attr = f' language="{lang}"' if lang else ""
+    return f'<file path="{filepath}"{lang_attr}>\n<![CDATA[\n{sigs}\n]]>\n</file>\n'
+
+
+def _format_sigs_json(filepath, lang, sigs):
+    obj = {"path": str(filepath), "content": sigs}
+    if lang:
+        obj["language"] = lang
+    return json.dumps(obj, ensure_ascii=False) + "\n"
+
+
+_SIGS_FORMATTERS = {
+    "markdown": _format_sigs_markdown,
+    "xml": _format_sigs_xml,
+    "json": _format_sigs_json,
+}
+
+
+def _apply_repo_map_to_section(filepath, section, raw_text, lang, fmt, include_header, header=""):
+    from .splitter import extract_signatures
+
+    if raw_text is None:
+        return section
+    sigs = extract_signatures(raw_text, lang)
+    if not header and include_header:
+        header = _generate_header(filepath, raw_text, lang)
+    formatter = _SIGS_FORMATTERS.get(fmt, _format_sigs_markdown)
+    return header + formatter(filepath, lang, sigs)

@@ -1,11 +1,15 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Language and engine presets for arachna init."""
+"""Language and engine presets for arachna init.
+
+v4.0.1: Uses VALID_SPLIT_MODES from config/__init__.py.
+"""
 
 import json
 import os as _os
 from pathlib import Path
 
 from ..domain.tokenizer import _is_safe_tokenizer as _tokenizer_is_safe
+from . import VALID_SPLIT_MODES
 
 _SEPARATOR = "-" * 50
 DEFAULT_PRESETS_PATH = "presets.json"
@@ -35,7 +39,6 @@ _VALID_PRESET_KEYS = {
     "detect",
     "tokenizer",
 }
-_VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 
 
 def _load_builtin_presets_raw() -> dict[str, dict]:
@@ -81,7 +84,6 @@ def _is_safe_tokenizer(spec: str) -> bool:
 
 
 def _validate_preset(name: str, preset: dict) -> dict | None:
-    """Validate a single preset. Returns cleaned preset or None if invalid."""
     if not isinstance(preset, dict):
         print(f"Warning: preset '{name}' is not an object, skipping")
         return None
@@ -89,9 +91,9 @@ def _validate_preset(name: str, preset: dict) -> dict | None:
     if unknown_keys:
         print(f"Warning: preset '{name}' has unknown keys: {', '.join(sorted(unknown_keys))}")
     split_mode = preset.get("split_mode", "by_file")
-    if split_mode not in _VALID_SPLIT_MODES:
+    if split_mode not in VALID_SPLIT_MODES:
         print(
-            f"Warning: preset '{name}' has invalid split_mode '{split_mode}', must be one of {', '.join(sorted(_VALID_SPLIT_MODES))}"
+            f"Warning: preset '{name}' has invalid split_mode '{split_mode}', must be one of {', '.join(sorted(VALID_SPLIT_MODES))}"
         )
         return None
     max_tokens = preset.get("max_tokens", 16000)
@@ -233,9 +235,7 @@ def _detect_any(paths: list[str], root: Path | None = None) -> bool:
 
 
 def preset_to_profile(
-    name: str,
-    external_path: str | Path | None = None,
-    root: Path | None = None,
+    name: str, external_path: str | Path | None = None, root: Path | None = None
 ) -> dict | None:
     if root is None:
         root = Path.cwd()
@@ -276,8 +276,7 @@ def preset_to_profile(
 
 
 def get_detected_summary(
-    external_path: str | Path | None = None,
-    root: Path | None = None,
+    external_path: str | Path | None = None, root: Path | None = None
 ) -> dict[str, dict]:
     if root is None:
         root = Path.cwd()

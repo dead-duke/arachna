@@ -1,6 +1,6 @@
 """Tests for decomposed query pipeline: _score_files, _build_reverse_graph, _expand_import_chain."""
 
-from arachna.domain.gatherer import (
+from arachna.domain.gatherer_query import (
     _build_reverse_graph,
     _expand_import_chain,
     _score_files,

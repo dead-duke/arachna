@@ -6,56 +6,22 @@ For C-like languages: uses regex to find declarations with brace matching.
 For Ruby/Elixir/Lua: regex-based block parsing.
 For all other languages: falls back to text-based difflib.
 
-v4.0.0: Moved to watch/ package. Imports from domain/formatter.
+v4.0.1: Block parsers moved to domain/language_dispatch.py.
+Uses get_block_parser for language dispatch.
 """
 
 import logging
-import re
-import threading
 from pathlib import Path
 
-from ..domain.formatter import C_LIKE_LANGS, SCRIPT_LANGS, lang_for_path
+from ..domain.formatter import C_LIKE_LANGS, lang_for_path
+from ..domain.language_dispatch import get_block_parser
 
 logger = logging.getLogger("arachna.differ_structural")
-
-_RE_STRINGS = re.compile(r'"[^"]*"|\'[^\']*\'|`[^`]*`')
-_RE_SINGLE_COMMENT = re.compile(r"//[^\n]*")
-_RE_MULTI_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 
 _HAS_TS = False
 _HAS_TS_JS = False
 _HAS_TS_TS = False
 _HAS_TS_GO = False
-
-_REGEX_TIMEOUT = 0.1
-
-
-class RegexTimeoutError(Exception):
-    """Raised when a regex operation exceeds the timeout."""
-
-    pass
-
-
-def _run_with_timeout(func, timeout=_REGEX_TIMEOUT):
-    result = [None]
-    error = [None]
-    done = threading.Event()
-
-    def target():
-        try:
-            result[0] = func()
-        except Exception as e:
-            error[0] = e
-        finally:
-            done.set()
-
-    thread = threading.Thread(target=target, daemon=True)
-    thread.start()
-    if not done.wait(timeout):
-        raise RegexTimeoutError(f"Regex operation timed out after {timeout}s")
-    if error[0] is not None:
-        raise error[0]
-    return result[0]
 
 
 def _check_plugins():
@@ -70,21 +36,18 @@ def _check_plugins():
         _HAS_TS_TS = False
         _HAS_TS_GO = False
         return
-
     try:
         import tree_sitter_javascript  # noqa: F401
 
         _HAS_TS_JS = True
     except ImportError:
         _HAS_TS_JS = False
-
     try:
         import tree_sitter_typescript  # noqa: F401
 
         _HAS_TS_TS = True
     except ImportError:
         _HAS_TS_TS = False
-
     try:
         import tree_sitter_go  # noqa: F401
 
@@ -106,47 +69,6 @@ def _has_tree_sitter_for(lang: str) -> bool:
     return False
 
 
-def _strip_strings_and_comments(text: str) -> str:
-    text = _RE_STRINGS.sub(" ", text)
-    text = _RE_SINGLE_COMMENT.sub(" ", text)
-    text = _RE_MULTI_COMMENT.sub(" ", text)
-    return text
-
-
-_BLOCK_PATTERNS = [
-    (
-        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+(?P<name>\w+)[^{]*", re.MULTILINE),
-        "name",
-    ),
-    (re.compile(r"^\s*def\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (
-        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?class\s+(?P<name>\w+)[^{]*", re.MULTILINE),
-        "name",
-    ),
-    (
-        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?interface\s+(?P<name>\w+)[^{]*", re.MULTILINE),
-        "name",
-    ),
-    (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?enum\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (
-        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?struct\s+(?P<name>\w+)[^{]*", re.MULTILINE),
-        "name",
-    ),
-    (
-        re.compile(r"^\s*(?:export\s+)?(?:async\s+)?trait\s+(?P<name>\w+)[^{]*", re.MULTILINE),
-        "name",
-    ),
-    (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?impl\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (re.compile(r"^\s*type\s+(?P<name>\w+)\s+\w+[^{]*", re.MULTILINE), "name"),
-    (re.compile(r"^\s*type\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (re.compile(r"^\s*public\s+class\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (re.compile(r"^\s*public\s+static\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (re.compile(r"^\s*public\s+function\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (re.compile(r"^\s*fn\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-    (re.compile(r"^\s*func\s+(?P<name>\w+)[^{]*", re.MULTILINE), "name"),
-]
-
-
 def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
     result = []
     for s in sections:
@@ -163,9 +85,7 @@ def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
     return result
 
 
-def structural_diff_for_lang(
-    old_content: str, new_content: str, path: str, lang: str, fmt: str = "markdown"
-) -> str:
+def structural_diff_for_lang(old_content, new_content, path, lang, fmt="markdown"):
     if _has_tree_sitter_for(lang):
         return _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt)
 
@@ -177,19 +97,20 @@ def structural_diff_for_lang(
             lang,
         )
 
-    if lang == "python":
-        blocks_old = _parse_python_blocks(old_content)
-        blocks_new = _parse_python_blocks(new_content)
-        if blocks_old is None or blocks_new is None:
-            return _fallback_diff(old_content, new_content, path, fmt)
-    elif lang in C_LIKE_LANGS or lang == "gdscript":
-        blocks_old = _parse_c_like_blocks(old_content, lang)
-        blocks_new = _parse_c_like_blocks(new_content, lang)
-    elif lang in SCRIPT_LANGS:
-        blocks_old = _parse_script_blocks(old_content)
-        blocks_new = _parse_script_blocks(new_content)
-    else:
+    parser = get_block_parser(lang)
+    if parser is None:
         return _fallback_diff(old_content, new_content, path, fmt)
+
+    if lang in C_LIKE_LANGS or lang == "gdscript":
+        blocks_old = parser(old_content, lang)
+        blocks_new = parser(new_content, lang)
+    else:
+        blocks_old = parser(old_content)
+        blocks_new = parser(new_content)
+
+    if blocks_old is None or blocks_new is None:
+        return _fallback_diff(old_content, new_content, path, fmt)
+
     return _format_block_diff(blocks_old, blocks_new, path, fmt)
 
 
@@ -207,16 +128,15 @@ def _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt):
             return _fallback_diff(old_content, new_content, path, fmt)
 
         ts_language = tree_sitter.Language(ts_lang.language())
-        parser = tree_sitter.Parser(ts_language)
+        parser_obj = tree_sitter.Parser(ts_language)
 
-        old_tree = parser.parse(old_content.encode("utf-8"))
-        new_tree = parser.parse(new_content.encode("utf-8"))
+        old_tree = parser_obj.parse(old_content.encode("utf-8"))
+        new_tree = parser_obj.parse(new_content.encode("utf-8"))
 
         old_blocks = _extract_ts_blocks(old_tree.root_node, old_content, lang)
         new_blocks = _extract_ts_blocks(new_tree.root_node, new_content, lang)
 
         return _format_block_diff(old_blocks, new_blocks, path, fmt)
-
     except ImportError:
         return _fallback_diff(old_content, new_content, path, fmt)
     except Exception as e:
@@ -224,13 +144,7 @@ def _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt):
         return _fallback_diff(old_content, new_content, path, fmt)
 
 
-def _extract_ts_blocks(node, text, lang):
-    blocks = {}
-    _walk_ts_tree(node, text, blocks, lang)
-    return blocks
-
-
-def _walk_ts_tree(node, text, blocks, lang):
+def _extract_ts_blocks(node, text, blocks, lang):
     func_types = {"function_declaration", "method_definition", "arrow_function"}
     class_types = {"class_declaration"}
     if lang == "go":
@@ -252,7 +166,7 @@ def _walk_ts_tree(node, text, blocks, lang):
             blocks[name] = (sig.strip(), body.strip())
 
     for child in node.children:
-        _walk_ts_tree(child, text, blocks, lang)
+        _extract_ts_blocks(child, text, blocks, lang)
 
 
 def structural_diff(old_content, new_content, path, lang, fmt="markdown"):
@@ -288,99 +202,6 @@ def _extract_old_new_from_section(content):
     if not old_lines and not new_lines:
         return None, None
     return "\n".join(old_lines), "\n".join(new_lines)
-
-
-def _parse_python_blocks(text):
-    import ast as _ast
-
-    try:
-        tree = _ast.parse(text)
-    except SyntaxError:
-        return None
-    lines = text.split("\n")
-    blocks = {}
-    for node in _ast.iter_child_nodes(tree):
-        if isinstance(node, (_ast.FunctionDef, _ast.ClassDef, _ast.AsyncFunctionDef)):
-            name = node.name
-            sig_start = node.lineno - 1
-            if node.decorator_list:
-                sig_start = node.decorator_list[0].lineno - 1
-            sig_end = node.body[0].lineno - 1 if node.body else node.end_lineno
-            signature = "\n".join(lines[sig_start:sig_end])
-            if node.body:
-                body_start = node.body[0].lineno - 1
-                body = "\n".join(lines[body_start : node.end_lineno])
-            else:
-                body = ""
-            blocks[name] = (signature, body)
-    return blocks
-
-
-def _parse_c_like_blocks(text, lang):
-    blocks = {}
-    for pattern, group_name in _BLOCK_PATTERNS:
-        try:
-            matches = _run_with_timeout(lambda p=pattern: list(p.finditer(text)))
-        except RegexTimeoutError:
-            logger.warning("Pattern timed out on input of length %d — skipping", len(text))
-            continue
-        for m in matches:
-            sig = m.group(0).strip()
-            name = m.group(group_name)
-            if name is None or name in blocks:
-                continue
-            body_start = m.end()
-            if body_start < len(text) and text[body_start] == "{":
-                body = _extract_braced_block(text, body_start)
-            else:
-                body = ""
-            blocks[name] = (sig, body)
-    return blocks
-
-
-def _extract_braced_block(text, start):
-    if start >= len(text) or text[start] != "{":
-        return ""
-    clean = _strip_strings_and_comments(text[start:])
-    depth = 0
-    i = 0
-    while i < len(clean):
-        if clean[i] == "{":
-            depth += 1
-        elif clean[i] == "}":
-            depth -= 1
-            if depth == 0:
-                orig_depth = 0
-                orig_i = start
-                while orig_i < len(text):
-                    if text[orig_i] == "{":
-                        orig_depth += 1
-                    elif text[orig_i] == "}":
-                        orig_depth -= 1
-                        if orig_depth == 0:
-                            return text[start : orig_i + 1]
-                    orig_i += 1
-                return text[start:]
-        i += 1
-    return text[start:]
-
-
-def _parse_script_blocks(text):
-    sig_pattern = re.compile(
-        r"^(\s*(?:def\s+(?:self\.)?(\w+[?!]?).*|"
-        r"defmodule\s+([\w.]+).*|"
-        r"defp\s+(\w+).*|"
-        r"function\s+(\w+).*))",
-        re.MULTILINE,
-    )
-    blocks = {}
-    for m in sig_pattern.finditer(text):
-        name = m.group(2) or m.group(3) or m.group(4) or m.group(5)
-        sig = m.group(1).strip()
-        body_start = m.end()
-        body = text[body_start:].strip()
-        blocks[name] = (sig, body)
-    return blocks
 
 
 def _format_block_diff(old_blocks, new_blocks, path, fmt):

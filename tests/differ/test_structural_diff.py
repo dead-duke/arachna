@@ -1,8 +1,8 @@
 """Tests for structural diff in differ_structural.py."""
 
+from arachna.domain.language_dispatch import _parse_python_blocks
 from arachna.watch.differ_structural import (
     _extract_old_new_from_section,
-    _parse_python_blocks,
     structural_diff,
     structural_diff_sections,
 )

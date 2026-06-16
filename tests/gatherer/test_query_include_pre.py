@@ -1,6 +1,6 @@
 """Test _filter_by_query with include_pre_commands parameter."""
 
-from arachna.domain.gatherer import _filter_by_query
+from arachna.domain.gatherer_query import _filter_by_query
 from arachna.domain.tokenizer import count_tokens
 
 

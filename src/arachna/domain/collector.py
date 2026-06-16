@@ -5,14 +5,15 @@ import json
 import logging
 import os
 import re
-import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
 from .api_types import PipelineMetrics
+from .atomic_write import atomic_write_text
 from .cache import load_cache, save_cache
-from .gatherer import _assemble_content, _get_exclude_patterns
+from .gatherer import _assemble_content
+from .gatherer_core import _get_exclude_patterns
 from .runner import run_command
 from .splitter import split_sections
 from .tokenizer import count_tokens, load_tokenizer
@@ -88,15 +89,7 @@ def load_manifest(out_dir: Path) -> list[str]:
 def save_manifest(out_dir: Path, files: list[str]):
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / _MANIFEST
-    fd, tmp_path = tempfile.mkstemp(dir=str(out_dir), prefix=".arachna_manifest_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump({"files": files, "time": time.time()}, f, indent=2)
-        os.replace(tmp_path, manifest_path)
-    except Exception:
-        with contextlib.suppress(OSError):
-            os.unlink(tmp_path)
-        raise
+    atomic_write_text(manifest_path, json.dumps({"files": files, "time": time.time()}, indent=2))
 
 
 def clean_manifest(out_dir: Path, name_tmpl: str = ""):
@@ -245,13 +238,7 @@ def _write_diff_parts(
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
-        toc = _build_toc(
-            named_sections,
-            indices,
-            i,
-            total_parts,
-            all_indices=section_indices,
-        )
+        toc = _build_toc(named_sections, indices, i, total_parts, all_indices=section_indices)
         header = _diff_part_header(part_stats[i - 1], i, total_parts)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
@@ -306,45 +293,7 @@ def _write_metrics(out_path: Path, metrics: PipelineMetrics):
         "tokens_compressed": metrics.tokens_compressed,
         "compression_ratio": metrics.compression_ratio,
     }
-    try:
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(out_path), prefix=".arachna_metrics_", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2)
-            os.replace(tmp_path, metrics_path)
-        except Exception:
-            with contextlib.suppress(OSError):
-                os.unlink(tmp_path)
-            raise
-    except OSError:
-        metrics_path.write_text(json.dumps(payload, indent=2))
-
-
-# Tokenizer factory mapping
-
-
-def _make_default_tokenizer(chars_per_token):
-    if chars_per_token:
-        return lambda t: count_tokens(t, chars_per_token=chars_per_token)
-    return count_tokens
-
-
-def _make_plugin_tokenizer(spec, chars_per_token):
-    return load_tokenizer(spec, chars_per_token=chars_per_token)
-
-
-_TOKENIZER_FACTORIES = {
-    "default": _make_default_tokenizer,
-}
-
-
-def _build_tokenizer(spec, chars_per_token):
-    factory = _TOKENIZER_FACTORIES.get(spec, _make_plugin_tokenizer)
-    if factory is _make_default_tokenizer:
-        return factory(chars_per_token)
-    return factory(spec, chars_per_token)
+    atomic_write_text(metrics_path, json.dumps(payload, indent=2))
 
 
 def collect(
@@ -365,7 +314,7 @@ def collect(
     out_path.mkdir(parents=True, exist_ok=True)
     tokenizer_spec = profile.get("tokenizer", "default")
     chars_per_token = profile.get("chars_per_token")
-    tokenizer = _build_tokenizer(tokenizer_spec, chars_per_token)
+    tokenizer = load_tokenizer(tokenizer_spec, chars_per_token=chars_per_token, root=root)
 
     t0 = time.perf_counter()
     exclude = _get_exclude_patterns(profile, root=root)

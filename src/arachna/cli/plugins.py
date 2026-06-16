@@ -1,5 +1,8 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI handlers for 'arachna plugins' command."""
+"""CLI handlers for 'arachna plugins' command.
+
+v4.0.1: _dispatch_plugins uses dict mapping instead of if/elif chain.
+"""
 
 import sys
 
@@ -33,14 +36,18 @@ def _cmd_plugins_uninstall(args, config: dict):
     print(result)
 
 
+_PLUGINS_HANDLERS = {
+    "list": _cmd_plugins_list,
+    "install": _cmd_plugins_install,
+    "uninstall": _cmd_plugins_uninstall,
+}
+
+
 def _dispatch_plugins(args, config: dict, parser):
     plugins_cmd = getattr(args, "plugins_command", None)
-    if plugins_cmd == "list":
-        _cmd_plugins_list(args, config)
-    elif plugins_cmd == "install":
-        _cmd_plugins_install(args, config)
-    elif plugins_cmd == "uninstall":
-        _cmd_plugins_uninstall(args, config)
+    handler = _PLUGINS_HANDLERS.get(plugins_cmd)
+    if handler:
+        handler(args, config)
     else:
         plugins_p = None
         for action in parser._actions:

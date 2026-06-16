@@ -1,6 +1,7 @@
 """Test structural diff for C-like code with braces in strings (ARCH-01 awareness)."""
 
-from arachna.watch.differ_structural import _parse_c_like_blocks, structural_diff
+from arachna.domain.language_dispatch import _parse_c_like_blocks
+from arachna.watch.differ_structural import structural_diff
 
 
 def test_c_like_braces_in_string_js():

@@ -1,21 +1,19 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI handlers for 'arachna store' command."""
+"""CLI handlers for 'arachna store' command.
+
+v4.0.1: _dispatch_store uses dict mapping instead of if/elif chain.
+"""
 
 import sys
-from pathlib import Path
 
 from ..watch.store import gc, stats
 from . import register
-
-
-def _get_root(config: dict) -> Path | None:
-    root_str = config.get("_root")
-    return Path(root_str) if root_str else None
+from ._helpers import get_root
 
 
 @register("store-stats")
 def _cmd_store_stats(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     s = stats(root=root)
     print("Store statistics:")
     print(f"  Snapshots: {s['snapshots']}")
@@ -26,7 +24,7 @@ def _cmd_store_stats(args, config: dict):
 
 @register("store-gc")
 def _cmd_store_gc(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     result = gc(root=root)
     if result["removed"] == 0:
         print("No objects to collect.")
@@ -34,12 +32,17 @@ def _cmd_store_gc(args, config: dict):
         print(f"Removed {result['removed']} objects (freed {result['freed_bytes']} bytes).")
 
 
+_STORE_HANDLERS = {
+    "stats": _cmd_store_stats,
+    "gc": _cmd_store_gc,
+}
+
+
 def _dispatch_store(args, config: dict, parser):
     store_cmd = getattr(args, "store_command", None)
-    if store_cmd == "stats":
-        _cmd_store_stats(args, config)
-    elif store_cmd == "gc":
-        _cmd_store_gc(args, config)
+    handler = _STORE_HANDLERS.get(store_cmd)
+    if handler:
+        handler(args, config)
     else:
         store_p = None
         for action in parser._actions:

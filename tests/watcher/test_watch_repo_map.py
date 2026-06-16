@@ -4,17 +4,12 @@ import pytest
 
 from arachna.api.api_errors import ProfileNotFoundError, SnapshotNotFoundError
 from arachna.api.watch import compute_diff, create_snapshot
+from arachna.domain.language_dispatch import get_block_parser
 from arachna.watch.differ import DiffSection
-from arachna.watch.differ_structural import (
-    _parse_c_like_blocks,
-    _parse_python_blocks,
-    _parse_script_blocks,
-)
 from arachna.watch.watcher import (
     _apply_repo_map_to_sections,
     _format_repo_map_added,
     _format_repo_map_diff,
-    _parse_blocks_dispatch,
     _read_file_from_disk,
     _read_file_from_store,
 )
@@ -66,6 +61,27 @@ def test_format_repo_map_added_with_blocks():
 def test_format_repo_map_added_empty():
     result = _format_repo_map_added("src/new.py", "python", {})
     assert result == ""
+
+
+def test_get_block_parser_unknown_language():
+    parser = get_block_parser("unknown_lang")
+    assert parser is None
+
+
+def test_get_block_parser_go():
+    parser = get_block_parser("go")
+    assert parser is not None
+    text = "package main\n\nfunc main() {\n    return\n}\n"
+    blocks = parser(text, "go")
+    assert "main" in blocks
+
+
+def test_get_block_parser_ruby():
+    parser = get_block_parser("ruby")
+    assert parser is not None
+    text = "def hello\n    puts 'hi'\nend\n"
+    blocks = parser(text)
+    assert "hello" in blocks
 
 
 def test_apply_repo_map_to_sections_modified(tmp_path, setup_config, make_profile):
@@ -202,30 +218,3 @@ def test_read_file_from_disk_unreadable(tmp_path):
         assert result is None
     finally:
         f.chmod(0o644)
-
-
-def test_parse_blocks_dispatch_unknown_language():
-    result = _parse_blocks_dispatch(
-        "function foo() {}",
-        "unknown_lang",
-        _parse_python_blocks,
-        _parse_c_like_blocks,
-        _parse_script_blocks,
-    )
-    assert result == {}
-
-
-def test_parse_blocks_dispatch_c_like_go():
-    text = "package main\n\nfunc main() {\n    return\n}\n"
-    result = _parse_blocks_dispatch(
-        text, "go", _parse_python_blocks, _parse_c_like_blocks, _parse_script_blocks
-    )
-    assert "main" in result
-
-
-def test_parse_blocks_dispatch_script_ruby():
-    text = "def hello\n    puts 'hi'\nend\n"
-    result = _parse_blocks_dispatch(
-        text, "ruby", _parse_python_blocks, _parse_c_like_blocks, _parse_script_blocks
-    )
-    assert "hello" in result

@@ -1,10 +1,7 @@
 """Coverage for streaming pipeline edge cases in gatherer.py."""
 
-from arachna.domain.gatherer import (
-    _assemble_content,
-    _assemble_file_content,
-    _filter_filenames_by_query,
-)
+from arachna.domain.gatherer import _assemble_content, _assemble_file_content
+from arachna.domain.gatherer_query import _filter_filenames_by_query
 from arachna.domain.tokenizer import count_tokens
 
 

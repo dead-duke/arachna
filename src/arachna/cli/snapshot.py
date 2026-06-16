@@ -1,8 +1,10 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI handlers for 'arachna snapshot' command."""
+"""CLI handlers for 'arachna snapshot' command.
+
+v4.0.1: _dispatch_snapshot uses dict mapping instead of if/elif chain.
+"""
 
 import sys
-from pathlib import Path
 
 from ..config.config import get_profile
 from ..watch.store import delete_snapshot, list_snapshots, validate_snapshot_id
@@ -10,11 +12,7 @@ from ..watch.store_errors import SnapshotExistsError
 from ..watch.watcher import create_snapshot as watch_create_snapshot
 from ..watch.watcher import update_snapshot as watch_update_snapshot
 from . import register
-from ._helpers import format_profile_section
-
-
-def _get_root(config: dict) -> Path:
-    return Path(config.get("_root", Path.cwd()))
+from ._helpers import format_profile_section, get_root
 
 
 @register("snapshot-create")
@@ -28,7 +26,7 @@ def _cmd_snapshot_create(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
-    root = _get_root(config)
+    root = get_root(config)
     profile_name = args.profile or "full"
     try:
         profile = get_profile(profile_name, root=root, config=config)
@@ -46,7 +44,7 @@ def _cmd_snapshot_create(args, config: dict):
 
 @register("snapshot-list")
 def _cmd_snapshot_list(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     snaps = list_snapshots(root=root)
     if not snaps:
         print("No snapshots found.")
@@ -67,7 +65,7 @@ def _cmd_snapshot_update(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
-    root = _get_root(config)
+    root = get_root(config)
     profile = None
     if args.profile:
         try:
@@ -93,7 +91,7 @@ def _cmd_snapshot_delete(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
-    root = _get_root(config)
+    root = get_root(config)
     try:
         delete_snapshot(sid, root=root)
         print(f"Snapshot '{sid}' deleted.")
@@ -111,7 +109,7 @@ def _cmd_snapshot_info(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
-    root = _get_root(config)
+    root = get_root(config)
     try:
         all_manifests = list_snapshots(root=root)
         target = None
@@ -172,7 +170,7 @@ def _cmd_snapshot_rename(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
-    root = _get_root(config)
+    root = get_root(config)
     try:
         store_rename_snapshot(args.old, args.new, root=root)
         print(f"Snapshot '{args.old}' renamed to '{args.new}'.")
@@ -181,20 +179,21 @@ def _cmd_snapshot_rename(args, config: dict):
         sys.exit(1)
 
 
+_SNAPSHOT_HANDLERS = {
+    "create": _cmd_snapshot_create,
+    "list": _cmd_snapshot_list,
+    "update": _cmd_snapshot_update,
+    "delete": _cmd_snapshot_delete,
+    "info": _cmd_snapshot_info,
+    "rename": _cmd_snapshot_rename,
+}
+
+
 def _dispatch_snapshot(args, config: dict, parser):
     snap_cmd = getattr(args, "snap_command", None)
-    if snap_cmd == "create":
-        _cmd_snapshot_create(args, config)
-    elif snap_cmd == "list":
-        _cmd_snapshot_list(args, config)
-    elif snap_cmd == "update":
-        _cmd_snapshot_update(args, config)
-    elif snap_cmd == "delete":
-        _cmd_snapshot_delete(args, config)
-    elif snap_cmd == "info":
-        _cmd_snapshot_info(args, config)
-    elif snap_cmd == "rename":
-        _cmd_snapshot_rename(args, config)
+    handler = _SNAPSHOT_HANDLERS.get(snap_cmd)
+    if handler:
+        handler(args, config)
     else:
         snap_p = None
         for action in parser._actions:

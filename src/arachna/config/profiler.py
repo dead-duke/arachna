@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Benchmark module for arachna v4.0.0 — config layer.
+"""Benchmark module for arachna v4.0.1 — config layer.
 
 Measures collection performance across modes (full, compress, repo-map,
 headers, incremental, query). Plugin benchmarks (structural-diff, tiktoken)
@@ -14,7 +14,8 @@ from typing import Any
 from ..domain.collector import clean_manifest, collect
 
 
-def _make_profile(profile: dict, **overrides) -> dict:
+def make_profile(profile: dict, **overrides) -> dict:
+    """Create a copy of profile dict with optional overrides applied."""
     p = dict(profile)
     p.update(overrides)
     return p
@@ -31,7 +32,7 @@ def _run_one(
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     name_tmpl = f"bench-{mode}"
-    p = _make_profile(profile, name_template=name_tmpl)
+    p = make_profile(profile, name_template=name_tmpl)
     t0 = time.perf_counter()
     created, tokens_by_file, parts, _metrics = collect(
         p,
@@ -51,8 +52,9 @@ def _run_one(
 def run_benchmark(profile: dict, output_dir: str, root: Path) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
     results["full"] = _run_one(profile, output_dir, root, mode="full")
-    p_compress = _make_profile(profile, compress=True)
-    results["compress"] = _run_one(p_compress, output_dir, root, mode="full")
+    results["compress"] = _run_one(
+        make_profile(profile, compress=True), output_dir, root, mode="full"
+    )
     results["repo-map"] = _run_one(profile, output_dir, root, mode="repo-map")
     results["headers"] = _run_one(profile, output_dir, root, mode="headers")
     results["incremental"] = _run_one(profile, output_dir, root, mode="full", incremental=True)
@@ -63,7 +65,7 @@ def run_benchmark(profile: dict, output_dir: str, root: Path) -> dict[str, dict[
 
 
 def _find_query_candidate(profile: dict) -> str | None:
-    from ..domain.gatherer import _scan_directories
+    from ..domain.gatherer_core import _scan_directories
 
     exclude = profile.get("exclude_patterns", [])
     files = _scan_directories(profile, exclude, root=Path.cwd())

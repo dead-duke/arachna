@@ -7,17 +7,12 @@ from pathlib import Path
 from ..domain.collector import load_manifest
 from ..domain.tokenizer import count_tokens
 from . import register
-from ._helpers import parse_output_dir
-
-
-def _get_root(config: dict) -> Path | None:
-    root_str = config.get("_root")
-    return Path(root_str) if root_str else None
+from ._helpers import get_root, parse_output_dir
 
 
 @register("manifest")
 def _cmd_manifest(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     output_dir = parse_output_dir(args, config)
     out_path = root / output_dir if root else Path(output_dir)
     project_name = config.get("project_name", "Project")
@@ -32,14 +27,7 @@ def _cmd_manifest(args, config: dict):
             if fp.exists():
                 content = fp.read_text(encoding="utf-8")
                 tokens = count_tokens(content)
-                parts.append(
-                    {
-                        "file": f,
-                        "tokens": tokens,
-                        "hash": None,
-                        "dependencies": [],
-                    }
-                )
+                parts.append({"file": f, "tokens": tokens, "hash": None, "dependencies": []})
         output = {
             "project_name": project_name,
             "profiles": list(profiles.keys()) if profiles else ["default"],

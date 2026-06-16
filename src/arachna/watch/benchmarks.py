@@ -1,14 +1,14 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Plugin benchmarks for Watch — structural-diff and tiktoken.
 
-These benchmarks depend on watch/ internals and live here,
-not in config/profiler which knows only domain/.
+v4.0.1: Uses config.profiler.make_profile instead of own copy.
 """
 
 import time
 from pathlib import Path
 from typing import Any
 
+from ..config.profiler import make_profile
 from ..domain.collector import clean_manifest, collect
 
 
@@ -67,55 +67,39 @@ def benchmark_structural_diff(profile: dict, output_dir: str, root: Path) -> dic
 def benchmark_tiktoken(profile: dict, output_dir: str, root: Path) -> dict[str, Any]:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    default_result = _run_one(profile, output_dir, root, mode="full")
-    p_tik = _make_profile(profile, tokenizer="tiktoken")
-    t0 = time.perf_counter()
-    created, tokens_by_file, parts, _metrics = collect(
-        p_tik,
+
+    default_p = make_profile(profile, name_template="bench-full")
+    created_d, tokens_d, _parts_d, _metrics_d = collect(
+        default_p,
         "Bench",
         str(out),
         root=root,
         mode="full",
         incremental=False,
     )
-    elapsed = time.perf_counter() - t0
-    total_tokens = sum(tokens_by_file.values()) if isinstance(tokens_by_file, dict) else 0
+    default_tokens = sum(tokens_d.values()) if isinstance(tokens_d, dict) else 0
     clean_manifest(out, "bench-full")
-    return {
-        "parts": len(parts),
-        "tokens": total_tokens,
-        "time": elapsed,
-        "files": len(created),
-        "detail": {
-            "default_tokens": default_result["tokens"],
-            "tiktoken_tokens": total_tokens,
-            "ratio": f"{total_tokens / max(1, default_result['tokens']):.2f}x",
-        },
-    }
 
-
-def _make_profile(profile: dict, **overrides) -> dict:
-    p = dict(profile)
-    p.update(overrides)
-    return p
-
-
-def _run_one(profile, output_dir, root, mode="full", query=None, incremental=False):
-    out = Path(output_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    name_tmpl = f"bench-{mode}"
-    p = _make_profile(profile, name_template=name_tmpl)
-    t0 = time.perf_counter()
+    tik_p = make_profile(profile, tokenizer="tiktoken", name_template="bench-full")
     created, tokens_by_file, parts, _metrics = collect(
-        p,
+        tik_p,
         "Bench",
         str(out),
         root=root,
-        mode=mode,
-        query=query,
-        incremental=incremental,
+        mode="full",
+        incremental=False,
     )
-    elapsed = time.perf_counter() - t0
     total_tokens = sum(tokens_by_file.values()) if isinstance(tokens_by_file, dict) else 0
-    clean_manifest(out, name_tmpl)
-    return {"parts": len(parts), "tokens": total_tokens, "time": elapsed, "files": len(created)}
+    clean_manifest(out, "bench-full")
+
+    return {
+        "parts": len(parts),
+        "tokens": total_tokens,
+        "time": 0,
+        "files": len(created),
+        "detail": {
+            "default_tokens": default_tokens,
+            "tiktoken_tokens": total_tokens,
+            "ratio": f"{total_tokens / max(1, default_tokens):.2f}x",
+        },
+    }

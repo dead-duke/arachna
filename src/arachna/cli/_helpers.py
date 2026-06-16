@@ -7,6 +7,18 @@ from pathlib import Path
 from ..domain.tokenizer import count_tokens
 
 
+def get_root(config: dict) -> Path:
+    """Extract project root from config, falling back to current directory.
+
+    Args:
+        config: Config dict with optional '_root' key.
+
+    Returns:
+        Path to project root.
+    """
+    return Path(config.get("_root", Path.cwd()))
+
+
 def list_profiles(config: dict) -> list[str]:
     profiles = config.get("profiles", {})
     if profiles:

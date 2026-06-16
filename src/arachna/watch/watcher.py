@@ -8,7 +8,8 @@ import logging
 import re
 from pathlib import Path
 
-from ..domain.gatherer import _get_exclude_patterns, _scan_directories
+from ..domain.gatherer_core import _get_exclude_patterns, _scan_directories
+from ..domain.language_dispatch import get_block_parser
 from ..domain.runner import run_command
 from .differ import DiffSection, compute_diff_stats
 from .differ import compute_diff as differ_compute_diff
@@ -22,6 +23,7 @@ _MAX_SIMILARITY_SIZE = 1_048_576
 
 
 def _rel_path(absolute_path: Path, root: Path) -> str:
+    """Convert absolute path to relative path from root, normalizing separators."""
     try:
         return _normalize_path(str(absolute_path.resolve().relative_to(root)))
     except ValueError:
@@ -29,12 +31,14 @@ def _rel_path(absolute_path: Path, root: Path) -> str:
 
 
 def _normalize_path(path: str) -> str:
+    """Normalize path separators to forward slashes and collapse duplicates."""
     path = path.replace("\\", "/")
     path = re.sub(r"/+", "/", path)
     return path
 
 
 def _read_profile_files(profile: dict, root: Path) -> dict[str, str]:
+    """Read files explicitly listed in profile.files, return dict[rel_path, content]."""
     result = {}
     for filepath_str in profile.get("files", []):
         fp = Path(filepath_str)
@@ -49,6 +53,10 @@ def _read_profile_files(profile: dict, root: Path) -> dict[str, str]:
 
 
 def _collect_snapshot_content(profile: dict, root: Path) -> tuple[dict, dict, dict]:
+    """Collect all content for a snapshot: files, pre_commands output, command output.
+
+    Returns (files_dict, pre_commands_dict, command_dict).
+    """
     exclude = _get_exclude_patterns(profile, root=root)
     filepaths = _scan_directories(profile, exclude, root=root)
     files = {}
@@ -82,6 +90,7 @@ def _collect_snapshot_content(profile: dict, root: Path) -> tuple[dict, dict, di
 
 
 def create_snapshot(profile: dict, name: str, root: Path) -> str:
+    """Create a named snapshot of the project state."""
     files, pre_commands_data, command_data = _collect_snapshot_content(profile, root)
     return store_create_snapshot(
         files,
@@ -94,6 +103,7 @@ def create_snapshot(profile: dict, name: str, root: Path) -> str:
 
 
 def update_snapshot(snapshot_id: str, root: Path, profile: dict | None = None) -> str:
+    """Update an existing snapshot with current project state."""
     if profile is None:
         manifest = load_snapshot(snapshot_id, root=root)
         stored = manifest.get("profile", {})
@@ -115,15 +125,18 @@ def update_snapshot(snapshot_id: str, root: Path, profile: dict | None = None) -
 
 
 def _get_profile_from_manifest(manifest: dict) -> dict | None:
+    """Extract profile dict from snapshot manifest. Returns None if legacy format."""
     stored = manifest.get("profile", {})
     return stored if isinstance(stored, dict) else None
 
 
 def _get_content_from_manifest(path: str, hash_spec: str, root: Path) -> str:
+    """Read file content from content-addressable store by sha256: hash spec."""
     return read_object(hash_spec[7:], root=root).decode("utf-8")
 
 
 def _build_current_files(profile: dict, exclude: list[str], root: Path) -> dict[str, str]:
+    """Build dict of current files on disk matching profile."""
     current_filepaths = _scan_directories(profile, exclude, root=root)
     current_files = {}
     for fp in current_filepaths:
@@ -140,30 +153,29 @@ def _build_current_files(profile: dict, exclude: list[str], root: Path) -> dict[
 
 
 def _content_hash(content: str) -> str:
+    """Return SHA256 hex digest of content string."""
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 def _is_binary_content(content: str) -> bool:
+    """Check if content contains null bytes (binary file indicator)."""
     return "\x00" in content
 
 
-def _match_exact_renames(
-    deleted: dict[str, str],
-    added: dict[str, str],
-    fmt: str,
-) -> tuple[list[DiffSection], set[str], set[str], dict[str, str], dict[str, str]]:
-    rename_sections: list[DiffSection] = []
-    matched_deleted: set[str] = set()
-    matched_added: set[str] = set()
+def _match_exact_renames(deleted, added, fmt):
+    """Find exact renames/moves by SHA256 hash matching.
 
-    deleted_by_hash: dict[str, list[str]] = {}
+    Returns (sections, matched_deleted_set, matched_added_set, remaining_deleted, remaining_added).
+    """
+    rename_sections = []
+    matched_deleted = set()
+    matched_added = set()
+    deleted_by_hash = {}
     for path, content in deleted.items():
         deleted_by_hash.setdefault(_content_hash(content), []).append(path)
-
-    added_by_hash: dict[str, list[str]] = {}
+    added_by_hash = {}
     for path, content in added.items():
         added_by_hash.setdefault(_content_hash(content), []).append(path)
-
     for ch, del_paths in list(deleted_by_hash.items()):
         if ch not in added_by_hash:
             continue
@@ -216,23 +228,19 @@ def _match_exact_renames(
                 matched_deleted.add(p)
             for p in add_paths:
                 matched_added.add(p)
-
     remaining_deleted = {p: c for p, c in deleted.items() if p not in matched_deleted}
     remaining_added = {p: c for p, c in added.items() if p not in matched_added}
-
     return rename_sections, matched_deleted, matched_added, remaining_deleted, remaining_added
 
 
-def _match_similar_renames(
-    remaining_deleted: dict[str, str],
-    remaining_added: dict[str, str],
-    matched_added: set[str],
-    fmt: str,
-) -> tuple[list[DiffSection], set[str], set[str]]:
-    rename_sections: list[DiffSection] = []
-    matched_deleted: set[str] = set()
-    newly_matched_added: set[str] = set()
+def _match_similar_renames(remaining_deleted, remaining_added, matched_added, fmt):
+    """Find similar renames/moves by difflib ratio > 0.7.
 
+    Returns (sections, matched_deleted_set, matched_added_set).
+    """
+    rename_sections = []
+    matched_deleted = set()
+    newly_matched_added = set()
     for del_path, del_content in remaining_deleted.items():
         if (
             _is_binary_content(del_content)
@@ -281,24 +289,26 @@ def _match_similar_renames(
                 newly_matched_added.add(add_path)
                 del remaining_added[add_path]
                 break
-
     return rename_sections, matched_deleted, newly_matched_added
 
 
-def _detect_renames_and_moves(deleted: dict, added: dict, fmt: str) -> tuple:
+def _detect_renames_and_moves(deleted, added, fmt):
+    """Orchestrate rename detection: exact hash match first, then similarity matching."""
     exact_sections, exact_del, exact_add, remaining_del, remaining_add = _match_exact_renames(
         deleted, added, fmt
     )
     similar_sections, similar_del, similar_add = _match_similar_renames(
         remaining_del, remaining_add, exact_add, fmt
     )
-    all_sections = exact_sections + similar_sections
-    all_matched_del = exact_del | similar_del
-    all_matched_add = exact_add | similar_add
-    return all_sections, all_matched_del, all_matched_add
+    return (
+        exact_sections + similar_sections,
+        exact_del | similar_del,
+        exact_add | similar_add,
+    )
 
 
-def _diff_file_sets(old_files: dict, new_files: dict, fmt: str) -> list[DiffSection]:
+def _diff_file_sets(old_files, new_files, fmt):
+    """Compute diff between two file sets, including rename/move detection."""
     sections = []
     deleted = {}
     added = {}
@@ -322,8 +332,11 @@ def _diff_file_sets(old_files: dict, new_files: dict, fmt: str) -> list[DiffSect
             )
     for path, content in added.items():
         if path not in matched_added:
-            diff_output = differ_compute_diff("", content, path, fmt=fmt)
-            sections.append(DiffSection(type="added", path=path, content=diff_output))
+            sections.append(
+                DiffSection(
+                    type="added", path=path, content=differ_compute_diff("", content, path, fmt=fmt)
+                )
+            )
     for path in modified_old:
         diff_output = differ_compute_diff(modified_old[path], modified_new[path], path, fmt=fmt)
         if diff_output:
@@ -331,7 +344,8 @@ def _diff_file_sets(old_files: dict, new_files: dict, fmt: str) -> list[DiffSect
     return sections
 
 
-def _format_summary_header(stats: dict, from_id: str, to_id: str | None) -> str:
+def _format_summary_header(stats, from_id, to_id):
+    """Format diff summary header with change counts."""
     parts = []
     if stats["renamed"]:
         parts.append(f"{stats['renamed']} renamed")
@@ -349,7 +363,8 @@ def _format_summary_header(stats: dict, from_id: str, to_id: str | None) -> str:
     return f"## Changes from {from_id} to {to_label} ({', '.join(parts)})\n\n"
 
 
-def _group_diff_sections(sections: list, from_id: str, to_id: str | None) -> list:
+def _group_diff_sections(sections, from_id, to_id):
+    """Group diff sections by type (renamed, moved, modified, added, deleted) with header."""
     if not sections:
         return sections
     stats = compute_diff_stats(sections)
@@ -378,6 +393,7 @@ def _group_diff_sections(sections: list, from_id: str, to_id: str | None) -> lis
 
 
 def _diff_pre_commands_line(old_content, new_content, label):
+    """Line-by-line diff for pre_commands that produce line-based output (tree, git tag)."""
     old_lines = old_content.strip().split("\n")
     new_lines = new_content.strip().split("\n")
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
@@ -398,6 +414,7 @@ def _diff_pre_commands_line(old_content, new_content, label):
 
 
 def _diff_pre_commands_marker(old_content, new_content, label, marker, fmt):
+    """Section-by-section diff for pre_commands with marker separators (git log)."""
     from ..domain.splitter import _split_to_sections
 
     old_sections = _split_to_sections(old_content, marker)
@@ -423,6 +440,7 @@ def _diff_pre_commands_marker(old_content, new_content, label, marker, fmt):
 
 
 def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt="markdown"):
+    """Dispatch pre_command diff to line-based or marker-based based on command type."""
     cmd_basename = Path(cmd.strip().split()[0]).name if cmd.strip() else ""
     if cmd_basename == "tree" or (cmd_basename == "git" and "tag" in cmd):
         return _diff_pre_commands_line(old_content, new_content, label)
@@ -432,6 +450,7 @@ def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt="mar
 
 
 def _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt, root):
+    """Compute file diffs between snapshot(s) and current state."""
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
     old_files = {
@@ -453,9 +472,10 @@ def _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt, roo
 
 
 def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root):
+    """Compute pre_commands diffs between snapshot(s) and current state."""
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_pre = manifest.get("pre_commands", {})
-    current_pre: dict[str, str] = {}
+    current_pre = {}
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id, root=root)
         snapshot_to_pre = to_manifest.get("pre_commands", {})
@@ -467,11 +487,11 @@ def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root)
             if output.strip():
                 label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
                 current_pre[label] = output
-    cmd_map: dict[str, str] = {}
+    cmd_map = {}
     for cmd in profile.get("pre_commands", []):
         label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
         cmd_map[label] = cmd
-    sections: list[DiffSection] = []
+    sections = []
     for label, hash_spec in snapshot_pre.items():
         old_content = _get_content_from_manifest(label, hash_spec, root=root)
         if label in current_pre:
@@ -505,6 +525,7 @@ def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root)
 
 
 def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
+    """Compute command output diff between snapshot(s) and current state."""
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_cmd = manifest.get("command", {})
     current_cmd_output = ""
@@ -519,7 +540,7 @@ def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
             output = run_command(cmd, root=root, allow_file_args=True)
             if output.strip():
                 current_cmd_output = output
-    sections: list[DiffSection] = []
+    sections = []
     if snapshot_cmd and current_cmd_output:
         for label, hash_spec in snapshot_cmd.items():
             old_content = _get_content_from_manifest(label, hash_spec, root=root)
@@ -544,14 +565,9 @@ def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
 
 
 def compute_diff(
-    snapshot_id: str,
-    profile: dict | None,
-    root: Path,
-    fmt: str = "markdown",
-    to_snapshot_id: str | None = None,
-    flat: bool = False,
-    streaming: bool = False,
-) -> list[DiffSection]:
+    snapshot_id, profile, root, fmt="markdown", to_snapshot_id=None, flat=False, streaming=False
+):
+    """Compute diff between snapshot and current state or between two snapshots."""
     manifest = load_snapshot(snapshot_id, root=root)
     if profile is None:
         profile = _get_profile_from_manifest(manifest)
@@ -566,7 +582,8 @@ def compute_diff(
     return sections
 
 
-def _path_matches_profile(path: str, profile: dict, root: Path) -> bool:
+def _path_matches_profile(path, profile, root):
+    """Check if a file path belongs to the given profile's directories/patterns/files."""
     normalized_files = [_rel_path(Path(f), root) for f in profile.get("files", [])]
     if path in normalized_files:
         return True
@@ -585,12 +602,9 @@ def _path_matches_profile(path: str, profile: dict, root: Path) -> bool:
     return False
 
 
-# ── Repo-map diff pipeline (v4.0.0: moved from gatherer.py) ──────
-
-
 def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, root):
-    from ..domain.formatter import lang_for_path
-    from .differ_structural import _parse_c_like_blocks, _parse_python_blocks, _parse_script_blocks
+    """Apply repo-map transformation to diff sections (signatures only)."""
+    from ..domain.formatter import C_LIKE_LANGS, lang_for_path
 
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
@@ -604,6 +618,7 @@ def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, 
             result.append(s)
             continue
         lang = lang_for_path(Path(s.path))
+        parser = get_block_parser(lang)
         if s.type == "modified":
             old_content = _read_file_from_store(s.path, snapshot_files, root)
             new_content = (
@@ -611,72 +626,49 @@ def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, 
                 if to_files is None
                 else _read_file_from_store(s.path, to_files, root)
             )
-            if old_content is not None and new_content is not None:
-                old_blocks = _parse_blocks_dispatch(
-                    old_content,
-                    lang,
-                    _parse_python_blocks,
-                    _parse_c_like_blocks,
-                    _parse_script_blocks,
-                )
-                new_blocks = _parse_blocks_dispatch(
-                    new_content,
-                    lang,
-                    _parse_python_blocks,
-                    _parse_c_like_blocks,
-                    _parse_script_blocks,
-                )
-                s.content = _format_repo_map_diff(s.path, lang, old_blocks, new_blocks)
+            if old_content is not None and new_content is not None and parser is not None:
+                if lang in C_LIKE_LANGS or lang == "gdscript":
+                    old_blocks = parser(old_content, lang)
+                    new_blocks = parser(new_content, lang)
+                else:
+                    old_blocks = parser(old_content)
+                    new_blocks = parser(new_content)
+                if old_blocks is not None and new_blocks is not None:
+                    s.content = _format_repo_map_diff(s.path, lang, old_blocks, new_blocks)
         elif s.type == "added":
             new_content = (
                 _read_file_from_disk(root / s.path)
                 if to_files is None
                 else _read_file_from_store(s.path, to_files, root)
             )
-            if new_content is not None:
-                blocks = _parse_blocks_dispatch(
-                    new_content,
-                    lang,
-                    _parse_python_blocks,
-                    _parse_c_like_blocks,
-                    _parse_script_blocks,
-                )
-                s.content = _format_repo_map_added(s.path, lang, blocks)
+            if new_content is not None and parser is not None:
+                if lang in C_LIKE_LANGS or lang == "gdscript":
+                    blocks = parser(new_content, lang)
+                else:
+                    blocks = parser(new_content)
+                if blocks is not None:
+                    s.content = _format_repo_map_added(s.path, lang, blocks)
         elif s.type == "deleted":
             old_content = _read_file_from_store(s.path, snapshot_files, root)
-            if old_content is not None:
-                blocks = _parse_blocks_dispatch(
-                    old_content,
-                    lang,
-                    _parse_python_blocks,
-                    _parse_c_like_blocks,
-                    _parse_script_blocks,
-                )
-                sig_lines = [f"  {sig}" for sig, _body in blocks.values()]
-                if sig_lines:
-                    s.content = (
-                        f"### {s.path}\n\n[DELETED]\n\nRemoved signatures:\n"
-                        + "\n".join(sig_lines)
-                        + "\n"
-                    )
+            if old_content is not None and parser is not None:
+                if lang in C_LIKE_LANGS or lang == "gdscript":
+                    blocks = parser(old_content, lang)
+                else:
+                    blocks = parser(old_content)
+                if blocks is not None:
+                    sig_lines = [f"  {sig}" for sig, _body in blocks.values()]
+                    if sig_lines:
+                        s.content = (
+                            f"### {s.path}\n\n[DELETED]\n\nRemoved signatures:\n"
+                            + "\n".join(sig_lines)
+                            + "\n"
+                        )
         result.append(s)
     return result
 
 
-def _parse_blocks_dispatch(text, lang, parse_python, parse_c_like, parse_script):
-    from ..domain.formatter import C_LIKE_LANGS, SCRIPT_LANGS
-
-    if lang == "python":
-        blocks = parse_python(text)
-        return blocks if blocks is not None else {}
-    elif lang in C_LIKE_LANGS or lang == "gdscript":
-        return parse_c_like(text, lang)
-    elif lang in SCRIPT_LANGS:
-        return parse_script(text)
-    return {}
-
-
 def _read_file_from_store(path, files, root):
+    """Read file content from content-addressable store by path lookup."""
     for fpath, hash_spec in files.items():
         if fpath == path:
             try:
@@ -687,6 +679,7 @@ def _read_file_from_store(path, files, root):
 
 
 def _read_file_from_disk(path):
+    """Read file content from disk with error handling."""
     fp = Path(path)
     if not fp.is_file():
         return None
@@ -697,6 +690,7 @@ def _read_file_from_disk(path):
 
 
 def _format_repo_map_diff(path, lang, old_blocks, new_blocks):
+    """Format repo-map diff output showing added/removed/modified signatures."""
     import hashlib
 
     all_names = set(old_blocks.keys()) | set(new_blocks.keys())
@@ -726,6 +720,7 @@ def _format_repo_map_diff(path, lang, old_blocks, new_blocks):
 
 
 def _format_repo_map_added(path, lang, blocks):
+    """Format repo-map output for added files (all signatures)."""
     parts = [f"### {path}\n"]
     for _name, (sig, _body) in blocks.items():
         parts.append(f"+ {sig}\n")

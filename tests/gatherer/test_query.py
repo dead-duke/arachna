@@ -1,6 +1,6 @@
-"""Tests for _filter_by_query and _collect_import_graph in gatherer.py."""
+"""Tests for _filter_by_query and _collect_import_graph in gatherer_query.py."""
 
-from arachna.domain.gatherer import _collect_import_graph, _filter_by_query
+from arachna.domain.gatherer_query import _collect_import_graph, _filter_by_query
 from arachna.domain.tokenizer import count_tokens
 
 

@@ -1,12 +1,14 @@
 """Extra coverage for differ_structural.py — C-like, script, fallback, formatting."""
 
-from arachna.watch.differ_structural import (
-    _block_label,
+from arachna.domain.language_dispatch import (
     _extract_braced_block,
-    _fallback_diff,
-    _format_block_diff,
     _parse_c_like_blocks,
     _parse_script_blocks,
+)
+from arachna.watch.differ_structural import (
+    _block_label,
+    _fallback_diff,
+    _format_block_diff,
     structural_diff,
 )
 

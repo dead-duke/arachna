@@ -12,6 +12,7 @@ from ..domain.gatherer import dry_run
 from . import register
 from ._helpers import (
     apply_args_to_profile,
+    get_root,
     list_profiles,
     parse_output_dir,
     print_collected,
@@ -20,13 +21,9 @@ from ._helpers import (
 from .renderer import render_dry_run
 
 
-def _get_root(config: dict) -> Path:
-    return Path(config.get("_root", Path.cwd()))
-
-
 @register("collect-profile")
 def _cmd_collect_profile(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
     out_path = Path(output_dir)
@@ -85,7 +82,7 @@ def _cmd_collect_profile(args, config: dict):
 
 @register("collect-all")
 def _cmd_collect_all(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
     out_path = Path(output_dir)
@@ -153,7 +150,7 @@ def _cmd_collect_all(args, config: dict):
 
 @register("collect-list")
 def _cmd_collect_list(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     for name in list_profiles(config):
         try:
             prof = get_profile(name, root=root, config=config)
@@ -171,7 +168,7 @@ def _cmd_collect_list(args, config: dict):
 
 @register("collect-validate")
 def _cmd_collect_validate(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     profiles = config.get("profiles", {})
     if not profiles:
         profiles = {"default": get_profile("default", root=root, config=config)}
@@ -205,7 +202,7 @@ def _cmd_collect_validate(args, config: dict):
 
 @register("collect-clean")
 def _cmd_collect_clean(args, config: dict):
-    root = _get_root(config)
+    root = get_root(config)
     output_dir = parse_output_dir(args, config)
     out_path = root / output_dir
     cleaned = 0

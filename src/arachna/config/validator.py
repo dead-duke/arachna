@@ -4,7 +4,7 @@
 from pathlib import Path
 from typing import Any
 
-VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
+from . import VALID_SPLIT_MODES
 
 
 def validate_profile(name: str, profile: dict[str, Any]) -> dict:
