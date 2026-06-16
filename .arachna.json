@@ -8,6 +8,7 @@
       "split_mode": "by_file",
       "directories": ["src", "tests", "llm_docs", ".github", "docs", "examples"],
       "patterns": ["*.py", "*.md", "*.txt", "*.json", "*.toml", "*.yaml", "*.yml", "*.cfg", "*.ini"],
+      "exclude_patterns": ["*sonarcloud/vulnerabilities.md", "*sonarcloud/bugs.md", "*sonarcloud/code_smells.md", "*sonarcloud/security_hotspots.md"],
       "files": [
         ".arachna.json",
         ".gitignore",
@@ -37,6 +38,7 @@
       "split_mode": "by_file",
       "directories": ["src", "tests", "llm_docs", ".github", "examples"],
       "patterns": ["*.py", "*.md", "*.yaml", "*.yml", "*.json", "*.toml", "*.cfg", "*.ini"],
+      "exclude_patterns": ["*sonarcloud/vulnerabilities.md", "*sonarcloud/bugs.md", "*sonarcloud/code_smells.md", "*sonarcloud/security_hotspots.md"],
       "files": [
         ".arachna.json",
         ".gitignore",

@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-unit test-integration test-benchmark test-cov test-cov-html lint format check clean tree info context context-full context-dev context-docs context-config diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws benchmark bandit vulture radon
+.PHONY: help install install-dev test test-unit test-integration test-benchmark test-cov test-cov-html lint format check clean tree info context context-full context-dev context-docs context-config diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws benchmark bandit vulture radon sonar-dump
 
 PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 PYTEST ?= $(PYTHON) -m pytest
@@ -87,6 +87,69 @@ if has_error:
 endef
 export CHECK_WS_PYTHON
 
+define SONAR_DUMP_PYTHON
+import json, pathlib, urllib.request, sys
+
+PROJECT = "dead-duke_arachna"
+OUT = pathlib.Path("llm_docs/sonarcloud")
+OUT.mkdir(parents=True, exist_ok=True)
+
+CATEGORIES = {
+    "vulnerabilities": ("VULNERABILITY", "security"),
+    "bugs": ("BUG", "reliability"),
+    "code_smells": ("CODE_SMELL", "maintainability"),
+}
+
+for name, (itype, section) in CATEGORIES.items():
+    url = f"https://sonarcloud.io/api/issues/search?projectKeys={PROJECT}&ps=100&types={itype}"
+    data = json.loads(urllib.request.urlopen(url).read())
+    total = data["total"]
+
+    lines = [f"# {name.replace('_', ' ').title()} ({total})\n"]
+    lines.append(f"## Severity breakdown\n")
+
+    sev_count = {}
+    for issue in data["issues"]:
+        sev = issue["severity"]
+        sev_count[sev] = sev_count.get(sev, 0) + 1
+    for sev in ["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO"]:
+        if sev in sev_count:
+            lines.append(f"- {sev}: {sev_count[sev]}")
+    lines.append("")
+
+    for issue in data["issues"]:
+        sev = issue["severity"]
+        rule = issue["rule"]
+        comp = issue["component"].split(":")[-1]
+        line = issue.get("line", "?")
+        msg = issue.get("message", "N/A")
+        lines.append(f"## [{sev}] {rule}")
+        lines.append(f"**File:** `{comp}:{line}`")
+        lines.append(f"**Message:** {msg}")
+        lines.append("")
+
+    (OUT / f"{name}.md").write_text("\n".join(lines))
+
+# Hotspots
+url = f"https://sonarcloud.io/api/hotspots/search?projectKey={PROJECT}&ps=100"
+data = json.loads(urllib.request.urlopen(url).read())
+hotspots = data.get("hotspots", [])
+lines = [f"# Security Hotspots ({len(hotspots)})\n"]
+for hs in hotspots:
+    comp = hs["component"].split(":")[-1]
+    line = hs.get("line", "?")
+    msg = hs.get("message", "N/A")
+    sev = hs.get("vulnerabilityProbability", "?")
+    lines.append(f"## [{sev}] {hs['ruleKey']}")
+    lines.append(f"**File:** `{comp}:{line}`")
+    lines.append(f"**Message:** {msg}")
+    lines.append("")
+(OUT / "security_hotspots.md").write_text("\n".join(lines))
+
+print("Done.")
+endef
+export SONAR_DUMP_PYTHON
+
 # ── Help & Setup ───────────────────────────────────────────────────
 
 help:
@@ -106,6 +169,7 @@ help:
 	@echo "  make bandit           - security analysis"
 	@echo "  make vulture          - dead code detection"
 	@echo "  make radon            - code complexity"
+	@echo "  make sonar-dump       - fetch SonarCloud issues as readable markdown"
 	@echo "  make check            - format + lint + bandit + vulture + radon + fix-trailing-ws + trailing-ws + test"
 	@echo "  make clean            - remove build artifacts and context files"
 	@echo "  make tree             - show project structure"
@@ -178,6 +242,13 @@ vulture:
 
 radon:
 	radon cc src/ -a -nb
+
+# ── SonarCloud ──────────────────────────────────────────────────────
+
+sonar-dump:
+	@mkdir -p llm_docs/sonarcloud
+	@echo "Fetching SonarCloud issues..."
+	@$(PYTHON) -c "$$SONAR_DUMP_PYTHON"
 
 # ── Quality & Whitespace ───────────────────────────────────────────
 
