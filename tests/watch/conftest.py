@@ -6,22 +6,6 @@ import pytest
 
 
 @pytest.fixture
-def make_profile():
-    """Factory fixture for creating profile dicts."""
-
-    def _make_profile(directory, patterns=None, files=None):
-        return {
-            "directories": [directory],
-            "patterns": patterns or ["*"],
-            "files": files or [],
-            "exclude_patterns": [],
-            "use_gitignore": False,
-        }
-
-    return _make_profile
-
-
-@pytest.fixture
 def setup_config(tmp_path):
     """Create minimal .arachna.json in tmp_path. No chdir."""
 
@@ -31,3 +15,14 @@ def setup_config(tmp_path):
         return tmp_path
 
     return _setup
+
+
+@pytest.fixture
+def make_profile():
+    """Factory fixture for creating profile dicts — delegates to tests.conftest.make_profile."""
+    from tests.conftest import make_profile as _make_profile
+
+    def _factory(directory, patterns=None, files=None):
+        return _make_profile(directory=directory, patterns=patterns, files=files)
+
+    return _factory

@@ -40,7 +40,7 @@ class _FullModeStrategy:
         max_tokens = profile.get("max_tokens", 16000)
         include_header = bool(query and query.strip())
         filepaths = _scan_directories(profile, exclude, root)
-        profile_files = _get_profile_files(profile, exclude)
+        profile_files = _get_profile_files(profile, exclude, root)
         for fp in profile_files:
             if fp not in filepaths:
                 filepaths.append(fp)

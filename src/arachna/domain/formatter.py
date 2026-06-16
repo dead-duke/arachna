@@ -56,6 +56,7 @@ _EXT_LANG = {
     "gradle": "groovy",
     "lock": "text",
     "conf": "ini",
+    "1": "nroff",
 }
 
 _FILENAME_LANG = {
@@ -138,7 +139,10 @@ def _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
         return True
     if size_mb > binary_max_mb:
         return True
-    if not ext:
+    if binary_extensions is not None:
+        if ext not in binary_extensions:
+            return True
+    else:
         if not include_binary:
             try:
                 with open(path, "rb") as f:
@@ -146,9 +150,6 @@ def _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
                 return b"\x00" in chunk
             except OSError:
                 return True
-        return bool(binary_extensions is not None and "" not in binary_extensions)
-    if binary_extensions is not None and ext not in binary_extensions:
-        return True
     return not include_binary
 
 

@@ -31,7 +31,7 @@ def test_get_profile_files_skips_directories(tmp_path):
     """_get_profile_files skips paths that are directories, not files."""
     (tmp_path / "subdir").mkdir()
     profile = {"files": [str(tmp_path / "subdir")]}
-    files = _get_profile_files(profile, [])
+    files = _get_profile_files(profile, [], root=tmp_path)
     assert len(files) == 0
 
 
@@ -40,5 +40,5 @@ def test_get_profile_files_skips_excluded(tmp_path):
     f = tmp_path / "debug.log"
     f.write_text("log")
     profile = {"files": [str(f)]}
-    files = _get_profile_files(profile, ["*.log"])
+    files = _get_profile_files(profile, ["*.log"], root=tmp_path)
     assert len(files) == 0

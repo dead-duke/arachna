@@ -243,7 +243,7 @@ def _collect_file_sections(
     file_paths_str = profile.get("files", [])
     filepaths = []
     for filepath_str in file_paths_str:
-        filepath = Path(filepath_str)
+        filepath = root / filepath_str
         if not filepath.exists():
             if verbose:
                 print(f"  Not found: {filepath}")
@@ -264,19 +264,20 @@ def _collect_file_sections(
     )
 
 
-def _get_profile_files(profile: dict[str, Any], exclude: list[str]) -> list[Path]:
+def _get_profile_files(profile: dict[str, Any], exclude: list[str], root: Path) -> list[Path]:
     """Get list of existing, non-excluded files from profile.files.
 
     Args:
         profile: Profile dict with optional 'files' list.
         exclude: List of fnmatch exclude patterns.
+        root: Project root directory.
 
     Returns:
         List of valid file paths.
     """
     filepaths = []
     for filepath_str in profile.get("files", []):
-        filepath = Path(filepath_str)
+        filepath = root / filepath_str
         if not filepath.is_file():
             continue
         if is_excluded(filepath, exclude):

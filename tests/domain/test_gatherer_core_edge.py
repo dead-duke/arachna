@@ -39,7 +39,7 @@ def test_get_profile_files_not_a_file(tmp_path):
     (tmp_path / "subdir").mkdir()
 
     profile = {"files": [str(tmp_path / "subdir")]}
-    files = _get_profile_files(profile, [])
+    files = _get_profile_files(profile, [], root=tmp_path)
     assert len(files) == 0
 
 
@@ -49,7 +49,7 @@ def test_get_profile_files_excluded(tmp_path):
     f.write_text("skip")
 
     profile = {"files": [str(f)]}
-    files = _get_profile_files(profile, ["*.me"])
+    files = _get_profile_files(profile, ["*.me"], root=tmp_path)
     assert len(files) == 0
 
 

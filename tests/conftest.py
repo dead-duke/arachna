@@ -27,15 +27,24 @@ def make_config():
     return _make_config
 
 
-def make_profile(**kw):
-    """Shared profile factory for tests — single source of truth."""
+def make_profile(directory="src", patterns=None, files=None, **kw):
+    """Shared profile factory for tests — single source of truth.
+
+    Args:
+        directory: Base directory for the profile (default: "src").
+        patterns: Glob patterns for file matching (default: ["*"]).
+        files: Explicit file paths (default: []).
+        **kw: Overrides for any profile field.
+    """
     return {
         "name_template": "c",
         "title_template": "# T (part {part})\n\n",
         "max_tokens": 16000,
         "split_mode": "by_file",
-        "directories": ["src"],
-        "patterns": ["*.py"],
+        "directories": [directory],
+        "patterns": patterns or ["*"],
+        "files": files or [],
+        "exclude_patterns": [],
         "use_gitignore": False,
         **kw,
     }

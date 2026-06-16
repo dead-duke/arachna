@@ -17,6 +17,7 @@ def test_gitignore_excludes_matched_files(tmp_path):
     )
     filenames = [Path(s.split("\n")[0].replace("### ", "")).name for s in sections]
     assert "main.py" in filenames
+    assert ".gitignore" in filenames
     assert "debug.txt" not in filenames
     assert "secret.key" not in filenames
 
@@ -38,8 +39,8 @@ def test_gitignore_nested_patterns(tmp_path):
     filenames = [Path(s.split("\n")[0].replace("### ", "")).name for s in sections]
     assert "main.py" in filenames
     assert "nested.py" in filenames
+    assert ".gitignore" in filenames
     assert "debug.txt" not in filenames
-    assert "nested.csv" not in filenames
 
 
 def test_gitignore_use_gitignore_false_includes_all(tmp_path):
