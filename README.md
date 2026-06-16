@@ -5,6 +5,11 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Tests](https://github.com/dead-duke/arachna/actions/workflows/test.yml/badge.svg)](https://github.com/dead-duke/arachna/actions/workflows/test.yml)
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=coverage)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
+
 Context collector for AI — gathers project files into token-limited chunks.
 
 ## What arachna does
