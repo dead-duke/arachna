@@ -1,5 +1,7 @@
 """Shared fixtures for all tests."""
 
+import json
+
 import pytest
 
 
@@ -27,24 +29,38 @@ def make_config():
     return _make_config
 
 
-def make_profile(directory="src", patterns=None, files=None, **kw):
-    """Shared profile factory for tests — single source of truth.
+@pytest.fixture
+def setup_config(tmp_path):
+    """Create minimal .arachna.json in tmp_path. No chdir."""
 
-    Args:
-        directory: Base directory for the profile (default: "src").
-        patterns: Glob patterns for file matching (default: ["*"]).
-        files: Explicit file paths (default: []).
-        **kw: Overrides for any profile field.
+    def _setup(profiles=None):
+        config = {"project_name": "test", "output_dir": "out", "profiles": profiles or {}}
+        (tmp_path / ".arachna.json").write_text(json.dumps(config))
+        return tmp_path
+
+    return _setup
+
+
+@pytest.fixture
+def make_profile():
+    """Factory fixture for creating profile dicts — single source of truth.
+
+    Returns a callable that creates profile dicts.
+    Usage: profile = make_profile("src", ["*.py"])
     """
-    return {
-        "name_template": "c",
-        "title_template": "# T (part {part})\n\n",
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "directories": [directory],
-        "patterns": patterns or ["*"],
-        "files": files or [],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        **kw,
-    }
+
+    def _make_profile(directory="src", patterns=None, files=None, **kw):
+        return {
+            "name_template": "c",
+            "title_template": "# T (part {part})\n\n",
+            "max_tokens": 16000,
+            "split_mode": "by_file",
+            "directories": [directory],
+            "patterns": patterns or ["*"],
+            "files": files or [],
+            "exclude_patterns": [],
+            "use_gitignore": False,
+            **kw,
+        }
+
+    return _make_profile
