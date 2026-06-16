@@ -64,7 +64,10 @@ def test_run_pre_commands_no_delay_default(tmp_path):
         patch("subprocess.Popen") as mock_popen,
         patch("arachna.domain.runner.time.sleep") as mock_sleep,
     ):
-        mock_popen.return_value = _mock_popen(stdout="x\n")
+        mock_popen.side_effect = [
+            _mock_popen(stdout="x\n"),
+            _mock_popen(stdout="y\n"),
+        ]
         run_pre_commands(["echo x", "echo y"], root=tmp_path)
 
     mock_sleep.assert_not_called()
@@ -76,6 +79,7 @@ def test_run_pre_commands_failure_continues(tmp_path):
     assert len(results) == 2
     assert results[0][0] == "bad_cmd"
     assert results[0][1] == ""
+    # Second command also fails because mock returns same error for both
     assert results[1][0] == "echo ok"
 
 

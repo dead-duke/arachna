@@ -243,7 +243,11 @@ def _run_popen(cmd: str, needs_shell: bool, max_output_size: int) -> tuple[str, 
     try:
         if needs_shell:
             process = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                shell=True,  # nosec B602 — pre_commands with pipes/shell features, protected by allowlist
+                text=True,
             )
         else:
             args = shlex.split(cmd)
@@ -343,7 +347,7 @@ def run_pre_commands(
         try:
             output = run_command(cmd, root=root, allow_file_args=True)
             results.append((cmd, output))
-        except Exception as e:
+        except OSError as e:
             logger.warning("pre_command failed: %s - %s", cmd[:80], e)
             results.append((cmd, ""))
     return results

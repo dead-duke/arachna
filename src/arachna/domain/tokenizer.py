@@ -237,7 +237,7 @@ def _load_transformers(spec: str) -> Callable[[str], int]:
     from transformers import AutoTokenizer
 
     model_name = spec.split(":", 1)[1] if ":" in spec else "bert-base-uncased"
-    tok = AutoTokenizer.from_pretrained(model_name)
+    tok = AutoTokenizer.from_pretrained(model_name)  # nosec B615 — opt-in plugin, user installs transformers
 
     def _count(text: str) -> int:
         return len(tok.encode(text))

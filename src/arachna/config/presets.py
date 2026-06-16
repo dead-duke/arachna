@@ -160,8 +160,14 @@ def fetch_presets(url: str, timeout: int | None = None) -> dict[str, dict]:
     if timeout is None:
         timeout = int(_os.environ.get("ARACHNA_PRESETS_TIMEOUT", "10"))
 
+    if not url.startswith(("http://", "https://")):
+        print(f"Warning: only http:// and https:// URLs are allowed. Got: {url}")
+        return {}
+
     try:
-        with contextlib.closing(urllib.request.urlopen(url, timeout=timeout)) as response:
+        with contextlib.closing(
+            urllib.request.urlopen(url, timeout=timeout)  # nosec B310 — URL scheme validated above
+        ) as response:
             data = json.loads(response.read().decode("utf-8"))
     except Exception as e:
         print(f"Warning: failed to fetch presets from {url}: {e}")
