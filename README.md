@@ -15,7 +15,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1511 tests, 95% coverage, 200+ commits.
+day one. 1556 tests, 95% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -181,6 +181,11 @@ Creates arachna_context/ with .md files ready for AI.
     arachna diff --all --profile code
     arachna diff --all --profile code --mode repo-map
 
+### Remote repository
+
+    arachna collect --repo https://github.com/user/repo
+    arachna collect --repo https://github.com/user/repo --profile python
+
 ### Dry-run (preview without writing)
 
     arachna collect --all --dry-run
@@ -200,6 +205,7 @@ Creates arachna_context/ with .md files ready for AI.
     arachna init --install-hook   install post-commit git hook (optional)
     arachna collect --all     collect all profiles
     arachna collect --profile code   collect one profile
+    arachna collect --repo https://github.com/user/repo   clone and collect remote repo
     arachna collect --list    show profiles
     arachna collect --validate   check config for errors
     arachna collect --clean   remove collected files
@@ -328,7 +334,7 @@ Example .arachna.json for a Python project:
 - pre_commands: shell commands before collection
 - post_commands: shell commands after collection
 - command: use command output instead of files
-- max_tokens: token limit per output file
+- max_tokens: token limit per output file (-1 for unlimited)
 - chars_per_token: characters per token for estimation (default: 4)
 - section_format: markdown, xml, or json
 - compress: safe whitespace compression (blank lines, trailing spaces)
@@ -336,6 +342,7 @@ Example .arachna.json for a Python project:
 - binary_extensions: whitelist like [".png"]
 - binary_max_mb: max binary file size in MB
 - extends: inherit settings from another profile
+- line_numbers: prepend line numbers to file content (true/false, default: false)
 
 ## Output
 

@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-unit test-integration test-benchmark test-cov test-cov-html lint format check clean tree info context context-full context-dev context-docs context-config diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws benchmark
+.PHONY: help install install-dev test test-unit test-integration test-benchmark test-cov test-cov-html lint format check clean tree info context context-full context-dev context-docs context-config diff diff-stat snapshot-create snapshot-list snapshot-update snapshot-delete store-stats store-gc trailing-ws fix-trailing-ws benchmark bandit vulture radon
 
 PYTHON := $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 PYTEST ?= $(PYTHON) -m pytest
@@ -103,7 +103,10 @@ help:
 	@echo "  make test-cov-html    - run tests with coverage (HTML)"
 	@echo "  make lint             - ruff check"
 	@echo "  make format           - ruff format (auto-fix)"
-	@echo "  make check            - format + lint + fix-trailing-ws + trailing-ws + test"
+	@echo "  make bandit           - security analysis"
+	@echo "  make vulture          - dead code detection"
+	@echo "  make radon            - code complexity"
+	@echo "  make check            - format + lint + bandit + vulture + radon + fix-trailing-ws + trailing-ws + test"
 	@echo "  make clean            - remove build artifacts and context files"
 	@echo "  make tree             - show project structure"
 	@echo "  make info             - show project info"
@@ -167,6 +170,15 @@ format:
 	ruff format src/ tests/
 	ruff check --fix src/ tests/
 
+bandit:
+	bandit -r src/ -ll
+
+vulture:
+	vulture src/ --min-confidence 80
+
+radon:
+	radon cc src/ -a -nb
+
 # ── Quality & Whitespace ───────────────────────────────────────────
 
 trailing-ws:
@@ -179,7 +191,7 @@ fix-trailing-ws:
 	@$(PYTHON) -c "$$FIX_WS_PYTHON"
 	@echo "Done."
 
-check: format lint fix-trailing-ws trailing-ws test
+check: format lint bandit vulture radon fix-trailing-ws trailing-ws test
 	@echo "[OK] All checks passed"
 
 # ── Cleanup & Info ─────────────────────────────────────────────────

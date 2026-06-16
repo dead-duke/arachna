@@ -1,7 +1,8 @@
 # Benchmarks
 
 Run: make benchmark
-Date: 2026-06-15
+Date: 2026-06-16
+Version: v4.1.0
 Machine: macOS 26.x, Apple M-series, Python 3.14.0
 
 Methodology: Time measured with time.perf_counter(), warm-up run before measurement.

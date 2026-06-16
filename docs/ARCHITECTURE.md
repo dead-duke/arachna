@@ -5,7 +5,7 @@
 arachna is a context collector for AI. It gathers project files, splits them
 by token limits, and writes output files ready for AI consumption.
 
-## Package structure (v4.0.0)
+## Package structure (v4.1.0)
 
 src/arachna/
   __init__.py           Version + public API re-exports
@@ -18,7 +18,7 @@ src/arachna/
     cache.py            Smart hybrid incremental cache (mtime_ns + size + SHA256)
     collector.py        Orchestrator: gather -> split -> write -> post_commands
     compressor.py       Safe whitespace compression
-    formatter.py        File formatting: markdown/xml/json, language detection
+    formatter.py        File formatting: markdown/xml/json, language detection, line numbers
     gatherer.py         Facade over gatherer_core + gatherer_query + gatherer_strategies
     gatherer_core.py    Directory scanning, file formatting, pre_commands
     gatherer_query.py   Query pipeline: import graph, scoring, filtering
@@ -26,6 +26,7 @@ src/arachna/
     gitignore.py        .gitignore parser for auto-exclusion
     interfaces.py       Protocol definitions: Tokenizer, ObjectStore, ContentFormatter
     language_dispatch.py  HEADER_PARSERS + BLOCK_PARSERS mappings
+    remote.py           Remote repository collection (git clone + collect)
     runner.py           Popen-based command execution, dual-mode allowlist
     splitter.py         Token-based splitting, oversized section fallback
     tokenizer.py        Token estimation, pluggable tokenizers, safety validation
@@ -60,7 +61,7 @@ src/arachna/
   cli/                  CLI command handlers
     __init__.py         COMMAND_HANDLERS registry, @register decorator
     _helpers.py         Shared helpers: get_root, parse_output_dir, print_collected, etc.
-    collect.py          collect --profile, --all, --list, --validate, --clean handlers
+    collect.py          collect --profile, --all, --repo, --list, --validate, --clean handlers
     snapshot.py         snapshot create/list/update/delete/info/rename handlers
     diff.py             diff --from, --to, --all handlers
     store.py            store stats, store gc handlers
@@ -115,6 +116,11 @@ and BLOCK_PARSERS mappings in language_dispatch.py cover all languages via
 get_header_parser() and get_block_parser(). Adding a language requires
 editing formatter.py only.
 
+### Remote repository collection
+domain/remote.py clones via git clone --depth 1, auto-detects presets,
+runs collection, cleans up temp directory. Requires git on PATH.
+No new dependencies — uses subprocess for git, tempfile for cleanup.
+
 ## Plugin architecture
 
 Plugins are opt-in Python packages. Core stays zero-dep.
@@ -148,10 +154,10 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1511 tests, 95% coverage. Tests mirror src/arachna/ package structure.
+1556 tests, 95% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
-  domain/       Tests for domain/ modules
+  domain/       Tests for domain/ modules (including remote.py)
   watch/        Tests for watch/ modules
   api/          Tests for api/ modules
   config/       Tests for config/ modules

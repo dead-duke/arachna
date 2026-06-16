@@ -53,6 +53,27 @@ arachna plugins install javascript --execute
 Without plugins, arachna falls back to built-in alternatives (text diff,
 chars_per_token estimate). Plugins activate automatically when installed.
 
+## Remote repository collection (v4.1.0+)
+
+Collect context from any public git repository without manual cloning:
+
+```bash
+arachna collect --repo https://github.com/user/repo
+arachna collect --repo https://github.com/user/repo --profile python
+```
+
+For programmatic use:
+
+```python
+from arachna.domain.remote import collect_remote
+
+result = collect_remote("https://github.com/user/repo", profile="full")
+print(result)
+```
+
+Clones with `--depth 1` for speed, auto-detects project type, runs collection,
+and cleans up. Requires git on PATH.
+
 ## Programmatic API
 
 For LLM agents that want to call arachna directly:
@@ -86,6 +107,8 @@ watch.update_snapshot("before-fix", root=root)
 - **Streaming mode** (full) keeps memory at O(max_tokens). Safe for 50K+ files.
 - **chars_per_token** for non-English code: `2.5` in profile for Russian/Cyrillic, `1.5` for CJK.
 - **write_to_disk=False** in collect_api for agent workflows — no filesystem I/O.
+- **line_numbers: true** in profile — AI can reference specific lines in responses.
+- **max_tokens: -1** for unlimited output — single file, no splitting.
 - **Plugins** for non-Python languages — tree-sitter structural diff for JS/TS/Go.
 - **Benchmarks** at [docs/BENCHMARKS.md](https://github.com/dead-duke/arachna/blob/main/docs/BENCHMARKS.md).
 
@@ -111,3 +134,6 @@ watch.update_snapshot("before-fix", root=root)
 
 7. **Install plugins for non-Python code.** `pip install arachna[javascript]`
    for accurate structural diff — AI sees changed functions, not changed lines.
+
+8. **Use --repo for quick exploration.** `arachna collect --repo <url>` clones
+   and collects in one command — no manual clone, cd, collect, cleanup.

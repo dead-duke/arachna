@@ -1,6 +1,6 @@
 """arachna — context collector for AI."""
 
-__version__ = "4.0.0"
+__version__ = "4.1.0"
 
 # Public API re-exports
 from .api import api_errors as api_errors

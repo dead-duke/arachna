@@ -12,3 +12,6 @@ tree-sitter-go>=0.21.0
 tiktoken>=0.5.0
 transformers>=4.40.0
 psutil>=5.9.0
+bandit
+radon
+vulture

@@ -29,6 +29,37 @@ for section in diff.sections:
         print(section.content)
 ```
 
+## Remote repository collection (v4.1.0+)
+
+```python
+from arachna.domain.remote import collect_remote
+
+# Collect context from any public repo in one line
+result = collect_remote("https://github.com/user/repo", profile="full")
+print(result)
+# Repository: https://github.com/user/repo
+# Profile: python
+# Files collected: 12
+# Parts: 1
+# Tokens: 45000
+
+# With specific profile
+result = collect_remote("https://github.com/user/repo", profile="python")
+
+# With custom output directory
+result = collect_remote("https://github.com/user/repo", output_dir="my_context")
+```
+
+Or via CLI:
+
+```bash
+arachna collect --repo https://github.com/user/repo
+arachna collect --repo https://github.com/user/repo --profile python
+```
+
+Clones with `--depth 1` for speed, auto-detects project type, runs collection,
+and cleans up the temp directory. Requires git on PATH.
+
 ## Installing plugins (v3.1.0+)
 
 ```python
@@ -60,6 +91,38 @@ for part in result.parts:
 # Adjust chars_per_token for Russian/Cyrillic
 result = collect(root=root, profile={"directories": ["src"], "patterns": ["*.py"], "chars_per_token": 2.5})
 # Default 4 chars/token underestimates Cyrillic by ~60%
+```
+
+## Line numbers (v4.1.0+)
+
+```python
+# Enable line numbers in profile for AI to reference specific lines
+result = collect(root=root, profile={
+    "directories": ["src"],
+    "patterns": ["*.py"],
+    "line_numbers": True,
+})
+# Output:
+# ### src/main.py
+#
+# ```python
+#     1| import os
+#     2|
+#     3| def main():
+#     4|     print("hello")
+# ```
+```
+
+## Unlimited tokens (v4.1.0+)
+
+```python
+# max_tokens: -1 means no limit — single file, no splitting
+result = collect(root=root, profile={
+    "directories": ["src"],
+    "patterns": ["*.py"],
+    "max_tokens": -1,
+})
+# All content in one file, never split across parts
 ```
 
 ## Pipeline metrics (v3.6.0+)

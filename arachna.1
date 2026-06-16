@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-16" "arachna v4.0.0" "User Commands"
+.TH ARACHNA 1 "2026-06-16" "arachna v4.1.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -20,8 +20,8 @@ Plugins add language-specific features: tree-sitter structural diff for
 JavaScript/TypeScript/Go, tiktoken/transformers for accurate token counting.
 Core stays zero-dependency.
 .PP
-Version 4.0.0 introduces a layered architecture: domain/, watch/, plugins/,
-api/, config/, cli/ packages with clean dependency flow and zero lazy imports.
+Version 4.1.0 adds remote repository collection, line numbers in file sections,
+and max_tokens: -1 as unlimited (Unix convention).
 .SH COMMANDS
 .TP
 \fBcollect\fR
@@ -32,6 +32,9 @@ Collect a specific profile.
 .TP
 \fBcollect \-\-all\fR
 Collect all profiles.
+.TP
+\fBcollect \-\-repo\fR \fIurl\fR
+Clone a remote git repository and collect its context.
 .TP
 \fBcollect \-\-list\fR
 List available profiles.
@@ -181,6 +184,11 @@ Create a config with auto-detected profiles:
 Collect all profiles:
 .RS
 .B arachna collect \-\-all
+.RE
+.PP
+Collect from a remote repository:
+.RS
+.B arachna collect \-\-repo https://github.com/user/repo
 .RE
 .PP
 Profile your project — measure token savings:

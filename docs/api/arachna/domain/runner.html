@@ -272,7 +272,7 @@
 </span><span id="L-208"><a href="#L-208"><span class="linenos">208</span></a>                <span class="k">except</span> <span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
 </span><span id="L-209"><a href="#L-209"><span class="linenos">209</span></a>                    <span class="k">pass</span>
 </span><span id="L-210"><a href="#L-210"><span class="linenos">210</span></a>        <span class="k">return</span> <span class="n">root</span> <span class="o">/</span> <span class="s2">&quot;arachna_context&quot;</span> <span class="o">/</span> <span class="s2">&quot;.arachna_commands.log&quot;</span>
-</span><span id="L-211"><a href="#L-211"><span class="linenos">211</span></a>    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span><span id="L-211"><a href="#L-211"><span class="linenos">211</span></a>    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
 </span><span id="L-212"><a href="#L-212"><span class="linenos">212</span></a>        <span class="k">return</span> <span class="kc">None</span>
 </span><span id="L-213"><a href="#L-213"><span class="linenos">213</span></a>
 </span><span id="L-214"><a href="#L-214"><span class="linenos">214</span></a>

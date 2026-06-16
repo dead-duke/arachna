@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.1.0 — Quality of life
+- max_tokens: -1 as unlimited (0 rejected, follows Unix convention)
+- line_numbers profile field: prepend 5-digit line numbers to file sections
+- arachna collect --repo <url>: clone, auto-detect, collect, cleanup
+- conftest.py deduplication: make_config/setup_config/make_profile from 6 files -> 1 root
+- runner.py: 96% -> 99% coverage (except Exception -> except OSError)
+- differ.py: 99% -> 100% coverage (dead code removed)
+- 1556 tests, 95% coverage
+
 ## v4.0.0 — Layered architecture
 - src/arachna/ restructured into domain/, watch/, plugins/, api/, config/
 - All lazy imports eliminated, cyclic dependencies resolved
@@ -12,7 +21,9 @@
 - atomic_write.py: atomic_write_text/bytes, store + collector use atomic write
 - Tests restructured to mirror src/arachna/ layout
 - _make_profile deduplicated into tests/conftest.py
-- 1499 tests, 95% coverage
+- BUG-001: profile files resolved relative to project root
+- BUG-002: unknown extensions checked for null bytes before skipping as binary
+- 1511 tests, 95% coverage
 
 ## v3.6.0 — Data pipeline: manifest API + metrics + unlimited tokens + parallel I/O
 - arachna manifest --json: machine-readable manifest for AI agents
