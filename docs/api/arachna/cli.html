@@ -38,6 +38,7 @@
                     <li><a href="cli/plugins.html">plugins</a></li>
                     <li><a href="cli/presets.html">presets</a></li>
                     <li><a href="cli/profile.html">profile</a></li>
+                    <li><a href="cli/renderer.html">renderer</a></li>
                     <li><a href="cli/snapshot.html">snapshot</a></li>
                     <li><a href="cli/store.html">store</a></li>
             </ul>
@@ -66,7 +67,7 @@
                     <h1 class="modulename">
 <a href="./../arachna.html">arachna</a><wbr>.cli    </h1>
 
-                        <div class="docstring"><p>CLI command handlers for arachna v3.4.0.</p>
+                        <div class="docstring"><p>CLI command handlers for arachna v4.0.0.</p>
 
 <p>COMMAND_HANDLERS maps argparse command names to handler functions.
 Each handler signature: (args: argparse.Namespace, config: dict) -> None.</p>
@@ -77,7 +78,7 @@ Each handler signature: (args: argparse.Namespace, config: dict) -> None.</p>
                         <label class="view-source-button" for="mod-cli-view-source"><span>View Source</span></label>
 
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos"> 1</span></a><span class="c1"># Copyright (C) 2026 Artem Terenin / arachna — AGPLv3</span>
-</span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="sd">&quot;&quot;&quot;CLI command handlers for arachna v3.4.0.</span>
+</span><span id="L-2"><a href="#L-2"><span class="linenos"> 2</span></a><span class="sd">&quot;&quot;&quot;CLI command handlers for arachna v4.0.0.</span>
 </span><span id="L-3"><a href="#L-3"><span class="linenos"> 3</span></a>
 </span><span id="L-4"><a href="#L-4"><span class="linenos"> 4</span></a><span class="sd">COMMAND_HANDLERS maps argparse command names to handler functions.</span>
 </span><span id="L-5"><a href="#L-5"><span class="linenos"> 5</span></a><span class="sd">Each handler signature: (args: argparse.Namespace, config: dict) -&gt; None.</span>
@@ -124,7 +125,7 @@ Each handler signature: (args: argparse.Namespace, config: dict) -> None.</p>
                     <div class="attr variable">
             <span class="name">COMMAND_HANDLERS</span><span class="annotation">: dict[str, Callable[[typing.Any, dict[str, typing.Any]], None]]</span>        =
 <input id="COMMAND_HANDLERS-view-value" class="view-value-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-            <label class="view-value-button pdoc-button" for="COMMAND_HANDLERS-view-value"></label><span class="default_value">{&#39;collect-profile&#39;: &lt;function _cmd_collect_profile&gt;, &#39;collect-all&#39;: &lt;function _cmd_collect_all&gt;, &#39;collect-list&#39;: &lt;function _cmd_collect_list&gt;, &#39;collect-validate&#39;: &lt;function _cmd_collect_validate&gt;, &#39;collect-clean&#39;: &lt;function _cmd_collect_clean&gt;, &#39;completion&#39;: &lt;function _cmd_completion&gt;, &#39;diff&#39;: &lt;function _cmd_diff&gt;, &#39;diff-all&#39;: &lt;function _cmd_diff_all&gt;, &#39;doctor&#39;: &lt;function _cmd_doctor&gt;, &#39;init&#39;: &lt;function _cmd_init&gt;, &#39;manifest&#39;: &lt;function _cmd_manifest&gt;, &#39;plugins-list&#39;: &lt;function _cmd_plugins_list&gt;, &#39;plugins-install&#39;: &lt;function _cmd_plugins_install&gt;, &#39;plugins-uninstall&#39;: &lt;function _cmd_plugins_uninstall&gt;, &#39;presets-update&#39;: &lt;function _cmd_presets_update&gt;, &#39;profile&#39;: &lt;function _cmd_benchmark&gt;, &#39;snapshot-create&#39;: &lt;function _cmd_snapshot_create&gt;, &#39;snapshot-list&#39;: &lt;function _cmd_snapshot_list&gt;, &#39;snapshot-update&#39;: &lt;function _cmd_snapshot_update&gt;, &#39;snapshot-delete&#39;: &lt;function _cmd_snapshot_delete&gt;, &#39;snapshot-info&#39;: &lt;function _cmd_snapshot_info&gt;, &#39;snapshot-rename&#39;: &lt;function _cmd_snapshot_rename&gt;, &#39;store-stats&#39;: &lt;function _cmd_store_stats&gt;, &#39;store-gc&#39;: &lt;function _cmd_store_gc&gt;}</span>
+            <label class="view-value-button pdoc-button" for="COMMAND_HANDLERS-view-value"></label><span class="default_value">{&#39;collect-profile&#39;: &lt;function _cmd_collect_profile&gt;, &#39;collect-all&#39;: &lt;function _cmd_collect_all&gt;, &#39;collect-list&#39;: &lt;function _cmd_collect_list&gt;, &#39;collect-validate&#39;: &lt;function _cmd_collect_validate&gt;, &#39;collect-clean&#39;: &lt;function _cmd_collect_clean&gt;, &#39;completion&#39;: &lt;function _cmd_completion&gt;, &#39;diff-all&#39;: &lt;function _cmd_diff_all&gt;, &#39;diff&#39;: &lt;function _cmd_diff&gt;, &#39;doctor&#39;: &lt;function _cmd_doctor&gt;, &#39;init&#39;: &lt;function _cmd_init&gt;, &#39;manifest&#39;: &lt;function _cmd_manifest&gt;, &#39;plugins-list&#39;: &lt;function _cmd_plugins_list&gt;, &#39;plugins-install&#39;: &lt;function _cmd_plugins_install&gt;, &#39;plugins-uninstall&#39;: &lt;function _cmd_plugins_uninstall&gt;, &#39;presets-update&#39;: &lt;function _cmd_presets_update&gt;, &#39;profile&#39;: &lt;function _cmd_benchmark&gt;, &#39;snapshot-create&#39;: &lt;function _cmd_snapshot_create&gt;, &#39;snapshot-list&#39;: &lt;function _cmd_snapshot_list&gt;, &#39;snapshot-update&#39;: &lt;function _cmd_snapshot_update&gt;, &#39;snapshot-delete&#39;: &lt;function _cmd_snapshot_delete&gt;, &#39;snapshot-info&#39;: &lt;function _cmd_snapshot_info&gt;, &#39;snapshot-rename&#39;: &lt;function _cmd_snapshot_rename&gt;, &#39;store-stats&#39;: &lt;function _cmd_store_stats&gt;, &#39;store-gc&#39;: &lt;function _cmd_store_gc&gt;}</span>
 
         
     </div>

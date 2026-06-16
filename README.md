@@ -15,7 +15,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1429 tests, 93% coverage, 200+ commits.
+day one. 1511 tests, 95% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -478,17 +478,20 @@ content — only one copy stored.
 All Watch and collection features are available as a Python API:
 
 ```python
+from pathlib import Path
 from arachna import watch
 from arachna.collect_api import collect
 
+root = Path.cwd()
+
 # Create snapshot
-sid = watch.create_snapshot(profile="full", name="baseline")
+sid = watch.create_snapshot(root=root, profile="full", name="baseline")
 
 # Collect context
-result = collect(profile="full", mode="repo-map")
+result = collect(root=root, profile="full", mode="repo-map")
 
 # Compute diff
-diff = watch.compute_diff(snapshot_id="baseline", mode="structural")
+diff = watch.compute_diff(root=root, snapshot_id="baseline", mode="structural")
 print(f"Modified: {diff.stats.modified}, Added: {diff.stats.added}")
 ```
 

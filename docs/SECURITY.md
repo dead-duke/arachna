@@ -10,23 +10,23 @@ The `.arachna.json` file is a **trust boundary** — commands defined in
 
 ## Attack Surface
 
-### Command Execution (runner.py)
+### Command Execution (domain/runner.py)
 
 Commands come from two sources: user config (pre_commands, post_commands, command)
 and internal calls (store operations, Watch subsystem). Each uses a different
 security level.
 
-### Tokenizer Loading (tokenizer.py)
+### Tokenizer Loading (domain/tokenizer.py)
 
 Custom tokenizer spec in profile `tokenizer` field triggers `importlib.import_module()`.
 Malicious tokenizer files could execute arbitrary code at import time.
 
-### Snapshot Storage (store.py)
+### Snapshot Storage (watch/store.py)
 
 Snapshot IDs from CLI arguments are used as filesystem paths.
 Malicious IDs could traverse directories.
 
-### Presets Fetching (presets.py)
+### Presets Fetching (config/presets.py)
 
 `arachna presets update` downloads JSON from remote URLs.
 Malicious presets could inject unsafe tokenizer specs or invalid configs.
@@ -49,7 +49,7 @@ Shell is enabled (required for `2>/dev/null` in legitimate tree/git commands).
 Pipes are allowed — each pipe part is validated against the allowlist individually.
 Redirection is not blocked — user controls their own config file.
 
-**Blocked patterns** apply to both modes. Defined in `runner.py`:
+**Blocked patterns** apply to both modes. Defined in `domain/runner.py`:
 `_BLOCKED_WORDS` (curl, wget, find, eval, etc.) and `_BLOCKED_PHRASES`
 (rm -rf /, dd if=, fork bomb patterns). Matching is word-boundary for
 words, substring for phrases.
@@ -61,7 +61,7 @@ chown, mkdir, touch, tee, xargs, sed, awk) are not in the allowlist.
 
 ### Tokenizer Validation
 
-`_is_safe_tokenizer()` in `tokenizer.py` validates tokenizer specs:
+`_is_safe_tokenizer()` in `domain/tokenizer.py` validates tokenizer specs:
 
 1. `default` — always safe (built-in char-counting)
 2. `tiktoken`, `transformers` — in `_SAFE_TOKENIZERS` allowlist
@@ -73,7 +73,7 @@ chown, mkdir, touch, tee, xargs, sed, awk) are not in the allowlist.
 
 ### Snapshot ID Validation
 
-`validate_snapshot_id()` in `store.py` enforces `^[\w][\w.-]*$`:
+`validate_snapshot_id()` in `watch/store.py` enforces `^[\w][\w.-]*$`:
 no path separators, no shell metacharacters. Applied to all store operations.
 
 ### Presets URL Validation

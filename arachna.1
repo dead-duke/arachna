@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-15" "arachna v3.6.0" "User Commands"
+.TH ARACHNA 1 "2026-06-16" "arachna v4.0.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -19,6 +19,9 @@ then send only what changed. Works across multiple chats, agents, and sessions.
 Plugins add language-specific features: tree-sitter structural diff for
 JavaScript/TypeScript/Go, tiktoken/transformers for accurate token counting.
 Core stays zero-dependency.
+.PP
+Version 4.0.0 introduces a layered architecture: domain/, watch/, plugins/,
+api/, config/, cli/ packages with clean dependency flow and zero lazy imports.
 .SH COMMANDS
 .TP
 \fBcollect\fR

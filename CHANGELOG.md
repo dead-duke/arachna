@@ -1,5 +1,19 @@
 # Changelog
 
+## v4.0.0 — Layered architecture
+- src/arachna/ restructured into domain/, watch/, plugins/, api/, config/
+- All lazy imports eliminated, cyclic dependencies resolved
+- cli/ package: 10 handler modules + _helpers.py + COMMAND_HANDLERS registry
+- __main__.py: shrink from ~1000 to ~100 lines
+- interfaces.py: Tokenizer, ObjectStore, ContentFormatter Protocols
+- language_dispatch.py: HEADER_PARSERS + BLOCK_PARSERS, get_header_parser/get_block_parser
+- gatherer decomposed: gatherer_core + gatherer_query + gatherer_strategies + facade
+- _BLOCK_PATTERNS chain: 15 single-purpose patterns replace _RE_C_LIKE_BLOCK
+- atomic_write.py: atomic_write_text/bytes, store + collector use atomic write
+- Tests restructured to mirror src/arachna/ layout
+- _make_profile deduplicated into tests/conftest.py
+- 1499 tests, 95% coverage
+
 ## v3.6.0 — Data pipeline: manifest API + metrics + unlimited tokens + parallel I/O
 - arachna manifest --json: machine-readable manifest for AI agents
 - PipelineMetrics dataclass + CollectResult.metrics
