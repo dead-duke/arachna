@@ -31,6 +31,7 @@ def build_argparse() -> argparse.ArgumentParser:
     collect_p.add_argument("--query", help="Filter files by query")
     collect_p.add_argument("--no-pre-commands", action="store_true")
     collect_p.add_argument("--mode", choices=["full", "headers", "repo-map"], default="full")
+    collect_p.add_argument("--repo", help="Remote repository URL (https://)")
 
     manifest_p = sub.add_parser("manifest", help="Show collected files manifest")
     manifest_p.add_argument("--json", action="store_true", help="Machine-readable JSON output")
@@ -112,6 +113,10 @@ def build_argparse() -> argparse.ArgumentParser:
 
 
 def _dispatch_collect(args, config: dict):
+    if args.repo:
+        from .cli.collect import _cmd_collect_repo
+
+        return _cmd_collect_repo(args, config)
     if args.list:
         return COMMAND_HANDLERS["collect-list"](args, config)
     if args.validate:

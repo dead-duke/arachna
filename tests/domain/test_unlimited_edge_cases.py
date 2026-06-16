@@ -1,4 +1,4 @@
-"""Edge cases for max_tokens=0 unlimited mode."""
+"""Edge cases for max_tokens=-1 unlimited mode."""
 
 from arachna.domain.collector import collect
 from arachna.domain.gatherer import dry_run
@@ -7,19 +7,19 @@ from arachna.domain.splitter import split
 
 def test_unlimited_split_by_file(tmp_path):
     content = "### a.py\n\n```python\ncode\n```\n\n### b.py\n\n```python\ncode\n```"
-    parts = split(content, 0, mode="by_file")
+    parts = split(content, -1, mode="by_file")
     assert len(parts) == 1
     assert "a.py" in parts[0]
     assert "b.py" in parts[0]
 
 
 def test_unlimited_split_by_paragraph(tmp_path):
-    parts = split("para1\n\npara2\n\npara3", 0, mode="by_paragraph")
+    parts = split("para1\n\npara2\n\npara3", -1, mode="by_paragraph")
     assert len(parts) == 1
 
 
 def test_unlimited_split_single(tmp_path):
-    parts = split("hello world", 0, mode="single")
+    parts = split("hello world", -1, mode="single")
     assert len(parts) == 1
     assert "hello world" in parts[0]
 
@@ -31,7 +31,7 @@ def test_unlimited_dry_run(tmp_path):
         {
             "directories": [str(tmp_path)],
             "patterns": ["*.py"],
-            "max_tokens": 0,
+            "max_tokens": -1,
             "name_template": "chat",
             "use_gitignore": False,
         },
@@ -52,7 +52,7 @@ def test_unlimited_collect_single_part(tmp_path):
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
-            "max_tokens": 0,
+            "max_tokens": -1,
             "split_mode": "by_file",
             "directories": ["src"],
             "patterns": ["*.py"],
@@ -78,7 +78,7 @@ def test_unlimited_collect_with_query(tmp_path):
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
-            "max_tokens": 0,
+            "max_tokens": -1,
             "split_mode": "by_file",
             "directories": ["src"],
             "patterns": ["*.py"],
@@ -104,7 +104,7 @@ def test_unlimited_collect_with_merge(tmp_path):
     profile = {
         "name_template": "c",
         "title_template": "# T (part {part})\n\n",
-        "max_tokens": 0,
+        "max_tokens": -1,
         "split_mode": "by_file",
         "directories": ["src"],
         "patterns": ["*.py"],

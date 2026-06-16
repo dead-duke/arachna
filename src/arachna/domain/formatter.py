@@ -266,6 +266,19 @@ def _parse_script(text: str) -> tuple[list[str], list[str]]:
     return deps, exports
 
 
+def _add_line_numbers(text: str) -> str:
+    """Prepend right-aligned 5-digit line numbers with pipe separator."""
+    if not text:
+        return text
+    lines = text.split("\n")
+    total = len(lines)
+    width = max(5, len(str(total)))
+    result = []
+    for i, line in enumerate(lines, 1):
+        result.append(f"{i:>{width}}| {line}")
+    return "\n".join(result)
+
+
 def format_file_section(
     path,
     fmt="markdown",
@@ -274,6 +287,7 @@ def format_file_section(
     binary_max_mb=1.0,
     verbose=False,
     include_header=False,
+    line_numbers=False,
 ):
     if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
         try:
@@ -328,6 +342,8 @@ def format_file_section(
         if verbose:
             print(f"  Skipped (binary): {path}")
         return ""
+    if line_numbers:
+        text = _add_line_numbers(text)
     lang = lang_for_path(path)
     if not lang:
         first_line = text.split("\n")[0] if text else ""

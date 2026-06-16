@@ -11,13 +11,19 @@ def test_invalid_split_mode():
     assert len(r["errors"]) == 1
 
 
-def test_zero_max_tokens_unlimited():
-    r = validate_profile("t", {"max_tokens": 0, "directories": ["src"]})
+def test_minus_one_max_tokens_unlimited():
+    r = validate_profile("t", {"max_tokens": -1, "directories": ["src"]})
     assert r["errors"] == []
 
 
-def test_negative_max_tokens():
-    r = validate_profile("t", {"max_tokens": -1, "directories": ["src"]})
+def test_zero_max_tokens_rejected():
+    r = validate_profile("t", {"max_tokens": 0, "directories": ["src"]})
+    assert len(r["errors"]) == 1
+    assert "max_tokens" in r["errors"][0]
+
+
+def test_negative_two_max_tokens_rejected():
+    r = validate_profile("t", {"max_tokens": -2, "directories": ["src"]})
     assert len(r["errors"]) == 1
 
 

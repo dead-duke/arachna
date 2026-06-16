@@ -118,14 +118,14 @@ def pack_into_parts(
     Handles oversized sections via _split_oversized_section with
     continuation markers. Each chunk shares the original section index.
 
-    When max_tokens=0 (unlimited), returns single part with all sections.
+    When max_tokens=-1 (unlimited), returns single part with all sections.
 
     Returns (parts, indices) where indices[i] = list of section positions
     packed into parts[i]. Indices may contain duplicates for split sections.
     """
     tk = tokenizer if tokenizer is not None else count_tokens
 
-    if max_tokens == 0:
+    if max_tokens == -1:
         all_content = separator.join(s.strip() for s in sections if s.strip())
         all_indices = list(range(len(sections)))
         return [all_content], [all_indices]
@@ -242,7 +242,7 @@ def split(
 ) -> list[str]:
     tk = tokenizer if tokenizer is not None else count_tokens
 
-    if max_tokens == 0:
+    if max_tokens == -1:
         return [raw_content.strip()] if raw_content.strip() else []
 
     handler = _SPLIT_MODE_DISPATCH.get(mode, _split_by_file)
@@ -289,7 +289,7 @@ def _build_parts(
 ) -> list[str]:
     tk = tokenizer if tokenizer is not None else count_tokens
 
-    if max_tokens == 0:
+    if max_tokens == -1:
         content = separator.join(s.strip() for s in sections if s.strip())
         return [content] if content else []
 

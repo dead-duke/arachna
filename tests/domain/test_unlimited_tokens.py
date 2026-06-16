@@ -1,4 +1,4 @@
-"""Tests for max_tokens=0 unlimited mode."""
+"""Tests for max_tokens=-1 unlimited mode."""
 
 from arachna.domain.collector import collect
 
@@ -16,7 +16,7 @@ def test_unlimited_single_part(tmp_path):
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
-            "max_tokens": 0,
+            "max_tokens": -1,
             "split_mode": "by_file",
             "directories": ["src"],
             "patterns": ["*.py"],
@@ -43,7 +43,7 @@ def test_unlimited_all_files_present(tmp_path):
         {
             "name_template": "c",
             "title_template": "# T (part {part})\n\n",
-            "max_tokens": 0,
+            "max_tokens": -1,
             "split_mode": "by_file",
             "directories": ["src"],
             "patterns": ["*.py"],

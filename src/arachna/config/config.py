@@ -110,6 +110,7 @@ def get_profile(name: str, root: Path, config: dict[str, Any] | None = None) -> 
     profile.setdefault("exclude_patterns", DEFAULT_EXCLUDE.copy())
     profile.setdefault("split_marker", "\n\n")
     profile.setdefault("tokenizer", "default")
+    profile.setdefault("line_numbers", False)
     return profile
 
 
@@ -125,4 +126,5 @@ def _default_profile() -> dict[str, Any]:
         "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv|.git' || ls -la"],
         "split_marker": "\n\n",
         "tokenizer": "default",
+        "line_numbers": False,
     }

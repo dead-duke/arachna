@@ -227,3 +227,34 @@ def _cmd_collect_clean(args, config: dict):
             cleaned += 1
             print(f"  Removed: {f.name}")
     print(f"Cleaned {cleaned} file(s).")
+
+
+def _cmd_collect_repo(args, config: dict):
+    """Handle arachna collect --repo <url>."""
+    url = args.repo
+    if not url.startswith(("http://", "https://")):
+        print("Error: only http:// and https:// URLs are allowed.")
+        print(f"  Got: {url}")
+        sys.exit(1)
+
+    profile = args.profile or "full"
+    output_dir = parse_output_dir(args, config)
+    root = get_root(config)
+
+    print(f"Cloning {url}...")
+    try:
+        from ..domain.remote import collect_remote
+
+        result = collect_remote(
+            url=url,
+            profile=profile,
+            output_dir=output_dir,
+            root=root,
+        )
+        print(result)
+    except RuntimeError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)

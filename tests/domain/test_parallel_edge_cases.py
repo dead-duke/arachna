@@ -67,7 +67,7 @@ def test_parallel_preserves_order(tmp_path):
     old = os.environ.get("ARACHNA_MAX_WORKERS")
     os.environ["ARACHNA_MAX_WORKERS"] = "4"
     try:
-        _, _, parts, _ = collect(_profile(max_tokens=0), "P", str(out), root=tmp_path)
+        _, _, parts, _ = collect(_profile(max_tokens=-1), "P", str(out), root=tmp_path)
         content = parts[0]
         idx_00 = content.index("file_00.py")
         idx_05 = content.index("file_05.py")

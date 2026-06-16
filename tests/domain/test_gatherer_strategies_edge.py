@@ -112,13 +112,13 @@ def test_full_mode_parallel_fallback_to_sequential(tmp_path):
 
 
 def test_assemble_in_memory_unlimited_tokens(tmp_path):
-    """_assemble_in_memory with max_tokens=0 returns single part."""
+    """_assemble_in_memory with max_tokens=-1 returns single part."""
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("code1")
     (src / "b.py").write_text("code2")
 
-    profile = _profile(max_tokens=0)
+    profile = _profile(max_tokens=-1)
     named, parts, indices, cache = _assemble_in_memory(
         profile,
         [],

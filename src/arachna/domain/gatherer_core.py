@@ -103,6 +103,7 @@ def _format_file_list(
     verbose: bool = False,
     include_header: bool = False,
     mode: str = "full",
+    line_numbers: bool = False,
 ) -> list[tuple[str, str, int]]:
     """Format a list of files into named sections with token counts.
 
@@ -116,6 +117,7 @@ def _format_file_list(
         verbose: Whether to print skip reasons.
         include_header: Whether to include deps/exports header.
         mode: Collection mode ('full', 'repo-map', 'headers').
+        line_numbers: Whether to prepend line numbers.
 
     Returns:
         List of (filepath, formatted_section, token_count) tuples.
@@ -134,6 +136,7 @@ def _format_file_list(
             binary_max_mb=binary_max_mb,
             verbose=verbose,
             include_header=include_header,
+            line_numbers=line_numbers,
         )
         if section:
             if mode == "repo-map":
@@ -188,6 +191,7 @@ def _collect_directory_sections(
     include_binary = profile.get("include_binary", False)
     binary_extensions = profile.get("binary_extensions")
     binary_max_mb = profile.get("binary_max_mb", 1.0)
+    line_numbers = profile.get("line_numbers", False)
     seen_files = _scan_directories(profile, exclude, root)
     if incremental and cache is not None:
         changed, new, deleted = get_changed_files(seen_files, cache)
@@ -208,6 +212,7 @@ def _collect_directory_sections(
         verbose=verbose,
         include_header=include_header,
         mode=mode,
+        line_numbers=line_numbers,
     )
     new_cache = update_cache(target_files, cache or {})
     return sections, new_cache
@@ -240,6 +245,7 @@ def _collect_file_sections(
     include_binary = profile.get("include_binary", False)
     binary_extensions = profile.get("binary_extensions")
     binary_max_mb = profile.get("binary_max_mb", 1.0)
+    line_numbers = profile.get("line_numbers", False)
     file_paths_str = profile.get("files", [])
     filepaths = []
     for filepath_str in file_paths_str:
@@ -261,6 +267,7 @@ def _collect_file_sections(
         verbose=verbose,
         include_header=include_header,
         mode=mode,
+        line_numbers=line_numbers,
     )
 
 
@@ -323,6 +330,7 @@ def _format_one_file(
     verbose: bool,
     include_header: bool,
     do_compress: bool,
+    line_numbers: bool = False,
 ) -> tuple[str, str, int] | None:
     """Format a single file and optionally compress. Used by parallel I/O.
 
@@ -335,6 +343,7 @@ def _format_one_file(
         verbose: Whether to print skip reasons.
         include_header: Whether to include deps/exports header.
         do_compress: Whether to apply whitespace compression.
+        line_numbers: Whether to prepend line numbers.
 
     Returns:
         Tuple of (filepath_str, formatted_content, 0) or None if skipped.
@@ -347,6 +356,7 @@ def _format_one_file(
         binary_max_mb=binary_max_mb,
         verbose=verbose,
         include_header=include_header,
+        line_numbers=line_numbers,
     )
     if not section:
         return None

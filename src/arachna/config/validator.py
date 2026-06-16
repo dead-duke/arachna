@@ -25,8 +25,8 @@ def validate_profile(name: str, profile: dict[str, Any]) -> dict:
         )
 
     max_tokens = profile.get("max_tokens", 0)
-    if max_tokens < 0:
-        errors.append(f"max_tokens: must be >= 0, got {max_tokens}")
+    if max_tokens < -1 or max_tokens == 0:
+        errors.append(f"max_tokens: must be -1 (unlimited) or >= 1, got {max_tokens}")
 
     if split_mode == "by_marker":
         marker = profile.get("split_marker", "")

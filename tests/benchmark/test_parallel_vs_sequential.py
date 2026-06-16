@@ -54,7 +54,7 @@ def _profile(**kw):
     return {
         "name_template": "bench",
         "title_template": "# T (part {part})\n\n",
-        "max_tokens": 0,
+        "max_tokens": -1,
         "split_mode": "by_file",
         "directories": ["src"],
         "patterns": ["*"],

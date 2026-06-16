@@ -39,6 +39,7 @@ class _FullModeStrategy:
         do_compress = profile.get("compress", False)
         max_tokens = profile.get("max_tokens", 16000)
         include_header = bool(query and query.strip())
+        line_numbers = profile.get("line_numbers", False)
         filepaths = _scan_directories(profile, exclude, root)
         profile_files = _get_profile_files(profile, exclude, root)
         for fp in profile_files:
@@ -85,6 +86,7 @@ class _FullModeStrategy:
                 sections,
                 named_sections,
                 tokenizer,
+                line_numbers=line_numbers,
             )
         else:
             self._collect_sequential(
@@ -100,10 +102,11 @@ class _FullModeStrategy:
                 sections,
                 named_sections,
                 tokenizer,
+                line_numbers=line_numbers,
             )
         if query and query.strip():
             named_sections = _filter_by_query(named_sections, query, graph_cache=self._graph_cache)
-        if max_tokens == 0:
+        if max_tokens == -1:
             all_content = "\n\n".join(s.strip() for s in sections if s.strip())
             all_indices = [list(range(len(named_sections)))]
             parts = [all_content]
@@ -131,6 +134,7 @@ class _FullModeStrategy:
         sections,
         named_sections,
         tokenizer,
+        line_numbers=False,
     ):
         try:
             from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -147,6 +151,7 @@ class _FullModeStrategy:
                         verbose,
                         include_header,
                         do_compress,
+                        line_numbers,
                     ): idx
                     for idx, fp in enumerate(target_files)
                 }
@@ -180,6 +185,7 @@ class _FullModeStrategy:
                 sections,
                 named_sections,
                 tokenizer,
+                line_numbers=line_numbers,
             )
 
     def _collect_sequential(
@@ -196,6 +202,7 @@ class _FullModeStrategy:
         sections,
         named_sections,
         tokenizer,
+        line_numbers=False,
     ):
         for idx, fp in enumerate(target_files):
             result = _format_one_file(
@@ -207,6 +214,7 @@ class _FullModeStrategy:
                 verbose,
                 include_header,
                 do_compress,
+                line_numbers,
             )
             if result is not None:
                 fp_str, content, _ = result
@@ -316,7 +324,7 @@ def _assemble_in_memory(
             sections.append(_compress(content))
         else:
             sections.append(content)
-    if max_tokens == 0:
+    if max_tokens == -1:
         all_content = "\n\n".join(s.strip() for s in sections if s.strip())
         all_indices = [list(range(len(named_sections)))]
         parts = [all_content]

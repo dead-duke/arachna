@@ -340,16 +340,23 @@ def test_load_presets_invalid_split_mode(tmp_path):
     assert "bad" not in result
 
 
-def test_load_presets_zero_max_tokens_allowed(tmp_path):
+def test_load_presets_minus_one_max_tokens_allowed(tmp_path):
     f = tmp_path / "presets.json"
-    f.write_text(json.dumps({"ok": {"split_mode": "by_file", "max_tokens": 0}}))
+    f.write_text(json.dumps({"ok": {"split_mode": "by_file", "max_tokens": -1}}))
     result = load_presets_from_file(f)
     assert "ok" in result
 
 
-def test_load_presets_negative_max_tokens(tmp_path):
+def test_load_presets_zero_max_tokens_rejected(tmp_path):
     f = tmp_path / "presets.json"
-    f.write_text(json.dumps({"bad": {"split_mode": "by_file", "max_tokens": -1}}))
+    f.write_text(json.dumps({"bad": {"split_mode": "by_file", "max_tokens": 0}}))
+    result = load_presets_from_file(f)
+    assert "bad" not in result
+
+
+def test_load_presets_negative_two_max_tokens(tmp_path):
+    f = tmp_path / "presets.json"
+    f.write_text(json.dumps({"bad": {"split_mode": "by_file", "max_tokens": -2}}))
     result = load_presets_from_file(f)
     assert "bad" not in result
 

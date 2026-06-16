@@ -97,8 +97,10 @@ def _validate_preset(name: str, preset: dict) -> dict | None:
         )
         return None
     max_tokens = preset.get("max_tokens", 16000)
-    if not isinstance(max_tokens, int) or max_tokens < 0:
-        print(f"Warning: preset '{name}' max_tokens must be >= 0, got {max_tokens}")
+    if not isinstance(max_tokens, int) or max_tokens < -1 or max_tokens == 0:
+        print(
+            f"Warning: preset '{name}' max_tokens must be -1 (unlimited) or >= 1, got {max_tokens}"
+        )
         return None
     tokenizer = preset.get("tokenizer", "default")
     if not _is_safe_tokenizer(tokenizer):
