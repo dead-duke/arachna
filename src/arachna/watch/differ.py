@@ -52,8 +52,6 @@ def compute_diff(
             removed_parts.append(_format_line_range(i1, i2, old_lines))
         elif tag == "insert":
             added_parts.append(_format_line_range(j1, j2, new_lines))
-    if not removed_parts and not added_parts:
-        return ""
     if fmt == "xml":
         return _format_xml_diff(path, removed_parts, added_parts)
     return _format_markdown_diff(path, removed_parts, added_parts)

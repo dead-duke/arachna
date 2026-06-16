@@ -208,7 +208,7 @@ def _get_audit_log_path(root: Path) -> Path | None:
                 except (json.JSONDecodeError, OSError):
                     pass
         return root / "arachna_context" / ".arachna_commands.log"
-    except Exception:
+    except OSError:
         return None
 
 
