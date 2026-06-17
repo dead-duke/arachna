@@ -133,8 +133,10 @@ def _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt):
         old_tree = parser_obj.parse(old_content.encode("utf-8"))
         new_tree = parser_obj.parse(new_content.encode("utf-8"))
 
-        old_blocks = _extract_ts_blocks(old_tree.root_node, old_content, lang)
-        new_blocks = _extract_ts_blocks(new_tree.root_node, new_content, lang)
+        old_blocks = {}
+        _extract_ts_blocks(old_tree.root_node, old_content, old_blocks, lang)
+        new_blocks = {}
+        _extract_ts_blocks(new_tree.root_node, new_content, new_blocks, lang)
 
         return _format_block_diff(old_blocks, new_blocks, path, fmt)
     except ImportError:
