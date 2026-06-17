@@ -473,12 +473,12 @@
 </span><span id="L-403"><a href="#L-403"><span class="linenos">403</span></a>
 </span><span id="L-404"><a href="#L-404"><span class="linenos">404</span></a>
 </span><span id="L-405"><a href="#L-405"><span class="linenos">405</span></a><span class="k">def</span><span class="w"> </span><span class="nf">is_excluded</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">exclude_patterns</span><span class="p">):</span>
-</span><span id="L-406"><a href="#L-406"><span class="linenos">406</span></a>    <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</span><span id="L-406"><a href="#L-406"><span class="linenos">406</span></a>    <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
 </span><span id="L-407"><a href="#L-407"><span class="linenos">407</span></a>    <span class="k">for</span> <span class="n">pat</span> <span class="ow">in</span> <span class="n">exclude_patterns</span><span class="p">:</span>
 </span><span id="L-408"><a href="#L-408"><span class="linenos">408</span></a>        <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">pat</span><span class="p">:</span>
 </span><span id="L-409"><a href="#L-409"><span class="linenos">409</span></a>            <span class="c1"># Directory-scoped pattern: match against path suffix.</span>
 </span><span id="L-410"><a href="#L-410"><span class="linenos">410</span></a>            <span class="c1"># &quot;llm_docs/sonarcloud/*.json&quot; matches &quot;.../llm_docs/sonarcloud/foo.json&quot;</span>
-</span><span id="L-411"><a href="#L-411"><span class="linenos">411</span></a>            <span class="c1"># Iterate suffix boundaries and check fnmatch from that point.</span>
+</span><span id="L-411"><a href="#L-411"><span class="linenos">411</span></a>            <span class="c1"># Normalize backslashes to forward slashes for cross-platform matching.</span>
 </span><span id="L-412"><a href="#L-412"><span class="linenos">412</span></a>            <span class="n">parts</span> <span class="o">=</span> <span class="n">path_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
 </span><span id="L-413"><a href="#L-413"><span class="linenos">413</span></a>            <span class="n">pat_parts</span> <span class="o">=</span> <span class="n">pat</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
 </span><span id="L-414"><a href="#L-414"><span class="linenos">414</span></a>            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pat_parts</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">):</span>
@@ -533,7 +533,7 @@
                     <div class="attr variable">
             <span class="name">C_LIKE_LANGS</span>        =
 <input id="C_LIKE_LANGS-view-value" class="view-value-toggle-state" type="checkbox" aria-hidden="true" tabindex="-1">
-            <label class="view-value-button pdoc-button" for="C_LIKE_LANGS-view-value"></label><span class="default_value">frozenset({&#39;rust&#39;, &#39;gleam&#39;, &#39;kotlin&#39;, &#39;typescript&#39;, &#39;javascript&#39;, &#39;go&#39;, &#39;java&#39;, &#39;cpp&#39;, &#39;swift&#39;, &#39;php&#39;, &#39;c&#39;, &#39;zig&#39;, &#39;csharp&#39;})</span>
+            <label class="view-value-button pdoc-button" for="C_LIKE_LANGS-view-value"></label><span class="default_value">frozenset({&#39;kotlin&#39;, &#39;rust&#39;, &#39;gleam&#39;, &#39;java&#39;, &#39;swift&#39;, &#39;csharp&#39;, &#39;zig&#39;, &#39;go&#39;, &#39;cpp&#39;, &#39;php&#39;, &#39;javascript&#39;, &#39;typescript&#39;, &#39;c&#39;})</span>
 
         
     </div>
@@ -545,7 +545,7 @@
                 <section id="SCRIPT_LANGS">
                     <div class="attr variable">
             <span class="name">SCRIPT_LANGS</span>        =
-<span class="default_value">frozenset({&#39;elixir&#39;, &#39;lua&#39;, &#39;ruby&#39;})</span>
+<span class="default_value">frozenset({&#39;ruby&#39;, &#39;lua&#39;, &#39;elixir&#39;})</span>
 
         
     </div>
@@ -686,12 +686,12 @@
     </div>
     <a class="headerlink" href="#is_excluded"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="is_excluded-406"><a href="#is_excluded-406"><span class="linenos">406</span></a><span class="k">def</span><span class="w"> </span><span class="nf">is_excluded</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">exclude_patterns</span><span class="p">):</span>
-</span><span id="is_excluded-407"><a href="#is_excluded-407"><span class="linenos">407</span></a>    <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</span><span id="is_excluded-407"><a href="#is_excluded-407"><span class="linenos">407</span></a>    <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
 </span><span id="is_excluded-408"><a href="#is_excluded-408"><span class="linenos">408</span></a>    <span class="k">for</span> <span class="n">pat</span> <span class="ow">in</span> <span class="n">exclude_patterns</span><span class="p">:</span>
 </span><span id="is_excluded-409"><a href="#is_excluded-409"><span class="linenos">409</span></a>        <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">pat</span><span class="p">:</span>
 </span><span id="is_excluded-410"><a href="#is_excluded-410"><span class="linenos">410</span></a>            <span class="c1"># Directory-scoped pattern: match against path suffix.</span>
 </span><span id="is_excluded-411"><a href="#is_excluded-411"><span class="linenos">411</span></a>            <span class="c1"># &quot;llm_docs/sonarcloud/*.json&quot; matches &quot;.../llm_docs/sonarcloud/foo.json&quot;</span>
-</span><span id="is_excluded-412"><a href="#is_excluded-412"><span class="linenos">412</span></a>            <span class="c1"># Iterate suffix boundaries and check fnmatch from that point.</span>
+</span><span id="is_excluded-412"><a href="#is_excluded-412"><span class="linenos">412</span></a>            <span class="c1"># Normalize backslashes to forward slashes for cross-platform matching.</span>
 </span><span id="is_excluded-413"><a href="#is_excluded-413"><span class="linenos">413</span></a>            <span class="n">parts</span> <span class="o">=</span> <span class="n">path_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
 </span><span id="is_excluded-414"><a href="#is_excluded-414"><span class="linenos">414</span></a>            <span class="n">pat_parts</span> <span class="o">=</span> <span class="n">pat</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
 </span><span id="is_excluded-415"><a href="#is_excluded-415"><span class="linenos">415</span></a>            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pat_parts</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">):</span>
