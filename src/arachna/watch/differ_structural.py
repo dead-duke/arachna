@@ -243,7 +243,7 @@ def _format_block_diff(old_blocks, new_blocks, path, fmt):
 
 
 def _block_label(name, signature):
-    if signature.startswith("class ") or signature.startswith("interface "):
+    if signature.startswith(("class ", "interface ")):
         return f"class {name}"
     elif (
         signature.startswith("def ")

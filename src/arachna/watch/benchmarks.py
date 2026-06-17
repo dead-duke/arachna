@@ -69,7 +69,7 @@ def benchmark_tiktoken(profile: dict, output_dir: str, root: Path) -> dict[str, 
     out.mkdir(parents=True, exist_ok=True)
 
     default_p = make_profile(profile, name_template="bench-full")
-    created_d, tokens_d, _parts_d, _metrics_d = collect(
+    _, tokens_d, _parts_d, _metrics_d = collect(
         default_p,
         "Bench",
         str(out),

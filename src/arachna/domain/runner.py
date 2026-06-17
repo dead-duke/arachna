@@ -273,7 +273,7 @@ def _run_popen(cmd: str, needs_shell: bool, max_output_size: int) -> tuple[str, 
 
         process.wait()
         return "".join(output_parts), False
-    except (OSError, FileNotFoundError, ValueError):
+    except (OSError, ValueError):
         return "", False
 
 
@@ -310,6 +310,7 @@ def run_command(
 
     if dry_run:
         if _is_safe_command(cmd, allow_file_args=allow_file_args):
+            # Safe command in dry-run: execute normally (no output means no side effects)
             pass
         else:
             print(f"  [DRY-RUN] Would execute: {cmd}")

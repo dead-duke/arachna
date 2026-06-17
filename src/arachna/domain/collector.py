@@ -42,6 +42,7 @@ except ImportError:
         def _unlock_file(f):
             msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
     except ImportError:
+        # msvcrt is Windows-only — expected to fail on Unix
 
         def _lock_file(f):
             lock_path = Path(str(f.name) + ".lock")
@@ -215,8 +216,6 @@ def _write_diff_parts(
     project_name: str,
     max_tokens: int,
     tokenizer: Any,
-    snapshot_id: str | None = None,
-    to_snapshot_id: str | None = None,
 ) -> list[str]:
     contents = [s.content for s in diff_sections if s.content.strip()]
     if not contents:

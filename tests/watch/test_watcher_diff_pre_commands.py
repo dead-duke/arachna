@@ -88,7 +88,7 @@ def test_diff_pre_commands_marker_unchanged():
 def test_diff_pre_commands_structural_tree_line_diff():
     old = "src/main.py\nsrc/old.py\n"
     new = "src/main.py\nsrc/new.py\n"
-    result = _diff_pre_commands_structural(old, new, "pre: tree src", "tree src")
+    result = _diff_pre_commands_structural(old, new, "pre: tree src", "tree src", "markdown")
     assert "+ src/new.py" in result
     assert "- src/old.py" in result
 
@@ -96,7 +96,9 @@ def test_diff_pre_commands_structural_tree_line_diff():
 def test_diff_pre_commands_structural_git_tag_line_diff():
     old = "v1.0.0\nv1.1.0\n"
     new = "v1.0.0\nv1.1.0\nv1.2.0\n"
-    result = _diff_pre_commands_structural(old, new, "pre: git tag", "git tag --sort=-creatordate")
+    result = _diff_pre_commands_structural(
+        old, new, "pre: git tag", "git tag --sort=-creatordate", "markdown"
+    )
     assert "+ v1.2.0" in result
 
 
@@ -104,14 +106,14 @@ def test_diff_pre_commands_structural_git_log_marker_diff():
     cmd = "git log --reverse --format='=== COMMIT: %h ===%nTITLE: %s'"
     old = "=== COMMIT: abc ===\nold title\n"
     new = "=== COMMIT: abc ===\nnew title\n"
-    result = _diff_pre_commands_structural(old, new, "pre: git log", cmd)
+    result = _diff_pre_commands_structural(old, new, "pre: git log", cmd, "markdown")
     assert "REMOVED" in result or "ADDED" in result
 
 
 def test_diff_pre_commands_structural_unknown_fallback():
     old = "line1\nline2\nline3\n"
     new = "line1\nchanged\nline3\n"
-    result = _diff_pre_commands_structural(old, new, "pre: unknown", "unknown_cmd arg")
+    result = _diff_pre_commands_structural(old, new, "pre: unknown", "unknown_cmd arg", "markdown")
     assert "REMOVED" in result or "ADDED" in result
 
 

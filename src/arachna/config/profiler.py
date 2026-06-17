@@ -58,17 +58,17 @@ def run_benchmark(profile: dict, output_dir: str, root: Path) -> dict[str, dict[
     results["repo-map"] = _run_one(profile, output_dir, root, mode="repo-map")
     results["headers"] = _run_one(profile, output_dir, root, mode="headers")
     results["incremental"] = _run_one(profile, output_dir, root, mode="full", incremental=True)
-    query = _find_query_candidate(profile)
+    query = _find_query_candidate(profile, root=root)
     if query:
         results["query"] = _run_one(profile, output_dir, root, mode="full", query=query)
     return results
 
 
-def _find_query_candidate(profile: dict) -> str | None:
+def _find_query_candidate(profile: dict, root: Path) -> str | None:
     from ..domain.gatherer_core import _scan_directories
 
     exclude = profile.get("exclude_patterns", [])
-    files = _scan_directories(profile, exclude, root=Path.cwd())
+    files = _scan_directories(profile, exclude, root=root)
     if not files:
         return None
     return files[0].stem

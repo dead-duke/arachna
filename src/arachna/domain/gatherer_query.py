@@ -9,6 +9,8 @@ from pathlib import Path
 
 from .formatter import _generate_header, lang_for_path
 
+_PRE_LABEL_PREFIX = "pre: "
+
 
 def _collect_import_graph(named_sections, graph_cache):
     cache_key = tuple((fp, hash(content) & 0xFFFFFFFF) for fp, content, _tokens in named_sections)
@@ -38,7 +40,7 @@ def _extract_deps_from_content(content):
 def _score_files(named_sections, query_words, graph_cache):
     scores = {}
     for filepath, content, _tokens in named_sections:
-        if filepath.startswith("pre: "):
+        if filepath.startswith(_PRE_LABEL_PREFIX):
             continue
         score = 0
         fname_lower = Path(filepath).name.lower()
@@ -102,7 +104,9 @@ def _filter_by_query(named_sections, query, include_pre_commands=False, graph_ca
     scores = _score_files(named_sections, query_words, graph_cache)
     if not scores:
         return (
-            [s for s in named_sections if s[0].startswith("pre: ")] if include_pre_commands else []
+            [s for s in named_sections if s[0].startswith(_PRE_LABEL_PREFIX)]
+            if include_pre_commands
+            else []
         )
     matched = set(scores.keys())
     graph = _collect_import_graph(named_sections, graph_cache)
@@ -110,7 +114,7 @@ def _filter_by_query(named_sections, query, include_pre_commands=False, graph_ca
     matched = _expand_import_chain(matched, reverse_graph)
     result = []
     for section in named_sections:
-        if section[0].startswith("pre: "):
+        if section[0].startswith(_PRE_LABEL_PREFIX):
             if include_pre_commands:
                 result.append(section)
         elif section[0] in matched:

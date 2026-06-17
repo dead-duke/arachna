@@ -1,23 +1,23 @@
 # TODO
 
 ## v4.1.1 — Quick fixes from audit
-- [ ] _find_query_candidate: pass root parameter from run_benchmark (profiler.py)
-- [ ] completion.py: update to argparse subparsers (collect, snapshot, diff, etc.)
-- [ ] is_excluded: support ** glob patterns — fnmatch limitation requires * prefix workaround
-- [ ] remote: true profile field — explicit marker for remote collection profiles
-- [ ] Strict --profile for --repo: exact match or error (no silent fallback)
-- [ ] Auto-selection: one remote profile → use it, multiple → error with names, none → auto-detect
-- [ ] ValueError with available profile names when ambiguous or missing
-- [ ] Deduplicate literals: "Output directory" × 4 (__main__.py), "pre: " × 3 (gatherer_query.py), "__init__.py" × 4 (tokenizer.py), "sha256:" × 3 (store.py), "command output" × 3 (watcher.py)
-- [ ] Remove unused params: root (diff.py:128), snapshot_id+to_snapshot_id (collector.py:218-219), query+mode (gatherer.py:29), path (watcher.py:133), fmt (watcher.py:165), streaming (watcher.py:568), profile (watcher.py:605), lang (watcher.py:692+722)
-- [ ] runner.py:313 — fill empty pass block in dry_run
-- [ ] differ_structural.py:189,244,247 — startswith("class ") or startswith("interface ") → startswith(("class ", "interface "))
-- [ ] store.py:53 — write_object invert condition for single return
-- [ ] Fix unused variables: tokens_by_file→_ (collect.py:57, diff.py:51), created_d→_ (benchmarks.py:72)
-- [ ] watcher.py:179,259 — remove unnecessary list() call
-- [ ] watcher.py:228,230 — for+add() → set.update()
-- [ ] collector.py:53 — fill empty except ImportError for msvcrt
-- [ ] runner.py:276 — remove redundant except Exception after except OSError
+- [x] runner.py:276 — remove redundant except Exception after except OSError
+- [x] runner.py:313 — fill empty pass block in dry_run
+- [x] collector.py:53 — fill empty except ImportError for msvcrt
+- [x] store.py:53 — write_object invert condition for single return
+- [x] differ_structural.py:189,244,247 — startswith(("class ", "interface "))
+- [x] Fix unused variables: tokens_by_file→_ (collect.py:57, diff.py:51), created_d→_ (benchmarks.py:72)
+- [x] watcher.py:179,259 — remove unnecessary list() call
+- [x] watcher.py:228,230 — for+add() → set.update()
+- [x] Remove unused params: root, snapshot_id, to_snapshot_id, query, mode, path, streaming, profile, lang
+- [x] Deduplicate literals: _OUTPUT_DIR_HELP, _PRE_LABEL_PREFIX, _INIT_FILE, _SHA256_PREFIX, _COMMAND_OUTPUT_LABEL
+- [x] _find_query_candidate: pass root parameter from run_benchmark
+- [x] completion.py: update to argparse subparsers
+- [x] is_excluded: support directory-scoped patterns
+- [x] remote: true profile field
+- [x] Strict --profile for --repo: exact match or error
+- [x] Auto-selection: one remote → use, multiple → error, none → auto-detect
+- [x] ValueError with available profile names
 
 ## v4.2.0 — Code quality
 - [ ] Wrap _collect_parallel params in dataclass (14 → 1 object)

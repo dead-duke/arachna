@@ -111,6 +111,7 @@ def get_profile(name: str, root: Path, config: dict[str, Any] | None = None) -> 
     profile.setdefault("split_marker", "\n\n")
     profile.setdefault("tokenizer", "default")
     profile.setdefault("line_numbers", False)
+    profile.setdefault("remote", False)
     return profile
 
 
@@ -127,4 +128,5 @@ def _default_profile() -> dict[str, Any]:
         "split_marker": "\n\n",
         "tokenizer": "default",
         "line_numbers": False,
+        "remote": False,
     }

@@ -26,7 +26,7 @@ __all__ = [
 ]
 
 
-def _assemble_command_content(profile, tokenizer, root, query=None, mode="full"):
+def _assemble_command_content(profile, tokenizer, root):
     """Assemble content from a command-based profile."""
     command = profile["command"]
     do_compress = profile.get("compress", False)
@@ -77,7 +77,7 @@ def _assemble_content(
                 "  Warning: profile has both 'command' and 'directories'/'files'. "
                 "Using 'command', ignoring directories and files."
             )
-        return _assemble_command_content(profile, tokenizer, root, query=query, mode=mode)
+        return _assemble_command_content(profile, tokenizer, root)
     return _assemble_file_content(
         profile,
         exclude,

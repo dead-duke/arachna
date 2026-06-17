@@ -14,6 +14,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+_INIT_FILE = "__init__.py"
+
 
 def _get_safe_tokenizers() -> frozenset:
     return frozenset(_os.environ.get("ARACHNA_SAFE_TOKENIZERS", "tiktoken,transformers").split(","))
@@ -113,8 +115,8 @@ def _is_safe_tokenizer(spec: str, root: Path | None = None) -> bool:
                 local_path = candidate
                 break
             candidate_pkg = base / module_name
-            if candidate_pkg.is_dir() and (candidate_pkg / "__init__.py").is_file():
-                local_path = candidate_pkg / "__init__.py"
+            if candidate_pkg.is_dir() and (candidate_pkg / _INIT_FILE).is_file():
+                local_path = candidate_pkg / _INIT_FILE
                 break
     except OSError:
         pass
@@ -255,8 +257,8 @@ def _find_module_path(module_name: str, root: Path | None = None) -> Path | None
         if candidate.is_file():
             return candidate
         candidate_pkg = base / module_name
-        if candidate_pkg.is_dir() and (candidate_pkg / "__init__.py").is_file():
-            return candidate_pkg / "__init__.py"
+        if candidate_pkg.is_dir() and (candidate_pkg / _INIT_FILE).is_file():
+            return candidate_pkg / _INIT_FILE
     return None
 
 

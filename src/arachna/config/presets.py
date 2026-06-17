@@ -38,6 +38,7 @@ _VALID_PRESET_KEYS = {
     "split_marker",
     "detect",
     "tokenizer",
+    "remote",
 }
 
 
@@ -273,6 +274,9 @@ def preset_to_profile(
     pre_commands = preset.get("pre_commands", [])
     if pre_commands:
         profile["pre_commands"] = pre_commands
+    remote = preset.get("remote", False)
+    if remote:
+        profile["remote"] = remote
     if name == "git" and pre_commands:
         git_cmd = pre_commands[0]
         profile.pop("directories", None)

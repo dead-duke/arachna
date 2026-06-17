@@ -9,6 +9,8 @@ from . import __version__
 from .cli import COMMAND_HANDLERS
 from .config.config import find_config, load_config
 
+_OUTPUT_DIR_HELP = "Override output directory"
+
 
 def build_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="arachna — context collector for AI")
@@ -22,7 +24,7 @@ def build_argparse() -> argparse.ArgumentParser:
     collect_p.add_argument("--validate", action="store_true", help="Validate config for errors")
     collect_p.add_argument("--clean", "-c", action="store_true", help="Remove all collected files")
     collect_p.add_argument("--dry-run", action="store_true")
-    collect_p.add_argument("--output-dir", "-o", help="Override output directory")
+    collect_p.add_argument("--output-dir", "-o", help=_OUTPUT_DIR_HELP)
     collect_p.add_argument("--verbose", "-v", action="store_true")
     collect_p.add_argument("--compress", action="store_true")
     collect_p.add_argument("--incremental", action="store_true")
@@ -35,7 +37,7 @@ def build_argparse() -> argparse.ArgumentParser:
 
     manifest_p = sub.add_parser("manifest", help="Show collected files manifest")
     manifest_p.add_argument("--json", action="store_true", help="Machine-readable JSON output")
-    manifest_p.add_argument("--output-dir", "-o", help="Output directory")
+    manifest_p.add_argument("--output-dir", "-o", help=_OUTPUT_DIR_HELP)
 
     snap_p = sub.add_parser("snapshot", help="Manage snapshots")
     snap_subs = snap_p.add_subparsers(dest="snap_command")
@@ -68,7 +70,7 @@ def build_argparse() -> argparse.ArgumentParser:
     diff_p.add_argument("--format", choices=["markdown", "xml", "json"])
     diff_p.add_argument("--mode", choices=["full", "structural", "repo-map"])
     diff_p.add_argument("--compress", action="store_true")
-    diff_p.add_argument("--output-dir", "-o", help="Output directory")
+    diff_p.add_argument("--output-dir", "-o", help=_OUTPUT_DIR_HELP)
     diff_p.add_argument("--query", help="Filter files by query")
 
     store_p = sub.add_parser("store", help="Store management")
@@ -95,7 +97,7 @@ def build_argparse() -> argparse.ArgumentParser:
     bench_p = sub.add_parser("profile", help="Profile project — measure token savings across modes")
     bench_p.add_argument("--profile", "-p", help="Profile name (default: full)")
     bench_p.add_argument("--format", choices=["terminal", "json"], default="terminal")
-    bench_p.add_argument("--output-dir", "-o", help="Output directory")
+    bench_p.add_argument("--output-dir", "-o", help=_OUTPUT_DIR_HELP)
 
     sub.add_parser("doctor", help="Run configuration diagnostic")
 
@@ -104,7 +106,7 @@ def build_argparse() -> argparse.ArgumentParser:
     init_p.add_argument("--preset", help="Use specific preset")
     init_p.add_argument("--install-hook", action="store_true", help="Install post-commit git hook")
     init_p.add_argument("--force", action="store_true")
-    init_p.add_argument("--output-dir", "-o", help="Output directory")
+    init_p.add_argument("--output-dir", "-o", help=_OUTPUT_DIR_HELP)
 
     comp_p = sub.add_parser("completion", help="Generate shell completion")
     comp_p.add_argument("shell", nargs="?", choices=["bash", "zsh"], help="Shell: bash or zsh")

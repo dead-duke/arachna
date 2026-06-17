@@ -48,7 +48,7 @@ def _cmd_diff_all(args, config: dict):
     name_tmpl = "chat-diff-all"
     clean_manifest(out_path, name_tmpl)
 
-    created, tokens_by_file, _parts, _metrics = collect(
+    created, _, _parts, _metrics = collect(
         profile,
         project_name,
         str(out_path),
@@ -124,9 +124,7 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root)
     return sections
 
 
-def _output_diff_results(
-    args, sections, snapshot_id, to_snapshot_id, profile, config, root
-) -> bool:
+def _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, config) -> bool:
     """Write diff output or print stats. Returns True if caller should return (early exit)."""
     if args.stat:
         stats = compute_diff_stats(sections)
@@ -174,8 +172,6 @@ def _output_diff_results(
         project_name,
         max_tokens,
         tokenizer,
-        snapshot_id=snapshot_id,
-        to_snapshot_id=to_snapshot_id,
     )
     print_collected(created)
     prev = load_manifest(out_path)
@@ -212,5 +208,5 @@ def _cmd_diff(args, config: dict):
     )
 
     sections = _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root)
-    if _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, config, root):
+    if _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, config):
         return

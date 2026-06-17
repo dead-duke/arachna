@@ -1,11 +1,14 @@
-"""Tests for remote repository collection — v4.1.0."""
+"""Tests for remote repository collection — v4.1.1."""
 
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from arachna.domain.remote import collect_remote
+from arachna.domain.remote import _select_profile, collect_remote
+
+# ── URL validation ──────────────────────────────────────────────
 
 
 def test_collect_remote_blocks_non_http_urls(tmp_path):
@@ -147,10 +150,134 @@ def test_collect_remote_cleanup_on_error(tmp_path):
     assert not tmpdir_path.exists()
 
 
-def test_collect_remote_existing_config_profile(tmp_path):
-    """When cloned repo has .arachna.json with the requested profile, use it directly."""
+# ── Profile selection — explicit --profile ──────────────────────
+
+
+def test_select_profile_exact_match():
+    """--profile go, config has go → uses it."""
+    result = _select_profile(
+        requested="go",
+        profiles={"go": {"directories": ["."]}, "python": {"directories": ["src"]}},
+        has_config=True,
+        repo_path=Path("/tmp/repo"),
+    )
+    assert result == "go"
+
+
+def test_select_profile_not_found_with_config():
+    """--profile rust, config has go/python → ValueError with names."""
+    with pytest.raises(ValueError, match="Profile 'rust' not found.*go, python"):
+        _select_profile(
+            requested="rust",
+            profiles={"go": {}, "python": {}},
+            has_config=True,
+            repo_path=Path("/tmp/repo"),
+        )
+
+
+def test_select_profile_not_found_no_config():
+    """--profile python, no .arachna.json → ValueError."""
+    with pytest.raises(ValueError, match="no .arachna.json"):
+        _select_profile(
+            requested="python",
+            profiles={},
+            has_config=False,
+            repo_path=Path("/tmp/repo"),
+        )
+
+
+# ── Profile selection — auto (requested="full") ─────────────────
+
+
+def test_select_auto_one_remote():
+    """One remote:true profile → uses it."""
+    result = _select_profile(
+        requested="full",
+        profiles={
+            "go": {"remote": True, "directories": ["."]},
+            "python": {"directories": ["src"]},
+        },
+        has_config=True,
+        repo_path=Path("/tmp/repo"),
+    )
+    assert result == "go"
+
+
+def test_select_auto_multiple_remote():
+    """Multiple remote:true → ValueError with names."""
+    with pytest.raises(ValueError, match="Multiple profiles with remote:true.*go, python"):
+        _select_profile(
+            requested="full",
+            profiles={
+                "go": {"remote": True},
+                "python": {"remote": True},
+            },
+            has_config=True,
+            repo_path=Path("/tmp/repo"),
+        )
+
+
+def test_select_auto_no_remote_autodetect():
+    """No remote:true, has .arachna.json → auto-detect via presets."""
+    with patch("arachna.domain.remote.detect_presets", return_value=["python", "docs"]):
+        result = _select_profile(
+            requested="full",
+            profiles={"go": {"directories": ["."]}},
+            has_config=True,
+            repo_path=Path("/tmp/repo"),
+        )
+    assert result == "python"
+
+
+def test_select_auto_no_remote_no_presets():
+    """No remote:true, no presets detected → 'full'."""
+    with patch("arachna.domain.remote.detect_presets", return_value=[]):
+        result = _select_profile(
+            requested="full",
+            profiles={},
+            has_config=True,
+            repo_path=Path("/tmp/repo"),
+        )
+    assert result == "full"
+
+
+def test_select_auto_no_config_autodetect():
+    """No .arachna.json → auto-detect via presets."""
+    with patch("arachna.domain.remote.detect_presets", return_value=["rust"]):
+        result = _select_profile(
+            requested="full",
+            profiles={},
+            has_config=False,
+            repo_path=Path("/tmp/repo"),
+        )
+    assert result == "rust"
+
+
+def test_select_auto_no_config_no_presets():
+    """No .arachna.json, no presets → 'full'."""
+    with patch("arachna.domain.remote.detect_presets", return_value=[]):
+        result = _select_profile(
+            requested="full",
+            profiles={},
+            has_config=False,
+            repo_path=Path("/tmp/repo"),
+        )
+    assert result == "full"
+
+
+# ── collect_remote with --profile flag ──────────────────────────
+
+
+def test_collect_remote_exact_profile(tmp_path):
+    """--profile go with matching config uses go."""
+    repo_path = tmp_path / "tmpdir" / "repo"
+    repo_path.mkdir(parents=True)
+    (repo_path / ".arachna.json").write_text(
+        '{"profiles": {"go": {"directories": ["."], "max_tokens": 16000}}}'
+    )
+
     mock_result = MagicMock()
-    mock_result.files = ["chat-api_1.md"]
+    mock_result.files = ["chat-go_1.md"]
     mock_result.parts = ["content"]
     mock_result.tokens = 200
     mock_result.metrics = None
@@ -159,38 +286,27 @@ def test_collect_remote_existing_config_profile(tmp_path):
         patch("shutil.which", return_value="/usr/bin/git"),
         patch("subprocess.run") as mock_run,
         patch("arachna.domain.remote.collect", return_value=mock_result),
-        patch("arachna.domain.remote.load_config") as mock_load_config,
         patch("tempfile.mkdtemp", return_value=str(tmp_path / "tmpdir")),
     ):
         mock_run.return_value = MagicMock()
-        mock_load_config.return_value = {
-            "profiles": {"go": {"directories": ["."], "max_tokens": 16000}}
-        }
         result = collect_remote("https://github.com/user/repo.git", profile="go", root=tmp_path)
 
     assert "Profile: go" in result
 
 
-def test_collect_remote_profile_not_in_config_falls_back(tmp_path):
-    """When requested profile is not in cloned config, fall back to auto-detection."""
-    mock_result = MagicMock()
-    mock_result.files = ["chat-python_1.md"]
-    mock_result.parts = ["content"]
-    mock_result.tokens = 300
-    mock_result.metrics = None
+def test_collect_remote_profile_not_in_config_raises(tmp_path):
+    """--profile rust, not in config → ValueError."""
+    repo_path = tmp_path / "tmpdir" / "repo"
+    repo_path.mkdir(parents=True)
+    (repo_path / ".arachna.json").write_text(
+        '{"profiles": {"go": {"directories": ["."], "max_tokens": 16000}}}'
+    )
 
     with (
         patch("shutil.which", return_value="/usr/bin/git"),
         patch("subprocess.run") as mock_run,
-        patch("arachna.domain.remote.collect", return_value=mock_result),
-        patch("arachna.domain.remote.load_config") as mock_load_config,
-        patch("arachna.domain.remote.detect_presets", return_value=["python", "docs"]),
         patch("tempfile.mkdtemp", return_value=str(tmp_path / "tmpdir")),
+        pytest.raises(ValueError, match="Profile 'rust' not found"),
     ):
         mock_run.return_value = MagicMock()
-        mock_load_config.return_value = {
-            "profiles": {"go": {"directories": ["."], "max_tokens": 16000}}
-        }
-        result = collect_remote("https://github.com/user/repo.git", profile="rust", root=tmp_path)
-
-    assert "Profile: python" in result
+        collect_remote("https://github.com/user/repo.git", profile="rust", root=tmp_path)

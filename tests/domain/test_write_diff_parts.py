@@ -145,63 +145,6 @@ def test_write_diff_parts_with_toc(tmp_path):
     assert "new.py" in content
 
 
-def test_write_diff_parts_with_snapshot_id(tmp_path):
-    """_write_diff_parts with snapshot_id uses snapshot name in filename."""
-    out = tmp_path / "out"
-    out.mkdir()
-
-    sections = [
-        DiffSection(
-            type="modified",
-            path="src/main.py",
-            content="### src/main.py\n\nREMOVED lines 1:\n    old\n",
-        ),
-    ]
-
-    created = _write_diff_parts(
-        sections,
-        out,
-        "chat-diff-cycle",
-        "# Test — DIFF from cycle (part {part} of {total})\n\n",
-        "Test",
-        32768,
-        count_tokens,
-        snapshot_id="cycle",
-    )
-
-    assert len(created) == 1
-    assert "chat-diff-cycle_1.md" in created[0]
-
-
-def test_write_diff_parts_with_cross_snapshot(tmp_path):
-    """_write_diff_parts with to_snapshot_id uses cross-snapshot naming."""
-    out = tmp_path / "out"
-    out.mkdir()
-
-    sections = [
-        DiffSection(
-            type="modified",
-            path="src/main.py",
-            content="### src/main.py\n\nREMOVED lines 1:\n    old\n",
-        ),
-    ]
-
-    created = _write_diff_parts(
-        sections,
-        out,
-        "chat-diff-v1-to-v2",
-        "# Test — DIFF from v1 to v2 (part {part} of {total})\n\n",
-        "Test",
-        32768,
-        count_tokens,
-        snapshot_id="v1",
-        to_snapshot_id="v2",
-    )
-
-    assert len(created) == 1
-    assert "chat-diff-v1-to-v2_1.md" in created[0]
-
-
 def test_write_diff_parts_toc_built_from_names(tmp_path):
     """TOC is built from section names, not content matching (MEDIUM-17)."""
     out = tmp_path / "out"

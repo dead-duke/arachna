@@ -1,8 +1,8 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Remote repository collection for arachna v4.1.0.
+"""Remote repository collection for arachna v4.1.1.
 
-Clones a git repository via --depth 1, auto-detects presets,
-runs collection, and cleans up the temp directory.
+Clones a git repository via --depth 1, selects profile by explicit
+name or remote:true marker, runs collection, and cleans up.
 """
 
 import shutil
@@ -25,8 +25,9 @@ def collect_remote(
 
     Args:
         url: Git repository URL (http:// or https:// only).
-        profile: Profile name to use. Falls back to auto-detection
-                 if not found in the cloned repo's config.
+        profile: Profile name to use. If provided, must exist in the cloned
+                 repo's .arachna.json (strict mode). If "full" (default),
+                 auto-selects via remote:true marker or preset detection.
         output_dir: Directory for collected files (default: arachna_context).
         root: Base directory for temp clone (default: cwd).
 
@@ -34,7 +35,8 @@ def collect_remote(
         Summary string with repo URL, profile used, file/part/token counts.
 
     Raises:
-        ValueError: If URL scheme is not http:// or https://.
+        ValueError: If URL scheme is not http/https, profile not found,
+                    or profile selection is ambiguous.
         RuntimeError: If git is not installed.
         subprocess.CalledProcessError: If git clone fails.
     """
@@ -64,12 +66,14 @@ def collect_remote(
 
         config = load_config(root=repo_path)
         profiles = config.get("profiles", {})
+        has_config = (repo_path / ".arachna.json").exists()
 
-        if profile in profiles:
-            profile_name = profile
-        else:
-            detected = detect_presets(root=repo_path)
-            profile_name = detected[0] if detected else "full"
+        profile_name = _select_profile(
+            requested=profile,
+            profiles=profiles,
+            has_config=has_config,
+            repo_path=repo_path,
+        )
 
         result = collect(
             root=repo_path,
@@ -94,3 +98,57 @@ def collect_remote(
 
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def _select_profile(
+    requested: str,
+    profiles: dict,
+    has_config: bool,
+    repo_path: Path,
+) -> str:
+    """Select profile for remote collection.
+
+    Args:
+        requested: Profile name from --profile flag ("full" means no explicit choice).
+        profiles: Dict of profiles from .arachna.json.
+        has_config: Whether .arachna.json exists in cloned repo.
+        repo_path: Path to cloned repo root.
+
+    Returns:
+        Selected profile name.
+
+    Raises:
+        ValueError: If profile not found or selection is ambiguous.
+    """
+    # Explicit --profile: strict mode
+    if requested != "full":
+        if not has_config:
+            raise ValueError(
+                f"Profile '{requested}' not found. Remote repository has no .arachna.json. "
+                f"Omit --profile to auto-detect, or add .arachna.json with a '{requested}' profile."
+            )
+        if requested not in profiles:
+            available = list(profiles.keys())
+            raise ValueError(
+                f"Profile '{requested}' not found in remote repository. "
+                f"Available profiles: {', '.join(sorted(available)) if available else 'none'}."
+            )
+        return requested
+
+    # No explicit --profile: auto-select
+    if has_config:
+        remote_profiles = {name: prof for name, prof in profiles.items() if prof.get("remote")}
+        if len(remote_profiles) == 1:
+            return next(iter(remote_profiles))
+        if len(remote_profiles) > 1:
+            raise ValueError(
+                f"Multiple profiles with remote:true found: "
+                f"{', '.join(sorted(remote_profiles))}. "
+                f"Use --profile to select one."
+            )
+
+    # No remote:true profiles or no config — auto-detect
+    detected = detect_presets(root=repo_path)
+    if detected:
+        return detected[0]
+    return "full"

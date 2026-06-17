@@ -153,3 +153,21 @@ def test_diff_file_sets_handles_rename():
     assert "renamed" in types
     assert "deleted" not in types
     assert "added" not in types
+
+
+def test_diff_file_sets_xml_format(tmp_path, setup_config, make_profile):
+    """--format xml produces <removed>/<added> tags inside diff sections."""
+    root = setup_config()
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "main.py").write_text("original")
+    profile = make_profile("src", ["*.py"])
+    sid = create_snapshot(profile, name="xml-fmt", root=root)
+    (src / "main.py").write_text("modified")
+    diffs = compute_diff(sid, profile, root=root, fmt="xml")
+    content_diffs = [d for d in diffs if d.type == "modified" and d.path]
+    assert len(content_diffs) == 1
+    # XML format inside diff sections: <file path="...">, <removed>, <added>
+    assert '<file path="' in content_diffs[0].content
+    assert "<removed>" in content_diffs[0].content
+    assert "<added>" in content_diffs[0].content

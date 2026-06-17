@@ -62,7 +62,8 @@ def test_cmd_diff_format_xml(tmp_path, make_config):
     files = list((tmp_path / "out").glob("chat-diff*"))
     assert len(files) >= 1
     content = files[0].read_text()
-    assert 'file path="' in content
+    # XML format is inside diff content after markdown header/TOC
+    assert '<file path="' in content
 
 
 def test_cmd_diff_mode_structural(tmp_path, make_config):

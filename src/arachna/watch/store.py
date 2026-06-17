@@ -17,6 +17,7 @@ from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExis
 logger = logging.getLogger("arachna.store")
 
 _SNAPSHOT_ID_RE = re.compile(r"^[\w][\w.-]*$")
+_SHA256_PREFIX = "sha256:"
 
 
 def validate_snapshot_id(sid: str) -> None:
@@ -54,11 +55,10 @@ def write_object(data: bytes, root: Path) -> str:
     object_hash = hashlib.sha256(data).hexdigest()
     store_dir = _store_root(root)
     path = _hash_path(store_dir, object_hash, mkdir=True)
-    if path.exists():
-        return object_hash
-    compressed = zlib.compress(data)
-    content = compressed if len(compressed) < len(data) else data
-    atomic_write_bytes(path, content)
+    if not path.exists():
+        compressed = zlib.compress(data)
+        content = compressed if len(compressed) < len(data) else data
+        atomic_write_bytes(path, content)
     return object_hash
 
 
@@ -101,7 +101,7 @@ def create_snapshot(
     file_hashes = {}
     for path, content in files.items():
         obj_hash = write_object(content.encode("utf-8"), root=root)
-        file_hashes[path] = f"sha256:{obj_hash}"
+        file_hashes[path] = f"{_SHA256_PREFIX}{obj_hash}"
     manifest = {
         "id": snapshot_id,
         "name": name,
@@ -132,7 +132,7 @@ def update_snapshot(
     file_hashes = {}
     for path, content in files.items():
         obj_hash = write_object(content.encode("utf-8"), root=root)
-        file_hashes[path] = f"sha256:{obj_hash}"
+        file_hashes[path] = f"{_SHA256_PREFIX}{obj_hash}"
     manifest["files"] = file_hashes
     manifest["created"] = datetime.now().isoformat()
     if profile_dict is not None:
@@ -195,14 +195,14 @@ def _collect_referenced_hashes(manifests: list[dict]) -> set[str]:
     referenced: set[str] = set()
     for manifest in manifests:
         for hash_spec in manifest.get("files", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced.add(hash_spec[7:])
+            if hash_spec.startswith(_SHA256_PREFIX):
+                referenced.add(hash_spec[len(_SHA256_PREFIX) :])
         for hash_spec in manifest.get("pre_commands", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced.add(hash_spec[7:])
+            if hash_spec.startswith(_SHA256_PREFIX):
+                referenced.add(hash_spec[len(_SHA256_PREFIX) :])
         for hash_spec in manifest.get("command", {}).values():
-            if hash_spec.startswith("sha256:"):
-                referenced.add(hash_spec[7:])
+            if hash_spec.startswith(_SHA256_PREFIX):
+                referenced.add(hash_spec[len(_SHA256_PREFIX) :])
     return referenced
 
 

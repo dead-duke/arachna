@@ -13,13 +13,15 @@ from ..domain.language_dispatch import get_block_parser
 from ..domain.runner import run_command
 from .differ import DiffSection, compute_diff_stats
 from .differ import compute_diff as differ_compute_diff
+from .store import _SHA256_PREFIX, load_snapshot, read_object, write_object
 from .store import create_snapshot as store_create_snapshot
-from .store import load_snapshot, read_object, write_object
 from .store import update_snapshot as store_update_snapshot
 
 logger = logging.getLogger("arachna.watcher")
 
 _MAX_SIMILARITY_SIZE = 1_048_576
+_COMMAND_OUTPUT_LABEL = "command output"
+_PRE_LABEL_PREFIX = "pre: "
 
 
 def _rel_path(absolute_path: Path, root: Path) -> str:
@@ -74,7 +76,7 @@ def _collect_snapshot_content(profile: dict, root: Path) -> tuple[dict, dict, di
         if output.strip():
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
             obj_hash = write_object(output.encode("utf-8"), root=root)
-            pre_commands_data[f"pre: {label}"] = f"sha256:{obj_hash}"
+            pre_commands_data[f"{_PRE_LABEL_PREFIX}{label}"] = f"{_SHA256_PREFIX}{obj_hash}"
         else:
             logger.warning("pre_command produced no output: %s", cmd[:80])
     command_data = {}
@@ -83,7 +85,7 @@ def _collect_snapshot_content(profile: dict, root: Path) -> tuple[dict, dict, di
         output = run_command(cmd, root=root, allow_file_args=True)
         if output.strip():
             obj_hash = write_object(output.encode("utf-8"), root=root)
-            command_data["command output"] = f"sha256:{obj_hash}"
+            command_data[_COMMAND_OUTPUT_LABEL] = f"{_SHA256_PREFIX}{obj_hash}"
         else:
             logger.warning("command produced no output: %s", cmd[:80])
     return files, pre_commands_data, command_data
@@ -130,9 +132,9 @@ def _get_profile_from_manifest(manifest: dict) -> dict | None:
     return stored if isinstance(stored, dict) else None
 
 
-def _get_content_from_manifest(path: str, hash_spec: str, root: Path) -> str:
+def _get_content_from_manifest(hash_spec: str, root: Path) -> str:
     """Read file content from content-addressable store by sha256: hash spec."""
-    return read_object(hash_spec[7:], root=root).decode("utf-8")
+    return read_object(hash_spec[len(_SHA256_PREFIX) :], root=root).decode("utf-8")
 
 
 def _build_current_files(profile: dict, exclude: list[str], root: Path) -> dict[str, str]:
@@ -224,10 +226,8 @@ def _match_exact_renames(deleted, added, fmt):
             matched_deleted.add(old_path)
             matched_added.add(new_path)
         else:
-            for p in del_paths:
-                matched_deleted.add(p)
-            for p in add_paths:
-                matched_added.add(p)
+            matched_deleted.update(del_paths)
+            matched_added.update(add_paths)
     remaining_deleted = {p: c for p, c in deleted.items() if p not in matched_deleted}
     remaining_added = {p: c for p, c in added.items() if p not in matched_added}
     return rename_sections, matched_deleted, matched_added, remaining_deleted, remaining_added
@@ -256,7 +256,7 @@ def _match_similar_renames(remaining_deleted, remaining_added, matched_added, fm
             and p not in newly_matched_added
             and len(c.encode("utf-8")) <= _MAX_SIMILARITY_SIZE
         }
-        for add_path, add_content in list(candidates.items()):
+        for add_path, add_content in candidates.items():
             if _is_binary_content(add_content):
                 continue
             ratio = difflib.SequenceMatcher(None, del_content, add_content).ratio()
@@ -439,7 +439,7 @@ def _diff_pre_commands_marker(old_content, new_content, label, marker, fmt):
     return "\n".join(result_parts)
 
 
-def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt="markdown"):
+def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt):
     """Dispatch pre_command diff to line-based or marker-based based on command type."""
     cmd_basename = Path(cmd.strip().split()[0]).name if cmd.strip() else ""
     if cmd_basename == "tree" or (cmd_basename == "git" and "tag" in cmd):
@@ -454,14 +454,13 @@ def _diff_files_sections(snapshot_id, profile, exclude, to_snapshot_id, fmt, roo
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
     old_files = {
-        path: _get_content_from_manifest(path, h, root=root) for path, h in snapshot_files.items()
+        path: _get_content_from_manifest(h, root=root) for path, h in snapshot_files.items()
     }
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id, root=root)
         to_snapshot_files = to_manifest.get("files", {})
         new_files = {
-            path: _get_content_from_manifest(path, h, root=root)
-            for path, h in to_snapshot_files.items()
+            path: _get_content_from_manifest(h, root=root) for path, h in to_snapshot_files.items()
         }
     else:
         new_files = _build_current_files(profile, exclude, root)
@@ -480,20 +479,20 @@ def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root)
         to_manifest = load_snapshot(to_snapshot_id, root=root)
         snapshot_to_pre = to_manifest.get("pre_commands", {})
         for label, hash_spec in snapshot_to_pre.items():
-            current_pre[label] = _get_content_from_manifest(label, hash_spec, root=root)
+            current_pre[label] = _get_content_from_manifest(hash_spec, root=root)
     else:
         for cmd in profile.get("pre_commands", []):
             output = run_command(cmd, root=root, allow_file_args=True)
             if output.strip():
-                label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
+                label = f"{_PRE_LABEL_PREFIX}{cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
                 current_pre[label] = output
     cmd_map = {}
     for cmd in profile.get("pre_commands", []):
-        label = f"pre: {cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
+        label = f"{_PRE_LABEL_PREFIX}{cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
         cmd_map[label] = cmd
     sections = []
     for label, hash_spec in snapshot_pre.items():
-        old_content = _get_content_from_manifest(label, hash_spec, root=root)
+        old_content = _get_content_from_manifest(hash_spec, root=root)
         if label in current_pre:
             cmd = cmd_map.get(label, "")
             diff_output = (
@@ -532,8 +531,8 @@ def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id, root=root)
         snapshot_to_cmd = to_manifest.get("command", {})
-        for label, hash_spec in snapshot_to_cmd.items():
-            current_cmd_output = _get_content_from_manifest(label, hash_spec, root=root)
+        for _label, hash_spec in snapshot_to_cmd.items():
+            current_cmd_output = _get_content_from_manifest(hash_spec, root=root)
     else:
         cmd = profile.get("command")
         if cmd:
@@ -543,13 +542,13 @@ def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
     sections = []
     if snapshot_cmd and current_cmd_output:
         for label, hash_spec in snapshot_cmd.items():
-            old_content = _get_content_from_manifest(label, hash_spec, root=root)
+            old_content = _get_content_from_manifest(hash_spec, root=root)
             diff_output = differ_compute_diff(old_content, current_cmd_output, label, fmt=fmt)
             if diff_output:
                 sections.append(DiffSection(type="modified", path=label, content=diff_output))
     elif snapshot_cmd and not current_cmd_output:
         for label, hash_spec in snapshot_cmd.items():
-            old_content = _get_content_from_manifest(label, hash_spec, root=root)
+            old_content = _get_content_from_manifest(hash_spec, root=root)
             removed_lines = "\n".join(f"- {line}" for line in old_content.strip().split("\n"))
             sections.append(
                 DiffSection(
@@ -559,8 +558,8 @@ def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
                 )
             )
     elif not snapshot_cmd and current_cmd_output:
-        diff_output = differ_compute_diff("", current_cmd_output, "command output", fmt=fmt)
-        sections.append(DiffSection(type="added", path="command output", content=diff_output))
+        diff_output = differ_compute_diff("", current_cmd_output, _COMMAND_OUTPUT_LABEL, fmt=fmt)
+        sections.append(DiffSection(type="added", path=_COMMAND_OUTPUT_LABEL, content=diff_output))
     return sections
 
 
@@ -634,7 +633,7 @@ def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, 
                     old_blocks = parser(old_content)
                     new_blocks = parser(new_content)
                 if old_blocks is not None and new_blocks is not None:
-                    s.content = _format_repo_map_diff(s.path, lang, old_blocks, new_blocks)
+                    s.content = _format_repo_map_diff(s.path, old_blocks, new_blocks)
         elif s.type == "added":
             new_content = (
                 _read_file_from_disk(root / s.path)
@@ -647,7 +646,7 @@ def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, 
                 else:
                     blocks = parser(new_content)
                 if blocks is not None:
-                    s.content = _format_repo_map_added(s.path, lang, blocks)
+                    s.content = _format_repo_map_added(s.path, blocks)
         elif s.type == "deleted":
             old_content = _read_file_from_store(s.path, snapshot_files, root)
             if old_content is not None and parser is not None:
@@ -672,7 +671,7 @@ def _read_file_from_store(path, files, root):
     for fpath, hash_spec in files.items():
         if fpath == path:
             try:
-                return read_object(hash_spec[7:], root=root).decode("utf-8")
+                return read_object(hash_spec[len(_SHA256_PREFIX) :], root=root).decode("utf-8")
             except Exception:
                 return None
     return None
@@ -689,7 +688,7 @@ def _read_file_from_disk(path):
         return None
 
 
-def _format_repo_map_diff(path, lang, old_blocks, new_blocks):
+def _format_repo_map_diff(path, old_blocks, new_blocks):
     """Format repo-map diff output showing added/removed/modified signatures."""
     import hashlib
 
@@ -719,7 +718,7 @@ def _format_repo_map_diff(path, lang, old_blocks, new_blocks):
     return "".join(parts) if len(parts) > 1 else ""
 
 
-def _format_repo_map_added(path, lang, blocks):
+def _format_repo_map_added(path, blocks):
     """Format repo-map output for added files (all signatures)."""
     parts = [f"### {path}\n"]
     for _name, (sig, _body) in blocks.items():

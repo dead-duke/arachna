@@ -405,8 +405,20 @@ def _format_json(path, lang, text):
 def is_excluded(path, exclude_patterns):
     path_str = str(path)
     for pat in exclude_patterns:
-        if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):
-            return True
+        if "/" in pat:
+            # Directory-scoped pattern: match against path suffix.
+            # "llm_docs/sonarcloud/*.json" matches ".../llm_docs/sonarcloud/foo.json"
+            # Iterate suffix boundaries and check fnmatch from that point.
+            parts = path_str.split("/")
+            pat_parts = pat.split("/")
+            if len(pat_parts) <= len(parts):
+                for start in range(len(parts) - len(pat_parts) + 1):
+                    suffix = "/".join(parts[start:])
+                    if fnmatch.fnmatch(suffix, pat):
+                        return True
+        else:
+            if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):
+                return True
     return False
 
 

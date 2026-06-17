@@ -18,7 +18,7 @@ from arachna.watch.watcher import (
 def test_format_repo_map_diff_sig_changed():
     old_blocks = {"foo": ("def foo(x):", "    return x")}
     new_blocks = {"foo": ("def foo(x, y=0):", "    return x")}
-    result = _format_repo_map_diff("src/main.py", "python", old_blocks, new_blocks)
+    result = _format_repo_map_diff("src/main.py", old_blocks, new_blocks)
     assert "~" in result
     assert "->" in result
 
@@ -26,14 +26,14 @@ def test_format_repo_map_diff_sig_changed():
 def test_format_repo_map_diff_body_changed():
     old_blocks = {"foo": ("def foo():", "    return 1")}
     new_blocks = {"foo": ("def foo():", "    return 2")}
-    result = _format_repo_map_diff("src/main.py", "python", old_blocks, new_blocks)
+    result = _format_repo_map_diff("src/main.py", old_blocks, new_blocks)
     assert "body changed" in result
 
 
 def test_format_repo_map_diff_added_block():
     old_blocks = {}
     new_blocks = {"bar": ("def bar():", "    pass")}
-    result = _format_repo_map_diff("src/main.py", "python", old_blocks, new_blocks)
+    result = _format_repo_map_diff("src/main.py", old_blocks, new_blocks)
     assert "+" in result
     assert "bar" in result
 
@@ -41,25 +41,25 @@ def test_format_repo_map_diff_added_block():
 def test_format_repo_map_diff_deleted_block():
     old_blocks = {"foo": ("def foo():", "    return 1")}
     new_blocks = {}
-    result = _format_repo_map_diff("src/main.py", "python", old_blocks, new_blocks)
+    result = _format_repo_map_diff("src/main.py", old_blocks, new_blocks)
     assert "-" in result
     assert "foo" in result
 
 
 def test_format_repo_map_diff_empty():
-    result = _format_repo_map_diff("src/main.py", "python", {}, {})
+    result = _format_repo_map_diff("src/main.py", {}, {})
     assert result == ""
 
 
 def test_format_repo_map_added_with_blocks():
     blocks = {"foo": ("def foo():", "    pass"), "bar": ("def bar():", "    pass")}
-    result = _format_repo_map_added("src/new.py", "python", blocks)
+    result = _format_repo_map_added("src/new.py", blocks)
     assert "+ def foo():" in result
     assert "+ def bar():" in result
 
 
 def test_format_repo_map_added_empty():
-    result = _format_repo_map_added("src/new.py", "python", {})
+    result = _format_repo_map_added("src/new.py", {})
     assert result == ""
 
 

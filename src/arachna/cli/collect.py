@@ -54,7 +54,7 @@ def _cmd_collect_profile(args, config: dict):
     if not args.merge:
         clean_manifest(out_path, name_tmpl)
 
-    created, tokens_by_file, _parts, _metrics = collect(
+    created, _, _parts, _metrics = collect(
         profile,
         project_name,
         str(out_path),
