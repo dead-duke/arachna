@@ -307,7 +307,12 @@ def collect(
     query: str | None = None,
     mode: str = "full",
     name_template: str | None = None,
+    allow_pre_commands: bool = True,
 ) -> tuple[list[str], dict[str, int], list[str], PipelineMetrics]:
+    profile = dict(profile)
+    if not allow_pre_commands:
+        profile["pre_commands"] = []
+        profile["post_commands"] = []
     name_tmpl = name_template if name_template is not None else profile["name_template"]
     title_tmpl = profile["title_template"]
     out_path = root / output_dir

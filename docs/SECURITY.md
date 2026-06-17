@@ -31,6 +31,12 @@ Malicious IDs could traverse directories.
 `arachna presets update` downloads JSON from remote URLs.
 Malicious presets could inject unsafe tokenizer specs or invalid configs.
 
+### Remote Repository Collection (domain/remote.py)
+
+`arachna collect --repo` clones git repositories from user-supplied URLs.
+Malicious URLs could point to repositories with harmful `.arachna.json`
+configs or pre_commands.
+
 ## Mitigations
 
 ### Two-Level Command Sandbox
@@ -76,12 +82,20 @@ chown, mkdir, touch, tee, xargs, sed, awk) are not in the allowlist.
 `validate_snapshot_id()` in `watch/store.py` enforces `^[\w][\w.-]*$`:
 no path separators, no shell metacharacters. Applied to all store operations.
 
-### Presets URL Validation
+### URL Validation
 
-`arachna presets update` only accepts `http://` and `https://` URLs.
-File, FTP, and other schemes are rejected. Presets schema is validated
-before merging: unknown keys warned, unsafe tokenizers reset to `default`,
-non-list fields converted to empty lists, invalid split_mode rejected.
+All user-supplied URLs (`--repo`, `--url` for presets, `fetch_presets()`,
+`collect_remote()`) are validated to only allow `http://` and `https://`
+schemes. File, FTP, and other schemes are rejected.
+
+HTTP is allowed intentionally — users may host presets or git repositories
+on local network servers without TLS. This is a deliberate trade-off:
+convenience for local development over strict transport security. Users
+who need HTTPS can use it; arachna does not force either.
+
+For remote collection, the cloned repository's `.arachna.json` is treated
+as untrusted — pre_commands from cloned repos are NOT executed. arachna
+only collects files and auto-detects presets.
 
 ### Output Size Limit
 

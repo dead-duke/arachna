@@ -76,6 +76,7 @@ def collect_remote(
             profile=profile_name,
             output_dir=output_dir or "arachna_context",
             write_to_disk=True,
+            allow_pre_commands=False,
         )
 
         lines = [

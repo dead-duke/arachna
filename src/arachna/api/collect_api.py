@@ -20,6 +20,7 @@ def collect(
     incremental: bool = False,
     merge: bool = False,
     write_to_disk: bool = True,
+    allow_pre_commands: bool = True,
 ) -> CollectResult:
     if isinstance(profile, str):
         config = load_config(root=root)
@@ -48,6 +49,7 @@ def collect(
         merge=merge,
         query=query,
         mode=mode,
+        allow_pre_commands=allow_pre_commands,
     )
 
     if not write_to_disk:
