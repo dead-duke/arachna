@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-17" "arachna v4.1.1" "User Commands"
+.TH ARACHNA 1 "2026-06-18" "arachna v4.2.0" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -20,8 +20,9 @@ Plugins add language-specific features: tree-sitter structural diff for
 JavaScript/TypeScript/Go, tiktoken/transformers for accurate token counting.
 Core stays zero-dependency.
 .PP
-Version 4.1.1 brings 17 code quality fixes, remote profile selection,
-directory-scoped exclude patterns, and argparse-based shell completion.
+Version 4.2.0 brings code quality improvements: dataclass for parallel I/O params,
+module splits (gatherer, watcher, presets), cognitive complexity reduction,
+path validation, and --line-numbers flag for diff.
 .SH COMMANDS
 .TP
 \fBcollect\fR
@@ -95,6 +96,9 @@ Cross-snapshot diff.
 .TP
 \fBdiff \-\-all\fR \fB\-\-profile\fR \fIname\fR
 Full project as diff.
+.TP
+\fBdiff \-\-line\-numbers\fR
+Show line numbers in REMOVED/ADDED blocks.
 .TP
 \fBstore stats\fR
 Show content-addressable store statistics.
@@ -241,6 +245,11 @@ Create a snapshot and diff later:
 .I ... make changes ...
 .br
 .B arachna diff \-\-from baseline
+.RE
+.PP
+Diff with line numbers:
+.RS
+.B arachna diff \-\-from baseline \-\-line\-numbers
 .RE
 .PP
 Machine-readable manifest for AI agents:

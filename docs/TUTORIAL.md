@@ -29,10 +29,34 @@ for section in diff.sections:
         print(section.content)
 ```
 
+## Diff with line numbers (v4.2.0+)
+
+```python
+# Line numbers help AI reference specific lines in responses
+diff = watch.compute_diff(
+    root=root,
+    snapshot_id="baseline",
+    profile="full",
+    line_numbers=True,
+)
+for section in diff.sections:
+    if section.path:
+        print(section.content)
+# Output:
+#   REMOVED lines 45-47:
+#      45|     total = 0
+#      46|     for item in items:
+#      47|         total += item.price
+```
+
+Or via CLI:
+
+    arachna diff --from baseline --line-numbers
+
 ## Remote repository collection (v4.1.0+)
 
 ```python
-from arachna.domain.remote import collect_remote
+from arachna.config.remote import collect_remote
 
 # Collect context from any public repo in one line
 result = collect_remote("https://github.com/user/repo", profile="full")
@@ -57,10 +81,8 @@ Profile selection (v4.1.1+):
 
 Or via CLI:
 
-```bash
-arachna collect --repo https://github.com/user/repo
-arachna collect --repo https://github.com/user/repo --profile python
-```
+    arachna collect --repo https://github.com/user/repo
+    arachna collect --repo https://github.com/user/repo --profile python
 
 Clones with `--depth 1` for speed, pre_commands/post_commands are disabled
 for security. Requires git on PATH.
@@ -173,6 +195,7 @@ class AIAgent:
             root=self.root,
             snapshot_id=self.snapshot_id,
             profile=self.profile,
+            line_numbers=True,  # AI can reference specific lines
         )
 
         if diff.stats.tokens > 10000:

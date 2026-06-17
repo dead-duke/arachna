@@ -109,7 +109,7 @@
 </span><span id="L-54"><a href="#L-54"><span class="linenos"> 54</span></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">merge</span><span class="p">:</span>
 </span><span id="L-55"><a href="#L-55"><span class="linenos"> 55</span></a>        <span class="n">clean_manifest</span><span class="p">(</span><span class="n">out_path</span><span class="p">,</span> <span class="n">name_tmpl</span><span class="p">)</span>
 </span><span id="L-56"><a href="#L-56"><span class="linenos"> 56</span></a>
-</span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a>    <span class="n">created</span><span class="p">,</span> <span class="n">tokens_by_file</span><span class="p">,</span> <span class="n">_parts</span><span class="p">,</span> <span class="n">_metrics</span> <span class="o">=</span> <span class="n">collect</span><span class="p">(</span>
+</span><span id="L-57"><a href="#L-57"><span class="linenos"> 57</span></a>    <span class="n">created</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_parts</span><span class="p">,</span> <span class="n">_metrics</span> <span class="o">=</span> <span class="n">collect</span><span class="p">(</span>
 </span><span id="L-58"><a href="#L-58"><span class="linenos"> 58</span></a>        <span class="n">profile</span><span class="p">,</span>
 </span><span id="L-59"><a href="#L-59"><span class="linenos"> 59</span></a>        <span class="n">project_name</span><span class="p">,</span>
 </span><span id="L-60"><a href="#L-60"><span class="linenos"> 60</span></a>        <span class="nb">str</span><span class="p">(</span><span class="n">out_path</span><span class="p">),</span>
@@ -298,7 +298,7 @@
 </span><span id="L-243"><a href="#L-243"><span class="linenos">243</span></a>
 </span><span id="L-244"><a href="#L-244"><span class="linenos">244</span></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cloning </span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
 </span><span id="L-245"><a href="#L-245"><span class="linenos">245</span></a>    <span class="k">try</span><span class="p">:</span>
-</span><span id="L-246"><a href="#L-246"><span class="linenos">246</span></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">..domain.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">collect_remote</span>
+</span><span id="L-246"><a href="#L-246"><span class="linenos">246</span></a>        <span class="kn">from</span><span class="w"> </span><span class="nn">..config.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">collect_remote</span>
 </span><span id="L-247"><a href="#L-247"><span class="linenos">247</span></a>
 </span><span id="L-248"><a href="#L-248"><span class="linenos">248</span></a>        <span class="n">result</span> <span class="o">=</span> <span class="n">collect_remote</span><span class="p">(</span>
 </span><span id="L-249"><a href="#L-249"><span class="linenos">249</span></a>            <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span>

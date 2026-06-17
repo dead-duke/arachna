@@ -12,6 +12,7 @@ arachna solves the whole cycle. It understands that:
 - After the first message, you don't need to resend unchanged files
 - Renamed files should be shown as renames, not delete+add
 - Function signatures are often enough — you don't always need bodies
+- Line numbers help AI reference specific code locations
 
 ## The cycle
 
@@ -27,28 +28,24 @@ Architect -> [Programmer <-> Tester] -> Architect
 
 Each role sees different context via profiles:
 
-```bash
-arachna collect --profile code     # source code
-arachna collect --profile tests    # test files
-arachna collect --profile docs     # documentation
-arachna collect --profile git      # commit history
-```
+    arachna collect --profile code     # source code
+    arachna collect --profile tests    # test files
+    arachna collect --profile docs     # documentation
+    arachna collect --profile git      # commit history
 
 ## Plugin system (v3.1.0+)
 
 arachna core is zero-dependency. Language-specific features are opt-in plugins:
 
-```bash
-# Install accurate structural diff for JavaScript
-pip install arachna[javascript]
+    # Install accurate structural diff for JavaScript
+    pip install arachna[javascript]
 
-# Install accurate token counting for OpenAI models
-pip install arachna[tiktoken]
+    # Install accurate token counting for OpenAI models
+    pip install arachna[tiktoken]
 
-# Or use the plugin manager
-arachna plugins list
-arachna plugins install javascript --execute
-```
+    # Or use the plugin manager
+    arachna plugins list
+    arachna plugins install javascript --execute
 
 Without plugins, arachna falls back to built-in alternatives (text diff,
 chars_per_token estimate). Plugins activate automatically when installed.
@@ -57,10 +54,8 @@ chars_per_token estimate). Plugins activate automatically when installed.
 
 Collect context from any public git repository without manual cloning:
 
-```bash
-arachna collect --repo https://github.com/user/repo
-arachna collect --repo https://github.com/user/repo --profile python
-```
+    arachna collect --repo https://github.com/user/repo
+    arachna collect --repo https://github.com/user/repo --profile python
 
 Profile selection logic (v4.1.1+):
 
@@ -77,7 +72,7 @@ Add `"remote": true` to your profile to mark it as the default for remote collec
 For programmatic use:
 
 ```python
-from arachna.domain.remote import collect_remote
+from arachna.config.remote import collect_remote
 
 # Auto-detect profile
 result = collect_remote("https://github.com/user/repo", profile="full")
@@ -110,8 +105,13 @@ result = collect(root=root, profile="full", query="authentication", mode="repo-m
 for part in result.parts:
     print(part)  # send to LLM
 
-# After changes, get the diff
-diff = watch.compute_diff(root=root, snapshot_id="before-fix", mode="structural")
+# After changes, get the diff with line numbers
+diff = watch.compute_diff(
+    root=root,
+    snapshot_id="before-fix",
+    mode="structural",
+    line_numbers=True,  # AI can reference specific lines
+)
 for section in diff.sections:
     print(section.content)  # send to LLM
 
@@ -125,6 +125,7 @@ watch.update_snapshot("before-fix", root=root)
 - **chars_per_token** for non-English code: `2.5` in profile for Russian/Cyrillic, `1.5` for CJK.
 - **write_to_disk=False** in collect_api for agent workflows — no filesystem I/O.
 - **line_numbers: true** in profile — AI can reference specific lines in responses.
+- **--line-numbers** flag for diff — AI sees exact line numbers in changed blocks (v4.2.0+).
 - **max_tokens: -1** for unlimited output — single file, no splitting.
 - **Plugins** for non-Python languages — tree-sitter structural diff for JS/TS/Go.
 - **Benchmarks** at [docs/BENCHMARKS.md](https://github.com/dead-duke/arachna/blob/main/docs/BENCHMARKS.md).
@@ -155,3 +156,7 @@ watch.update_snapshot("before-fix", root=root)
 8. **Use --repo for quick exploration.** `arachna collect --repo <url>` clones
    and collects in one command. Add `"remote": true` to your .arachna.json
    to auto-select the right profile for remote collection.
+
+9. **Enable line numbers for precise feedback.** `--line-numbers` on diff
+   lets AI say "line 47 has a bug" instead of "the third line in the second
+   REMOVED block". More precise = fewer iterations.

@@ -20,7 +20,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1571 tests, 95% coverage, 200+ commits.
+day one. 1607 tests, 95% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -186,6 +186,15 @@ Creates arachna_context/ with .md files ready for AI.
     arachna diff --all --profile code
     arachna diff --all --profile code --mode repo-map
 
+### Diff with line numbers (v4.2.0+)
+
+    arachna diff --from baseline --line-numbers
+    # Output shows line numbers in REMOVED/ADDED blocks:
+    #   REMOVED lines 45-47:
+    #      45|     total = 0
+    #      46|     for item in items:
+    #      47|         total += item.price
+
 ### Remote repository
 
     arachna collect --repo https://github.com/user/repo
@@ -264,6 +273,7 @@ for remote collection:
     arachna diff --flat                       flat output (no grouping)
     arachna diff --format xml                 XML output
     arachna diff --mode structural            structural (block-level) diff
+    arachna diff --line-numbers               show line numbers in diff output
     arachna store stats                       store statistics
     arachna store gc                          garbage collect
 
@@ -295,6 +305,7 @@ for remote collection:
 | --query "text" | filter files by query |
 | --mode full,headers,repo-map | collection mode |
 | --no-pre-commands | skip pre_commands for this run |
+| --line-numbers | show line numbers in diff output (v4.2.0+) |
 
 ## Environment variables
 
@@ -446,6 +457,9 @@ then send only changes (diff) in subsequent iterations.
     # Structural diff (understands code blocks)
     arachna diff --from before-refactor --mode structural
 
+    # With line numbers (v4.2.0+)
+    arachna diff --from before-refactor --line-numbers
+
 ### Rename and move detection
 
 arachna automatically detects renamed and moved files:
@@ -550,6 +564,18 @@ Human-readable diff optimized for AI consumption:
 
     ADDED lines 45:
         return sum(item.price for item in items)
+
+With --line-numbers (v4.2.0+):
+
+    ### src/main.py
+
+    REMOVED lines 45-47:
+       45|     total = 0
+       46|     for item in items:
+       47|         total += item.price
+
+    ADDED lines 45:
+       45|     return sum(item.price for item in items)
 
 ## Plugin system
 

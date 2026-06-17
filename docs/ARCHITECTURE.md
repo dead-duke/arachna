@@ -5,7 +5,7 @@
 arachna is a context collector for AI. It gathers project files, splits them
 by token limits, and writes output files ready for AI consumption.
 
-## Package structure (v4.1.1)
+## Package structure (v4.2.0)
 
 src/arachna/
   __init__.py           Version + public API re-exports
@@ -17,18 +17,19 @@ src/arachna/
     atomic_write.py     Atomic file writes (mkstemp + os.replace)
     cache.py            Smart hybrid incremental cache (mtime_ns + size + SHA256)
     collector.py        Orchestrator: gather -> split -> write -> post_commands
-    compressor.py       Safe whitespace compression
+    compressor.py       Safe whitespace compression (str.rstrip, no regex)
     formatter.py        File formatting: markdown/xml/json, language detection, line numbers
-    gatherer.py         Facade over gatherer_core + gatherer_query + gatherer_strategies
-    gatherer_core.py    Directory scanning, file formatting, pre_commands
+    gatherer.py         Facade over gatherer_files + gatherer_commands + gatherer_query + gatherer_strategies
+    gatherer_files.py   Directory scanning, file formatting, exclude patterns
+    gatherer_commands.py  Command execution: pre_commands, gather_files, gather_command
     gatherer_query.py   Query pipeline: import graph, scoring, filtering
-    gatherer_strategies.py  Strategy pattern: FullMode, RepoMapMode, HeadersMode
+    gatherer_strategies.py  Strategy pattern: FullModeStrategy with _CollectParams dataclass
     gitignore.py        .gitignore parser for auto-exclusion
     interfaces.py       Protocol definitions: Tokenizer, ObjectStore, ContentFormatter
-    language_dispatch.py  HEADER_PARSERS + BLOCK_PARSERS mappings
-    remote.py           Remote repository collection (git clone + collect)
-    runner.py           Popen-based command execution, dual-mode allowlist
-    splitter.py         Token-based splitting, oversized section fallback
+    language_dispatch.py  HEADER_PARSERS + BLOCK_PARSERS mappings, regex timeout
+    path_utils.py       Path validation (validate_path) for SonarCloud S2083
+    runner.py           Popen-based command execution, dual-mode allowlist, decomposed helpers
+    splitter.py         Token-based splitting, oversized section fallback, pack_into_parts
     tokenizer.py        Token estimation, pluggable tokenizers, safety validation
 
   config/               Configuration, presets, init, validation
@@ -38,17 +39,21 @@ src/arachna/
     doctor.py           Full diagnostic: run_doctor(project_root, config)
     hook.py             Git post-commit hook installer
     init.py             Interactive .arachna.json bootstrap
-    presets.py          Language/engine presets, auto-detection, fetch/merge
+    presets.py          Language/engine presets, auto-detection, validation
+    presets_remote.py   Remote presets: fetch_presets + merge_presets
     profiler.py         Benchmark runner: measures token savings across modes
+    remote.py           Remote repository collection (git clone + collect)
     validator.py        Profile validation
 
   watch/                Snapshots, diff, store, benchmarks
     benchmarks.py       Plugin benchmarks (structural-diff, tiktoken)
-    differ.py           LLM-optimized text diff (markdown + XML)
+    differ.py           LLM-optimized text diff (markdown + XML), line numbers
     differ_structural.py  Structural diff: Python AST, C-like regex, tree-sitter plugin
     store.py            Content-addressable store (SHA256 + zlib, dedup, GC)
     store_errors.py     Store subsystem exceptions
-    watcher.py          Watch orchestration: decomposed compute_diff, rename/move detection
+    watcher.py          Backward-compat re-exports from watcher_diff + watcher_rename
+    watcher_diff.py     Diff computation: files, pre_commands, command, cross-snapshot
+    watcher_rename.py   Rename/move detection: exact hash + similarity matching
 
   plugins/              Optional dependency management
     plugins.py          Plugin system: environment detector, install/uninstall/list
@@ -63,7 +68,7 @@ src/arachna/
     _helpers.py         Shared helpers: get_root, parse_output_dir, print_collected, etc.
     collect.py          collect --profile, --all, --repo, --list, --validate, --clean handlers
     snapshot.py         snapshot create/list/update/delete/info/rename handlers
-    diff.py             diff --from, --to, --all handlers
+    diff.py             diff --from, --to, --all, --line-numbers handlers
     store.py            store stats, store gc handlers
     plugins.py          plugins list/install/uninstall handlers
     presets.py          presets update handler
@@ -74,11 +79,7 @@ src/arachna/
     manifest.py         manifest --json handler
     renderer.py         Dry-run output formatting
 
-  presets/              Built-in preset JSON files
-    python.json, javascript.json, go.json, rust.json, zig.json, lua.json,
-    elixir.json, haskell.json, gleam.json, c_cpp.json, csharp.json, swift.json,
-    kotlin_java.json, ruby.json, php.json, docker.json, terraform.json,
-    godot.json, unity.json, unreal.json, tests.json, docs.json, config.json, git.json
+  presets/              Built-in preset JSON files (24 presets)
 
 ## Dependency flow
 
@@ -91,6 +92,17 @@ Domain layer imports only from stdlib and other domain/ modules.
 No circular dependencies. No lazy imports between packages.
 
 ## Key architectural decisions
+
+### v4.2.0: Code quality refactoring
+- _CollectParams dataclass: 14 params -> 1 object in _FullModeStrategy
+- Module splits: gatherer_core -> gatherer_files + gatherer_commands, watcher -> watcher_diff + watcher_rename, presets -> presets_remote
+- _BLOCK_PATTERNS: named groups -> numbered for simpler regex
+- _RE_C_LIKE_IMPORT -> _RE_C_LIKE_IMPORT_CHAIN (5 single-purpose patterns)
+- compressor.py: _RE_TRAILING_WS regex -> str.rstrip()
+- remote.py: domain/ -> config/ (layer violation fix)
+- path_utils.py: validate_path() for S2083 path injection
+- Cognitive complexity: all 35+ C-functions -> B
+- diff --line-numbers: line numbers in REMOVED/ADDED blocks
 
 ### Strategy pattern for collection modes
 FullModeStrategy, RepoMapModeStrategy, HeadersModeStrategy — each encapsulates
@@ -115,31 +127,6 @@ C_LIKE_LANGS and SCRIPT_LANGS defined once in formatter.py. HEADER_PARSERS
 and BLOCK_PARSERS mappings in language_dispatch.py cover all languages via
 get_header_parser() and get_block_parser(). Adding a language requires
 editing formatter.py only.
-
-### Remote repository collection
-domain/remote.py clones via git clone --depth 1, selects profile via strict
---profile or auto-detection with remote:true marker, runs collection with
-allow_pre_commands=False (security: no external commands executed), cleans up
-temp directory. Requires git on PATH. No new dependencies.
-
-Profile selection logic:
-- --profile python: strict mode — exact match or error
-- (no --profile): auto-select mode
-  1. remote:true profiles (one → use, multiple → error)
-  2. detect_presets() auto-detection
-  3. Fallback: "full" profile
-
-New config field: "remote": true marks a profile as default for remote collection.
-
-### Directory-scoped exclude patterns
-is_excluded() supports patterns with "/" that match against path suffixes.
-Pattern "dir/subdir/*.json" matches ".../dir/subdir/foo.json" by iterating
-suffix boundaries. Eliminates the need for "*" prefix workaround.
-
-### Shell completion for argparse subparsers
-completion.py generates bash/zsh scripts with full subcommand support:
-collect, snapshot, diff, store, plugins, presets, profile, doctor, init,
-manifest, completion. Each subcommand has its own flags.
 
 ## Plugin architecture
 
@@ -174,10 +161,10 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1571 tests, 95% coverage. Tests mirror src/arachna/ package structure.
+1607 tests, 95% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
-  domain/       Tests for domain/ modules (including remote.py)
+  domain/       Tests for domain/ modules
   watch/        Tests for watch/ modules
   api/          Tests for api/ modules
   config/       Tests for config/ modules

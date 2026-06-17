@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.2.0 — Code quality
+- _CollectParams dataclass: 14 params → 1 object in _FullModeStrategy
+- remote.py: domain/ → config/ (layer violation fix)
+- _BLOCK_PATTERNS: named groups (?P<name>...) → numbered (...), m.group("name") → m.group(1)
+- math.isclose() for floating point comparisons in rename detection
+- compressor.py: _RE_TRAILING_WS regex → str.rstrip(), re import removed
+- _RE_C_LIKE_IMPORT → _RE_C_LIKE_IMPORT_CHAIN (5 single-purpose patterns)
+- gatherer_core.py → gatherer_files.py + gatherer_commands.py
+- watcher.py → watcher_diff.py + watcher_rename.py
+- presets.py → presets_remote.py (fetch_presets + merge_presets)
+- path_utils.py: validate_path() for SonarCloud S2083 path injection
+- Cognitive complexity reduced: all 35+ C-functions → B
+- diff --line-numbers: line numbers in REMOVED/ADDED blocks
+- 1607 tests, 95% coverage, 0 bugs
+
 ## v4.1.1 — Quick fixes from audit
 - 17 code smells fixed: unused params, deduplicated literals, empty blocks
 - completion.py: argparse subparsers for bash/zsh
