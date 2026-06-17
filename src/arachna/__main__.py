@@ -72,6 +72,9 @@ def build_argparse() -> argparse.ArgumentParser:
     diff_p.add_argument("--compress", action="store_true")
     diff_p.add_argument("--output-dir", "-o", help=_OUTPUT_DIR_HELP)
     diff_p.add_argument("--query", help="Filter files by query")
+    diff_p.add_argument(
+        "--line-numbers", action="store_true", help="Show line numbers in diff output"
+    )
 
     store_p = sub.add_parser("store", help="Store management")
     store_subs = store_p.add_subparsers(dest="store_command")
@@ -133,60 +136,64 @@ def _dispatch_collect(args, config: dict):
     sys.exit(1)
 
 
-def main():
-    parser = build_argparse()
-    args = parser.parse_args()
-
-    if args.command is None:
-        parser.print_help()
-        sys.exit(0)
-
+def _load_root_config():
     root = Path.cwd()
     cfg_path = find_config(root)
     config = load_config(root)
     if cfg_path is not None:
         config["_root"] = str(cfg_path.parent)
+    return root, cfg_path, config
 
-    if args.command == "collect":
-        _dispatch_collect(args, config)
 
-    elif args.command == "manifest":
-        COMMAND_HANDLERS["manifest"](args, config)
+_COMMAND_DISPATCH = {
+    "collect": lambda args, config, parser: _dispatch_collect(args, config),
+    "manifest": lambda args, config, parser: COMMAND_HANDLERS["manifest"](args, config),
+    "snapshot": lambda args, config, parser: _dispatch_snapshot_wrapper(args, config, parser),
+    "diff": lambda args, config, parser: COMMAND_HANDLERS["diff"](args, config),
+    "store": lambda args, config, parser: _dispatch_store_wrapper(args, config, parser),
+    "plugins": lambda args, config, parser: _dispatch_plugins_wrapper(args, config, parser),
+    "presets": lambda args, config, parser: COMMAND_HANDLERS["presets-update"](args, config),
+    "profile": lambda args, config, parser: COMMAND_HANDLERS["profile"](args, config),
+    "doctor": lambda args, config, parser: COMMAND_HANDLERS["doctor"](args, config),
+    "init": lambda args, config, parser: _dispatch_init_wrapper(args, config),
+    "completion": lambda args, config, parser: COMMAND_HANDLERS["completion"](args, config),
+}
 
-    elif args.command == "snapshot":
-        from .cli.snapshot import _dispatch_snapshot
 
-        _dispatch_snapshot(args, config, parser)
+def _dispatch_snapshot_wrapper(args, config, parser):
+    from .cli.snapshot import _dispatch_snapshot
 
-    elif args.command == "diff":
-        COMMAND_HANDLERS["diff"](args, config)
+    _dispatch_snapshot(args, config, parser)
 
-    elif args.command == "store":
-        from .cli.store import _dispatch_store
 
-        _dispatch_store(args, config, parser)
+def _dispatch_store_wrapper(args, config, parser):
+    from .cli.store import _dispatch_store
 
-    elif args.command == "plugins":
-        from .cli.plugins import _dispatch_plugins
+    _dispatch_store(args, config, parser)
 
-        _dispatch_plugins(args, config, parser)
 
-    elif args.command == "presets":
-        COMMAND_HANDLERS["presets-update"](args, config)
+def _dispatch_plugins_wrapper(args, config, parser):
+    from .cli.plugins import _dispatch_plugins
 
-    elif args.command == "profile":
-        COMMAND_HANDLERS["profile"](args, config)
+    _dispatch_plugins(args, config, parser)
 
-    elif args.command == "doctor":
-        COMMAND_HANDLERS["doctor"](args, config)
 
-    elif args.command == "init":
-        from .cli.init import _dispatch_init
+def _dispatch_init_wrapper(args, config):
+    from .cli.init import _dispatch_init
 
-        _dispatch_init(args, config)
+    _dispatch_init(args, config)
 
-    elif args.command == "completion":
-        COMMAND_HANDLERS["completion"](args, config)
+
+def main():
+    parser = build_argparse()
+    args = parser.parse_args()
+    if args.command is None:
+        parser.print_help()
+        sys.exit(0)
+    _root, _cfg_path, config = _load_root_config()
+    handler = _COMMAND_DISPATCH.get(args.command)
+    if handler:
+        handler(args, config, parser)
 
 
 if __name__ == "__main__":

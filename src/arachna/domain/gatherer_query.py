@@ -1,9 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Query pipeline for arachna v4.0.1.
-
-Extracted from gatherer.py during v4.0.1 decomposition.
-Handles import graph construction, file scoring, and query-based filtering.
-"""
+"""Query pipeline for arachna v4.0.1."""
 
 from pathlib import Path
 
@@ -37,33 +33,56 @@ def _extract_deps_from_content(content):
     return None
 
 
+def _score_filename(filepath, query_words):
+    fname_lower = Path(filepath).name.lower()
+    for word in query_words:
+        if word in fname_lower:
+            return 10
+    return 0
+
+
+def _score_content(filepath, content, query_words):
+    content_lower = content.lower()
+    score = 0
+    for word in query_words:
+        if word in content_lower:
+            score += 3
+    return score
+
+
+def _score_exports(content, query_words):
+    for line in content.split("\n"):
+        if line.startswith("exports: "):
+            for word in query_words:
+                if word in line[9:].lower():
+                    return 8
+            break
+    return 0
+
+
+def _score_imports(filepath, graph, query_words):
+    score = 0
+    for dep in graph.get(filepath, []):
+        for word in query_words:
+            if word in dep.lower():
+                score += 5
+    return score
+
+
 def _score_files(named_sections, query_words, graph_cache):
     scores = {}
+    graph = _collect_import_graph(named_sections, graph_cache)
     for filepath, content, _tokens in named_sections:
         if filepath.startswith(_PRE_LABEL_PREFIX):
             continue
-        score = 0
-        fname_lower = Path(filepath).name.lower()
-        content_lower = content.lower()
-        for word in query_words:
-            if word in fname_lower:
-                score += 10
-            if word in content_lower:
-                score += 3
-        for line in content.split("\n"):
-            if line.startswith("exports: "):
-                for word in query_words:
-                    if word in line[9:].lower():
-                        score += 8
-                break
+        score = (
+            _score_filename(filepath, query_words)
+            + _score_content(filepath, content, query_words)
+            + _score_exports(content, query_words)
+            + _score_imports(filepath, graph, query_words)
+        )
         if score > 0:
             scores[filepath] = score
-    graph = _collect_import_graph(named_sections, graph_cache)
-    for filepath in scores:
-        for dep in graph.get(filepath, []):
-            for word in query_words:
-                if word in dep.lower():
-                    scores[filepath] += 5
     return scores
 
 
@@ -95,6 +114,17 @@ def _expand_import_chain(matched, reverse_graph, depth=2):
     return result
 
 
+def _build_filtered_sections(named_sections, matched, include_pre_commands):
+    result = []
+    for section in named_sections:
+        if section[0].startswith(_PRE_LABEL_PREFIX):
+            if include_pre_commands:
+                result.append(section)
+        elif section[0] in matched:
+            result.append(section)
+    return result
+
+
 def _filter_by_query(named_sections, query, include_pre_commands=False, graph_cache=None):
     if graph_cache is None:
         graph_cache = {}
@@ -112,14 +142,7 @@ def _filter_by_query(named_sections, query, include_pre_commands=False, graph_ca
     graph = _collect_import_graph(named_sections, graph_cache)
     reverse_graph = _build_reverse_graph(graph)
     matched = _expand_import_chain(matched, reverse_graph)
-    result = []
-    for section in named_sections:
-        if section[0].startswith(_PRE_LABEL_PREFIX):
-            if include_pre_commands:
-                result.append(section)
-        elif section[0] in matched:
-            result.append(section)
-    return result
+    return _build_filtered_sections(named_sections, matched, include_pre_commands)
 
 
 def _filter_filenames_by_query(filepaths, query):

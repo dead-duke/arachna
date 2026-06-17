@@ -1,5 +1,7 @@
 """Tests for rename/move detection in watcher.py (v1.7.0)."""
 
+import math
+
 from arachna.watch.watcher import (
     _detect_renames_and_moves,
     _diff_file_sets,
@@ -24,7 +26,7 @@ def test_rename_exact_same_content(tmp_path, setup_config, make_profile):
     assert len(content_diffs) == 1, f"Expected 1 renamed, got {content_diffs}"
     assert content_diffs[0].old_path == "src/old_name.py"
     assert content_diffs[0].path == "src/new_name.py"
-    assert content_diffs[0].similarity == 1.0
+    assert math.isclose(content_diffs[0].similarity, 1.0)
 
 
 def test_move_exact_same_content(tmp_path, setup_config, make_profile):
@@ -109,7 +111,7 @@ def test_detect_renames_and_moves_basic():
     sections, matched_del, matched_add = _detect_renames_and_moves(deleted, added, "markdown")
     assert len(sections) == 1
     assert sections[0].type == "renamed"
-    assert sections[0].similarity == 1.0
+    assert math.isclose(sections[0].similarity, 1.0)
     assert "old.py" in matched_del
     assert "new.py" in matched_add
 

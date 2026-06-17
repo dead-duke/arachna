@@ -32,46 +32,53 @@ _COMMON_EXCLUDE_DIRS = frozenset(
 _MAX_GITIGNORE_SIZE = 100 * 1024
 
 
+def _should_skip_gitignore(gitignore_path: Path, root: Path) -> bool:
+    if not gitignore_path.is_file():
+        return True
+    if gitignore_path.parent.is_symlink():
+        return True
+    try:
+        parts = gitignore_path.parent.relative_to(root).parts
+    except ValueError:
+        return True
+    if any(p.startswith(".") or p in _COMMON_EXCLUDE_DIRS for p in parts):
+        return True
+    try:
+        if gitignore_path.stat().st_size > _MAX_GITIGNORE_SIZE:
+            return True
+    except OSError:
+        return True
+    try:
+        text = gitignore_path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        return True
+    return "\x00" in text
+
+
+def _parse_gitignore_lines(text: str, base_dir: Path, root: Path) -> list[str]:
+    patterns = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            rel = str(base_dir.relative_to(root)) if base_dir != root else ""
+        except ValueError:
+            continue
+        if line.startswith("/"):
+            pattern = f"{rel}/{line[1:]}" if rel else line[1:]
+        else:
+            pattern = f"{rel}/{line}" if rel else line
+        patterns.append(pattern)
+    return patterns
+
+
 def load_gitignore_patterns(root: Path) -> list[str]:
     patterns = []
     for gitignore_path in root.rglob(".gitignore"):
-        if not gitignore_path.is_file():
+        if _should_skip_gitignore(gitignore_path, root):
             continue
-        if gitignore_path.parent.is_symlink():
-            continue
-        try:
-            parts = gitignore_path.parent.relative_to(root).parts
-        except ValueError:
-            continue
-        if any(p.startswith(".") or p in _COMMON_EXCLUDE_DIRS for p in parts):
-            continue
-        try:
-            if gitignore_path.stat().st_size > _MAX_GITIGNORE_SIZE:
-                continue
-        except OSError:
-            continue
-        try:
-            text = gitignore_path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        if "\x00" in text:
-            continue
+        text = gitignore_path.read_text(encoding="utf-8")
         base_dir = gitignore_path.parent
-        for line in text.splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("/"):
-                try:
-                    rel = str(base_dir.relative_to(root)) if base_dir != root else ""
-                except ValueError:
-                    continue
-                pattern = f"{rel}/{line[1:]}" if rel else line[1:]
-            else:
-                try:
-                    rel = str(base_dir.relative_to(root)) if base_dir != root else ""
-                except ValueError:
-                    continue
-                pattern = f"{rel}/{line}" if rel else line
-            patterns.append(pattern)
+        patterns.extend(_parse_gitignore_lines(text, base_dir, root))
     return patterns

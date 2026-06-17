@@ -6,7 +6,7 @@ from arachna.domain.language_dispatch import (
     _parse_script_blocks,
 )
 from arachna.watch.differ_structural import (
-    _block_label,
+    _build_block_label,
     _fallback_diff,
     _format_block_diff,
     structural_diff,
@@ -65,16 +65,16 @@ def test_extract_braced_block_past_end():
 
 
 def test_block_label_function():
-    assert "function foo" in _block_label("foo", "def foo(x):")
-    assert "function main" in _block_label("main", "func main() {")
+    assert "function foo" in _build_block_label("foo", "def foo(x):")
+    assert "function main" in _build_block_label("main", "func main() {")
 
 
 def test_block_label_class():
-    assert "class MyClass" in _block_label("MyClass", "class MyClass:")
+    assert "class MyClass" in _build_block_label("MyClass", "class MyClass:")
 
 
 def test_block_label_unknown():
-    assert _block_label("x", "something else") == "x"
+    assert _build_block_label("x", "something else") == "x"
 
 
 def test_format_block_diff_added():

@@ -243,7 +243,7 @@ def _cmd_collect_repo(args, config: dict):
 
     print(f"Cloning {url}...")
     try:
-        from ..domain.remote import collect_remote
+        from ..config.remote import collect_remote
 
         result = collect_remote(
             url=url,

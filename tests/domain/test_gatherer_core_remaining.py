@@ -2,18 +2,15 @@
 
 from unittest.mock import patch
 
-from arachna.domain.gatherer_core import (
-    _collect_file_sections,
-    _collect_pre_commands,
-    _get_profile_files,
-)
+from arachna.domain.gatherer_commands import _collect_pre_commands
+from arachna.domain.gatherer_files import _collect_file_sections, _get_profile_files
 from arachna.domain.tokenizer import count_tokens
 
 
 def test_pre_command_long_label_is_truncated(tmp_path):
     """Pre_command label longer than 50 chars gets truncated with ellipsis."""
     long_cmd = "echo " + "x" * 60
-    with patch("arachna.domain.gatherer_core.run_pre_commands") as mock_run:
+    with patch("arachna.domain.gatherer_commands.run_pre_commands") as mock_run:
         mock_run.return_value = [(long_cmd, "output")]
         result = _collect_pre_commands({"pre_commands": [long_cmd]}, count_tokens, root=tmp_path)
     assert len(result) == 1

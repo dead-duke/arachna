@@ -1,11 +1,6 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Whitespace compression for token savings."""
 
-import re
-
-_RE_BLANK_LINES = re.compile(r"\n{3,}")
-_RE_TRAILING_WS = re.compile(r"[ \t]+$", re.MULTILINE)
-
 
 def compress(text: str) -> str:
     """Compress whitespace to save tokens.
@@ -15,8 +10,20 @@ def compress(text: str) -> str:
 
     Safe for all code and markup - does not modify indentation.
     """
-    text = _RE_BLANK_LINES.sub("\n\n", text)
-    text = _RE_TRAILING_WS.sub("", text)
+    result = []
+    newline_count = 0
+    for ch in text:
+        if ch == "\n":
+            newline_count += 1
+        else:
+            if newline_count > 0:
+                result.append("\n" * min(newline_count, 2))
+                newline_count = 0
+            result.append(ch)
+    if newline_count > 0:
+        result.append("\n" * min(newline_count, 2))
+    text = "".join(result)
+    text = "\n".join(line.rstrip(" \t") for line in text.split("\n"))
     return text
 
 

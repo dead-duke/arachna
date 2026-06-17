@@ -15,7 +15,6 @@ from ..domain.collector import clean_manifest, collect
 
 
 def make_profile(profile: dict, **overrides) -> dict:
-    """Create a copy of profile dict with optional overrides applied."""
     p = dict(profile)
     p.update(overrides)
     return p
@@ -65,13 +64,49 @@ def run_benchmark(profile: dict, output_dir: str, root: Path) -> dict[str, dict[
 
 
 def _find_query_candidate(profile: dict, root: Path) -> str | None:
-    from ..domain.gatherer_core import _scan_directories
+    from ..domain.gatherer_files import _scan_directories
 
     exclude = profile.get("exclude_patterns", [])
     files = _scan_directories(profile, exclude, root=root)
     if not files:
         return None
     return files[0].stem
+
+
+def _format_benchmark_row(mode, data, full_tokens, full_time):
+    parts = data["parts"]
+    tokens = data["tokens"]
+    elapsed = data["time"]
+    if mode == "full":
+        token_pct = "baseline"
+        time_pct = "baseline"
+    elif full_tokens > 0:
+        token_pct = f"{((tokens - full_tokens) / full_tokens * 100):+.1f}%"
+        time_pct = f"{((elapsed - full_time) / full_time * 100):+.1f}%"
+    else:
+        token_pct = "—"
+        time_pct = "—"
+    detail = data.get("detail", {})
+    detail_str = "  " + ", ".join(f"{k}={v}" for k, v in detail.items()) if detail else ""
+    return f"  {mode:22} {parts:5}   {tokens:>7}   {elapsed:.3f}s     {token_pct:>14}     {time_pct:>12}{detail_str}"
+
+
+def _format_benchmark_savings(results):
+    full_tokens = results.get("full", {}).get("tokens", 0)
+    savings = []
+    if "repo-map" in results and full_tokens > 0:
+        pct = (full_tokens - results["repo-map"]["tokens"]) / full_tokens * 100
+        savings.append(f"repo-map saves {pct:.0f}% tokens vs full")
+    if "compress" in results and full_tokens > 0:
+        pct = (full_tokens - results["compress"]["tokens"]) / full_tokens * 100
+        if pct > 0:
+            savings.append(f"compress saves {pct:.1f}% tokens")
+    if "incremental" in results and results["incremental"]["tokens"] == 0:
+        savings.append(f"incremental: {results['incremental']['time'] * 1000:.0f}ms (no changes)")
+    if "query" in results and full_tokens > 0:
+        pct = (full_tokens - results["query"]["tokens"]) / full_tokens * 100
+        savings.append(f"query saves {pct:.1f}% tokens")
+    return savings
 
 
 def print_benchmark_table(results: dict[str, dict[str, Any]], fmt: str = "terminal"):
@@ -88,37 +123,9 @@ def print_benchmark_table(results: dict[str, dict[str, Any]], fmt: str = "termin
     print("  Mode                  Parts     Tokens      Time       vs full tokens    vs full time")
     print("  " + "-" * 90)
     for mode, data in results.items():
-        parts = data["parts"]
-        tokens = data["tokens"]
-        elapsed = data["time"]
-        if mode == "full":
-            token_pct = "baseline"
-            time_pct = "baseline"
-        elif full_tokens > 0:
-            token_pct = f"{((tokens - full_tokens) / full_tokens * 100):+.1f}%"
-            time_pct = f"{((elapsed - full_time) / full_time * 100):+.1f}%"
-        else:
-            token_pct = "—"
-            time_pct = "—"
-        detail = data.get("detail", {})
-        detail_str = "  " + ", ".join(f"{k}={v}" for k, v in detail.items()) if detail else ""
-        print(
-            f"  {mode:22} {parts:5}   {tokens:>7}   {elapsed:.3f}s     {token_pct:>14}     {time_pct:>12}{detail_str}"
-        )
+        print(_format_benchmark_row(mode, data, full_tokens, full_time))
     print()
-    savings = []
-    if "repo-map" in results and full_tokens > 0:
-        pct = (full_tokens - results["repo-map"]["tokens"]) / full_tokens * 100
-        savings.append(f"repo-map saves {pct:.0f}% tokens vs full")
-    if "compress" in results and full_tokens > 0:
-        pct = (full_tokens - results["compress"]["tokens"]) / full_tokens * 100
-        if pct > 0:
-            savings.append(f"compress saves {pct:.1f}% tokens")
-    if "incremental" in results and results["incremental"]["tokens"] == 0:
-        savings.append(f"incremental: {results['incremental']['time'] * 1000:.0f}ms (no changes)")
-    if "query" in results and full_tokens > 0:
-        pct = (full_tokens - results["query"]["tokens"]) / full_tokens * 100
-        savings.append(f"query saves {pct:.1f}% tokens")
+    savings = _format_benchmark_savings(results)
     if savings:
         print("  Summary:")
         for s in savings:

@@ -15,36 +15,18 @@ from ..domain.api_types import (
 )
 from ..watch.differ import compute_diff_stats
 from ..watch.differ_structural import structural_diff_sections
-from ..watch.store import (
-    create_snapshot as _store_create,
-)
-from ..watch.store import (
-    delete_snapshot as _store_delete,
-)
-from ..watch.store import (
-    gc as _store_gc,
-)
-from ..watch.store import (
-    list_snapshots as _store_list,
-)
-from ..watch.store import (
-    load_snapshot as _store_load,
-)
-from ..watch.store import (
-    stats as _store_stats,
-)
-from ..watch.store import (
-    update_snapshot as _store_update,
-)
+from ..watch.store import create_snapshot as _store_create
+from ..watch.store import delete_snapshot as _store_delete
+from ..watch.store import gc as _store_gc
+from ..watch.store import list_snapshots as _store_list
+from ..watch.store import load_snapshot as _store_load
+from ..watch.store import stats as _store_stats
+from ..watch.store import update_snapshot as _store_update
 from ..watch.store_errors import ObjectNotFoundError as _ObjectNotFoundError
 from ..watch.store_errors import SnapshotExistsError as _StoreSnapshotExistsError
-from ..watch.watcher import _apply_repo_map_to_sections, _collect_snapshot_content
-from ..watch.watcher import compute_diff as _watcher_compute_diff
-from .api_errors import (
-    ProfileNotFoundError,
-    SnapshotExistsError,
-    SnapshotNotFoundError,
-)
+from ..watch.watcher_diff import _apply_repo_map_to_sections, _collect_snapshot_content
+from ..watch.watcher_diff import compute_diff as _watcher_compute_diff
+from .api_errors import ProfileNotFoundError, SnapshotExistsError, SnapshotNotFoundError
 
 logger = logging.getLogger("arachna.watch")
 
@@ -150,49 +132,37 @@ def snapshot_info(snapshot_id: str, root: Path) -> SnapshotInfo:
     )
 
 
-def compute_diff(
-    root: Path,
-    snapshot_id: str | None = None,
-    profile: str | dict = "full",
-    fmt: str = "markdown",
-    to_snapshot_id: str | None = None,
-    mode: str = "full",
-    flat: bool = False,
-    streaming: bool = False,
-) -> DiffResult:
+def _resolve_snapshot_id(snapshot_id, root):
+    if snapshot_id is not None:
+        return snapshot_id
+    snaps = _store_list(root=root)
+    if len(snaps) == 0:
+        raise SnapshotNotFoundError("No snapshots found.")
+    elif len(snaps) == 1:
+        return snaps[0]["id"]
+    else:
+        raise ValueError(
+            f"Multiple snapshots found. Specify snapshot_id from: {', '.join(s['id'] for s in snaps)}"
+        )
+
+
+def _resolve_profile(profile, root):
     if isinstance(profile, str):
         try:
-            profile_dict = get_profile(profile, root=root)
+            return get_profile(profile, root=root)
         except KeyError:
             raise ProfileNotFoundError(f"Profile '{profile}' not found.") from None
-    else:
-        profile_dict = profile
-    if snapshot_id is None:
-        snaps = _store_list(root=root)
-        if len(snaps) == 0:
-            raise SnapshotNotFoundError("No snapshots found.")
-        elif len(snaps) == 1:
-            snapshot_id = snaps[0]["id"]
-        else:
-            raise ValueError(
-                f"Multiple snapshots found. Specify snapshot_id from: {', '.join(s['id'] for s in snaps)}"
-            )
-    sections = _watcher_compute_diff(
-        snapshot_id,
-        profile_dict,
-        root,
-        fmt=fmt,
-        to_snapshot_id=to_snapshot_id,
-        flat=flat,
-        streaming=streaming,
-    )
+    return profile
+
+
+def _build_diff_sections(sections, mode, snapshot_id, to_snapshot_id, profile_dict, root):
     if mode == "structural" and sections:
-        sections = structural_diff_sections(sections, fmt)
+        sections = structural_diff_sections(sections, "markdown")
     elif mode == "repo-map" and sections:
         sections = _apply_repo_map_to_sections(
             sections, snapshot_id, to_snapshot_id, profile_dict, root
         )
-    api_sections = [
+    return [
         DiffSection(
             type=s.type,
             path=s.path,
@@ -202,6 +172,34 @@ def compute_diff(
         )
         for s in sections
     ]
+
+
+def compute_diff(
+    root: Path,
+    snapshot_id: str | None = None,
+    profile: str | dict = "full",
+    fmt: str = "markdown",
+    to_snapshot_id: str | None = None,
+    mode: str = "full",
+    flat: bool = False,
+    streaming: bool = False,
+    line_numbers: bool = False,
+) -> DiffResult:
+    profile_dict = _resolve_profile(profile, root)
+    snapshot_id = _resolve_snapshot_id(snapshot_id, root)
+    sections = _watcher_compute_diff(
+        snapshot_id,
+        profile_dict,
+        root,
+        fmt=fmt,
+        to_snapshot_id=to_snapshot_id,
+        flat=flat,
+        streaming=streaming,
+        line_numbers=line_numbers,
+    )
+    api_sections = _build_diff_sections(
+        sections, mode, snapshot_id, to_snapshot_id, profile_dict, root
+    )
     raw_stats = compute_diff_stats(sections)
     stats = DiffStats(
         modified=raw_stats["modified"],

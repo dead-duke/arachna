@@ -27,22 +27,31 @@ PLUGIN_DESCRIPTIONS = {
     "tiktoken": "Accurate token counting via tiktoken",
 }
 
+_ENV_CHECKS = [
+    (lambda: "PIPX_HOME" in os.environ or ".local/pipx" in sys.executable, "pipx"),
+    (lambda: "POETRY_ACTIVE" in os.environ or "POETRY_HOME" in os.environ, "poetry"),
+    (lambda: "CONDA_PREFIX" in os.environ, "conda"),
+    (
+        lambda: (
+            ".venv" in sys.executable
+            and (Path(sys.executable).parent.parent / "pyvenv.cfg").exists()
+        ),
+        "uv",
+    ),
+    (
+        lambda: (
+            hasattr(sys, "real_prefix")
+            or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix)
+        ),
+        "venv",
+    ),
+]
+
 
 def _detect_environment() -> str:
-    if "PIPX_HOME" in os.environ or ".local/pipx" in sys.executable:
-        return "pipx"
-    if "POETRY_ACTIVE" in os.environ or "POETRY_HOME" in os.environ:
-        return "poetry"
-    if "CONDA_PREFIX" in os.environ:
-        return "conda"
-    if ".venv" in sys.executable:
-        venv_cfg = Path(sys.executable).parent.parent / "pyvenv.cfg"
-        if venv_cfg.exists():
-            return "uv"
-    if hasattr(sys, "real_prefix") or (
-        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
-    ):
-        return "venv"
+    for check, env_name in _ENV_CHECKS:
+        if check():
+            return env_name
     return "system"
 
 
@@ -77,35 +86,27 @@ def _build_install_command(language: str, env: str) -> str | None:
     deps = PLUGIN_DEPS.get(language)
     if not deps:
         return None
-
     if env == "pipx":
-        pipx_packages = " ".join(deps)
-        return f"pipx inject arachna {pipx_packages}"
+        return f"pipx inject arachna {' '.join(deps)}"
     elif env == "poetry":
-        pip_packages = " ".join(deps)
-        return f"poetry add {pip_packages}"
-    elif env in ("uv", "venv") or env == "conda":
-        pip_packages = " ".join(deps)
-        return f"pip install {pip_packages}"
+        return f"poetry add {' '.join(deps)}"
+    elif env in ("uv", "venv", "conda"):
+        return f"pip install {' '.join(deps)}"
     elif env == "system":
         if _has_pep668():
             return None
-        pip_packages = " ".join(deps)
-        return f"pip install {pip_packages}"
+        return f"pip install {' '.join(deps)}"
     return None
 
 
 def install_plugin(language: str, execute: bool = False) -> str:
     if language not in PLUGIN_DEPS:
         return f"Unknown plugin: '{language}'. Available: {', '.join(sorted(PLUGIN_DEPS.keys()))}"
-
     deps = PLUGIN_DEPS[language]
     if all(_is_installed(d) for d in deps):
         return f"Plugin '{language}' is already installed."
-
     env = _detect_environment()
     cmd = _build_install_command(language, env)
-
     if cmd is None and env == "system" and _has_pep668():
         lines = [
             "Cannot install: system Python is externally managed (PEP 668).",
@@ -116,7 +117,6 @@ def install_plugin(language: str, execute: bool = False) -> str:
             "  3. pip install 'arachna[" + language + "]'",
         ]
         return "\n".join(lines)
-
     lines = [f"Environment: {env}"]
     if execute:
         lines.append(f"Installing {', '.join(deps)}...")
@@ -127,18 +127,13 @@ def install_plugin(language: str, execute: bool = False) -> str:
             lines.append(f"Installation failed. Run manually: {cmd}")
     else:
         lines.append(f"Run: {cmd}")
-
     return "\n".join(lines)
 
 
 def uninstall_plugin(language: str) -> str:
     if language not in PLUGIN_DEPS:
         return f"Unknown plugin: '{language}'. Available: {', '.join(sorted(PLUGIN_DEPS.keys()))}"
-
     deps = PLUGIN_DEPS[language]
     if not any(_is_installed(d) for d in deps):
         return f"Plugin '{language}' is not installed."
-
-    pip_packages = " ".join(deps)
-    lines = [f"To uninstall: pip uninstall -y {pip_packages}"]
-    return "\n".join(lines)
+    return f"To uninstall: pip uninstall -y {' '.join(deps)}"

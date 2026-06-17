@@ -2,29 +2,13 @@
 """File modification cache for incremental collection.
 
 Cache format v2:
-    {
-        "_version": 2,
-        "files": {
-            "/abs/path/to/file.py": {
-                "mtime_ns": 1734567890123456789,
-                "size": 12345,
-                "hash": "abc123..."
-            }
-        }
-    }
+    {"_version": 2, "files": {"/abs/path/to/file.py": {"mtime_ns": ..., "size": ..., "hash": ...}}}
 
 Smart hybrid algorithm:
 1. stat() -> size, mtime_ns
-2. If size == cached.size AND abs(mtime_ns - cached.mtime_ns) < 1ms:
-   FAST PATH - file unchanged, skip. (99% of cases)
-3. Else - compute SHA256.
-   If hash == cached.hash:
-       FALSE POSITIVE (git checkout, touch, etc.) - update mtime_ns, skip.
-   If hash != cached.hash:
-       REAL CHANGE - mark as modified.
-
-NOTE: get_changed_files mutates the cache dict to update mtime_ns
-for false positives. Callers must save the mutated cache after use.
+2. If size == cached.size AND abs(mtime_ns - cached.mtime_ns) < 1ms -> FAST PATH, skip.
+3. Else -> compute SHA256. If hash matches -> false positive, update mtime_ns, skip.
+   If hash differs -> REAL CHANGE, mark as modified.
 """
 
 import contextlib
@@ -44,8 +28,7 @@ def _file_hash(filepath: Path) -> str | None:
     try:
         if filepath.stat().st_size > _MAX_HASH_SIZE:
             return None
-        content = filepath.read_bytes()
-        return hashlib.sha256(content).hexdigest()
+        return hashlib.sha256(filepath.read_bytes()).hexdigest()
     except OSError:
         return None
 
@@ -55,12 +38,8 @@ def load_cache(out_dir: Path) -> dict[str, dict]:
     if cf.exists():
         with contextlib.suppress(json.JSONDecodeError, OSError):
             data = json.loads(cf.read_text())
-            if isinstance(data, dict):
-                version = data.get("_version", 1)
-                files = data.get("files", {})
-                if version < _VERSION:
-                    return {}
-                return files
+            if isinstance(data, dict) and data.get("_version", 1) >= _VERSION:
+                return data.get("files", {})
     return {}
 
 
@@ -82,58 +61,59 @@ def save_cache(out_dir: Path, cache: dict[str, dict]):
         cache_path.write_text(json.dumps(payload, indent=2))
 
 
-def get_changed_files(
-    filepaths: list[Path],
-    cache: dict[str, dict],
-) -> tuple[list[Path], list[Path], list[Path]]:
-    """Compare files against cache using smart hybrid algorithm.
+def _is_fast_path(size, mtime_ns, entry):
+    cached_size = entry.get("size")
+    cached_mtime_ns = entry.get("mtime_ns")
+    return (
+        cached_size is not None
+        and cached_mtime_ns is not None
+        and size == cached_size
+        and abs(mtime_ns - cached_mtime_ns) < _MTIME_NS_TOLERANCE
+    )
 
-    Returns (changed, new, deleted) lists.
-    Mutates cache dict to update mtime_ns for false positives.
-    Callers must save the mutated cache after use.
-    """
+
+def _is_false_positive(fp, mtime_ns, entry):
+    old_hash = entry.get("hash")
+    new_hash = _file_hash(fp)
+    if new_hash is not None and old_hash is not None and new_hash == old_hash:
+        entry["mtime_ns"] = mtime_ns
+        return True
+    return False
+
+
+def _check_file(fp, cache):
+    key = str(fp)
+    if key not in cache:
+        return "new"
+    try:
+        st = fp.stat()
+    except OSError:
+        return "skip"
+    size = st.st_size
+    mtime_ns = st.st_mtime_ns
+    if _is_fast_path(size, mtime_ns, cache[key]):
+        return "unchanged"
+    if _is_false_positive(fp, mtime_ns, cache[key]):
+        return "unchanged"
+    return "changed"
+
+
+def get_changed_files(
+    filepaths: list[Path], cache: dict[str, dict]
+) -> tuple[list[Path], list[Path], list[Path]]:
     changed = []
     new = []
     seen = set()
-
     for fp in filepaths:
         key = str(fp)
         seen.add(key)
         if not fp.exists():
             continue
-        try:
-            st = fp.stat()
-        except OSError:
-            continue
-
-        size = st.st_size
-        mtime_ns = st.st_mtime_ns
-
-        if key not in cache:
+        result = _check_file(fp, cache)
+        if result == "new":
             new.append(fp)
-            continue
-
-        entry = cache[key]
-        cached_size = entry.get("size")
-        cached_mtime_ns = entry.get("mtime_ns")
-
-        if (
-            cached_size is not None
-            and cached_mtime_ns is not None
-            and size == cached_size
-            and abs(mtime_ns - cached_mtime_ns) < _MTIME_NS_TOLERANCE
-        ):
-            continue
-
-        old_hash = entry.get("hash")
-        new_hash = _file_hash(fp)
-
-        if new_hash is not None and old_hash is not None and new_hash == old_hash:
-            cache[key]["mtime_ns"] = mtime_ns
-            continue
-
-        changed.append(fp)
-
+        elif result == "changed":
+            changed.append(fp)
     deleted = [Path(k) for k in cache if k not in seen]
     return changed, new, deleted
 

@@ -18,7 +18,7 @@ from ..domain.collector import (
 from ..domain.tokenizer import count_tokens, load_tokenizer
 from ..watch.differ import compute_diff_stats
 from ..watch.store import list_snapshots, load_snapshot
-from ..watch.watcher import compute_diff
+from ..watch.watcher_diff import compute_diff
 from . import register
 from ._helpers import get_root, parse_output_dir, print_collected
 
@@ -30,24 +30,16 @@ def _cmd_diff_all(args, config: dict):
     output_dir = parse_output_dir(args, config)
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
-
     profile_name = args.profile or "full"
-    diff_mode = args.mode or "full"
-    query = args.query
-    compress = args.compress
-
     try:
         profile = get_profile(profile_name, root=root, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
-
-    if compress:
+    if args.compress:
         profile["compress"] = True
-
     name_tmpl = "chat-diff-all"
     clean_manifest(out_path, name_tmpl)
-
     created, _, _parts, _metrics = collect(
         profile,
         project_name,
@@ -56,11 +48,10 @@ def _cmd_diff_all(args, config: dict):
         verbose=False,
         incremental=False,
         merge=False,
-        query=query,
-        mode=diff_mode,
+        query=args.query,
+        mode=args.mode or "full",
         name_template=name_tmpl,
     )
-
     if created:
         print_collected(created)
         prev = load_manifest(out_path)
@@ -116,7 +107,7 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root)
 
         return structural_diff_sections(sections, args.format or "markdown")
     elif args.mode == "repo-map":
-        from ..watch.watcher import _apply_repo_map_to_sections
+        from ..watch.watcher_diff import _apply_repo_map_to_sections
 
         return _apply_repo_map_to_sections(
             sections, snapshot_id, to_snapshot_id, profile, root=root
@@ -124,8 +115,32 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root)
     return sections
 
 
+def _write_diff_output(sections, snapshot_id, to_snapshot_id, profile, config, args):
+    output_dir = parse_output_dir(args, config)
+    project_name = config.get("project_name", "Project")
+    out_path = Path(output_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+    max_tokens = profile.get("max_tokens", 16000)
+    tokenizer_spec = profile.get("tokenizer", "default")
+    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
+    if to_snapshot_id:
+        name_tmpl = f"chat-diff-{snapshot_id}-to-{to_snapshot_id}"
+        title_tmpl = f"# {project_name} — DIFF from {snapshot_id} to {to_snapshot_id} (part {{part}} of {{total}})\n\n"
+    else:
+        name_tmpl = f"chat-diff-{snapshot_id}"
+        title_tmpl = f"# {project_name} — DIFF from {snapshot_id} (part {{part}} of {{total}})\n\n"
+    clean_manifest(out_path, name_tmpl)
+    created = _write_diff_parts(
+        sections, out_path, name_tmpl, title_tmpl, project_name, max_tokens, tokenizer
+    )
+    print_collected(created)
+    prev = load_manifest(out_path)
+    updated = [f for f in prev if not f.startswith(name_tmpl)]
+    updated.extend(created)
+    save_manifest(out_path, updated)
+
+
 def _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, config) -> bool:
-    """Write diff output or print stats. Returns True if caller should return (early exit)."""
     if args.stat:
         stats = compute_diff_stats(sections)
         print(f"Modified: {stats['modified']}")
@@ -137,67 +152,31 @@ def _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, c
             print(f"Moved:    {stats['moved']}")
         print(f"Tokens:   {stats['tokens']}")
         return True
-
     if not sections:
         print("No changes since snapshot.")
         return True
-
     content_sections = [s for s in sections if s.content.strip()]
     if not content_sections:
         print("No changes since snapshot.")
         return True
-
-    output_dir = parse_output_dir(args, config)
-    project_name = config.get("project_name", "Project")
-    out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
-
-    max_tokens = profile.get("max_tokens", 16000)
-    tokenizer_spec = profile.get("tokenizer", "default")
-    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
-
-    if to_snapshot_id:
-        name_tmpl = f"chat-diff-{snapshot_id}-to-{to_snapshot_id}"
-        title_tmpl = f"# {project_name} — DIFF from {snapshot_id} to {to_snapshot_id} (part {{part}} of {{total}})\n\n"
-    else:
-        name_tmpl = f"chat-diff-{snapshot_id}"
-        title_tmpl = f"# {project_name} — DIFF from {snapshot_id} (part {{part}} of {{total}})\n\n"
-
-    clean_manifest(out_path, name_tmpl)
-    created = _write_diff_parts(
-        content_sections,
-        out_path,
-        name_tmpl,
-        title_tmpl,
-        project_name,
-        max_tokens,
-        tokenizer,
-    )
-    print_collected(created)
-    prev = load_manifest(out_path)
-    updated = [f for f in prev if not f.startswith(name_tmpl)]
-    updated.extend(created)
-    save_manifest(out_path, updated)
+    _write_diff_output(content_sections, snapshot_id, to_snapshot_id, profile, config, args)
     return False
 
 
 @register("diff")
 def _cmd_diff(args, config: dict):
     _validate_diff_args(args)
-
     if args.all:
         _cmd_diff_all(args, config)
         return
-
     root = get_root(config)
     snapshot_id = _resolve_snapshot_id(args, root)
     to_snapshot_id = args.to
     profile = _resolve_diff_profile(args, snapshot_id, root, config)
     fmt = args.format or "markdown"
-
+    line_numbers = getattr(args, "line_numbers", False)
     if args.compress:
         profile["compress"] = True
-
     sections = compute_diff(
         snapshot_id,
         profile,
@@ -205,8 +184,8 @@ def _cmd_diff(args, config: dict):
         fmt=fmt,
         to_snapshot_id=to_snapshot_id,
         flat=args.flat,
+        line_numbers=line_numbers,
     )
-
     sections = _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root)
     if _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, config):
         return

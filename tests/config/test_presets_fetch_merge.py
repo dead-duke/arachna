@@ -3,7 +3,8 @@
 import json
 from unittest.mock import MagicMock, patch
 
-from arachna.config.presets import _load_builtin_presets, fetch_presets, merge_presets
+from arachna.config.presets import _load_builtin_presets
+from arachna.config.presets_remote import fetch_presets, merge_presets
 
 
 def _mock_urlopen(response_bytes):

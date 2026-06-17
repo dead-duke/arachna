@@ -9,6 +9,8 @@ import os as _os
 import re
 from pathlib import Path
 
+from .path_utils import validate_path
+
 _EXT_LANG = {
     "py": "python",
     "json": "json",
@@ -124,9 +126,7 @@ def lang_for_path(path: Path) -> str:
     if name in _FILENAME_LANG:
         return _FILENAME_LANG[name]
     ext = path.suffix.lstrip(".").lower()
-    if ext in _EXT_LANG:
-        return _EXT_LANG[ext]
-    return ""
+    return _EXT_LANG.get(ext, "")
 
 
 def _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
@@ -140,48 +140,44 @@ def _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
     if size_mb > binary_max_mb:
         return True
     if binary_extensions is not None:
-        if ext not in binary_extensions:
+        return ext not in binary_extensions
+    if not include_binary:
+        try:
+            with open(path, "rb") as f:
+                return b"\x00" in f.read(1024)
+        except OSError:
             return True
-    else:
-        if not include_binary:
-            try:
-                with open(path, "rb") as f:
-                    chunk = f.read(1024)
-                return b"\x00" in chunk
-            except OSError:
-                return True
     return not include_binary
 
 
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
-_RE_C_LIKE_IMPORT = re.compile(
-    r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]"
-    r"|import\s+['\"]([^'\"]+)['\"]"
-    r"|(?:const|let|var)\s+[\w{},\s*]+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)"
-    r"|#include\s*[<\"]([^>\"]+)[>\"]"
-    r"|using\s+([\w.]+)\s*;"
-    r"|use\s+([\w\\]+)\s*;)",
-    re.MULTILINE,
-)
+
+_RE_C_LIKE_IMPORT_CHAIN = [
+    re.compile(
+        r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]|import\s+['\"]([^'\"]+)['\"])",
+        re.MULTILINE,
+    ),
+    re.compile(
+        r"^\s*(?:const|let|var)\s+[\w{},\s*]+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+        re.MULTILINE,
+    ),
+    re.compile(r"^\s*#include\s*[<\"]([^>\"]+)[>\"]", re.MULTILINE),
+    re.compile(r"^\s*using\s+([\w.]+)\s*;", re.MULTILINE),
+    re.compile(r"^\s*use\s+([\w\\]+)\s*;", re.MULTILINE),
+]
+
 _RE_C_LIKE_EXPORT = re.compile(
     r"^\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
-    r"type\s+\w+\s+\w+|type\s+|"
-    r"public\s+class|public\s+static|public\s+function|"
-    r"fn|func)\s+(\w+)",
+    r"type\s+\w+\s+\w+|type\s+|public\s+class|public\s+static|public\s+function|fn|func)\s+(\w+)",
     re.MULTILINE,
 )
 _RE_SCRIPT_IMPORT = re.compile(
-    r"^\s*(?:require\s+['\"]([^'\"]+)['\"]"
-    r"|import\s+['\"]([^'\"]+)['\"]"
-    r"|use\s+([\w.]+))",
+    r"^\s*(?:require\s+['\"]([^'\"]+)['\"]|import\s+['\"]([^'\"]+)['\"]|use\s+([\w.]+))",
     re.MULTILINE,
 )
 _RE_SCRIPT_EXPORT = re.compile(
-    r"^\s*(?:def\s+(?:self\.)?(\w+[?!]?)"
-    r"|defmodule\s+([\w.]+)"
-    r"|defp\s+(\w+)"
-    r"|function\s+(\w+))",
+    r"^\s*(?:def\s+(?:self\.)?(\w+[?!]?)|defmodule\s+([\w.]+)|defp\s+(\w+)|function\s+(\w+))",
     re.MULTILINE,
 )
 
@@ -203,29 +199,30 @@ def _generate_header(path: Path, text: str, lang: str) -> str:
     return "".join(lines)
 
 
-def _parse_python(text: str) -> tuple[list[str], list[str]]:
-    deps: list[str] = []
-    exports: list[str] = []
-    try:
-        tree = _ast.parse(text)
-    except SyntaxError:
-        for m in _RE_PY_IMPORT.finditer(text):
-            mod = m.group(1)
-            if mod:
-                for part in mod.split(","):
-                    part = part.strip()
-                    if part:
-                        deps.append(part)
-            mod = m.group(2)
-            if mod:
-                deps.append(mod)
-        for m in _RE_PY_MULTILINE_IMPORT.finditer(text):
-            inner = m.group(1)
-            for part in inner.split(","):
+def _parse_python_imports_fallback(text):
+    deps = []
+    for m in _RE_PY_IMPORT.finditer(text):
+        mod = m.group(1)
+        if mod:
+            for part in mod.split(","):
                 part = part.strip()
                 if part:
                     deps.append(part)
-        return deps, exports
+        mod = m.group(2)
+        if mod:
+            deps.append(mod)
+    for m in _RE_PY_MULTILINE_IMPORT.finditer(text):
+        for part in m.group(1).split(","):
+            part = part.strip()
+            if part:
+                deps.append(part)
+    return deps
+
+
+def _parse_python_ast(text):
+    deps = []
+    exports = []
+    tree = _ast.parse(text)
     for node in _ast.iter_child_nodes(tree):
         if isinstance(node, _ast.Import):
             for alias in node.names:
@@ -238,13 +235,21 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
     return deps, exports
 
 
+def _parse_python(text: str) -> tuple[list[str], list[str]]:
+    try:
+        return _parse_python_ast(text)
+    except SyntaxError:
+        return _parse_python_imports_fallback(text), []
+
+
 def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
-    deps: list[str] = []
-    exports: list[str] = []
-    for m in _RE_C_LIKE_IMPORT.finditer(text):
-        dep = m.group(1) or m.group(2) or m.group(3) or m.group(4) or m.group(5) or m.group(6)
-        if dep:
-            deps.append(dep)
+    deps = []
+    exports = []
+    for pattern in _RE_C_LIKE_IMPORT_CHAIN:
+        for m in pattern.finditer(text):
+            for group in m.groups():
+                if group:
+                    deps.append(group)
     for m in _RE_C_LIKE_EXPORT.finditer(text):
         name = m.group(1)
         if name:
@@ -253,8 +258,8 @@ def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
 
 
 def _parse_script(text: str) -> tuple[list[str], list[str]]:
-    deps: list[str] = []
-    exports: list[str] = []
+    deps = []
+    exports = []
     for m in _RE_SCRIPT_IMPORT.finditer(text):
         dep = m.group(1) or m.group(2) or m.group(3)
         if dep:
@@ -267,16 +272,84 @@ def _parse_script(text: str) -> tuple[list[str], list[str]]:
 
 
 def _add_line_numbers(text: str) -> str:
-    """Prepend right-aligned 5-digit line numbers with pipe separator."""
     if not text:
         return text
     lines = text.split("\n")
-    total = len(lines)
-    width = max(5, len(str(total)))
-    result = []
-    for i, line in enumerate(lines, 1):
-        result.append(f"{i:>{width}}| {line}")
-    return "\n".join(result)
+    width = max(5, len(str(len(lines))))
+    return "\n".join(f"{i:>{width}}| {line}" for i, line in enumerate(lines, 1))
+
+
+def _skip_reason_label(path, include_binary, binary_extensions, binary_max_mb):
+    try:
+        size_mb = path.stat().st_size / (1024 * 1024)
+    except OSError:
+        return "binary"
+    ext = path.suffix.lower()
+    if size_mb > binary_max_mb:
+        return "binary too large"
+    if not include_binary:
+        return "binary"
+    if binary_extensions is not None and ext not in binary_extensions:
+        return "binary not in allowlist"
+    return "binary"
+
+
+def _try_read_text(path):
+    try:
+        return ("text", path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError:
+        return ("unicode_error", None)
+    except PermissionError:
+        return ("permission_error", None)
+    except OSError as e:
+        return ("os_error", e)
+
+
+def _handle_read_error(
+    status, detail, path, include_binary, binary_extensions, binary_max_mb, verbose
+):
+    if status == "unicode_error":
+        if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
+            return ("binary", _format_binary(path, "markdown"))
+        if verbose:
+            print(f"  Skipped (binary): {path}")
+    elif status == "permission_error":
+        if verbose:
+            print(f"  Skipped (permission): {path}")
+    elif status == "os_error":
+        if verbose:
+            print(f"  Skipped (error): {path} - {detail}")
+    return ("skip", "")
+
+
+def _read_text_content(path, include_binary, binary_extensions, binary_max_mb, verbose):
+    status, content = _try_read_text(path)
+    if status != "text":
+        return _handle_read_error(
+            status, content, path, include_binary, binary_extensions, binary_max_mb, verbose
+        )
+    if "\x00" in content:
+        if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
+            return ("binary", _format_binary(path, "markdown"))
+        if verbose:
+            print(f"  Skipped (binary): {path}")
+        return ("skip", "")
+    return ("text", content)
+
+
+def _format_content(path, text, fmt, include_header, line_numbers):
+    if line_numbers:
+        text = _add_line_numbers(text)
+    lang = lang_for_path(path)
+    if not lang:
+        first_line = text.split("\n")[0] if text else ""
+        lang = _lang_from_shebang(first_line)
+    header = _generate_header(path, text, lang) if include_header else ""
+    if fmt == "xml":
+        return header + _format_xml(path, lang, text)
+    elif fmt == "json":
+        return header + _format_json(path, lang, text)
+    return header + _format_markdown(path, lang, text)
 
 
 def format_file_section(
@@ -288,26 +361,49 @@ def format_file_section(
     verbose=False,
     include_header=False,
     line_numbers=False,
+    root=None,
 ):
-    if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
-        try:
-            path.stat()
-        except OSError as e:
-            if verbose:
-                print(f"  Skipped (error): {path} - {e}")
-            return ""
+    if root is not None and not validate_path(path, root):
         if verbose:
-            size_mb = path.stat().st_size / (1024 * 1024)
-            ext = path.suffix.lower()
-            if size_mb > binary_max_mb:
-                print(f"  Skipped (binary too large): {path}")
-            elif not include_binary:
-                print(f"  Skipped (binary): {path}")
-            elif binary_extensions is not None and ext not in binary_extensions:
-                print(f"  Skipped (binary not in allowlist): {path}")
-            else:
-                print(f"  Skipped (binary): {path}")
+            print(f"  Skipped (path traversal): {path}")
         return ""
+    if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
+        return _format_skip_message(path, include_binary, binary_extensions, binary_max_mb, verbose)
+    return _format_valid_file(
+        path,
+        fmt,
+        include_binary,
+        binary_extensions,
+        binary_max_mb,
+        verbose,
+        include_header,
+        line_numbers,
+    )
+
+
+def _format_skip_message(path, include_binary, binary_extensions, binary_max_mb, verbose):
+    try:
+        path.stat()
+    except OSError as e:
+        if verbose:
+            print(f"  Skipped (error): {path} - {e}")
+        return ""
+    if verbose:
+        reason = _skip_reason_label(path, include_binary, binary_extensions, binary_max_mb)
+        print(f"  Skipped ({reason}): {path}")
+    return ""
+
+
+def _format_valid_file(
+    path,
+    fmt,
+    include_binary,
+    binary_extensions,
+    binary_max_mb,
+    verbose,
+    include_header,
+    line_numbers,
+):
     try:
         st_size = path.stat().st_size
     except OSError as e:
@@ -320,53 +416,40 @@ def format_file_section(
             limit_mb = _ARACHNA_MAX_FILE_SIZE / (1024 * 1024)
             print(f"  Skipped (file too large: {size_mb:.1f}MB > {limit_mb:.0f}MB): {path}")
         return ""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
-            return _format_binary(path, fmt)
-        if verbose:
-            print(f"  Skipped (binary): {path}")
+    status, content = _read_text_content(
+        path, include_binary, binary_extensions, binary_max_mb, verbose
+    )
+    if status == "skip":
         return ""
-    except PermissionError:
-        if verbose:
-            print(f"  Skipped (permission): {path}")
-        return ""
-    except OSError as e:
-        if verbose:
-            print(f"  Skipped (error): {path} - {e}")
-        return ""
-    if "\x00" in text:
-        if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
-            return _format_binary(path, fmt)
-        if verbose:
-            print(f"  Skipped (binary): {path}")
-        return ""
-    if line_numbers:
-        text = _add_line_numbers(text)
-    lang = lang_for_path(path)
-    if not lang:
-        first_line = text.split("\n")[0] if text else ""
-        lang = _lang_from_shebang(first_line)
-    header = ""
-    if include_header:
-        header = _generate_header(path, text, lang)
-    if fmt == "xml":
-        return header + _format_xml(path, lang, text)
-    elif fmt == "json":
-        return header + _format_json(path, lang, text)
-    else:
-        return header + _format_markdown(path, lang, text)
+    if status == "binary":
+        return _format_binary_for_fmt(content, path, fmt)
+    return _format_content(path, content, fmt, include_header, line_numbers)
+
+
+def _format_binary_for_fmt(binary_content, path, fmt):
+    if fmt in ("xml", "json"):
+        data = Path(path).read_bytes()
+        b64 = base64.b64encode(data).decode("ascii")
+        ext = Path(path).suffix.lstrip(".").lower()
+        if fmt == "xml":
+            return f'<file path="{path}" encoding="base64" extension="{ext}">\n{b64}\n</file>\n'
+        else:
+            return (
+                json.dumps(
+                    {"path": str(path), "encoding": "base64", "content": b64}, ensure_ascii=False
+                )
+                + "\n"
+            )
+    return binary_content
 
 
 def _is_binary_allowed(path, extensions, max_mb):
     if extensions is not None and path.suffix.lower() not in extensions:
         return False
     try:
-        size_mb = path.stat().st_size / (1024 * 1024)
+        return path.stat().st_size / (1024 * 1024) <= max_mb
     except OSError:
         return False
-    return size_mb <= max_mb
 
 
 def _format_binary(path, fmt):
@@ -406,19 +489,23 @@ def is_excluded(path, exclude_patterns):
     path_str = str(path).replace("\\", "/")
     for pat in exclude_patterns:
         if "/" in pat:
-            # Directory-scoped pattern: match against path suffix.
-            # "llm_docs/sonarcloud/*.json" matches ".../llm_docs/sonarcloud/foo.json"
-            # Normalize backslashes to forward slashes for cross-platform matching.
-            parts = path_str.split("/")
-            pat_parts = pat.split("/")
-            if len(pat_parts) <= len(parts):
-                for start in range(len(parts) - len(pat_parts) + 1):
-                    suffix = "/".join(parts[start:])
-                    if fnmatch.fnmatch(suffix, pat):
-                        return True
+            if _match_directory_pattern(path_str, pat):
+                return True
         else:
             if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):
                 return True
+    return False
+
+
+def _match_directory_pattern(path_str, pat):
+    parts = path_str.split("/")
+    pat_parts = pat.split("/")
+    if len(pat_parts) > len(parts):
+        return False
+    for start in range(len(parts) - len(pat_parts) + 1):
+        suffix = "/".join(parts[start:])
+        if fnmatch.fnmatch(suffix, pat):
+            return True
     return False
 
 

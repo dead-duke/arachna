@@ -15,11 +15,9 @@ logger = logging.getLogger("arachna.runner")
 
 _SHELL_CHARS = {"|", "&", ";", "<", ">", "$", "`", "(", ")", "{", "}"}
 _PIPE_SEP = "|"
-
 _RESTRICTED_COMMANDS = frozenset(
     {"echo", "date", "pwd", "whoami", "id", "uname", "which", "true", "false", "test", "["}
 )
-
 _ALLOWED_COMMANDS = _RESTRICTED_COMMANDS | {
     "cat",
     "ls",
@@ -38,7 +36,6 @@ _ALLOWED_COMMANDS = _RESTRICTED_COMMANDS | {
     "join",
     "paste",
 }
-
 _BLOCKED_WORDS = [
     "curl",
     "wget",
@@ -57,7 +54,6 @@ _BLOCKED_WORDS = [
     "exec",
     "find",
 ]
-
 _BLOCKED_PHRASES = [
     "rm -rf /",
     "rm -rf ~",
@@ -81,58 +77,132 @@ def _resolve_base(cmd_part: str) -> str:
     return parts[0] if parts else ""
 
 
+def _process_escape(cmd, i, current):
+    if i + 1 >= len(cmd):
+        current.append("\\")
+        return "normal", i
+    next_ch = cmd[i + 1]
+    if next_ch == "|":
+        current.append("|")
+    elif next_ch == "\\":
+        current.append("\\")
+    else:
+        current.append("\\")
+    return "normal", i + 1
+
+
+def _process_normal_char(cmd, i, current, parts):
+    ch = cmd[i]
+    if ch == "\\" and i + 1 < len(cmd):
+        return _process_escape(cmd, i, current)
+    elif ch == "'":
+        current.append(ch)
+        return "single", i
+    elif ch == '"':
+        current.append(ch)
+        return "double", i
+    elif ch == "|" and i + 1 < len(cmd) and cmd[i + 1] == "|":
+        current.append("||")
+        return "normal", i + 1
+    elif ch == "|":
+        parts.append("".join(current).strip())
+        current.clear()
+        return "normal", i
+    else:
+        current.append(ch)
+        return "normal", i
+
+
+def _process_single_quote(cmd, i, current):
+    current.append(cmd[i])
+    return ("normal", i) if cmd[i] == "'" else ("single", i)
+
+
+def _process_double_quote(cmd, i, current):
+    ch = cmd[i]
+    if ch == "\\" and i + 1 < len(cmd):
+        next_ch = cmd[i + 1]
+        if next_ch in ("$", "`", '"', "\\", "\n"):
+            current.append("\\")
+            current.append(next_ch)
+            return "double", i + 1
+        else:
+            current.append("\\")
+            return "double", i
+    else:
+        current.append(ch)
+        return ("normal", i) if ch == '"' else ("double", i)
+
+
 def _split_pipe_parts(cmd: str) -> list[str]:
     parts = []
     current = []
-    in_single = False
-    in_double = False
+    state = "normal"
     i = 0
     while i < len(cmd):
-        ch = cmd[i]
-        if in_single:
-            current.append(ch)
-            if ch == "'":
-                in_single = False
-        elif in_double:
-            if ch == "\\" and i + 1 < len(cmd):
-                next_ch = cmd[i + 1]
-                if next_ch in ("$", "`", '"', "\\", "\n"):
-                    current.append("\\")
-                    current.append(next_ch)
-                    i += 1
-                else:
-                    current.append("\\")
-            else:
-                current.append(ch)
-                if ch == '"':
-                    in_double = False
-        elif ch == "\\" and i + 1 < len(cmd):
-            next_ch = cmd[i + 1]
-            if next_ch == "|":
-                current.append("|")
-                i += 1
-            elif next_ch == "\\":
-                current.append("\\")
-                i += 1
-            else:
-                current.append("\\")
-        elif ch == "'":
-            current.append(ch)
-            in_single = True
-        elif ch == '"':
-            current.append(ch)
-            in_double = True
-        elif ch == "|" and i + 1 < len(cmd) and cmd[i + 1] == "|":
-            current.append("||")
-            i += 1
-        elif ch == "|":
-            parts.append("".join(current).strip())
-            current = []
-        else:
-            current.append(ch)
+        if state == "normal":
+            state, i = _process_normal_char(cmd, i, current, parts)
+        elif state == "single":
+            state, i = _process_single_quote(cmd, i, current)
+        elif state == "double":
+            state, i = _process_double_quote(cmd, i, current)
         i += 1
     parts.append("".join(current).strip())
     return parts
+
+
+def _check_blocked_words(cmd_lower):
+    return next(
+        (
+            (False, f"blocked pattern: '{w}'")
+            for w in _BLOCKED_WORDS
+            if re.search(r"\b" + re.escape(w) + r"\b", cmd_lower)
+        ),
+        (True, ""),
+    )
+
+
+def _check_blocked_phrases(cmd_lower):
+    return next(
+        ((False, f"blocked pattern: '{p}'") for p in _BLOCKED_PHRASES if p in cmd_lower),
+        (True, ""),
+    )
+
+
+def _check_shell_metachars(cmd, allow_file_args):
+    if not allow_file_args and _SHELL_CHARS.intersection(cmd):
+        return False, "shell metacharacters not allowed in restricted mode"
+    return True, ""
+
+
+def _check_pipe_parts(cmd, allowlist):
+    return next(
+        (
+            (False, f"command in pipe not in allowlist: '{_resolve_base(p)}'")
+            for p in _split_pipe_parts(cmd)
+            if _PIPE_SEP in cmd
+            and len(_split_pipe_parts(cmd)) > 1
+            and _resolve_base(p)
+            and _resolve_base(p) not in allowlist
+        ),
+        (True, ""),
+    )
+
+
+def _check_base_command(cmd, allowlist):
+    if _SHELL_CHARS.intersection(cmd):
+        return True, ""
+    base = _resolve_base(cmd)
+    if base and base not in allowlist:
+        return False, f"command not in allowlist: '{base}'"
+    return True, ""
+
+
+def _handle_dangerous_override(is_safe, reason, allow_dangerous, cmd):
+    if not is_safe and allow_dangerous:
+        logger.warning("DANGEROUS command allowed via flag: %s", cmd)
+        return True, ""
+    return is_safe, reason
 
 
 def _validate_command(
@@ -140,51 +210,20 @@ def _validate_command(
 ) -> tuple[bool, str]:
     cmd_lower = cmd.lower().strip()
     allowlist = _ALLOWED_COMMANDS if allow_file_args else _RESTRICTED_COMMANDS
-
-    for word in _BLOCKED_WORDS:
-        if re.search(r"\b" + re.escape(word) + r"\b", cmd_lower):
-            if allow_dangerous:
-                logger.warning("DANGEROUS command allowed via flag: %s", cmd)
-                return True, ""
-            return False, f"blocked pattern: '{word}'"
-
-    for phrase in _BLOCKED_PHRASES:
-        if phrase in cmd_lower:
-            if allow_dangerous:
-                logger.warning("DANGEROUS command allowed via flag: %s", cmd)
-                return True, ""
-            return False, f"blocked pattern: '{phrase}'"
-
-    if not allow_file_args and _SHELL_CHARS.intersection(cmd):
-        if allow_dangerous:
-            logger.warning("Shell metacharacters allowed via flag: %s", cmd)
-            return True, ""
-        return False, "shell metacharacters not allowed in restricted mode"
-
-    if _PIPE_SEP in cmd:
-        pipe_parts = _split_pipe_parts(cmd)
-        if len(pipe_parts) > 1:
-            for part in pipe_parts:
-                base = _resolve_base(part)
-                if base and base not in allowlist:
-                    if allow_dangerous:
-                        logger.warning("Unknown command in pipe allowed via flag: %s", cmd)
-                        return True, ""
-                    return False, f"command in pipe not in allowlist: '{base}'"
-            return True, ""
-
-    if not _SHELL_CHARS.intersection(cmd):
-        base = _resolve_base(cmd)
-        if base and base not in allowlist:
-            if allow_dangerous:
-                logger.warning("Unknown command allowed via flag: %s", cmd)
-                return True, ""
-            return False, f"command not in allowlist: '{base}'"
-
+    for is_safe, reason in [
+        _check_blocked_words(cmd_lower),
+        _check_blocked_phrases(cmd_lower),
+        _check_shell_metachars(cmd, allow_file_args),
+        _check_pipe_parts(cmd, allowlist),
+        _check_base_command(cmd, allowlist),
+    ]:
+        is_safe, reason = _handle_dangerous_override(is_safe, reason, allow_dangerous, cmd)
+        if not is_safe:
+            return False, reason
     return True, ""
 
 
-def _is_safe_command(cmd: str, allow_file_args: bool = False) -> bool:
+def _is_safe_command(cmd, allow_file_args=False):
     if _SHELL_CHARS.intersection(cmd):
         return False
     base = _resolve_base(cmd)
@@ -203,8 +242,11 @@ def _get_audit_log_path(root: Path) -> Path | None:
             if cfg.exists():
                 try:
                     config = json.loads(cfg.read_text())
-                    out_dir = config.get("output_dir", "arachna_context")
-                    return parent / out_dir / ".arachna_commands.log"
+                    return (
+                        parent
+                        / config.get("output_dir", "arachna_context")
+                        / ".arachna_commands.log"
+                    )
                 except (json.JSONDecodeError, OSError):
                     pass
         return root / "arachna_context" / ".arachna_commands.log"
@@ -215,7 +257,7 @@ def _get_audit_log_path(root: Path) -> Path | None:
 _log_writer = None
 
 
-def _write_log(log_path: Path, entry: str):
+def _write_log(log_path, entry):
     if _log_writer is not None:
         _log_writer(log_path, entry)
         return
@@ -227,34 +269,31 @@ def _write_log(log_path: Path, entry: str):
         pass
 
 
-def _log_command(cmd: str, success: bool, root: Path):
+def _log_command(cmd, success, root):
     log_path = _get_audit_log_path(root)
     if log_path is None:
         return
     from datetime import datetime
 
-    timestamp = datetime.now().isoformat()
     status = "OK" if success else "FAIL"
     sanitized_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
-    _write_log(log_path, f"[{timestamp}] {status}: {sanitized_cmd}\n")
+    _write_log(log_path, f"[{datetime.now().isoformat()}] {status}: {sanitized_cmd}\n")
 
 
-def _run_popen(cmd: str, needs_shell: bool, max_output_size: int) -> tuple[str, bool]:
+def _run_popen(cmd, needs_shell, max_output_size):
     try:
         if needs_shell:
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                shell=True,  # nosec B602 — pre_commands with pipes/shell features, protected by allowlist
-                text=True,
+                shell=True,
+                text=True,  # nosec B602 — pre_commands with pipes/shell features, protected by allowlist
             )
         else:
-            args = shlex.split(cmd)
             process = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+                shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
             )
-
         output_parts = []
         total_size = 0
         while True:
@@ -266,88 +305,81 @@ def _run_popen(cmd: str, needs_shell: bool, max_output_size: int) -> tuple[str, 
                 process.kill()
                 process.wait()
                 keep = max_output_size - (total_size - len(chunk))
-                truncated = "\n\n# ... output truncated (exceeds size limit) ...\n"
-                output_parts.append(chunk[:keep] + truncated)
-                return "".join(output_parts), True
+                return (
+                    "".join(output_parts)
+                    + chunk[:keep]
+                    + "\n\n# ... output truncated (exceeds size limit) ...\n",
+                    True,
+                )
             output_parts.append(chunk)
-
         process.wait()
         return "".join(output_parts), False
     except (OSError, ValueError):
         return "", False
 
 
-def run_command(
-    cmd: str,
-    root: Path,
-    allow_dangerous: bool = False,
-    interactive: bool = False,
-    dry_run: bool = False,
-    allow_file_args: bool = False,
-    max_output_size: int | None = None,
-) -> str:
-    if not cmd.strip():
-        return ""
-
-    if max_output_size is None:
-        max_output_size = int(_os.environ.get("ARACHNA_MAX_OUTPUT_SIZE", "10485760"))
-
-    is_safe, reason = _validate_command(cmd, allow_dangerous, allow_file_args=allow_file_args)
-
-    if not is_safe:
-        logger.warning("Blocked command: %s - %s", cmd, reason)
-        if interactive and sys.stdin.isatty():
-            print("\n⚠  Potentially dangerous command blocked:")
-            print(f"   {cmd}")
-            print(f"   Reason: {reason}")
-            response = input("   Execute anyway? [y/N]: ").strip().lower()
-            if response not in ("y", "yes"):
-                _log_command(cmd, False, root)
-                return ""
-        else:
-            _log_command(cmd, False, root)
-            return ""
-
-    if dry_run:
-        if _is_safe_command(cmd, allow_file_args=allow_file_args):
-            # Safe command in dry-run: execute normally (no output means no side effects)
-            pass
-        else:
-            print(f"  [DRY-RUN] Would execute: {cmd}")
-            if interactive and sys.stdin.isatty():
-                print("\n⚠  Command requires shell or is not in allowlist:")
-                print(f"   {cmd}")
-                response = input("   Execute anyway? [y/N]: ").strip().lower()
-                if response not in ("y", "yes"):
-                    _log_command(cmd, False, root)
-                    return ""
-            else:
-                _log_command(cmd, False, root)
-                return ""
-
-    needs_shell = any(c in cmd for c in _SHELL_CHARS)
-    output, was_truncated = _run_popen(cmd, needs_shell, max_output_size)
+def _execute_command(cmd, root, max_output_size):
+    output, was_truncated = _run_popen(cmd, any(c in cmd for c in _SHELL_CHARS), max_output_size)
     if was_truncated:
         logger.warning("Command output truncated: %s", cmd[:80])
     _log_command(cmd, True, root)
     return output
 
 
-def run_pre_commands(
-    commands: list[str],
-    root: Path,
-    pre_command_delay: float | None = None,
-) -> list[tuple[str, str]]:
+def _handle_interactive_blocked(cmd, reason, root, max_output_size):
+    print("\n⚠  Potentially dangerous command blocked:")
+    print(f"   {cmd}")
+    print(f"   Reason: {reason}")
+    if input("   Execute anyway? [y/N]: ").strip().lower() in ("y", "yes"):
+        return _execute_command(cmd, root, max_output_size)
+    _log_command(cmd, False, root)
+    return ""
+
+
+def _handle_dry_run_unsafe(cmd, root, max_output_size):
+    print(f"  [DRY-RUN] Would execute: {cmd}")
+    if sys.stdin.isatty():
+        print("\n⚠  Command requires shell or is not in allowlist:")
+        print(f"   {cmd}")
+        if input("   Execute anyway? [y/N]: ").strip().lower() in ("y", "yes"):
+            return _execute_command(cmd, root, max_output_size)
+    _log_command(cmd, False, root)
+    return ""
+
+
+def run_command(
+    cmd,
+    root,
+    allow_dangerous=False,
+    interactive=False,
+    dry_run=False,
+    allow_file_args=False,
+    max_output_size=None,
+):
+    if not cmd.strip():
+        return ""
+    if max_output_size is None:
+        max_output_size = int(_os.environ.get("ARACHNA_MAX_OUTPUT_SIZE", "10485760"))
+    is_safe, reason = _validate_command(cmd, allow_dangerous, allow_file_args=allow_file_args)
+    if not is_safe:
+        if interactive and sys.stdin.isatty():
+            return _handle_interactive_blocked(cmd, reason, root, max_output_size)
+        _log_command(cmd, False, root)
+        return ""
+    if dry_run and not _is_safe_command(cmd, allow_file_args=allow_file_args):
+        return _handle_dry_run_unsafe(cmd, root, max_output_size)
+    return _execute_command(cmd, root, max_output_size)
+
+
+def run_pre_commands(commands, root, pre_command_delay=None):
     if pre_command_delay is None:
         pre_command_delay = float(_os.environ.get("ARACHNA_PRE_COMMAND_DELAY", "0"))
-
     results = []
     for i, cmd in enumerate(commands):
         if i > 0 and pre_command_delay > 0:
             time.sleep(pre_command_delay)
         try:
-            output = run_command(cmd, root=root, allow_file_args=True)
-            results.append((cmd, output))
+            results.append((cmd, run_command(cmd, root=root, allow_file_args=True)))
         except OSError as e:
             logger.warning("pre_command failed: %s - %s", cmd[:80], e)
             results.append((cmd, ""))

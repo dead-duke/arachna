@@ -4,16 +4,11 @@ These functions were decomposed from _detect_renames_and_moves in v3.4.0.
 Previously tested only indirectly through _detect_renames_and_moves.
 """
 
-import hashlib
+import math
 
 from arachna.watch.watcher import _match_exact_renames, _match_similar_renames
 
-
-def _content_hash(content: str) -> str:
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()
-
-
-# ── _match_exact_renames ──────────────────────────────────────────
+# -- _match_exact_renames -------------------------------------------------
 
 
 def test_match_exact_renames_simple_rename():
@@ -27,7 +22,7 @@ def test_match_exact_renames_simple_rename():
     assert sections[0].type == "renamed"
     assert sections[0].old_path == "old.py"
     assert sections[0].path == "new.py"
-    assert sections[0].similarity == 1.0
+    assert math.isclose(sections[0].similarity, 1.0)
     assert "old.py" in matched_del
     assert "new.py" in matched_add
     assert remaining_del == {}
@@ -45,7 +40,7 @@ def test_match_exact_renames_same_dir_move():
     assert sections[0].type == "moved"
     assert sections[0].old_path == "src/old/utils.py"
     assert sections[0].path == "lib/utils.py"
-    assert sections[0].similarity == 1.0
+    assert math.isclose(sections[0].similarity, 1.0)
     assert "src/old/utils.py" in matched_del
     assert "lib/utils.py" in matched_add
 
@@ -60,7 +55,7 @@ def test_match_exact_renames_move_and_rename():
     assert len(sections) == 1
     assert sections[0].type == "renamed"
     assert "MOVED AND RENAMED" in sections[0].content
-    assert sections[0].similarity == 1.0
+    assert math.isclose(sections[0].similarity, 1.0)
     assert "src/old.py" in matched_del
     assert "lib/new.py" in matched_add
 
@@ -165,7 +160,7 @@ def test_match_exact_renames_only_added():
     assert remaining_add == {"new.py": "content"}
 
 
-# ── _match_similar_renames ────────────────────────────────────────
+# -- _match_similar_renames -------------------------------------------------
 
 
 def test_match_similar_renames_high_similarity():

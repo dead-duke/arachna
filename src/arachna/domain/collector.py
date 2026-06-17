@@ -7,13 +7,12 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any
 
 from .api_types import PipelineMetrics
 from .atomic_write import atomic_write_text
 from .cache import load_cache, save_cache
 from .gatherer import _assemble_content
-from .gatherer_core import _get_exclude_patterns
+from .gatherer_files import _get_exclude_patterns
 from .runner import run_command
 from .splitter import split_sections
 from .tokenizer import count_tokens, load_tokenizer
@@ -42,7 +41,6 @@ except ImportError:
         def _unlock_file(f):
             msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
     except ImportError:
-        # msvcrt is Windows-only — expected to fail on Unix
 
         def _lock_file(f):
             lock_path = Path(str(f.name) + ".lock")
@@ -59,8 +57,7 @@ except ImportError:
                     Path(f._arachna_lock_path).unlink()
 
         logger.warning(
-            "Neither fcntl nor msvcrt available - using O_CREAT|O_EXCL file lock. "
-            "Merge mode may have reduced concurrency."
+            "Neither fcntl nor msvcrt available - using O_CREAT|O_EXCL file lock. Merge mode may have reduced concurrency."
         )
 
 
@@ -123,29 +120,24 @@ def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
         return max_num + 1
 
 
-def _build_toc(
-    named_sections: list[tuple[str, str, int]],
-    part_section_indices: list[int],
-    part_num: int,
-    total_parts: int,
-    all_indices: list[list[int]] | None = None,
-) -> str:
+def _format_toc_entry(name, all_indices, idx):
+    if name.startswith("pre: "):
+        entry = name
+    else:
+        entry = Path(name).name if "/" in name or "\\" in name else name
+    if all_indices is not None:
+        split_count = sum(1 for indices in all_indices if idx in indices)
+        if split_count > 1:
+            entry += f" [split across {split_count} parts]"
+    return entry
+
+
+def _build_toc(named_sections, part_section_indices, part_num, total_parts, all_indices=None):
     unique_indices = list(dict.fromkeys(part_section_indices))
     files = []
     for idx in unique_indices:
         if idx < len(named_sections):
-            name = named_sections[idx][0]
-            if name.startswith("pre: "):
-                entry = name
-            else:
-                entry = Path(name).name if "/" in name or "\\" in name else name
-
-            if all_indices is not None:
-                split_count = sum(1 for indices in all_indices if idx in indices)
-                if split_count > 1:
-                    entry += f" [split across {split_count} parts]"
-
-            files.append(entry)
+            files.append(_format_toc_entry(named_sections[idx][0], all_indices, idx))
     if not files:
         return ""
     lines = [f"\nPart {part_num} of {total_parts}. Files in this part:\n"]
@@ -156,16 +148,16 @@ def _build_toc(
 
 
 def _write_parts(
-    parts: list[str],
-    section_indices: list[list[int]],
-    named_sections: list[tuple[str, str, int]],
-    out_path: Path,
-    name_tmpl: str,
-    title_tmpl: str,
-    project_name: str,
-    tokenizer: Any,
-    merge: bool = False,
-) -> tuple[list[str], dict[str, int]]:
+    parts,
+    section_indices,
+    named_sections,
+    out_path,
+    name_tmpl,
+    title_tmpl,
+    project_name,
+    tokenizer,
+    merge=False,
+):
     total_parts = len(parts)
     start_num = _find_next_part_num(out_path, name_tmpl) if merge else 1
     created = []
@@ -177,11 +169,7 @@ def _write_parts(
         filepath = out_path / filename
         indices = section_indices[part_idx] if part_idx < len(section_indices) else []
         toc = _build_toc(
-            named_sections,
-            indices,
-            i,
-            start_num + total_parts - 1,
-            all_indices=section_indices,
+            named_sections, indices, i, start_num + total_parts - 1, all_indices=section_indices
         )
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(title)
@@ -194,29 +182,30 @@ def _write_parts(
 
 def _diff_part_header(stats: dict, part_num: int, total_parts: int) -> str:
     parts = []
-    if stats["renamed"]:
-        parts.append(f"{stats['renamed']} renamed")
-    if stats["moved"]:
-        parts.append(f"{stats['moved']} moved")
-    if stats["modified"]:
-        parts.append(f"{stats['modified']} modified")
-    if stats["added"]:
-        parts.append(f"{stats['added']} added")
-    if stats["deleted"]:
-        parts.append(f"{stats['deleted']} deleted")
+    for key, label in [
+        ("renamed", "renamed"),
+        ("moved", "moved"),
+        ("modified", "modified"),
+        ("added", "added"),
+        ("deleted", "deleted"),
+    ]:
+        if stats[key]:
+            parts.append(f"{stats[key]} {label}")
     summary = ", ".join(parts) if parts else "no changes"
     return f"Part {part_num} of {total_parts}. Changes: {summary}\n\n"
 
 
+def _build_part_stats(diff_sections, section_indices):
+    part_stats = []
+    for indices in section_indices:
+        part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
+        part_stats.append(_compute_diff_stats_local(part_sections))
+    return part_stats
+
+
 def _write_diff_parts(
-    diff_sections: list,
-    out_path: Path,
-    name_tmpl: str,
-    title_tmpl: str,
-    project_name: str,
-    max_tokens: int,
-    tokenizer: Any,
-) -> list[str]:
+    diff_sections, out_path, name_tmpl, title_tmpl, project_name, max_tokens, tokenizer
+):
     contents = [s.content for s in diff_sections if s.content.strip()]
     if not contents:
         return []
@@ -226,10 +215,7 @@ def _write_diff_parts(
     if not parts:
         return []
     named_sections = [(s.path, s.content, tokenizer(s.content)) for s in diff_sections]
-    part_stats = []
-    for indices in section_indices:
-        part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
-        part_stats.append(_compute_diff_stats_local(part_sections))
+    part_stats = _build_part_stats(diff_sections, section_indices)
     created = []
     total_parts = len(parts)
     for i, part_content in enumerate(parts, 1):
@@ -295,31 +281,59 @@ def _write_metrics(out_path: Path, metrics: PipelineMetrics):
     atomic_write_text(metrics_path, json.dumps(payload, indent=2))
 
 
-def collect(
-    profile: dict[str, Any],
-    project_name: str,
-    output_dir: str,
-    root: Path,
-    verbose: bool = False,
-    incremental: bool = False,
-    merge: bool = False,
-    query: str | None = None,
-    mode: str = "full",
-    name_template: str | None = None,
-    allow_pre_commands: bool = True,
-) -> tuple[list[str], dict[str, int], list[str], PipelineMetrics]:
+def _build_profile_for_collect(profile, name_template, allow_pre_commands):
     profile = dict(profile)
     if not allow_pre_commands:
         profile["pre_commands"] = []
         profile["post_commands"] = []
     name_tmpl = name_template if name_template is not None else profile["name_template"]
-    title_tmpl = profile["title_template"]
+    return profile, name_tmpl, profile["title_template"]
+
+
+def _build_tokenizer(profile, root):
+    return load_tokenizer(
+        profile.get("tokenizer", "default"),
+        chars_per_token=profile.get("chars_per_token"),
+        root=root,
+    )
+
+
+def _build_metrics(extract_time_ms, named_sections, tokens_by_file):
+    tokens_raw = sum(tokens for _name, _content, tokens in named_sections)
+    file_sections = [s for s in named_sections if not s[0].startswith("pre: ")]
+    tokens_compressed_val = sum(tokens_by_file.values()) if tokens_by_file else 0
+    compression_ratio_val = tokens_compressed_val / tokens_raw if tokens_raw > 0 else 1.0
+    return PipelineMetrics(
+        extract_time_ms=extract_time_ms,
+        transform_time_ms=0.0,
+        load_time_ms=0.0,
+        files_read=len(file_sections),
+        files_skipped=0,
+        tokens_raw=tokens_raw,
+        tokens_compressed=tokens_compressed_val,
+        compression_ratio=round(compression_ratio_val, 4),
+    )
+
+
+def collect(
+    profile,
+    project_name,
+    output_dir,
+    root,
+    verbose=False,
+    incremental=False,
+    merge=False,
+    query=None,
+    mode="full",
+    name_template=None,
+    allow_pre_commands=True,
+):
+    profile, name_tmpl, title_tmpl = _build_profile_for_collect(
+        profile, name_template, allow_pre_commands
+    )
     out_path = root / output_dir
     out_path.mkdir(parents=True, exist_ok=True)
-    tokenizer_spec = profile.get("tokenizer", "default")
-    chars_per_token = profile.get("chars_per_token")
-    tokenizer = load_tokenizer(tokenizer_spec, chars_per_token=chars_per_token, root=root)
-
+    tokenizer = _build_tokenizer(profile, root)
     t0 = time.perf_counter()
     exclude = _get_exclude_patterns(profile, root=root)
     cache = load_cache(out_path) if incremental else None
@@ -337,26 +351,10 @@ def collect(
     if incremental:
         save_cache(out_path, new_cache)
     extract_time_ms = (time.perf_counter() - t0) * 1000
-
     if not parts:
-        metrics = PipelineMetrics(
-            extract_time_ms=extract_time_ms,
-            transform_time_ms=0.0,
-            load_time_ms=0.0,
-            files_read=0,
-            files_skipped=0,
-            tokens_raw=0,
-            tokens_compressed=0,
-            compression_ratio=1.0,
-        )
+        metrics = _build_metrics(extract_time_ms, [], {})
         _write_metrics(out_path, metrics)
         return [], [], [], metrics
-
-    t1 = time.perf_counter()
-    tokens_raw = sum(tokens for _name, _content, tokens in named_sections)
-    transform_time_ms = (time.perf_counter() - t1) * 1000
-
-    t2 = time.perf_counter()
     created, tokens_by_file = _write_parts(
         parts,
         section_indices,
@@ -369,23 +367,6 @@ def collect(
         merge=merge,
     )
     _run_post_commands(profile.get("post_commands", []), root=root, verbose=verbose)
-    load_time_ms = (time.perf_counter() - t2) * 1000
-
-    tokens_compressed_val = sum(tokens_by_file.values()) if tokens_by_file else 0
-    file_sections = [s for s in named_sections if not s[0].startswith("pre: ")]
-    files_read = len(file_sections)
-    compression_ratio_val = tokens_compressed_val / tokens_raw if tokens_raw > 0 else 1.0
-
-    metrics = PipelineMetrics(
-        extract_time_ms=extract_time_ms,
-        transform_time_ms=transform_time_ms,
-        load_time_ms=load_time_ms,
-        files_read=files_read,
-        files_skipped=0,
-        tokens_raw=tokens_raw,
-        tokens_compressed=tokens_compressed_val,
-        compression_ratio=round(compression_ratio_val, 4),
-    )
+    metrics = _build_metrics(extract_time_ms, named_sections, tokens_by_file)
     _write_metrics(out_path, metrics)
-
     return created, tokens_by_file, parts, metrics

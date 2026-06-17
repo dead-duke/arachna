@@ -1,5 +1,7 @@
 """Tests for LLM-optimized differ."""
 
+import math
+
 from arachna.watch.differ import DiffSection, compute_diff, compute_diff_stats
 
 
@@ -64,13 +66,13 @@ def test_unchanged_file():
 
 
 def test_empty_to_non_empty():
-    """Empty old file → all lines added."""
+    """Empty old file -> all lines added."""
     result = compute_diff("", "new content\n", "src/grew.py")
     assert "ADDED (new file)" in result
 
 
 def test_non_empty_to_empty():
-    """Non-empty old file → deleted."""
+    """Non-empty old file -> deleted."""
     result = compute_diff("old content\n", "", "src/gone.py")
     assert "[DELETED]" in result
 
@@ -119,7 +121,7 @@ def test_diff_section_similarity_field():
     assert section.type == "renamed"
     assert section.path == "src/new.py"
     assert section.old_path == "src/old.py"
-    assert section.similarity == 0.87
+    assert math.isclose(section.similarity, 0.87)
 
 
 def test_diff_section_defaults():

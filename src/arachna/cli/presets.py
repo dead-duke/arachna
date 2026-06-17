@@ -7,10 +7,9 @@ from pathlib import Path
 
 from ..config.presets import (
     _load_builtin_presets,
-    fetch_presets,
     load_presets_from_file,
-    merge_presets,
 )
+from ..config.presets_remote import fetch_presets, merge_presets
 from . import register
 
 

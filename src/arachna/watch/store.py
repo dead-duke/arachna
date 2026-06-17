@@ -244,13 +244,29 @@ def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     return new_id
 
 
-def gc(root: Path) -> dict:
-    store_dir = _store_root(root)
-    objects_dir = store_dir / "objects"
-    if not objects_dir.is_dir():
-        return {"removed": 0, "freed_bytes": 0}
-    manifests = _load_all_manifests(store_dir)
-    referenced = _collect_referenced_hashes(manifests)
+def _count_objects(objects_dir: Path) -> tuple[int, int]:
+    objects_count = 0
+    total_bytes = 0
+    if objects_dir.is_dir():
+        for obj_file in objects_dir.rglob("*"):
+            if obj_file.is_file():
+                objects_count += 1
+                with contextlib.suppress(OSError):
+                    total_bytes += obj_file.stat().st_size
+    return objects_count, total_bytes
+
+
+def _count_unique_bytes(referenced_hashes, store_dir):
+    unique_bytes = 0
+    for obj_hash in referenced_hashes:
+        obj_path = _hash_path(store_dir, obj_hash, mkdir=False)
+        if obj_path.exists():
+            with contextlib.suppress(OSError):
+                unique_bytes += obj_path.stat().st_size
+    return unique_bytes
+
+
+def _remove_orphan_objects(objects_dir, referenced):
     removed = 0
     freed_bytes = 0
     for obj_file in objects_dir.rglob("*"):
@@ -263,10 +279,25 @@ def gc(root: Path) -> dict:
                 freed_bytes += obj_file.stat().st_size
             obj_file.unlink()
             removed += 1
+    return removed, freed_bytes
+
+
+def _cleanup_empty_dirs(objects_dir):
     for subdir in sorted(objects_dir.glob("*"), reverse=True):
         if subdir.is_dir():
             with contextlib.suppress(OSError):
                 subdir.rmdir()
+
+
+def gc(root: Path) -> dict:
+    store_dir = _store_root(root)
+    objects_dir = store_dir / "objects"
+    if not objects_dir.is_dir():
+        return {"removed": 0, "freed_bytes": 0}
+    manifests = _load_all_manifests(store_dir)
+    referenced = _collect_referenced_hashes(manifests)
+    removed, freed_bytes = _remove_orphan_objects(objects_dir, referenced)
+    _cleanup_empty_dirs(objects_dir)
     return {"removed": removed, "freed_bytes": freed_bytes}
 
 
@@ -275,24 +306,10 @@ def stats(root: Path) -> dict:
     objects_dir = store_dir / "objects"
     manifests = _load_all_manifests(store_dir)
     snapshots_count = len(manifests)
-    objects_count = 0
-    total_bytes = 0
-    if objects_dir.is_dir():
-        for obj_file in objects_dir.rglob("*"):
-            if obj_file.is_file():
-                objects_count += 1
-                with contextlib.suppress(OSError):
-                    total_bytes += obj_file.stat().st_size
+    objects_count, total_bytes = _count_objects(objects_dir)
     referenced_hashes = _collect_referenced_hashes(manifests)
-    unique_bytes = 0
-    for obj_hash in referenced_hashes:
-        obj_path = _hash_path(store_dir, obj_hash, mkdir=False)
-        if obj_path.exists():
-            with contextlib.suppress(OSError):
-                unique_bytes += obj_path.stat().st_size
-    dedup_pct = 0.0
-    if total_bytes > 0:
-        dedup_pct = round((1 - unique_bytes / total_bytes) * 100, 1)
+    unique_bytes = _count_unique_bytes(referenced_hashes, store_dir)
+    dedup_pct = round((1 - unique_bytes / total_bytes) * 100, 1) if total_bytes > 0 else 0.0
     return {
         "snapshots": snapshots_count,
         "objects": objects_count,

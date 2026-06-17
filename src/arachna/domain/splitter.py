@@ -1,93 +1,58 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Split content into token-limited parts + signature extraction."""
 
+import ast as _ast
 import logging
 import re
-from collections.abc import Callable
 
 from .formatter import C_LIKE_LANGS, SCRIPT_LANGS
 from .tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.splitter")
-
 _MAX_TRUNCATION_ITERATIONS = 100
 
 
-def _split_oversized_section(
-    section: str,
-    max_tokens: int,
-    tokenizer: Callable[[str], int],
-) -> list[str]:
-    """Split an oversized section into chunks that each fit max_tokens.
+def _pack_chunks(current, current_tokens, item, item_tokens, max_tokens, chunks, sep):
+    if item_tokens > max_tokens:
+        if current:
+            chunks.append(current)
+        chunks.append(item)
+        return "", 0
+    if current_tokens + item_tokens > max_tokens and current:
+        chunks.append(current)
+        return item, item_tokens
+    return (current + sep + item if current else item), current_tokens + item_tokens
 
-    Fallback chain: paragraphs -> lines -> character boundary.
-    Returns: list of raw content chunks (without continuation markers).
-    Guarantees: len(chunks) >= 2, all chunks fit max_tokens (except single-line fallback).
-    """
+
+def _split_by_sep(section, max_tokens, tokenizer, sep):
+    items = section.split(sep)
+    if len(items) <= 1:
+        return []
     chunks = []
+    current = ""
+    current_tokens = 0
+    for item in items:
+        current, current_tokens = _pack_chunks(
+            current, current_tokens, item, tokenizer(item), max_tokens, chunks, sep
+        )
+    if current:
+        chunks.append(current)
+    return chunks if len(chunks) > 1 else []
 
-    # Level 1: Try splitting by paragraphs (double newlines)
-    paragraphs = section.split("\n\n")
-    if len(paragraphs) > 1:
-        current = ""
-        current_tokens = 0
-        for para in paragraphs:
-            para_tokens = tokenizer(para)
-            if para_tokens > max_tokens:
-                if current:
-                    chunks.append(current)
-                    current = ""
-                    current_tokens = 0
-                chunks.append(para)
-                continue
-            if current_tokens + para_tokens > max_tokens and current:
-                chunks.append(current)
-                current = para
-                current_tokens = para_tokens
-            else:
-                if current:
-                    current += "\n\n" + para
-                else:
-                    current = para
-                current_tokens += para_tokens
-        if current:
-            chunks.append(current)
-        if len(chunks) > 1:
-            return chunks
 
-    # Level 2: Try splitting by lines (single newlines)
-    lines = section.split("\n")
-    if len(lines) > 1:
-        current = ""
-        current_tokens = 0
-        for line in lines:
-            line_tokens = tokenizer(line)
-            if line_tokens > max_tokens:
-                if current:
-                    chunks.append(current)
-                    current = ""
-                    current_tokens = 0
-                chunks.append(line)
-                continue
-            if current_tokens + line_tokens > max_tokens and current:
-                chunks.append(current)
-                current = line
-                current_tokens = line_tokens
-            else:
-                if current:
-                    current += "\n" + line
-                else:
-                    current = line
-                current_tokens += line_tokens
-        if current:
-            chunks.append(current)
-        if len(chunks) > 1:
-            return chunks
+def _split_by_paragraphs(s, m, t):
+    return _split_by_sep(s, m, t, "\n\n")
 
-    # Level 3: Character boundary fallback (single line or minified code)
+
+def _split_by_lines(s, m, t):
+    return _split_by_sep(s, m, t, "\n")
+
+
+def _split_by_char_boundary(section, max_tokens, tokenizer):
     logger.warning(
         "Splitting oversized section at character boundary (no paragraph/line breaks found)"
     )
+    chunks = []
     remaining = section
     while remaining:
         if tokenizer(remaining) <= max_tokens:
@@ -107,72 +72,67 @@ def _split_oversized_section(
     return chunks
 
 
-def pack_into_parts(
-    sections: list[str],
-    max_tokens: int,
-    separator: str = "\n\n",
-    tokenizer: Callable[[str], int] | None = None,
-) -> tuple[list[str], list[list[int]]]:
-    """Single token-packing primitive - packs formatted sections into token-limited parts.
+def _split_oversized_section(section, max_tokens, tokenizer):
+    for method in (_split_by_paragraphs, _split_by_lines):
+        chunks = method(section, max_tokens, tokenizer)
+        if chunks:
+            return chunks
+    return _split_by_char_boundary(section, max_tokens, tokenizer)
 
-    Handles oversized sections via _split_oversized_section with
-    continuation markers. Each chunk shares the original section index.
 
-    When max_tokens=-1 (unlimited), returns single part with all sections.
+def _add_continuation_markers(chunks, base_part_num):
+    if len(chunks) <= 1:
+        return chunks
+    result = []
+    for j, chunk in enumerate(chunks):
+        if j == 0:
+            chunk += f"\n\n> **[CONTINUES in part {base_part_num + 2}]**"
+        elif j == len(chunks) - 1:
+            chunk = f"> **[CONTINUED from part {base_part_num}]**\n\n{chunk}"
+        else:
+            chunk = (
+                f"> **[CONTINUED from part {base_part_num}]**\n\n{chunk}"
+                f"\n\n> **[CONTINUES in part {base_part_num + 2}]**"
+            )
+        result.append(chunk.strip())
+    return result
 
-    Returns (parts, indices) where indices[i] = list of section positions
-    packed into parts[i]. Indices may contain duplicates for split sections.
-    """
-    tk = tokenizer if tokenizer is not None else count_tokens
 
-    if max_tokens == -1:
-        all_content = separator.join(s.strip() for s in sections if s.strip())
-        all_indices = list(range(len(sections)))
-        return [all_content], [all_indices]
+def _handle_oversized_section(
+    section, i, max_tokens, tk, current, current_tokens, current_indices, parts, indices
+):
+    if current:
+        parts.append(current.strip())
+        indices.append(current_indices)
+    chunks = _split_oversized_section(section, max_tokens, tokenizer=tk)
+    logger.warning(
+        "Section too large: %s tokens exceeds limit of %s tokens, split into %s parts",
+        tk(section),
+        max_tokens,
+        len(chunks),
+    )
+    for chunk in _add_continuation_markers(chunks, len(parts)):
+        parts.append(chunk)
+        indices.append([i])
+    return "", 0, []
 
+
+def _pack_section_into_parts(sections, max_tokens, separator, tk):
     parts = []
     indices = []
     current = ""
     current_tokens = 0
     current_indices = []
-
     for i, section in enumerate(sections):
         section = section.strip()
         if not section:
             continue
         section_tokens = tk(section)
-
         if section_tokens > max_tokens:
-            if current:
-                parts.append(current.strip())
-                indices.append(current_indices)
-                current = ""
-                current_tokens = 0
-                current_indices = []
-
-            chunks = _split_oversized_section(section, max_tokens, tokenizer=tk)
-            logger.warning(
-                "Section too large: %s tokens exceeds limit of %s tokens, split into %s parts",
-                section_tokens,
-                max_tokens,
-                len(chunks),
+            current, current_tokens, current_indices = _handle_oversized_section(
+                section, i, max_tokens, tk, current, current_tokens, current_indices, parts, indices
             )
-
-            for j, chunk in enumerate(chunks):
-                if len(chunks) > 1:
-                    if j == 0:
-                        chunk += f"\n\n> **[CONTINUES in part {len(parts) + 2}]**"
-                    elif j == len(chunks) - 1:
-                        chunk = f"> **[CONTINUED from part {len(parts)}]**\n\n{chunk}"
-                    else:
-                        chunk = (
-                            f"> **[CONTINUED from part {len(parts)}]**\n\n{chunk}"
-                            f"\n\n> **[CONTINUES in part {len(parts) + 2}]**"
-                        )
-                parts.append(chunk.strip())
-                indices.append([i])
             continue
-
         if current_tokens + section_tokens > max_tokens:
             parts.append(current.strip())
             indices.append(current_indices)
@@ -180,119 +140,28 @@ def pack_into_parts(
             current_tokens = section_tokens
             current_indices = [i]
         else:
-            if current:
-                current += separator + section
-            else:
-                current = section
+            current = current + separator + section if current else section
             current_tokens += section_tokens
             current_indices.append(i)
-
     if current.strip():
         parts.append(current.strip())
         indices.append(current_indices)
-
     return parts, indices
 
 
-# Mode dispatch mapping — single entry point for all split modes.
-# Each handler: (raw_content, max_tokens, marker, separator, tk) -> list[str]
-
-
-def _split_by_file(raw_content, max_tokens, marker, separator, tk):
-    sections = _split_to_sections(raw_content, "\n\n### ")
-    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
-
-
-def _split_by_paragraph(raw_content, max_tokens, marker, separator, tk):
-    sections = _split_to_sections(raw_content, "\n\n")
-    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
-
-
-def _split_by_marker(raw_content, max_tokens, marker, separator, tk):
-    sections = _split_to_sections(raw_content, marker)
-    return _build_parts(sections, max_tokens, separator=separator, tokenizer=tk)
-
-
-def _split_single(raw_content, max_tokens, marker, separator, tk):
-    parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
-    if was_truncated:
-        logger.warning(
-            "Content truncated: %s tokens exceeds limit of %s tokens",
-            tk(raw_content),
-            max_tokens,
-        )
-    return parts
-
-
-_SPLIT_MODE_DISPATCH = {
-    "by_file": _split_by_file,
-    "by_paragraph": _split_by_paragraph,
-    "by_marker": _split_by_marker,
-    "single": _split_single,
-}
-
-
-def split(
-    raw_content: str,
-    max_tokens: int,
-    mode: str = "by_file",
-    marker: str = "\n\n",
-    separator: str = "\n\n",
-    tokenizer: Callable[[str], int] | None = None,
-) -> list[str]:
+def pack_into_parts(sections, max_tokens, separator="\n\n", tokenizer=None):
     tk = tokenizer if tokenizer is not None else count_tokens
-
     if max_tokens == -1:
-        return [raw_content.strip()] if raw_content.strip() else []
-
-    handler = _SPLIT_MODE_DISPATCH.get(mode, _split_by_file)
-    return handler(raw_content, max_tokens, marker, separator, tk)
-
-
-def split_sections(
-    sections: list[str],
-    max_tokens: int,
-    separator: str = "\n\n",
-    tokenizer: Callable[[str], int] | None = None,
-) -> tuple[list[str], list[list[int]]]:
-    """Split pre-built sections into token-limited parts."""
-    return pack_into_parts(sections, max_tokens, separator=separator, tokenizer=tokenizer)
+        all_content = separator.join(s.strip() for s in sections if s.strip())
+        return [all_content], [list(range(len(sections)))]
+    return _pack_section_into_parts(sections, max_tokens, separator, tk)
 
 
-def _split_to_sections(text: str, marker: str) -> list[str]:
-    if not text:
-        return []
-    if text.startswith(marker):
-        rest = text[len(marker) :]
-        chunks = rest.split(marker)
-        result = [marker + chunks[0]]
-        for chunk in chunks[1:]:
-            if chunk.strip():
-                result.append(marker + chunk)
-        return result
-    chunks = text.split(marker)
-    result = []
-    for i, chunk in enumerate(chunks):
-        if i == 0:
-            if chunk.strip():
-                result.append(chunk.strip())
-        else:
-            result.append(marker + chunk)
-    return result
-
-
-def _build_parts(
-    sections: list[str],
-    max_tokens: int,
-    separator: str = "\n\n",
-    tokenizer: Callable[[str], int] | None = None,
-) -> list[str]:
-    tk = tokenizer if tokenizer is not None else count_tokens
-
+def _build_parts_for_sections(sections, max_tokens, separator, tk):
+    """Pack sections into token-limited parts with truncation for oversized sections."""
     if max_tokens == -1:
         content = separator.join(s.strip() for s in sections if s.strip())
         return [content] if content else []
-
     parts = []
     current = ""
     current_tokens = 0
@@ -319,29 +188,85 @@ def _build_parts(
             current = section
             current_tokens = section_tokens
         else:
-            if current:
-                current += separator + section
-            else:
-                current = section
+            current = current + separator + section if current else section
             current_tokens += section_tokens
     if current.strip():
         parts.append(current.strip())
     return parts
 
 
-def _handle_single(
-    text: str,
-    max_tokens: int,
-    tokenizer: Callable[[str], int] | None = None,
-) -> tuple[list[str], bool]:
+def _split_by_file(r, m, mrk, sep, tk):
+    return _build_parts_for_sections(_split_to_sections(r, "\n\n### "), m, sep, tk)
+
+
+def _split_by_paragraph(r, m, mrk, sep, tk):
+    return _build_parts_for_sections(_split_to_sections(r, "\n\n"), m, sep, tk)
+
+
+def _split_by_marker(r, m, mrk, sep, tk):
+    return _build_parts_for_sections(_split_to_sections(r, mrk), m, sep, tk)
+
+
+def _split_single(raw_content, max_tokens, marker, separator, tk):
+    parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
+    if was_truncated:
+        logger.warning(
+            "Content truncated: %s tokens exceeds limit of %s tokens",
+            tk(raw_content),
+            max_tokens,
+        )
+    return parts
+
+
+_SPLIT_MODE_DISPATCH = {
+    "by_file": _split_by_file,
+    "by_paragraph": _split_by_paragraph,
+    "by_marker": _split_by_marker,
+    "single": _split_single,
+}
+
+
+def split(raw_content, max_tokens, mode="by_file", marker="\n\n", separator="\n\n", tokenizer=None):
+    tk = tokenizer if tokenizer is not None else count_tokens
+    if max_tokens == -1:
+        return [raw_content.strip()] if raw_content.strip() else []
+    handler = _SPLIT_MODE_DISPATCH.get(mode, _split_by_file)
+    return handler(raw_content, max_tokens, marker, separator, tk)
+
+
+def split_sections(sections, max_tokens, separator="\n\n", tokenizer=None):
+    return pack_into_parts(sections, max_tokens, separator=separator, tokenizer=tokenizer)
+
+
+def _split_to_sections(text, marker):
+    if not text:
+        return []
+    if text.startswith(marker):
+        rest = text[len(marker) :]
+        chunks = rest.split(marker)
+        result = [marker + chunks[0]]
+        for chunk in chunks[1:]:
+            if chunk.strip():
+                result.append(marker + chunk)
+        return result
+    chunks = text.split(marker)
+    result = []
+    for i, chunk in enumerate(chunks):
+        if i == 0:
+            if chunk.strip():
+                result.append(chunk.strip())
+        else:
+            result.append(marker + chunk)
+    return result
+
+
+def _handle_single(text, max_tokens, tokenizer=None):
     tk = tokenizer if tokenizer is not None else count_tokens
     tokens = tk(text)
     if tokens <= max_tokens:
         return [text.strip()], False
     if tk is count_tokens:
-        limit = max_tokens * 4
-        text = text[:limit] + "\n\n# ... truncated ...\n"
-        return [text.strip()], True
+        return [text[: max_tokens * 4] + "\n\n# ... truncated ...\n".strip()], True
     lo, hi = 0, len(text)
     iterations = 0
     while lo < hi and iterations < _MAX_TRUNCATION_ITERATIONS:
@@ -351,32 +276,34 @@ def _handle_single(
             lo = mid
         else:
             hi = mid - 1
-    text = text[:lo] + "\n\n# ... truncated ...\n"
-    return [text.strip()], True
+    return [text[:lo] + "\n\n# ... truncated ...\n".strip()], True
 
-
-# Signature extraction — dispatch by language
 
 _RE_C_LIKE_SIG = re.compile(
     r"^(\s*(?:export\s+)?(?:async\s+)?(?:function|def|class|interface|enum|struct|trait|impl|"
-    r"type\s+\w+\s+\w+|type\s+|"
-    r"public\s+class|public\s+static|public\s+function|"
-    r"fn|func)\s+[^{]*)",
+    r"type\s+\w+\s+\w+|type\s+|public\s+class|public\s+static|public\s+function|fn|func)\s+[^{]*)",
     re.MULTILINE,
 )
-
 _RE_SCRIPT_SIG = re.compile(
-    r"^(\s*(?:def\s+(?:self\.)?\w+[?!]?.*|"
-    r"defmodule\s+[\w.]+.*|"
-    r"defp\s+\w+.*|"
-    r"function\s+\w+.*))",
+    r"^(\s*(?:def\s+(?:self\.)?\w+[?!]?.*|defmodule\s+[\w.]+.*|defp\s+\w+.*|function\s+\w+.*))",
     re.MULTILINE,
 )
 
 
-def _extract_python_signatures(text: str) -> str:
-    import ast as _ast
+def _extract_python_node(node, lines, keep):
+    body_start = node.body[0].lineno - 1
+    for i in range(body_start, node.end_lineno):
+        keep[i] = False
+    keep[node.lineno - 1] = True
+    keep[body_start] = True
+    lines[body_start] = "    ..."
+    for decorator in node.decorator_list:
+        keep[decorator.lineno - 1] = True
+    if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and node.returns:
+        keep[node.end_lineno - 1] = True
 
+
+def _extract_python_signatures(text):
     try:
         tree = _ast.parse(text)
     except SyntaxError:
@@ -385,47 +312,22 @@ def _extract_python_signatures(text: str) -> str:
     keep = [True] * len(lines)
     for node in _ast.iter_child_nodes(tree):
         if isinstance(node, (_ast.FunctionDef, _ast.ClassDef, _ast.AsyncFunctionDef)) and node.body:
-            body_start = node.body[0].lineno - 1
-            for i in range(body_start, node.end_lineno):
-                keep[i] = False
-            keep[node.lineno - 1] = True
-            keep[body_start] = True
-            lines[body_start] = "    ..."
-            for decorator in node.decorator_list:
-                keep[decorator.lineno - 1] = True
-            if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and node.returns:
-                keep[node.end_lineno - 1] = True
-    result = "\n".join(line for i, line in enumerate(lines) if keep[i])
-    return result.strip()
+            _extract_python_node(node, lines, keep)
+    return "\n".join(line for i, line in enumerate(lines) if keep[i]).strip()
 
 
-def _extract_c_like_signatures(text: str) -> str:
-    sigs = []
-    for m in _RE_C_LIKE_SIG.finditer(text):
-        sig = m.group(1).strip()
-        sigs.append(sig)
+def _extract_c_like_signatures(text):
+    sigs = [m.group(1).strip() for m in _RE_C_LIKE_SIG.finditer(text)]
     return "\n".join(sigs) if sigs else text
 
 
-def _extract_script_signatures(text: str) -> str:
-    sigs = []
-    for m in _RE_SCRIPT_SIG.finditer(text):
-        sig = m.group(1).strip()
-        sigs.append(sig)
+def _extract_script_signatures(text):
+    sigs = [m.group(1).strip() for m in _RE_SCRIPT_SIG.finditer(text)]
     return "\n".join(sigs) if sigs else text
 
 
-def _extract_passthrough(text: str) -> str:
-    return text
-
-
-# Language dispatch for signature extraction.
-# Maps lang -> extractor function. C_LIKE_LANGS and SCRIPT_LANGS
-# are pre-expanded at module level for O(1) lookup.
 def _build_sig_extractors():
-    extractors = {}
-    extractors["python"] = _extract_python_signatures
-    extractors["gdscript"] = _extract_c_like_signatures
+    extractors = {"python": _extract_python_signatures, "gdscript": _extract_c_like_signatures}
     for lang in C_LIKE_LANGS:
         extractors[lang] = _extract_c_like_signatures
     for lang in SCRIPT_LANGS:
@@ -436,6 +338,5 @@ def _build_sig_extractors():
 _SIG_EXTRACTORS = _build_sig_extractors()
 
 
-def extract_signatures(text: str, lang: str) -> str:
-    handler = _SIG_EXTRACTORS.get(lang, _extract_passthrough)
-    return handler(text)
+def extract_signatures(text, lang):
+    return _SIG_EXTRACTORS.get(lang, lambda t: t)(text)

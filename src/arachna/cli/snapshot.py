@@ -9,8 +9,8 @@ import sys
 from ..config.config import get_profile
 from ..watch.store import delete_snapshot, list_snapshots, validate_snapshot_id
 from ..watch.store_errors import SnapshotExistsError
-from ..watch.watcher import create_snapshot as watch_create_snapshot
-from ..watch.watcher import update_snapshot as watch_update_snapshot
+from ..watch.watcher_diff import create_snapshot as watch_create_snapshot
+from ..watch.watcher_diff import update_snapshot as watch_update_snapshot
 from . import register
 from ._helpers import format_profile_section, get_root
 
@@ -25,7 +25,6 @@ def _cmd_snapshot_create(args, config: dict):
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
-
     root = get_root(config)
     profile_name = args.profile or "full"
     try:
@@ -33,7 +32,6 @@ def _cmd_snapshot_create(args, config: dict):
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
-
     try:
         sid = watch_create_snapshot(profile, name=args.name, root=root)
         print(f"Snapshot '{sid}' created.")
@@ -51,9 +49,7 @@ def _cmd_snapshot_list(args, config: dict):
         return
     print("Snapshots:")
     for s in snaps:
-        created = s.get("created", "?")
-        file_count = len(s.get("files", {}))
-        print(f"  {s['id']:30} {created:25} {file_count} files")
+        print(f"  {s['id']:30} {s.get('created', '?'):25} {len(s.get('files', {}))} files")
 
 
 @register("snapshot-update")
@@ -64,7 +60,6 @@ def _cmd_snapshot_update(args, config: dict):
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
-
     root = get_root(config)
     profile = None
     if args.profile:
@@ -73,7 +68,6 @@ def _cmd_snapshot_update(args, config: dict):
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
-
     try:
         watch_update_snapshot(sid, root=root, profile=profile)
         print(f"Snapshot '{sid}' updated.")
@@ -90,7 +84,6 @@ def _cmd_snapshot_delete(args, config: dict):
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
-
     root = get_root(config)
     try:
         delete_snapshot(sid, root=root)
@@ -98,6 +91,35 @@ def _cmd_snapshot_delete(args, config: dict):
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
+
+
+def _print_snapshot_details(target, args):
+    if args.profile_only:
+        prof = target.get("profile", {})
+        if isinstance(prof, dict):
+            print("Profile:")
+            print(format_profile_section(prof))
+        else:
+            print(f"Profile: {prof} (legacy format)")
+        return
+    if args.stats_only:
+        print(f"Files: {len(target.get('files', {}))}")
+        print(f"Pre-commands: {len(target.get('pre_commands', {}))}")
+        print(f"Command: {len(target.get('command', {}))}")
+        return
+    print(f"Snapshot: {target['id']}")
+    print(f"Created: {target.get('created', '?')}")
+    print(f"Files: {len(target.get('files', {}))}")
+    print(f"Pre-commands: {len(target.get('pre_commands', {}))}")
+    cmd = target.get("command", {})
+    print(f"Command: {'none' if not cmd else list(cmd.keys())}")
+    print()
+    prof = target.get("profile", {})
+    if isinstance(prof, dict):
+        print("Profile:")
+        print(format_profile_section(prof))
+    else:
+        print(f"Profile: {prof} (legacy format)")
 
 
 @register("snapshot-info")
@@ -108,7 +130,6 @@ def _cmd_snapshot_info(args, config: dict):
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
-
     root = get_root(config)
     try:
         all_manifests = list_snapshots(root=root)
@@ -123,40 +144,7 @@ def _cmd_snapshot_info(args, config: dict):
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
-
-    if args.profile_only:
-        prof = target.get("profile", {})
-        if isinstance(prof, dict):
-            print("Profile:")
-            print(format_profile_section(prof))
-        else:
-            print(f"Profile: {prof} (legacy format)")
-        return
-
-    if args.stats_only:
-        file_count = len(target.get("files", {}))
-        pre_count = len(target.get("pre_commands", {}))
-        cmd_count = len(target.get("command", {}))
-        print(f"Files: {file_count}")
-        print(f"Pre-commands: {pre_count}")
-        print(f"Command: {cmd_count}")
-        return
-
-    print(f"Snapshot: {target['id']}")
-    print(f"Created: {target.get('created', '?')}")
-    file_count = len(target.get("files", {}))
-    pre_count = len(target.get("pre_commands", {}))
-    cmd = target.get("command", {})
-    print(f"Files: {file_count}")
-    print(f"Pre-commands: {pre_count}")
-    print(f"Command: {'none' if not cmd else list(cmd.keys())}")
-    print()
-    prof = target.get("profile", {})
-    if isinstance(prof, dict):
-        print("Profile:")
-        print(format_profile_section(prof))
-    else:
-        print(f"Profile: {prof} (legacy format)")
+    _print_snapshot_details(target, args)
 
 
 @register("snapshot-rename")
@@ -169,7 +157,6 @@ def _cmd_snapshot_rename(args, config: dict):
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
-
     root = get_root(config)
     try:
         store_rename_snapshot(args.old, args.new, root=root)
@@ -197,11 +184,13 @@ def _dispatch_snapshot(args, config: dict, parser):
     else:
         snap_p = None
         for action in parser._actions:
-            if action.dest == "command" and hasattr(action, "choices"):
-                choices = action.choices
-                if "snapshot" in choices:
-                    snap_p = choices["snapshot"]
-                    break
+            if (
+                action.dest == "command"
+                and hasattr(action, "choices")
+                and "snapshot" in action.choices
+            ):
+                snap_p = action.choices["snapshot"]
+                break
         if snap_p:
             snap_p.print_help()
         sys.exit(1)

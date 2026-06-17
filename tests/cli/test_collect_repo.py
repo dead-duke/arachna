@@ -30,7 +30,7 @@ def test_repo_invalid_url_file(tmp_path, make_config):
 
 def test_repo_runtime_error(tmp_path, make_config):
     config = make_config(tmp_path)
-    with patch("arachna.domain.remote.collect_remote", side_effect=RuntimeError("git not found")):
+    with patch("arachna.config.remote.collect_remote", side_effect=RuntimeError("git not found")):
         with pytest.raises(SystemExit) as exc:
             _cmd_collect_repo(_repo_args("https://github.com/user/repo.git"), config)
         assert exc.value.code == 1
@@ -38,7 +38,7 @@ def test_repo_runtime_error(tmp_path, make_config):
 
 def test_repo_generic_exception(tmp_path, make_config):
     config = make_config(tmp_path)
-    with patch("arachna.domain.remote.collect_remote", side_effect=OSError("disk full")):
+    with patch("arachna.config.remote.collect_remote", side_effect=OSError("disk full")):
         with pytest.raises(SystemExit) as exc:
             _cmd_collect_repo(_repo_args("https://github.com/user/repo.git"), config)
         assert exc.value.code == 1
@@ -46,7 +46,7 @@ def test_repo_generic_exception(tmp_path, make_config):
 
 def test_repo_success(tmp_path, make_config):
     config = make_config(tmp_path)
-    with patch("arachna.domain.remote.collect_remote", return_value="Collected: 5 files"):
+    with patch("arachna.config.remote.collect_remote", return_value="Collected: 5 files"):
         out = StringIO()
         old = sys.stdout
         sys.stdout = out
@@ -57,7 +57,7 @@ def test_repo_success(tmp_path, make_config):
 
 def test_repo_with_profile(tmp_path, make_config):
     config = make_config(tmp_path)
-    with patch("arachna.domain.remote.collect_remote") as mock:
+    with patch("arachna.config.remote.collect_remote") as mock:
         mock.return_value = "done"
         _cmd_collect_repo(_repo_args("https://github.com/user/repo.git", profile="python"), config)
         mock.assert_called_once()
@@ -67,7 +67,7 @@ def test_repo_with_profile(tmp_path, make_config):
 def test_repo_with_output_dir(tmp_path, make_config):
     config = make_config(tmp_path)
     custom = str(tmp_path / "custom")
-    with patch("arachna.domain.remote.collect_remote") as mock:
+    with patch("arachna.config.remote.collect_remote") as mock:
         mock.return_value = "done"
         _cmd_collect_repo(_repo_args("https://github.com/user/repo.git", output_dir=custom), config)
         mock.assert_called_once()

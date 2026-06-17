@@ -86,44 +86,44 @@ _SUSPICIOUS_MODULES = frozenset(
 )
 
 
-def _is_safe_tokenizer(spec: str, root: Path | None = None) -> bool:
-    if not spec or spec == "default":
-        return True
-
-    if root is None:
-        root = Path.cwd()
-
-    # Extract module name - strip function name after :
-    module_name = spec.split(":", 1)[0]
-    safe_tokenizers = _get_safe_tokenizers()
-
+def _is_safe_by_name(module_name: str, safe_tokenizers: frozenset) -> bool | None:
     if module_name in safe_tokenizers:
         return True
-
     if module_name in _SUSPICIOUS_MODULES:
         return False
-
     if module_name in sys.stdlib_module_names:
         return False
+    return None
 
+
+def _find_local_module_path(module_name: str, root: Path) -> Path | None:
     paths_to_check = [root] + [Path(p) for p in sys.path if p]
-    local_path = None
     try:
         for base in paths_to_check:
             candidate = base / f"{module_name}.py"
             if candidate.is_file():
-                local_path = candidate
-                break
+                return candidate
             candidate_pkg = base / module_name
             if candidate_pkg.is_dir() and (candidate_pkg / _INIT_FILE).is_file():
-                local_path = candidate_pkg / _INIT_FILE
-                break
+                return candidate_pkg / _INIT_FILE
     except OSError:
         pass
+    return None
 
+
+def _is_safe_tokenizer(spec: str, root: Path | None = None) -> bool:
+    if not spec or spec == "default":
+        return True
+    if root is None:
+        root = Path.cwd()
+    module_name = spec.split(":", 1)[0]
+    safe_tokenizers = _get_safe_tokenizers()
+    result = _is_safe_by_name(module_name, safe_tokenizers)
+    if result is not None:
+        return result
+    local_path = _find_local_module_path(module_name, root)
     if local_path is None:
         return False
-
     return _safe_local_imports(local_path)
 
 
@@ -142,20 +142,23 @@ def _validate_top_level_statements(filepath: Path) -> bool:
         tree = _ast.parse(filepath.read_text(encoding="utf-8"))
     except (SyntaxError, OSError, UnicodeDecodeError):
         return False
-
     for node in tree.body:
         if not isinstance(node, _ALLOWED_TOP_LEVEL):
             return False
-        if isinstance(node, _ast.Assign):
-            for child in _ast.walk(node.value):
-                if isinstance(child, _ast.Call):
-                    return False
-            for target in node.targets:
-                for child in _ast.walk(target):
-                    if isinstance(child, _ast.Call):
-                        return False
-
+        if isinstance(node, _ast.Assign) and _has_call_in_assign(node):
+            return False
     return True
+
+
+def _has_call_in_assign(node):
+    for child in _ast.walk(node.value):
+        if isinstance(child, _ast.Call):
+            return True
+    for target in node.targets:
+        for child in _ast.walk(target):
+            if isinstance(child, _ast.Call):
+                return True
+    return False
 
 
 def _safe_local_imports(filepath: Path) -> bool:
@@ -163,7 +166,6 @@ def _safe_local_imports(filepath: Path) -> bool:
         tree = _ast.parse(filepath.read_text(encoding="utf-8"))
     except (SyntaxError, OSError, UnicodeDecodeError):
         return False
-
     for node in _ast.walk(tree):
         if isinstance(node, _ast.Import):
             for alias in node.names:
@@ -175,11 +177,8 @@ def _safe_local_imports(filepath: Path) -> bool:
             and node.module.split(".")[0] in _SUSPICIOUS_MODULES
         ):
             return False
-
     return _validate_top_level_statements(filepath)
 
-
-# Plugin checks - lazy on first use
 
 _plugins_checked = False
 _HAS_TIKTOKEN = False
@@ -191,26 +190,16 @@ def _check_tokenizer_plugins():
     if _plugins_checked:
         return
     _plugins_checked = True
+    _HAS_TIKTOKEN = _try_import_quiet("tiktoken")
+    _HAS_TRANSFORMERS = _try_import_quiet("transformers")
+
+
+def _try_import_quiet(name):
     try:
-        import tiktoken  # noqa: F401
-
-        _HAS_TIKTOKEN = True
+        __import__(name)
+        return True
     except ImportError:
-        pass
-
-    try:
-        import warnings
-
-        _prev = _os.environ.get("TRANSFORMERS_VERBOSITY")
-        _os.environ["TRANSFORMERS_VERBOSITY"] = "error"
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            import transformers  # noqa: F401
-        _HAS_TRANSFORMERS = True
-        if _prev is not None:
-            _os.environ["TRANSFORMERS_VERBOSITY"] = _prev
-    except ImportError:
-        _HAS_TRANSFORMERS = False
+        return False
 
 
 def _has_tiktoken() -> bool:
@@ -228,11 +217,7 @@ def _load_tiktoken(spec: str) -> Callable[[str], int]:
 
     encoding_name = spec.split(":", 1)[1] if ":" in spec else "cl100k_base"
     enc = tiktoken.get_encoding(encoding_name)
-
-    def _count(text: str) -> int:
-        return len(enc.encode(text))
-
-    return _count
+    return lambda text: len(enc.encode(text))
 
 
 def _load_transformers(spec: str) -> Callable[[str], int]:
@@ -240,15 +225,10 @@ def _load_transformers(spec: str) -> Callable[[str], int]:
 
     model_name = spec.split(":", 1)[1] if ":" in spec else "bert-base-uncased"
     tok = AutoTokenizer.from_pretrained(model_name)  # nosec B615 — opt-in plugin, user installs transformers
-
-    def _count(text: str) -> int:
-        return len(tok.encode(text))
-
-    return _count
+    return lambda text: len(tok.encode(text))
 
 
 def _find_module_path(module_name: str, root: Path | None = None) -> Path | None:
-    """Find a .py file or package for the given module name."""
     if root is None:
         root = Path.cwd()
     paths_to_check = [root] + [Path(p) for p in sys.path if p]
@@ -263,7 +243,6 @@ def _find_module_path(module_name: str, root: Path | None = None) -> Path | None
 
 
 def _import_local_module(module_name: str, filepath: Path) -> object:
-    """Import a module from a specific file path, bypassing sys.modules cache."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(module_name, str(filepath))
@@ -281,44 +260,28 @@ def count_tokens(text: str, chars_per_token: int | None = None) -> int:
 
 
 def load_tokenizer(
-    spec: str,
-    chars_per_token: int | None = None,
-    root: Path | None = None,
+    spec: str, chars_per_token: int | None = None, root: Path | None = None
 ) -> Callable[[str], int]:
     if not spec or spec == "default":
         cpt = chars_per_token if chars_per_token is not None else _get_default_chars_per_token()
         return lambda text: count_tokens(text, chars_per_token=cpt)
-
     if not _is_safe_tokenizer(spec, root=root):
         safe_tokenizers = _get_safe_tokenizers()
         raise ValueError(
-            f"Unsafe tokenizer: '{spec}'. "
-            f"Only 'default', safe modules ({', '.join(sorted(safe_tokenizers))}), "
-            f"or local .py files with safe imports are allowed."
+            f"Unsafe tokenizer: '{spec}'. Only 'default', safe modules ({', '.join(sorted(safe_tokenizers))}), or local .py files with safe imports are allowed."
         )
-
     if spec.startswith("tiktoken"):
         if _has_tiktoken():
             return _load_tiktoken(spec)
         raise ValueError("tiktoken is not installed. Install it with: pip install tiktoken")
-
     if spec.startswith("transformers"):
         if _has_transformers():
             return _load_transformers(spec)
         raise ValueError("transformers is not installed. Install it with: pip install transformers")
-
-    if ":" in spec:
-        module_name, func_name = spec.split(":", 1)
-    else:
-        module_name = spec
-        func_name = "count_tokens"
-
-    # Try local file first (bypasses sys.modules cache for test isolation)
+    module_name, func_name = (spec.split(":", 1) + ["count_tokens"])[:2]
     filepath = _find_module_path(module_name, root=root)
     if filepath is not None:
         mod = _import_local_module(module_name, filepath)
         return getattr(mod, func_name)
-
-    # Fall back to regular import
     mod = importlib.import_module(module_name)
     return getattr(mod, func_name)
