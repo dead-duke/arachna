@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.1.1 — Quick fixes from audit
+- 17 code smells fixed: unused params, deduplicated literals, empty blocks
+- completion.py: argparse subparsers for bash/zsh
+- is_excluded: support directory-scoped patterns
+- remote: true profile field + strict --profile for --repo
+- fmt restored in diff chain for XML output
+- _find_query_candidate accepts root parameter
+- 1571 tests, 95% coverage
+
 ## v4.1.0 — Quality of life
 - max_tokens: -1 as unlimited (0 rejected, follows Unix convention)
 - line_numbers profile field: prepend 5-digit line numbers to file sections

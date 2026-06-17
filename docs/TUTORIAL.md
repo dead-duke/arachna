@@ -43,12 +43,17 @@ print(result)
 # Parts: 1
 # Tokens: 45000
 
-# With specific profile
+# With strict profile (error if not found in remote config)
 result = collect_remote("https://github.com/user/repo", profile="python")
 
 # With custom output directory
 result = collect_remote("https://github.com/user/repo", output_dir="my_context")
 ```
+
+Profile selection (v4.1.1+):
+- `profile="python"` — strict mode: exact match or ValueError
+- `profile="full"` — auto-select: picks `remote: true` profile, or auto-detects via presets, or falls back to "full"
+- Add `"remote": true` to your .arachna.json profile to mark it as the default for remote collection
 
 Or via CLI:
 
@@ -57,8 +62,8 @@ arachna collect --repo https://github.com/user/repo
 arachna collect --repo https://github.com/user/repo --profile python
 ```
 
-Clones with `--depth 1` for speed, auto-detects project type, runs collection,
-and cleans up the temp directory. Requires git on PATH.
+Clones with `--depth 1` for speed, pre_commands/post_commands are disabled
+for security. Requires git on PATH.
 
 ## Installing plugins (v3.1.0+)
 

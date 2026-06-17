@@ -62,17 +62,34 @@ arachna collect --repo https://github.com/user/repo
 arachna collect --repo https://github.com/user/repo --profile python
 ```
 
+Profile selection logic (v4.1.1+):
+
+- `--profile python` — strict mode: uses the specified profile from the remote
+  repo's .arachna.json, or exits with an error listing available profiles
+- Without `--profile` — auto-select mode:
+  1. If the repo has profiles with `remote: true` field, picks the only one
+  2. Multiple `remote: true` profiles — exits with an error, asks for `--profile`
+  3. No `remote: true` profiles — auto-detects via `detect_presets()`
+  4. Fallback: `"full"` profile
+
+Add `"remote": true` to your profile to mark it as the default for remote collection.
+
 For programmatic use:
 
 ```python
 from arachna.domain.remote import collect_remote
 
+# Auto-detect profile
 result = collect_remote("https://github.com/user/repo", profile="full")
+print(result)
+
+# Strict profile (error if not found)
+result = collect_remote("https://github.com/user/repo", profile="python")
 print(result)
 ```
 
-Clones with `--depth 1` for speed, auto-detects project type, runs collection,
-and cleans up. Requires git on PATH.
+Clones with `--depth 1` for speed, pre_commands/post_commands are disabled
+for security (allow_pre_commands=False). Requires git on PATH.
 
 ## Programmatic API
 
@@ -136,4 +153,5 @@ watch.update_snapshot("before-fix", root=root)
    for accurate structural diff — AI sees changed functions, not changed lines.
 
 8. **Use --repo for quick exploration.** `arachna collect --repo <url>` clones
-   and collects in one command — no manual clone, cd, collect, cleanup.
+   and collects in one command. Add `"remote": true` to your .arachna.json
+   to auto-select the right profile for remote collection.

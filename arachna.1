@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-16" "arachna v4.1.0" "User Commands"
+.TH ARACHNA 1 "2026-06-17" "arachna v4.1.1" "User Commands"
 .SH NAME
 arachna \- context collector for AI
 .SH SYNOPSIS
@@ -20,8 +20,8 @@ Plugins add language-specific features: tree-sitter structural diff for
 JavaScript/TypeScript/Go, tiktoken/transformers for accurate token counting.
 Core stays zero-dependency.
 .PP
-Version 4.1.0 adds remote repository collection, line numbers in file sections,
-and max_tokens: -1 as unlimited (Unix convention).
+Version 4.1.1 brings 17 code quality fixes, remote profile selection,
+directory-scoped exclude patterns, and argparse-based shell completion.
 .SH COMMANDS
 .TP
 \fBcollect\fR
@@ -35,6 +35,9 @@ Collect all profiles.
 .TP
 \fBcollect \-\-repo\fR \fIurl\fR
 Clone a remote git repository and collect its context.
+.TP
+\fBcollect \-\-repo\fR \fIurl\fR \fB\-\-profile\fR \fIname\fR
+Clone and collect using a specific profile (strict mode: exact match required).
 .TP
 \fBcollect \-\-list\fR
 List available profiles.
@@ -134,6 +137,31 @@ Install post-commit git hook.
 .TP
 \fBcompletion\fR \fIbash|zsh\fR
 Generate shell completion script.
+.SH REMOTE REPOSITORY COLLECTION
+\fBarachna collect \-\-repo\fR clones a git repository (via \fBgit clone \-\-depth 1\fR),
+auto-detects project type, runs collection, and cleans up the temporary directory.
+Requires git installed on the system.
+.PP
+Profile selection:
+.TP
+\fB\-\-profile python\fR
+Strict mode: uses the specified profile from the remote repo's
+.arachna.json. Exits with an error listing available profiles if not found.
+.TP
+\fB(no \-\-profile)\fR
+Auto-select mode:
+.br
+1. If the repo has a profile with \fB"remote": true\fR, uses that one.
+.br
+2. Multiple \fBremote: true\fR profiles — exits with an error, asks for \fB\-\-profile\fR.
+.br
+3. No \fBremote: true\fR profiles — auto-detects via \fBdetect_presets()\fR.
+.br
+4. Fallback: \fB"full"\fR profile.
+.PP
+Mark a profile as default for remote collection:
+.B "remote": true
+in the profile configuration.
 .SH PLUGINS
 Plugins add language-specific features without adding dependencies to core.
 Install via pip extras or the plugin manager.
@@ -189,6 +217,11 @@ Collect all profiles:
 Collect from a remote repository:
 .RS
 .B arachna collect \-\-repo https://github.com/user/repo
+.RE
+.PP
+Collect from a remote repository with strict profile:
+.RS
+.B arachna collect \-\-repo https://github.com/user/repo \-\-profile python
 .RE
 .PP
 Profile your project — measure token savings:

@@ -5,7 +5,7 @@
 arachna is a context collector for AI. It gathers project files, splits them
 by token limits, and writes output files ready for AI consumption.
 
-## Package structure (v4.1.0)
+## Package structure (v4.1.1)
 
 src/arachna/
   __init__.py           Version + public API re-exports
@@ -33,7 +33,7 @@ src/arachna/
 
   config/               Configuration, presets, init, validation
     __init__.py         VALID_SPLIT_MODES constant
-    completion.py       Bash and zsh shell completion scripts
+    completion.py       Bash and zsh shell completion (argparse subparsers)
     config.py           .arachna.json loader, profile resolution with extends
     doctor.py           Full diagnostic: run_doctor(project_root, config)
     hook.py             Git post-commit hook installer
@@ -117,9 +117,29 @@ get_header_parser() and get_block_parser(). Adding a language requires
 editing formatter.py only.
 
 ### Remote repository collection
-domain/remote.py clones via git clone --depth 1, auto-detects presets,
-runs collection, cleans up temp directory. Requires git on PATH.
-No new dependencies — uses subprocess for git, tempfile for cleanup.
+domain/remote.py clones via git clone --depth 1, selects profile via strict
+--profile or auto-detection with remote:true marker, runs collection with
+allow_pre_commands=False (security: no external commands executed), cleans up
+temp directory. Requires git on PATH. No new dependencies.
+
+Profile selection logic:
+- --profile python: strict mode — exact match or error
+- (no --profile): auto-select mode
+  1. remote:true profiles (one → use, multiple → error)
+  2. detect_presets() auto-detection
+  3. Fallback: "full" profile
+
+New config field: "remote": true marks a profile as default for remote collection.
+
+### Directory-scoped exclude patterns
+is_excluded() supports patterns with "/" that match against path suffixes.
+Pattern "dir/subdir/*.json" matches ".../dir/subdir/foo.json" by iterating
+suffix boundaries. Eliminates the need for "*" prefix workaround.
+
+### Shell completion for argparse subparsers
+completion.py generates bash/zsh scripts with full subcommand support:
+collect, snapshot, diff, store, plugins, presets, profile, doctor, init,
+manifest, completion. Each subcommand has its own flags.
 
 ## Plugin architecture
 
@@ -154,7 +174,7 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1556 tests, 95% coverage. Tests mirror src/arachna/ package structure.
+1571 tests, 95% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
   domain/       Tests for domain/ modules (including remote.py)

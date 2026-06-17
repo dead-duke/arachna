@@ -20,7 +20,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1556 tests, 95% coverage, 200+ commits.
+day one. 1571 tests, 95% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -191,6 +191,32 @@ Creates arachna_context/ with .md files ready for AI.
     arachna collect --repo https://github.com/user/repo
     arachna collect --repo https://github.com/user/repo --profile python
 
+Profile selection logic:
+
+- `--profile python` — strict mode: uses the specified profile from the remote
+  repo's .arachna.json, or exits with an error listing available profiles
+- Without `--profile` — auto-select mode:
+  1. If the repo has profiles with `remote: true` field, picks the only one
+  2. Multiple `remote: true` profiles — exits with an error, asks for `--profile`
+  3. No `remote: true` profiles — auto-detects via `detect_presets()`
+  4. Fallback: `"full"` profile
+
+Add `"remote": true` to your .arachna.json profile to mark it as the default
+for remote collection:
+
+```json
+{
+  "profiles": {
+    "code": {
+      "remote": true,
+      "directories": ["src"],
+      "patterns": ["*.py"],
+      "max_tokens": 16000
+    }
+  }
+}
+```
+
 ### Dry-run (preview without writing)
 
     arachna collect --all --dry-run
@@ -348,6 +374,7 @@ Example .arachna.json for a Python project:
 - binary_max_mb: max binary file size in MB
 - extends: inherit settings from another profile
 - line_numbers: prepend line numbers to file content (true/false, default: false)
+- remote: mark profile as default for remote collection (true/false, default: false)
 
 ## Output
 
