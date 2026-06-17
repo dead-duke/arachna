@@ -9,6 +9,7 @@
       "directories": ["src", "tests", "llm_docs", ".github", "docs", "examples"],
       "patterns": ["*.py", "*.md", "*.txt", "*.json", "*.toml", "*.yaml", "*.yml", "*.cfg", "*.ini"],
       "exclude_patterns": ["*sonarcloud/vulnerabilities.md", "*sonarcloud/bugs.md", "*sonarcloud/code_smells.md", "*sonarcloud/security_hotspots.md"],
+      "line_numbers": true,
       "files": [
         ".arachna.json",
         ".gitignore",
@@ -39,6 +40,7 @@
       "directories": ["src", "tests", "llm_docs", ".github", "examples"],
       "patterns": ["*.py", "*.md", "*.yaml", "*.yml", "*.json", "*.toml", "*.cfg", "*.ini"],
       "exclude_patterns": ["*sonarcloud/vulnerabilities.md", "*sonarcloud/bugs.md", "*sonarcloud/code_smells.md", "*sonarcloud/security_hotspots.md"],
+      "line_numbers": true,
       "files": [
         ".arachna.json",
         ".gitignore",
@@ -59,6 +61,7 @@
       "split_mode": "by_file",
       "directories": ["docs", "llm_docs"],
       "patterns": ["*.md", "*.txt"],
+      "line_numbers": true,
       "files": ["README.md", "CHANGELOG.md", "TODO.md", "Makefile", "LICENSE", "SECURITY.md", "arachna.1"],
       "pre_commands": ["tree docs llm_docs 2>/dev/null || true"],
       "max_tokens": 32768,
@@ -68,6 +71,7 @@
       "split_mode": "by_file",
       "directories": [],
       "patterns": [],
+      "line_numbers": true,
       "files": [".arachna.json", "pyproject.toml", "Makefile", ".pre-commit-config.yaml", "requirements-dev.txt"],
       "pre_commands": [],
       "max_tokens": 32768,
