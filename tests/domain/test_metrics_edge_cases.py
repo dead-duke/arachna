@@ -1,6 +1,7 @@
 """Tests for PipelineMetrics edge cases — compress, incremental, empty, query, repo-map."""
 
 import json
+import math
 
 from arachna.domain.collector import collect
 
@@ -76,7 +77,7 @@ def test_metrics_empty_collection(tmp_path):
     assert m.files_read == 0
     assert m.tokens_raw == 0
     assert m.tokens_compressed == 0
-    assert m.compression_ratio == 1.0
+    assert math.isclose(m.compression_ratio, 1.0)
 
 
 def test_metrics_with_query(tmp_path):

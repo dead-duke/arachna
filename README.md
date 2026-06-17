@@ -20,7 +20,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1607 tests, 95% coverage, 200+ commits.
+day one. 1605 tests, 95% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -684,6 +684,40 @@ Full details: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). Run locally: `make bench
 - **Streaming mode** (full mode) keeps memory at O(max_tokens). Pre_commands run
   before file collection. Query filtering works on filenames in streaming mode.
 - **Snapshot portability** across Windows and Linux — paths stored relative to project root.
+# Stable API (v4.2.0+)
+
+arachna's public API is stable and follows semantic versioning:
+
+- **MAJOR** (4.x → 5.0): breaking changes to public API signatures
+- **MINOR** (4.2 → 4.3): new features, backward-compatible
+- **PATCH** (4.2.0 → 4.2.1): bug fixes only
+
+### Guaranteed stable
+
+These modules will not break without a major version bump:
+
+```python
+from arachna.collect_api import collect      # collection API
+from arachna import watch                     # snapshot + diff API
+from arachna.api_errors import (             # exception classes
+    ArachnaError,
+    SnapshotNotFoundError,
+    SnapshotExistsError,
+    ProfileNotFoundError,
+)
+```
+
+### Not guaranteed stable
+
+Internal modules (`arachna.domain.*`, `arachna.config.*`, `arachna.cli.*`,
+`arachna.plugins.*`) may change between minor versions. If you need
+something from internals, open an issue — it may be promoted to public API.
+
+### Deprecation policy
+
+Breaking changes to public API are announced one minor version before
+removal with a `FutureWarning`. Example: if `collect()` parameter order
+changes in v4.4, v4.3 will emit a warning.
 
 ## Doctor
 

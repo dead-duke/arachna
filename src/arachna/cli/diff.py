@@ -101,7 +101,7 @@ def _resolve_diff_profile(args, snapshot_id: str, root: Path, config: dict) -> d
     sys.exit(1)
 
 
-def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root):
+def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root):
     if args.mode == "structural":
         from ..watch.differ_structural import structural_diff_sections
 
@@ -109,9 +109,7 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root)
     elif args.mode == "repo-map":
         from ..watch.watcher_diff import _apply_repo_map_to_sections
 
-        return _apply_repo_map_to_sections(
-            sections, snapshot_id, to_snapshot_id, profile, root=root
-        )
+        return _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
     return sections
 
 
@@ -186,6 +184,6 @@ def _cmd_diff(args, config: dict):
         flat=args.flat,
         line_numbers=line_numbers,
     )
-    sections = _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, profile, root)
+    sections = _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root)
     if _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, config):
         return

@@ -44,10 +44,11 @@ def parse_output_dir(args, config: dict) -> str:
 def print_collected(created: list[str]):
     if created:
         for f in created:
-            content = Path(f).read_text(encoding="utf-8")
+            fp = Path(f)
+            content = fp.read_text(encoding="utf-8")
             lines = content.count("\n") + 1
             tokens = count_tokens(content)
-            print(f"  {Path(f).name} ({lines} lines, ~{tokens} tokens)")
+            print(f"  {fp.name} ({lines} lines, ~{tokens} tokens)")
     else:
         print("  No content collected.")
 

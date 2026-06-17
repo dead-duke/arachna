@@ -161,7 +161,7 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1607 tests, 95% coverage. Tests mirror src/arachna/ package structure.
+1605 tests, 95% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
   domain/       Tests for domain/ modules

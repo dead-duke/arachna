@@ -153,18 +153,26 @@ def _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
 
-_RE_C_LIKE_IMPORT_CHAIN = [
-    re.compile(
-        r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]|import\s+['\"]([^'\"]+)['\"])",
-        re.MULTILINE,
-    ),
-    re.compile(
-        r"^\s*(?:const|let|var)\s+[\w{},\s*]+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
-        re.MULTILINE,
-    ),
-    re.compile(r"^\s*#include\s*[<\"]([^>\"]+)[>\"]", re.MULTILINE),
-    re.compile(r"^\s*using\s+([\w.]+)\s*;", re.MULTILINE),
-    re.compile(r"^\s*use\s+([\w\\]+)\s*;", re.MULTILINE),
+# _RE_C_LIKE_IMPORT_CHAIN: split into single-purpose patterns to keep
+# regex complexity under 20. Tested with hypothesis fuzzing.
+_RE_ES6_IMPORT = re.compile(
+    r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]|import\s+['\"]([^'\"]+)['\"])",
+    re.MULTILINE,
+)
+_RE_COMMONJS_REQUIRE = re.compile(
+    r"^\s*(?:const|let|var)\s+[\w{},\s*]+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    re.MULTILINE,
+)
+_RE_C_INCLUDE = re.compile(r"^\s*#include\s*[<\"]([^>\"]+)[>\"]", re.MULTILINE)
+_RE_CSHARP_USING = re.compile(r"^\s*using\s+([\w.]+)\s*;", re.MULTILINE)
+_RE_MODULE_USE = re.compile(r"^\s*use\s+([\w\\]+)\s*;", re.MULTILINE)
+
+_C_LIKE_IMPORT_PATTERNS = [
+    _RE_ES6_IMPORT,
+    _RE_COMMONJS_REQUIRE,
+    _RE_C_INCLUDE,
+    _RE_CSHARP_USING,
+    _RE_MODULE_USE,
 ]
 
 _RE_C_LIKE_EXPORT = re.compile(
@@ -172,14 +180,30 @@ _RE_C_LIKE_EXPORT = re.compile(
     r"type\s+\w+\s+\w+|type\s+|public\s+class|public\s+static|public\s+function|fn|func)\s+(\w+)",
     re.MULTILINE,
 )
-_RE_SCRIPT_IMPORT = re.compile(
-    r"^\s*(?:require\s+['\"]([^'\"]+)['\"]|import\s+['\"]([^'\"]+)['\"]|use\s+([\w.]+))",
-    re.MULTILINE,
-)
-_RE_SCRIPT_EXPORT = re.compile(
-    r"^\s*(?:def\s+(?:self\.)?(\w+[?!]?)|defmodule\s+([\w.]+)|defp\s+(\w+)|function\s+(\w+))",
-    re.MULTILINE,
-)
+
+# Script import patterns: split into single-purpose patterns.
+_RE_RUBY_REQUIRE = re.compile(r"^\s*require\s+['\"]([^'\"]+)['\"]", re.MULTILINE)
+_RE_SCRIPT_IMPORT_QUOTED = re.compile(r"^\s*import\s+['\"]([^'\"]+)['\"]", re.MULTILINE)
+_RE_ELIXIR_USE = re.compile(r"^\s*use\s+([\w.]+)", re.MULTILINE)
+
+_SCRIPT_IMPORT_PATTERNS = [
+    _RE_RUBY_REQUIRE,
+    _RE_SCRIPT_IMPORT_QUOTED,
+    _RE_ELIXIR_USE,
+]
+
+# Script export patterns: split into single-purpose patterns.
+_RE_RUBY_DEF = re.compile(r"^\s*def\s+(?:self\.)?(\w+[?!]?)", re.MULTILINE)
+_RE_ELIXIR_DEFMODULE = re.compile(r"^\s*defmodule\s+([\w.]+)", re.MULTILINE)
+_RE_ELIXIR_DEFP = re.compile(r"^\s*defp\s+(\w+)", re.MULTILINE)
+_RE_LUA_FUNCTION = re.compile(r"^\s*function\s+(\w+)", re.MULTILINE)
+
+_SCRIPT_EXPORT_PATTERNS = [
+    _RE_RUBY_DEF,
+    _RE_ELIXIR_DEFMODULE,
+    _RE_ELIXIR_DEFP,
+    _RE_LUA_FUNCTION,
+]
 
 
 def _generate_header(path: Path, text: str, lang: str) -> str:
@@ -245,7 +269,7 @@ def _parse_python(text: str) -> tuple[list[str], list[str]]:
 def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
     deps = []
     exports = []
-    for pattern in _RE_C_LIKE_IMPORT_CHAIN:
+    for pattern in _C_LIKE_IMPORT_PATTERNS:
         for m in pattern.finditer(text):
             for group in m.groups():
                 if group:
@@ -260,14 +284,16 @@ def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
 def _parse_script(text: str) -> tuple[list[str], list[str]]:
     deps = []
     exports = []
-    for m in _RE_SCRIPT_IMPORT.finditer(text):
-        dep = m.group(1) or m.group(2) or m.group(3)
-        if dep:
-            deps.append(dep)
-    for m in _RE_SCRIPT_EXPORT.finditer(text):
-        name = m.group(1) or m.group(2) or m.group(3) or m.group(4)
-        if name:
-            exports.append(name)
+    for pattern in _SCRIPT_IMPORT_PATTERNS:
+        for m in pattern.finditer(text):
+            for group in m.groups():
+                if group:
+                    deps.append(group)
+    for pattern in _SCRIPT_EXPORT_PATTERNS:
+        for m in pattern.finditer(text):
+            name = m.group(1)
+            if name:
+                exports.append(name)
     return deps, exports
 
 
@@ -337,13 +363,17 @@ def _read_text_content(path, include_binary, binary_extensions, binary_max_mb, v
     return ("text", content)
 
 
+def _resolve_lang(path, text):
+    lang = lang_for_path(path)
+    if not lang and text:
+        lang = _lang_from_shebang(text.split("\n")[0])
+    return lang
+
+
 def _format_content(path, text, fmt, include_header, line_numbers):
     if line_numbers:
         text = _add_line_numbers(text)
-    lang = lang_for_path(path)
-    if not lang:
-        first_line = text.split("\n")[0] if text else ""
-        lang = _lang_from_shebang(first_line)
+    lang = _resolve_lang(path, text)
     header = _generate_header(path, text, lang) if include_header else ""
     if fmt == "xml":
         return header + _format_xml(path, lang, text)
@@ -368,7 +398,15 @@ def format_file_section(
             print(f"  Skipped (path traversal): {path}")
         return ""
     if _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
-        return _format_skip_message(path, include_binary, binary_extensions, binary_max_mb, verbose)
+        if verbose:
+            try:
+                path.stat()
+            except OSError as e:
+                print(f"  Skipped (error): {path} - {e}")
+                return ""
+            reason = _skip_reason_label(path, include_binary, binary_extensions, binary_max_mb)
+            print(f"  Skipped ({reason}): {path}")
+        return ""
     return _format_valid_file(
         path,
         fmt,
@@ -379,19 +417,6 @@ def format_file_section(
         include_header,
         line_numbers,
     )
-
-
-def _format_skip_message(path, include_binary, binary_extensions, binary_max_mb, verbose):
-    try:
-        path.stat()
-    except OSError as e:
-        if verbose:
-            print(f"  Skipped (error): {path} - {e}")
-        return ""
-    if verbose:
-        reason = _skip_reason_label(path, include_binary, binary_extensions, binary_max_mb)
-        print(f"  Skipped ({reason}): {path}")
-    return ""
 
 
 def _format_valid_file(
@@ -491,9 +516,8 @@ def is_excluded(path, exclude_patterns):
         if "/" in pat:
             if _match_directory_pattern(path_str, pat):
                 return True
-        else:
-            if fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):
-                return True
+        elif fnmatch.fnmatch(path_str, pat) or fnmatch.fnmatch(path.name, pat):
+            return True
     return False
 
 

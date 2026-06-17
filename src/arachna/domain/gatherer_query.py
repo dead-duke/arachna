@@ -41,7 +41,7 @@ def _score_filename(filepath, query_words):
     return 0
 
 
-def _score_content(filepath, content, query_words):
+def _score_content(content, query_words):
     content_lower = content.lower()
     score = 0
     for word in query_words:
@@ -77,7 +77,7 @@ def _score_files(named_sections, query_words, graph_cache):
             continue
         score = (
             _score_filename(filepath, query_words)
-            + _score_content(filepath, content, query_words)
+            + _score_content(content, query_words)
             + _score_exports(content, query_words)
             + _score_imports(filepath, graph, query_words)
         )

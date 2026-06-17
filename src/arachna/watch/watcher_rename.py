@@ -72,13 +72,13 @@ def _process_hash_group(del_paths, add_paths, rename_sections, matched_deleted, 
         matched_added.update(add_paths)
 
 
-def _match_exact_renames(deleted, added, fmt, line_numbers=False):
+def _match_exact_renames(deleted, added):
     rename_sections = []
     matched_deleted = set()
     matched_added = set()
     deleted_by_hash = _build_hash_index(deleted)
     added_by_hash = _build_hash_index(added)
-    for ch, del_paths in list(deleted_by_hash.items()):
+    for ch, del_paths in deleted_by_hash.items():
         if ch not in added_by_hash:
             continue
         add_paths = added_by_hash[ch]
@@ -179,7 +179,7 @@ def _match_similar_renames(
 
 def _detect_renames_and_moves(deleted, added, fmt, line_numbers=False):
     exact_sections, exact_del, exact_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, fmt, line_numbers=line_numbers
+        deleted, added
     )
     similar_sections, similar_del, similar_add = _match_similar_renames(
         remaining_del, remaining_add, exact_add, fmt, line_numbers=line_numbers

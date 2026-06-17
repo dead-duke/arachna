@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Public Watch API for arachna v4.0.0."""
+"""Public Watch API for arachna v4.2.0."""
 
 import logging
 from pathlib import Path
@@ -155,13 +155,11 @@ def _resolve_profile(profile, root):
     return profile
 
 
-def _build_diff_sections(sections, mode, snapshot_id, to_snapshot_id, profile_dict, root):
+def _build_diff_sections(sections, mode, snapshot_id, to_snapshot_id, root):
     if mode == "structural" and sections:
         sections = structural_diff_sections(sections, "markdown")
     elif mode == "repo-map" and sections:
-        sections = _apply_repo_map_to_sections(
-            sections, snapshot_id, to_snapshot_id, profile_dict, root
-        )
+        sections = _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
     return [
         DiffSection(
             type=s.type,
@@ -182,7 +180,6 @@ def compute_diff(
     to_snapshot_id: str | None = None,
     mode: str = "full",
     flat: bool = False,
-    streaming: bool = False,
     line_numbers: bool = False,
 ) -> DiffResult:
     profile_dict = _resolve_profile(profile, root)
@@ -194,12 +191,9 @@ def compute_diff(
         fmt=fmt,
         to_snapshot_id=to_snapshot_id,
         flat=flat,
-        streaming=streaming,
         line_numbers=line_numbers,
     )
-    api_sections = _build_diff_sections(
-        sections, mode, snapshot_id, to_snapshot_id, profile_dict, root
-    )
+    api_sections = _build_diff_sections(sections, mode, snapshot_id, to_snapshot_id, root)
     raw_stats = compute_diff_stats(sections)
     stats = DiffStats(
         modified=raw_stats["modified"],

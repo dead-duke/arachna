@@ -519,7 +519,6 @@ def compute_diff(
     fmt="markdown",
     to_snapshot_id=None,
     flat=False,
-    streaming=False,
     line_numbers=False,
 ):
     """Compute diff between snapshot and current state or between two snapshots."""
@@ -617,7 +616,7 @@ def _repo_map_deleted_section(s, lang, parser, snapshot_files, root):
             )
 
 
-def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, profile, root):
+def _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root):
     """Apply repo-map transformation to diff sections (signatures only)."""
     from ..domain.formatter import lang_for_path
     from ..domain.language_dispatch import get_block_parser
@@ -665,7 +664,7 @@ def _read_file_from_disk(path, root=None):
         return None
 
 
-def _format_repo_map_entry(name, old, new, parts):
+def _format_repo_map_entry(old, new, parts):
     """Format a single repo-map diff entry for one named block."""
     import hashlib
 
@@ -696,7 +695,7 @@ def _format_repo_map_diff(path, old_blocks, new_blocks):
     for name in sorted(all_names):
         old = old_blocks.get(name)
         new = new_blocks.get(name)
-        _format_repo_map_entry(name, old, new, parts)
+        _format_repo_map_entry(old, new, parts)
     return "".join(parts) if len(parts) > 1 else ""
 
 

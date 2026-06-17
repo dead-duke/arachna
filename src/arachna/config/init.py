@@ -45,7 +45,7 @@ def run_defaults(output_dir: str = ".", preset: str | None = None, root: Path | 
         print(f"Profiles: {', '.join(config['profiles'].keys())}")
 
 
-def _collect_interactive_profiles(detected, max_tokens, root):
+def _collect_interactive_profiles(detected, max_tokens):
     profiles = {}
     for name in detected:
         profile = preset_to_profile(name)
@@ -84,7 +84,7 @@ def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path
     print("Detected:")
     print(_SEPARATOR)
     detected = detect_presets(preset_name=preset, root=root)
-    profiles = _collect_interactive_profiles(detected, max_tokens, root)
+    profiles = _collect_interactive_profiles(detected, max_tokens)
     config = {"project_name": project_name, "output_dir": output_dir, "profiles": profiles}
     print()
     print(_SEPARATOR)

@@ -99,7 +99,7 @@ def test_apply_repo_map_to_sections_modified(tmp_path, setup_config, make_profil
             content="### src/main.py\n\nREMOVED lines 1:\n    old\n\nADDED lines 1:\n    new\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, "rm-mod", None, profile, root=root)
+    result = _apply_repo_map_to_sections(sections, "rm-mod", None, root=root)
     assert len(result) == 1
     assert "foo" in result[0].content
 
@@ -118,7 +118,7 @@ def test_apply_repo_map_to_sections_added(tmp_path, setup_config, make_profile):
             content="ADDED (new file):\n\n```\ndef new_func():\n    pass\n```\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, "rm-add", None, profile, root=root)
+    result = _apply_repo_map_to_sections(sections, "rm-add", None, root=root)
     assert len(result) == 1
     assert "new.py" in result[0].path or "new_func" in result[0].content
 
@@ -131,7 +131,7 @@ def test_apply_repo_map_to_sections_header_passthrough(tmp_path, setup_config, m
     profile = make_profile("src", ["*.py"])
     create_snapshot(root=root, profile=profile, name="rm-header")
     sections = [DiffSection(type="header", path="", content="## Changes\n")]
-    result = _apply_repo_map_to_sections(sections, "rm-header", None, profile, root=root)
+    result = _apply_repo_map_to_sections(sections, "rm-header", None, root=root)
     assert result[0].type == "header"
     assert result[0].content == "## Changes\n"
 
@@ -144,7 +144,7 @@ def test_apply_repo_map_to_sections_deleted(tmp_path, setup_config, make_profile
     profile = make_profile("src", ["*.py"])
     create_snapshot(root=root, profile=profile, name="rm-del")
     sections = [DiffSection(type="deleted", path="src/main.py", content="[DELETED]\n")]
-    result = _apply_repo_map_to_sections(sections, "rm-del", None, profile, root=root)
+    result = _apply_repo_map_to_sections(sections, "rm-del", None, root=root)
     assert len(result) == 1
     assert "Removed signatures" in result[0].content or "DELETED" in result[0].content
 
@@ -163,7 +163,7 @@ def test_apply_repo_map_to_sections_cannot_read(tmp_path, setup_config, make_pro
             content="### nonexistent.py\n\nREMOVED lines 1:\n    old\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, "rm-readfail", None, profile, root=root)
+    result = _apply_repo_map_to_sections(sections, "rm-readfail", None, root=root)
     assert len(result) == 1
     assert "REMOVED" in result[0].content
 

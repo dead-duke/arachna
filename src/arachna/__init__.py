@@ -1,9 +1,25 @@
-"""arachna — context collector for AI."""
+"""arachna — context collector for AI.
+
+Public API (stable since v4.2.0):
+- arachna.collect_api.collect()
+- arachna.watch (create_snapshot, list_snapshots, update_snapshot,
+  delete_snapshot, snapshot_info, compute_diff, store_stats, store_gc)
+- arachna.api_errors (ArachnaError, SnapshotNotFoundError,
+  SnapshotExistsError, ProfileNotFoundError)
+
+Semantic versioning applies to the public API. Internal modules
+(domain/, config/, cli/, plugins/) may change without notice.
+"""
 
 __version__ = "4.2.0"
 
-# Public API re-exports
+# Public API — stable, backward-compatible
+__all__ = [
+    "collect_api",
+    "watch",
+    "api_errors",
+]
+
 from .api import api_errors as api_errors
 from .api import collect_api as collect_api
 from .api import watch as watch
-from .domain import api_types as api_types

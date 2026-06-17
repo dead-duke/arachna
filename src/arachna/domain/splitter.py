@@ -98,9 +98,7 @@ def _add_continuation_markers(chunks, base_part_num):
     return result
 
 
-def _handle_oversized_section(
-    section, i, max_tokens, tk, current, current_tokens, current_indices, parts, indices
-):
+def _handle_oversized_section(section, i, max_tokens, tk, current, current_indices, parts, indices):
     if current:
         parts.append(current.strip())
         indices.append(current_indices)
@@ -130,7 +128,7 @@ def _pack_section_into_parts(sections, max_tokens, separator, tk):
         section_tokens = tk(section)
         if section_tokens > max_tokens:
             current, current_tokens, current_indices = _handle_oversized_section(
-                section, i, max_tokens, tk, current, current_tokens, current_indices, parts, indices
+                section, i, max_tokens, tk, current, current_indices, parts, indices
             )
             continue
         if current_tokens + section_tokens > max_tokens:
@@ -158,7 +156,6 @@ def pack_into_parts(sections, max_tokens, separator="\n\n", tokenizer=None):
 
 
 def _build_parts_for_sections(sections, max_tokens, separator, tk):
-    """Pack sections into token-limited parts with truncation for oversized sections."""
     if max_tokens == -1:
         content = separator.join(s.strip() for s in sections if s.strip())
         return [content] if content else []
@@ -284,10 +281,31 @@ _RE_C_LIKE_SIG = re.compile(
     r"type\s+\w+\s+\w+|type\s+|public\s+class|public\s+static|public\s+function|fn|func)\s+[^{]*)",
     re.MULTILINE,
 )
-_RE_SCRIPT_SIG = re.compile(
-    r"^(\s*(?:def\s+(?:self\.)?\w+[?!]?.*|defmodule\s+[\w.]+.*|defp\s+\w+.*|function\s+\w+.*))",
+
+# Script signature patterns: split into single-purpose patterns.
+_RE_SIG_RUBY_DEF = re.compile(
+    r"^(\s*def\s+(?:self\.)?\w+[?!]?.*)",
     re.MULTILINE,
 )
+_RE_SIG_ELIXIR_DEFMODULE = re.compile(
+    r"^(\s*defmodule\s+[\w.]+.*)",
+    re.MULTILINE,
+)
+_RE_SIG_ELIXIR_DEFP = re.compile(
+    r"^(\s*defp\s+\w+.*)",
+    re.MULTILINE,
+)
+_RE_SIG_LUA_FUNCTION = re.compile(
+    r"^(\s*function\s+\w+.*)",
+    re.MULTILINE,
+)
+
+_SCRIPT_SIG_PATTERNS = [
+    _RE_SIG_RUBY_DEF,
+    _RE_SIG_ELIXIR_DEFMODULE,
+    _RE_SIG_ELIXIR_DEFP,
+    _RE_SIG_LUA_FUNCTION,
+]
 
 
 def _extract_python_node(node, lines, keep):
@@ -322,7 +340,10 @@ def _extract_c_like_signatures(text):
 
 
 def _extract_script_signatures(text):
-    sigs = [m.group(1).strip() for m in _RE_SCRIPT_SIG.finditer(text)]
+    sigs = []
+    for pattern in _SCRIPT_SIG_PATTERNS:
+        for m in pattern.finditer(text):
+            sigs.append(m.group(1).strip())
     return "\n".join(sigs) if sigs else text
 
 

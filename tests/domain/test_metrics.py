@@ -1,6 +1,7 @@
 """Tests for .arachna_metrics.json and PipelineMetrics in collector.py."""
 
 import json
+import math
 
 from arachna.domain.collector import collect
 
@@ -69,7 +70,7 @@ def test_metrics_empty_collection(tmp_path):
     assert metrics.files_read == 0
     assert metrics.tokens_raw == 0
     assert metrics.tokens_compressed == 0
-    assert metrics.compression_ratio == 1.0
+    assert math.isclose(metrics.compression_ratio, 1.0)
 
     metrics_file = out / ".arachna_metrics.json"
     assert metrics_file.exists()

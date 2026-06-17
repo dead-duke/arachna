@@ -15,7 +15,7 @@ from .gatherer import _assemble_content
 from .gatherer_files import _get_exclude_patterns
 from .runner import run_command
 from .splitter import split_sections
-from .tokenizer import count_tokens, load_tokenizer
+from .tokenizer import load_tokenizer
 
 logger = logging.getLogger("arachna.collector")
 
@@ -196,10 +196,12 @@ def _diff_part_header(stats: dict, part_num: int, total_parts: int) -> str:
 
 
 def _build_part_stats(diff_sections, section_indices):
+    from ..watch.differ import compute_diff_stats
+
     part_stats = []
     for indices in section_indices:
         part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
-        part_stats.append(_compute_diff_stats_local(part_sections))
+        part_stats.append(compute_diff_stats(part_sections))
     return part_stats
 
 
@@ -232,30 +234,6 @@ def _write_diff_parts(
             f.write(part_content)
         created.append(str(filepath))
     return created
-
-
-def _compute_diff_stats_local(diffs: list) -> dict:
-    modified = added = deleted = renamed = moved = tokens = 0
-    for d in diffs:
-        if d.type == "modified":
-            modified += 1
-        elif d.type == "added":
-            added += 1
-        elif d.type == "deleted":
-            deleted += 1
-        elif d.type == "renamed":
-            renamed += 1
-        elif d.type == "moved":
-            moved += 1
-        tokens += count_tokens(d.content)
-    return {
-        "modified": modified,
-        "added": added,
-        "deleted": deleted,
-        "renamed": renamed,
-        "moved": moved,
-        "tokens": tokens,
-    }
 
 
 def _run_post_commands(commands: list[str], root: Path, verbose: bool = False):

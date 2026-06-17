@@ -146,17 +146,41 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict:
     return blocks
 
 
+# Script block patterns: split into single-purpose patterns
+# to keep regex complexity under 20.
+_RE_SCRIPT_DEF = re.compile(
+    r"^(\s*def\s+(?:self\.)?(\w+[?!]?).*)",
+    re.MULTILINE,
+)
+_RE_SCRIPT_DEFMODULE = re.compile(
+    r"^(\s*defmodule\s+([\w.]+).*)",
+    re.MULTILINE,
+)
+_RE_SCRIPT_DEFP = re.compile(
+    r"^(\s*defp\s+(\w+).*)",
+    re.MULTILINE,
+)
+_RE_SCRIPT_FUNCTION = re.compile(
+    r"^(\s*function\s+(\w+).*)",
+    re.MULTILINE,
+)
+
+_SCRIPT_BLOCK_PATTERNS = [
+    _RE_SCRIPT_DEF,
+    _RE_SCRIPT_DEFMODULE,
+    _RE_SCRIPT_DEFP,
+    _RE_SCRIPT_FUNCTION,
+]
+
+
 def _parse_script_blocks(text: str) -> dict:
-    sig_pattern = re.compile(
-        r"^(\s*(?:def\s+(?:self\.)?(\w+[?!]?).*|defmodule\s+([\w.]+).*|defp\s+(\w+).*|function\s+(\w+).*))",
-        re.MULTILINE,
-    )
     blocks = {}
-    for m in sig_pattern.finditer(text):
-        name = m.group(2) or m.group(3) or m.group(4) or m.group(5)
-        sig = m.group(1).strip()
-        body = text[m.end() :].strip()
-        blocks[name] = (sig, body)
+    for pattern in _SCRIPT_BLOCK_PATTERNS:
+        for m in pattern.finditer(text):
+            name = m.group(2)
+            sig = m.group(1).strip()
+            body = text[m.end() :].strip()
+            blocks[name] = (sig, body)
     return blocks
 
 

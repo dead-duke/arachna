@@ -16,7 +16,7 @@ def test_match_exact_renames_simple_rename():
     deleted = {"old.py": "same content"}
     added = {"new.py": "same content"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 1
     assert sections[0].type == "renamed"
@@ -34,7 +34,7 @@ def test_match_exact_renames_same_dir_move():
     deleted = {"src/old/utils.py": "same content"}
     added = {"lib/utils.py": "same content"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 1
     assert sections[0].type == "moved"
@@ -50,7 +50,7 @@ def test_match_exact_renames_move_and_rename():
     deleted = {"src/old.py": "same content"}
     added = {"lib/new.py": "same content"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 1
     assert sections[0].type == "renamed"
@@ -65,7 +65,7 @@ def test_match_exact_renames_same_path_same_hash_skipped():
     deleted = {"same.py": "unchanged"}
     added = {"same.py": "unchanged"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 0
     assert "same.py" in matched_del
@@ -79,7 +79,7 @@ def test_match_exact_renames_ambiguous_one_deleted_two_added():
     deleted = {"old.py": "same"}
     added = {"new1.py": "same", "new2.py": "same"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 0
     assert "old.py" in matched_del
@@ -92,7 +92,7 @@ def test_match_exact_renames_ambiguous_two_deleted_one_added():
     deleted = {"a.py": "same", "b.py": "same"}
     added = {"c.py": "same"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 0
     assert "a.py" in matched_del
@@ -105,7 +105,7 @@ def test_match_exact_renames_no_match_different_hash():
     deleted = {"old.py": "content A"}
     added = {"new.py": "content B"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 0
     assert matched_del == set()
@@ -119,7 +119,7 @@ def test_match_exact_renames_no_match_empty_opposite():
     deleted = {"old.py": "content A"}
     added = {"new.py": "content B"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, added, "markdown"
+        deleted, added
     )
     assert len(sections) == 0
     assert remaining_del == {"old.py": "content A"}
@@ -128,9 +128,7 @@ def test_match_exact_renames_no_match_empty_opposite():
 
 def test_match_exact_renames_empty_inputs():
     """Empty deleted and added -> empty result."""
-    sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        {}, {}, "markdown"
-    )
+    sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames({}, {})
     assert len(sections) == 0
     assert matched_del == set()
     assert matched_add == set()
@@ -142,7 +140,7 @@ def test_match_exact_renames_only_deleted():
     """Only deleted files, no added -> all remain as deleted."""
     deleted = {"gone.py": "content"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        deleted, {}, "markdown"
+        deleted, {}
     )
     assert len(sections) == 0
     assert remaining_del == {"gone.py": "content"}
@@ -153,7 +151,7 @@ def test_match_exact_renames_only_added():
     """Only added files, no deleted -> all remain as added."""
     added = {"new.py": "content"}
     sections, matched_del, matched_add, remaining_del, remaining_add = _match_exact_renames(
-        {}, added, "markdown"
+        {}, added
     )
     assert len(sections) == 0
     assert remaining_del == {}

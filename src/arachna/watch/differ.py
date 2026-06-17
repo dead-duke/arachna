@@ -4,7 +4,6 @@
 import difflib
 import logging
 from dataclasses import dataclass
-from pathlib import Path
 from xml.sax.saxutils import escape as _xml_escape
 
 from ..domain.tokenizer import count_tokens
@@ -137,9 +136,7 @@ def _format_added(
     tk = tokenizer if tokenizer is not None else count_tokens
     if max_tokens is not None and tk(content) > max_tokens:
         content = _truncate_if_needed(content, max_tokens, tk)
-        logger.warning(
-            "Added file %s exceeds max_tokens=%s — truncated", Path(path).name, max_tokens
-        )
+        logger.warning("Added file exceeds max_tokens=%s — truncated", max_tokens)
     if line_numbers and content.strip():
         lines = content.rstrip("\n").split("\n")
         width = max(5, len(str(len(lines))))
