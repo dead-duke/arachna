@@ -403,12 +403,12 @@ def _format_json(path, lang, text):
 
 
 def is_excluded(path, exclude_patterns):
-    path_str = str(path)
+    path_str = str(path).replace("\\", "/")
     for pat in exclude_patterns:
         if "/" in pat:
             # Directory-scoped pattern: match against path suffix.
             # "llm_docs/sonarcloud/*.json" matches ".../llm_docs/sonarcloud/foo.json"
-            # Iterate suffix boundaries and check fnmatch from that point.
+            # Normalize backslashes to forward slashes for cross-platform matching.
             parts = path_str.split("/")
             pat_parts = pat.split("/")
             if len(pat_parts) <= len(parts):
