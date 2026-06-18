@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.2.1 — SonarCloud cleanup
+- S3776: 14 functions reduced to cognitive complexity <=15
+- S5843: _RE_ES6_IMPORT split into _RE_ES6_IMPORT_FROM + _RE_ES6_IMPORT_BARE
+- S2083: validate_path in _write_parts, _write_diff_parts, clean_manifest, list_snapshots
+- S8707: _validate_output_dir rejects path separators in init.py
+- S2737: comment added to empty except in collector.py
+- S1481: unused variable replaced with _
+- 1613 tests, 95% coverage
+
 ## v4.2.0 — Code quality
 - _CollectParams dataclass: 14 params → 1 object in _FullModeStrategy
 - remote.py: domain/ → config/ (layer violation fix)

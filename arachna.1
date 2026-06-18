@@ -1,7 +1,7 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-18" "arachna v4.2.0" "User Commands"
+.TH ARACHNA 1 "2026-06-18" "arachna v4.2.1" "User Commands"
 .SH NAME
-arachna \- context collector for AI
+arachna \- context layer for AI workflows
 .SH SYNOPSIS
 .B arachna
 .I command
@@ -9,20 +9,19 @@ arachna \- context collector for AI
 .br
 .B arachna \-\-version
 .SH DESCRIPTION
-arachna collects project files into token-limited chunks ready for AI consumption.
-It understands tokens (not lines) and splits output smartly so nothing gets cut
-in the middle.
+arachna is a context layer for AI workflows: snapshots, diffs, profiles.
+Collect once, diff forever.
 .PP
-It supports incremental diffs via snapshots: snapshot what an AI has seen,
-then send only what changed. Works across multiple chats, agents, and sessions.
+It collects project files into token-limited chunks ready for AI consumption,
+understands tokens (not lines), and splits output smartly.
+.PP
+Watch subsystem provides incremental diffs via snapshots: snapshot what an AI
+has seen, then send only what changed. Works across multiple chats, agents,
+and sessions.
 .PP
 Plugins add language-specific features: tree-sitter structural diff for
 JavaScript/TypeScript/Go, tiktoken/transformers for accurate token counting.
 Core stays zero-dependency.
-.PP
-Version 4.2.0 brings code quality improvements: dataclass for parallel I/O params,
-module splits (gatherer, watcher, presets), cognitive complexity reduction,
-path validation, and --line-numbers flag for diff.
 .SH COMMANDS
 .TP
 \fBcollect\fR
@@ -157,9 +156,9 @@ Auto-select mode:
 .br
 1. If the repo has a profile with \fB"remote": true\fR, uses that one.
 .br
-2. Multiple \fBremote: true\fR profiles — exits with an error, asks for \fB\-\-profile\fR.
+2. Multiple \fBremote: true\fR profiles \-\- exits with an error, asks for \fB\-\-profile\fR.
 .br
-3. No \fBremote: true\fR profiles — auto-detects via \fBdetect_presets()\fR.
+3. No \fBremote: true\fR profiles \-\- auto-detects via \fBdetect_presets()\fR.
 .br
 4. Fallback: \fB"full"\fR profile.
 .PP
@@ -228,7 +227,7 @@ Collect from a remote repository with strict profile:
 .B arachna collect \-\-repo https://github.com/user/repo \-\-profile python
 .RE
 .PP
-Profile your project — measure token savings:
+Profile your project:
 .RS
 .B arachna profile
 .RE

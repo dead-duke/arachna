@@ -10,7 +10,7 @@
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
 
-arachna — context layer for AI workflows. Snapshots, diffs, profiles. Collect once, diff forever.
+arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
 ## What arachna does
 
@@ -20,7 +20,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1605 tests, 95% coverage, 200+ commits.
+day one. 1613 tests, 95% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -684,13 +684,14 @@ Full details: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). Run locally: `make bench
 - **Streaming mode** (full mode) keeps memory at O(max_tokens). Pre_commands run
   before file collection. Query filtering works on filenames in streaming mode.
 - **Snapshot portability** across Windows and Linux — paths stored relative to project root.
-# Stable API (v4.2.0+)
+
+## Stable API (v4.2.0+)
 
 arachna's public API is stable and follows semantic versioning:
 
 - **MAJOR** (4.x → 5.0): breaking changes to public API signatures
 - **MINOR** (4.2 → 4.3): new features, backward-compatible
-- **PATCH** (4.2.0 → 4.2.1): bug fixes only
+- **PATCH** (4.2.1 → 4.2.2): bug fixes only
 
 ### Guaranteed stable
 

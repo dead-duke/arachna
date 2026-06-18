@@ -1,4 +1,4 @@
-"""arachna — context collector for AI.
+"""arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
 Public API (stable since v4.2.0):
 - arachna.collect_api.collect()
@@ -11,7 +11,7 @@ Semantic versioning applies to the public API. Internal modules
 (domain/, config/, cli/, plugins/) may change without notice.
 """
 
-__version__ = "4.2.0"
+__version__ = "4.2.1"
 
 # Public API — stable, backward-compatible
 __all__ = [
