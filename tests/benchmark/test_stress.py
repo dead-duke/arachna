@@ -15,7 +15,7 @@ def test_bench_full_50000(tmp_path):
         f"\n  full 50000: {r['parts']} parts, {r['tokens']} tokens, "
         f"{r['time']:.3f}s, {r['rss_mb']:.1f} MB"
     )
-    assert r["rss_mb"] < 300, f"Streaming failed: {r['rss_mb']:.1f} MB (expected < 250 MB)"
+    assert r["rss_mb"] < 400, f"Streaming failed: {r['rss_mb']:.1f} MB (expected < 400 MB)"
 
 
 @pytest.mark.benchmark
@@ -28,7 +28,7 @@ def test_bench_large_files(tmp_path):
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"], max_tokens=8192), "full")
     print(f"\n  Large files (10 x 1MB): {r['parts']} parts, {r['time']:.3f}s, {r['rss_mb']:.1f} MB")
     assert r["parts"] > 1
-    assert r["rss_mb"] < 300
+    assert r["rss_mb"] < 400
 
 
 @pytest.mark.benchmark

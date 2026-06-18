@@ -145,3 +145,73 @@ def test_safepath_parent(tmp_path):
     root = SafePath(tmp_path)
     f = root / "sub" / "file.py"
     assert str(f.parent) == str(tmp_path / "sub")
+
+
+def test_safepath_is_symlink(tmp_path):
+    root = SafePath(tmp_path)
+    target = root / "target.txt"
+    target.write_text("target")
+    link = root / "link.txt"
+    link.symlink_to(target)
+    assert link.is_symlink()
+    assert not target.is_symlink()
+
+
+def test_safepath_read_bytes(tmp_path):
+    root = SafePath(tmp_path)
+    f = root / "data.bin"
+    f.write_bytes(b"\x00\x01\x02")
+    assert f.read_bytes() == b"\x00\x01\x02"
+
+
+def test_safepath_write_bytes(tmp_path):
+    root = SafePath(tmp_path)
+    f = root / "data.bin"
+    f.write_bytes(b"hello bytes")
+    assert f.read_bytes() == b"hello bytes"
+
+
+def test_safepath_open(tmp_path):
+    root = SafePath(tmp_path)
+    f = root / "data.txt"
+    f.write_text("line1\nline2\n")
+    with f.open("r") as fh:
+        lines = fh.readlines()
+    assert lines == ["line1\n", "line2\n"]
+
+
+def test_safepath_relative_to(tmp_path):
+    root = SafePath(tmp_path)
+    sub = root / "sub"
+    f = sub / "file.py"
+    result = f.relative_to(root)
+    assert str(result) == "sub/file.py"
+
+
+def test_safepath_unlink_missing_ok(tmp_path):
+    root = SafePath(tmp_path)
+    f = root / "ghost.txt"
+    f.unlink(missing_ok=True)
+
+
+def test_safepath_from_safepath(tmp_path):
+    root = SafePath(tmp_path)
+    f1 = root / "test.py"
+    f2 = SafePath(f1)
+    assert str(f2) == str(f1)
+    assert f2._root == f1._root
+
+
+def test_safepath_no_root(tmp_path):
+    sp = SafePath(tmp_path)
+    assert sp._root == sp._path
+
+
+def test_safepath_symlink_to(tmp_path):
+    root = SafePath(tmp_path)
+    target = root / "target.txt"
+    target.write_text("data")
+    link = root / "link.txt"
+    link.symlink_to(target)
+    assert link.is_symlink()
+    assert link.read_text() == "data"

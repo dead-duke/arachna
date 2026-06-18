@@ -1,4 +1,4 @@
-"""Basic diff tests."""
+"""Basic diff tests — inline profiles, no setup_config."""
 
 from arachna.snapshot.snapshots import compute_diff, create_snapshot
 
@@ -13,8 +13,10 @@ def _profile(tmp_path):
 
 
 def test_diff_no_changes(tmp_path):
+    import json
+
     (tmp_path / ".arachna.json").write_text(
-        __import__("json").dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
+        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
     src = tmp_path / "src"
     src.mkdir()
@@ -27,8 +29,10 @@ def test_diff_no_changes(tmp_path):
 
 
 def test_diff_modified(tmp_path):
+    import json
+
     (tmp_path / ".arachna.json").write_text(
-        __import__("json").dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
+        json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
     src = tmp_path / "src"
     src.mkdir()

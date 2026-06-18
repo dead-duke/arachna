@@ -78,3 +78,17 @@ def test_collect_named_sections_with_query(tmp_path):
     names = [s[0] for s in sections]
     assert any("main.py" in n for n in names)
     assert not any("utils.py" in n for n in names)
+
+
+def test_pre_command_long_label_is_truncated(tmp_path):
+    """Pre_command label longer than 50 chars gets truncated with ellipsis."""
+    from unittest.mock import patch
+
+    from arachna.domain.gatherer_commands import _collect_pre_commands
+
+    long_cmd = "echo " + "x" * 60
+    with patch("arachna.domain.gatherer_commands.run_pre_commands") as mock_run:
+        mock_run.return_value = [(long_cmd, "output")]
+        result = _collect_pre_commands({"pre_commands": [long_cmd]}, count_tokens, root=tmp_path)
+    assert len(result) == 1
+    assert result[0][0].endswith("...")

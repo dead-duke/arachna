@@ -1,4 +1,4 @@
-"""Tests for cli/completion.py handler."""
+"""Tests for cli/completion.py handler — bash, zsh, and edge cases."""
 
 import sys
 from argparse import Namespace
@@ -23,3 +23,13 @@ def test_cmd_completion_zsh():
     _cmd_completion(Namespace(shell="zsh"), {})
     sys.stdout = old
     assert "#compdef arachna" in out.getvalue()
+
+
+def test_cmd_completion_unknown_shell():
+    out = StringIO()
+    old = sys.stdout
+    sys.stdout = out
+    _cmd_completion(Namespace(shell="fish"), {})
+    sys.stdout = old
+    assert "Usage:" in out.getvalue()
+    assert "source <(arachna completion bash)" in out.getvalue()

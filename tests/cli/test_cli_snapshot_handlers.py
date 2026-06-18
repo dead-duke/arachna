@@ -1,4 +1,4 @@
-"""Tests for snapshot CLI handlers."""
+"""Tests for snapshot CLI handlers — unit tests for _cmd_snapshot_* and _cmd_diff."""
 
 import json
 from io import StringIO
@@ -81,6 +81,9 @@ def _store_args():
     return Namespace()
 
 
+# -- snapshot list --
+
+
 def test_cmd_snapshot_list_empty(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
     out = StringIO()
@@ -108,6 +111,9 @@ def test_cmd_snapshot_list_with_data(tmp_path, make_config):
     assert "list-test" in out.getvalue()
 
 
+# -- snapshot create --
+
+
 def test_cmd_snapshot_create_named(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
@@ -131,6 +137,9 @@ def test_cmd_snapshot_duplicate_name(tmp_path, make_config):
         _cmd_snapshot_create(_snap_create("dup-test", "code"), config)
 
 
+# -- snapshot update --
+
+
 def test_cmd_snapshot_update(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
@@ -146,10 +155,28 @@ def test_cmd_snapshot_update(tmp_path, make_config):
     assert "updated" in out.getvalue()
 
 
+def test_cmd_snapshot_update_with_profile(tmp_path, make_config):
+    config = make_config(tmp_path, dirs=["mysrc"])
+    (tmp_path / "mysrc").mkdir()
+    (tmp_path / "mysrc" / "main.py").write_text("print('hi')")
+    _cmd_snapshot_create(_snap_create("upd-cov", "code"), config)
+    out = StringIO()
+    import sys
+
+    old = sys.stdout
+    sys.stdout = out
+    _cmd_snapshot_update(_snap_update("upd-cov", "code"), config)
+    sys.stdout = old
+    assert "updated" in out.getvalue()
+
+
 def test_cmd_snapshot_update_not_found(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
         _cmd_snapshot_update(_snap_update("nonexistent"), config)
+
+
+# -- snapshot delete --
 
 
 def test_cmd_snapshot_delete(tmp_path, make_config):
@@ -158,6 +185,9 @@ def test_cmd_snapshot_delete(tmp_path, make_config):
     (tmp_path / "mysrc" / "main.py").write_text("print('hi')")
     _cmd_snapshot_create(_snap_create("del-test", "code"), config)
     _cmd_snapshot_delete(_snap_delete("del-test"), config)
+
+
+# -- snapshot info --
 
 
 def test_cmd_snapshot_info_full(tmp_path, make_config):
@@ -177,6 +207,7 @@ def test_cmd_snapshot_info_full(tmp_path, make_config):
     assert "Snapshot: info-test" in output
     assert "Created:" in output
     assert "Files:" in output
+    assert "Pre-commands:" in output
     assert "Profile:" in output
 
 
@@ -216,6 +247,9 @@ def test_cmd_snapshot_info_stats_only(tmp_path, make_config):
     assert "Profile:" not in output
 
 
+# -- snapshot rename --
+
+
 def test_cmd_snapshot_rename(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
@@ -247,6 +281,9 @@ def test_cmd_snapshot_rename_duplicate(tmp_path, make_config):
         _cmd_snapshot_rename(_snap_rename("first", "second"), config)
 
 
+# -- diff --
+
+
 def test_cmd_diff_no_head(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
@@ -273,7 +310,7 @@ def test_cmd_diff_stat_only(tmp_path, make_config):
     (tmp_path / "mysrc").mkdir()
     (tmp_path / "mysrc" / "main.py").write_text("original")
     _cmd_snapshot_create(_snap_create("stat-test", "code"), config)
-    (tmp_path / "mysrc" / "main.py").write_text("modified")
+    (tmp_path / "mysrc" / "main.py").write_text("modified v2")
     out = StringIO()
     import sys
 
@@ -285,6 +322,7 @@ def test_cmd_diff_stat_only(tmp_path, make_config):
     assert "Modified:" in output
     assert "Added:" in output
     assert "Deleted:" in output
+    assert "Tokens:" in output
 
 
 def test_cmd_diff_single_snapshot_auto_select(tmp_path, make_config):
@@ -353,15 +391,15 @@ def test_cmd_diff_with_to_flag(tmp_path, make_config):
 def test_cmd_diff_flat_flag(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
-    (tmp_path / "mysrc" / "main.py").write_text("original")
-    _cmd_snapshot_create(_snap_create("flat-test", "code"), config)
-    (tmp_path / "mysrc" / "main.py").write_text("modified")
+    (tmp_path / "mysrc" / "main.py").write_text("modified flat")
     out = StringIO()
     import sys
 
     old = sys.stdout
     sys.stdout = out
-    _cmd_diff(_diff_args(fr="flat-test", flat=True), config)
+    _cmd_snapshot_create(_snap_create("flat-test", "code"), config)
+    (tmp_path / "mysrc" / "main.py").write_text("original")
+    _cmd_diff(_diff_args(fr="flat-test", profile="code", flat=True), config)
     sys.stdout = old
     output = out.getvalue()
     assert "chat-diff" in output
@@ -384,6 +422,63 @@ def test_cmd_diff_stat_with_renamed(tmp_path, make_config):
     sys.stdout = old
     output = out.getvalue()
     assert "Renamed:" in output
+
+
+def test_cmd_diff_format_xml(tmp_path, make_config):
+    config = make_config(tmp_path, dirs=["mysrc"])
+    (tmp_path / "mysrc").mkdir()
+    (tmp_path / "mysrc" / "main.py").write_text("original")
+    _cmd_snapshot_create(_snap_create("xml-test", "code"), config)
+    (tmp_path / "mysrc" / "main.py").write_text("modified for xml")
+    _cmd_diff(_diff_args(fr="xml-test", profile="code", fmt="xml"), config)
+    files = list((tmp_path / "out").glob("chat-diff*"))
+    assert len(files) >= 1
+    content = files[0].read_text()
+    assert '<file path="' in content
+
+
+def test_cmd_diff_mode_structural(tmp_path, make_config):
+    config = make_config(tmp_path, dirs=["mysrc"])
+    (tmp_path / "mysrc").mkdir()
+    (tmp_path / "mysrc" / "main.py").write_text("def foo():\n    return 1\n")
+    _cmd_snapshot_create(_snap_create("struct-cov", "code"), config)
+    (tmp_path / "mysrc" / "main.py").write_text("def foo():\n    return 2\n")
+    _cmd_diff(_diff_args(fr="struct-cov", profile="code", mode="structural"), config)
+    files = list((tmp_path / "out").glob("chat-diff*"))
+    assert len(files) >= 1
+    content = files[0].read_text()
+    assert "MODIFIED" in content or "modified" in content.lower()
+
+
+def test_cmd_diff_mode_repo_map(tmp_path, make_config):
+    config = make_config(tmp_path, dirs=["mysrc"])
+    (tmp_path / "mysrc").mkdir()
+    (tmp_path / "mysrc" / "main.py").write_text(
+        "def foo():\n    return 1\n\ndef bar():\n    return 2\n"
+    )
+    _cmd_snapshot_create(_snap_create("rm-cov", "code"), config)
+    (tmp_path / "mysrc" / "main.py").write_text(
+        "def foo():\n    return 3\n\ndef bar():\n    return 4\n"
+    )
+    _cmd_diff(_diff_args(fr="rm-cov", profile="code", mode="repo-map"), config)
+    files = list((tmp_path / "out").glob("chat-diff*"))
+    assert len(files) >= 1
+    content = files[0].read_text()
+    assert "def foo():" in content
+
+
+def test_cmd_diff_compress(tmp_path, make_config):
+    config = make_config(tmp_path, dirs=["mysrc"])
+    (tmp_path / "mysrc").mkdir()
+    (tmp_path / "mysrc" / "main.py").write_text("original\n\n\n\nspaces")
+    _cmd_snapshot_create(_snap_create("comp-cov", "code"), config)
+    (tmp_path / "mysrc" / "main.py").write_text("modified\n\n\n\nafter")
+    _cmd_diff(_diff_args(fr="comp-cov", profile="code", compress=True), config)
+    files = list((tmp_path / "out").glob("chat-diff*"))
+    assert len(files) >= 1
+
+
+# -- store --
 
 
 def test_cmd_store_stats_empty(tmp_path, make_config):
