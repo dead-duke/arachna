@@ -20,7 +20,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1611 tests, 95% coverage, 200+ commits.
+day one. 1616 tests, 96% coverage, 200+ commits.
 
 ## Who this is for
 

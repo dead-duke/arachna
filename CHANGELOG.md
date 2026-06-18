@@ -1,11 +1,22 @@
 # Changelog
 
+## v5.1.0 — SafePath + full audit resolution
+- CRITICAL: Removed importlib.import_module fallback in tokenizer.py — unknown packages rejected
+- HIGH: Renamed private functions to public in snapshot_diff (apply_repo_map_to_sections, collect_snapshot_content)
+- SafePath: Path wrapper with mandatory root validation — eliminates all S2083/S8707 false positives
+- MEDIUM: Decomposed formatter.py (605 lines → 6 sub-modules) and snapshot_diff.py (720 lines → 4 sub-modules + helpers)
+- MEDIUM: Narrowed except Exception → specific types in atomic_write.py, cache.py, hook.py, snapshot_diff.py
+- LOW: Atomic writes in init.py, presets.py, _helpers.py via atomic_write_text
+- LOW: KeyError counted as error in validation, DANGEROUS log elevated to error
+- LOW: _log_writer replaced with parameter injection, threading.Lock for all global state
+- LOW: importlib.reload replaced with @lru_cache factory functions
+- SonarCloud: S1481, S2737, S7504 fixed
+- 1616 tests, 96% coverage, 0 SonarCloud findings
+
 ## v5.0.0 — Architecture cleanup
-- Renamed watch/ package to snapshot/ (~60 files)
-- Deduplicated DiffSection: differ.py now imports from api_types.py
-- Cleaned docstrings: removed version tags, standardized to one-line descriptions
-- Narrowed __all__ exports to intended public API surface
-- Documented split mode dispatch distinction (splitter vs gatherer strategies)
+- BREAKING: watch/ package renamed to snapshot/ — public API import changed
+- Deduplicated DiffSection: differ.py → api_types.py
+- Cleaned docstrings, narrowed __all__, documented split dispatch
 - SonarCloud fixes: S1481, S3776 x3, S5145, S8502, S7504
 - 1611 tests, 95% coverage
 
