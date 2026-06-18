@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Language dispatch — unified parser mapping for arachna v4.0.1."""
+"""Language dispatch — unified parser mapping."""
 
 import ast as _ast
 import logging
@@ -146,8 +146,6 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict:
     return blocks
 
 
-# Script block patterns: split into single-purpose patterns
-# to keep regex complexity under 20.
 _RE_SCRIPT_DEF = re.compile(
     r"^(\s*def\s+(?:self\.)?(\w+[?!]?).*)",
     re.MULTILINE,

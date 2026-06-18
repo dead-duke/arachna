@@ -1,5 +1,10 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Collection strategies for arachna v4.0.1."""
+"""Collection strategies.
+
+Uses mode strategy pattern: different strategies for 'full', 'repo-map',
+and 'headers' collection modes. Each strategy encapsulates the logic
+for assembling content from files, pre_commands, and commands.
+"""
 
 import os as _os
 import sys
@@ -38,6 +43,8 @@ class _CollectParams:
 
 
 class _FullModeStrategy:
+    """Strategy for 'full' collection mode — all file content."""
+
     def __init__(self):
         self._graph_cache: dict = {}
 
@@ -190,6 +197,8 @@ class _FullModeStrategy:
 
 
 class _RepoMapModeStrategy:
+    """Strategy for 'repo-map' collection mode — signatures only."""
+
     def __init__(self):
         self._graph_cache = {}
 
@@ -198,6 +207,8 @@ class _RepoMapModeStrategy:
 
 
 class _HeadersModeStrategy:
+    """Strategy for 'headers' collection mode — deps and exports only."""
+
     def __init__(self):
         self._graph_cache = {}
 
@@ -209,6 +220,13 @@ _MODE_STRATEGIES = None
 
 
 def _get_mode_strategies():
+    """Return dict mapping collection mode names to strategy instances.
+
+    Modes: 'full' (_FullModeStrategy), 'repo-map' (_RepoMapModeStrategy),
+    'headers' (_HeadersModeStrategy). These are collection strategies -
+    distinct from split mode dispatch (_SPLIT_MODE_DISPATCH in splitter.py)
+    which handles token-limit splitting of already-assembled content.
+    """
     global _MODE_STRATEGIES
     if _MODE_STRATEGIES is None:
         _MODE_STRATEGIES = {

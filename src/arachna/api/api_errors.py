@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Public API exceptions for arachna v4.0.0.
+"""Public API exceptions.
 
 All exceptions inherit from ArachnaError for easy catching.
 Specific exceptions carry the relevant identifier in the message.

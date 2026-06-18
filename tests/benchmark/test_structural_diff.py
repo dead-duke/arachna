@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from arachna.watch.differ_structural import structural_diff_for_lang
+from arachna.snapshot.differ_structural import structural_diff_for_lang
 
 from .test_performance import _default_content, _js_content, _profile, _run_with_memory
 
@@ -73,22 +73,17 @@ def test_bench_collection_python_vs_js(tmp_path):
     src_py.mkdir()
     for i in range(500):
         (src_py / f"file_{i}.py").write_text(_default_content(i), encoding="utf-8")
-    _run_with_memory(
-        tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full"
-    )  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full")
     r_py = _run_with_memory(tmp_path, _profile(patterns=["*.py"], directories=["src_py"]), "full")
     print(
-        f"\n  Python collection 500: {r_py['parts']} parts, {r_py['tokens']} tokens, "
-        f"{r_py['time']:.3f}s"
+        f"\n  Python collection 500: {r_py['parts']} parts, {r_py['tokens']} tokens, {r_py['time']:.3f}s"
     )
 
     src_js = tmp_path / "src_js"
     src_js.mkdir()
     for i in range(500):
         (src_js / f"file_{i}.js").write_text(_js_content(i), encoding="utf-8")
-    _run_with_memory(
-        tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full"
-    )  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full")
     r_js = _run_with_memory(tmp_path, _profile(patterns=["*.js"], directories=["src_js"]), "full")
     print(
         f"  JS collection 500: {r_js['parts']} parts, {r_js['tokens']} tokens, {r_js['time']:.3f}s"

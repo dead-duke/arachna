@@ -1,7 +1,6 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Command execution for arachna v4.2.0.
+"""Command execution.
 
-Extracted from gatherer_core.py during v4.2.0 decomposition.
 Handles pre_commands execution and command output gathering.
 """
 

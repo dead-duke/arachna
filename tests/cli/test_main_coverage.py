@@ -89,7 +89,7 @@ def test_snapshot_update_not_found(tmp_path, make_config):
 
 def test_snapshot_update_profile_not_found(tmp_path, make_config):
     config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
-    from arachna.watch.store import create_snapshot as store_create
+    from arachna.snapshot.store import create_snapshot as store_create
 
     store_create({"a.py": "x"}, name="test-snap", root=tmp_path)
     with pytest.raises(SystemExit):
@@ -140,7 +140,7 @@ def test_diff_no_snapshots(tmp_path, make_config):
 
 def test_diff_profile_not_found(tmp_path, make_config):
     config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
-    from arachna.watch.store import create_snapshot as store_create
+    from arachna.snapshot.store import create_snapshot as store_create
 
     store_create({"a.py": "x"}, name="test-snap", root=tmp_path)
     with pytest.raises(SystemExit):

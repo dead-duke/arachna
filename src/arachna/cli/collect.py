@@ -52,6 +52,17 @@ def _collect_one_profile(name, profile, args, out_path, root, project_name):
     return created, tokens_by_file, None
 
 
+def _process_collect_results(created, tokens_by_file, all_created, all_tokens):
+    """Aggregate collection results into running totals."""
+    if created:
+        all_created.extend(created)
+        if tokens_by_file:
+            all_tokens.update(tokens_by_file)
+        print_collected(created)
+    else:
+        print("  No content collected.")
+
+
 @register("collect-profile")
 def _cmd_collect_profile(args, config: dict):
     root = get_root(config)
@@ -117,13 +128,7 @@ def _cmd_collect_all(args, config: dict):
                 all_dry_run_stats.append(dry_run_stats)
             continue
 
-        if created:
-            all_created.extend(created)
-            if tokens_by_file:
-                all_tokens.update(tokens_by_file)
-            print_collected(created)
-        else:
-            print("  No content collected.")
+        _process_collect_results(created, tokens_by_file, all_created, all_tokens)
 
     if args.dry_run:
         if all_dry_run_stats:

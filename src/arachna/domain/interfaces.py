@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Protocol interfaces for core abstractions in arachna v4.0.0.
+"""Protocol interfaces for core abstractions.
 
 These typing.Protocol classes formalize the duck-typed interfaces
 used throughout the codebase. They serve as documentation and enable
@@ -22,9 +22,9 @@ class Tokenizer(Protocol):
 
 
 class ObjectStore(Protocol):
-    """Content-addressable store for Watch snapshots.
+    """Content-addressable store for snapshots.
 
-    Minimal contract for store operations used by watcher and diff.
+    Minimal contract for store operations used by snapshot manager and differ.
     """
 
     def write_object(self, data: bytes) -> str: ...

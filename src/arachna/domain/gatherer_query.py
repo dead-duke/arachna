@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Query pipeline for arachna v4.0.1."""
+"""Query pipeline."""
 
 from pathlib import Path
 
@@ -100,10 +100,8 @@ def _find_importers(fpath, reverse_graph):
     """Return set of files that import the given fpath (by basename or full path)."""
     importers = set()
     basename = Path(fpath).name.split(".")[0]
-    for importer in reverse_graph.get(basename, []):
-        importers.add(importer)
-    for importer in reverse_graph.get(fpath, []):
-        importers.add(importer)
+    importers.update(reverse_graph.get(basename, []))
+    importers.update(reverse_graph.get(fpath, []))
     return importers
 
 

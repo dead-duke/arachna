@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""File collection for arachna v4.2.0."""
+"""File collection."""
 
 import contextlib
 from pathlib import Path
@@ -17,6 +17,24 @@ from .formatter import (
 from .gitignore import load_gitignore_patterns
 
 
+def _scan_directory_pattern(dir_path, pattern, exclude):
+    """Scan one pattern in a directory, returning matching files."""
+    seen = []
+    if ".." in pattern:
+        print(f"  Warning: skipping pattern with '..': {pattern}")
+        return seen
+    for filepath in sorted(dir_path.rglob(pattern)):
+        if not filepath.is_file():
+            continue
+        if filepath.is_symlink():
+            print(f"  Warning: skipping symlink: {filepath}")
+            continue
+        if is_excluded(filepath, exclude):
+            continue
+        seen.append(filepath)
+    return seen
+
+
 def _scan_one_directory(directory, patterns, exclude, root):
     """Scan one directory for files matching patterns, excluding symlinks and excluded files."""
     seen = []
@@ -27,18 +45,7 @@ def _scan_one_directory(directory, patterns, exclude, root):
         print(f"  Warning: skipping symlink directory: {dir_path}")
         return seen
     for pattern in patterns:
-        if ".." in pattern:
-            print(f"  Warning: skipping pattern with '..': {pattern}")
-            continue
-        for filepath in sorted(dir_path.rglob(pattern)):
-            if not filepath.is_file():
-                continue
-            if filepath.is_symlink():
-                print(f"  Warning: skipping symlink: {filepath}")
-                continue
-            if is_excluded(filepath, exclude):
-                continue
-            seen.append(filepath)
+        seen.extend(_scan_directory_pattern(dir_path, pattern, exclude))
     return seen
 
 

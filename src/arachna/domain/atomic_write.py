@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Atomic file write with fallback for arachna v4.0.1.
+"""Atomic file write with fallback.
 
 Provides atomic write via mkstemp + os.replace with automatic
 fallback to direct write when atomic operations fail.

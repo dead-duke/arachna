@@ -1,24 +1,18 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Content gatherer facade for arachna v4.0.1.
+"""Content gatherer facade.
 
 Orchestrates file collection, command execution, and mode dispatch.
 Thin facade over gatherer_core, gatherer_query, and gatherer_strategies.
 """
 
 from .compressor import compress as _compress
-from .gatherer_core import (
-    _get_exclude_patterns,
-    _scan_directories,
-    gather_command,
-    gather_files,
-)
+from .gatherer_core import _get_exclude_patterns, _scan_directories, gather_command, gather_files
 from .gatherer_strategies import _get_mode_strategies
 from .splitter import split
 from .tokenizer import count_tokens
 
 __all__ = [
     "_assemble_content",
-    "_get_exclude_patterns",
     "_scan_directories",
     "dry_run",
     "gather_command",
@@ -27,7 +21,6 @@ __all__ = [
 
 
 def _assemble_command_content(profile, tokenizer, root):
-    """Assemble content from a command-based profile."""
     command = profile["command"]
     do_compress = profile.get("compress", False)
     split_mode = profile.get("split_mode", "by_file")
@@ -53,7 +46,6 @@ def _assemble_file_content(
     query=None,
     mode="full",
 ):
-    """Assemble content from file-based profile using mode strategies."""
     strategies = _get_mode_strategies()
     strategy = strategies.get(mode, strategies["full"])
     return strategy.assemble(profile, exclude, tokenizer, root, incremental, cache, verbose, query)
@@ -70,12 +62,10 @@ def _assemble_content(
     query=None,
     mode="full",
 ):
-    """Assemble content from profile, dispatching to command or file mode."""
     if profile.get("command"):
         if profile.get("directories") or profile.get("files"):
             print(
-                "  Warning: profile has both 'command' and 'directories'/'files'. "
-                "Using 'command', ignoring directories and files."
+                "  Warning: profile has both 'command' and 'directories'/'files'. Using 'command', ignoring directories and files."
             )
         return _assemble_command_content(profile, tokenizer, root)
     return _assemble_file_content(
@@ -92,7 +82,6 @@ def _assemble_content(
 
 
 def dry_run(profile, root, tokenizer=None, query=None, mode="full"):
-    """Preview collection without writing files."""
     tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns(profile, root=root)
     max_tokens = profile.get("max_tokens", 16000)
@@ -114,15 +103,5 @@ def dry_run(profile, root, tokenizer=None, query=None, mode="full"):
             (named_sections[j][0], named_sections[j][2]) for j in idxs if j < len(named_sections)
         ]
         total_tokens = tk(content)
-        part_list.append(
-            {
-                "part_num": i,
-                "sections": part_sections,
-                "total_tokens": total_tokens,
-            }
-        )
-    return {
-        "name_tmpl": name_tmpl,
-        "max_tokens": max_tokens,
-        "parts": part_list,
-    }
+        part_list.append({"part_num": i, "sections": part_sections, "total_tokens": total_tokens})
+    return {"name_tmpl": name_tmpl, "max_tokens": max_tokens, "parts": part_list}

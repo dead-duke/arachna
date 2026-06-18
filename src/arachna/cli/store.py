@@ -1,12 +1,9 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI handlers for 'arachna store' command.
-
-v4.0.1: _dispatch_store uses dict mapping instead of if/elif chain.
-"""
+"""CLI handlers for 'arachna store' command."""
 
 import sys
 
-from ..watch.store import gc, stats
+from ..snapshot.store import gc, stats
 from . import register
 from ._helpers import get_root
 

@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Data classes for arachna v4.0.0 — domain layer.
+"""Data classes — domain layer.
 
 All return types for public APIs and internal pipeline.
 """

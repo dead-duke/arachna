@@ -50,7 +50,6 @@ except ImportError:
                 os.close(fd)
                 f._arachna_lock_path = str(lock_path)
             except OSError:
-                # O_CREAT|O_EXCL failed — lock held by another process, let caller handle
                 raise
 
         def _unlock_file(f):
@@ -92,6 +91,15 @@ def save_manifest(out_dir: Path, files: list[str]):
     atomic_write_text(manifest_path, json.dumps({"files": files, "time": time.time()}, indent=2))
 
 
+def _clean_numbered_files(out_dir: Path, name_tmpl: str):
+    for old in sorted(out_dir.glob(f"{name_tmpl}_*.md")):
+        if validate_path(old, out_dir):
+            old.unlink()
+    plain = out_dir / f"{name_tmpl}.md"
+    if plain.exists() and validate_path(plain, out_dir):
+        plain.unlink()
+
+
 def clean_manifest(out_dir: Path, name_tmpl: str = ""):
     prev = load_manifest(out_dir)
     for f in prev:
@@ -100,12 +108,7 @@ def clean_manifest(out_dir: Path, name_tmpl: str = ""):
             if p.exists():
                 p.unlink()
     if name_tmpl:
-        for old in sorted(out_dir.glob(f"{name_tmpl}_*.md")):
-            if validate_path(old, out_dir):
-                old.unlink()
-        plain = out_dir / f"{name_tmpl}.md"
-        if plain.exists() and validate_path(plain, out_dir):
-            plain.unlink()
+        _clean_numbered_files(out_dir, name_tmpl)
 
 
 def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
@@ -171,7 +174,7 @@ def _write_parts(
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
         if not validate_path(filepath, out_path):
-            logger.warning("Path traversal attempt in _write_parts: %s", filepath)
+            logger.warning("Path traversal attempt in _write_parts, skipping file")
             continue
         indices = section_indices[part_idx] if part_idx < len(section_indices) else []
         toc = _build_toc(
@@ -202,7 +205,7 @@ def _diff_part_header(stats: dict, part_num: int, total_parts: int) -> str:
 
 
 def _build_part_stats(diff_sections, section_indices):
-    from ..watch.differ import compute_diff_stats
+    from ..snapshot.differ import compute_diff_stats
 
     part_stats = []
     for indices in section_indices:
@@ -231,7 +234,7 @@ def _write_diff_parts(
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
         if not validate_path(filepath, out_path):
-            logger.warning("Path traversal attempt in _write_diff_parts: %s", filepath)
+            logger.warning("Path traversal attempt in _write_diff_parts, skipping file")
             continue
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
         toc = _build_toc(named_sections, indices, i, total_parts, all_indices=section_indices)

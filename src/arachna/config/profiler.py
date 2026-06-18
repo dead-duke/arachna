@@ -1,9 +1,9 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Benchmark module for arachna v4.0.1 — config layer.
+"""Benchmark module — config layer.
 
 Measures collection performance across modes (full, compress, repo-map,
 headers, incremental, query). Plugin benchmarks (structural-diff, tiktoken)
-live in watch/benchmarks.py — they depend on watch/ internals.
+live in snapshot/benchmarks.py — they depend on snapshot/ internals.
 """
 
 import json

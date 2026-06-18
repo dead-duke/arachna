@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Public Collection API for arachna v4.0.0."""
+"""Public Collection API."""
 
 import contextlib
 from pathlib import Path

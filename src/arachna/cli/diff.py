@@ -1,8 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI handlers for 'arachna diff' command.
-
-v4.0.1: _cmd_diff decomposed into validate/resolve/compute/output functions.
-"""
+"""CLI handlers for 'arachna diff' command."""
 
 import sys
 from pathlib import Path
@@ -16,9 +13,9 @@ from ..domain.collector import (
     save_manifest,
 )
 from ..domain.tokenizer import count_tokens, load_tokenizer
-from ..watch.differ import compute_diff_stats
-from ..watch.store import list_snapshots, load_snapshot
-from ..watch.watcher_diff import compute_diff
+from ..snapshot.differ import compute_diff_stats
+from ..snapshot.snapshot_diff import compute_diff
+from ..snapshot.store import list_snapshots, load_snapshot
 from . import register
 from ._helpers import get_root, parse_output_dir, print_collected
 
@@ -103,11 +100,11 @@ def _resolve_diff_profile(args, snapshot_id: str, root: Path, config: dict) -> d
 
 def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root):
     if args.mode == "structural":
-        from ..watch.differ_structural import structural_diff_sections
+        from ..snapshot.differ_structural import structural_diff_sections
 
         return structural_diff_sections(sections, args.format or "markdown")
     elif args.mode == "repo-map":
-        from ..watch.watcher_diff import _apply_repo_map_to_sections
+        from ..snapshot.snapshot_diff import _apply_repo_map_to_sections
 
         return _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
     return sections

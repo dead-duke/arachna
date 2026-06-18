@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Remote repository collection for arachna v4.1.1.
+"""Remote repository collection.
 
 Clones a git repository via --depth 1, selects profile by explicit
 name or remote:true marker, runs collection, and cleans up.

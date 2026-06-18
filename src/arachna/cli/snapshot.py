@@ -1,16 +1,13 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI handlers for 'arachna snapshot' command.
-
-v4.0.1: _dispatch_snapshot uses dict mapping instead of if/elif chain.
-"""
+"""CLI handlers for 'arachna snapshot' command."""
 
 import sys
 
 from ..config.config import get_profile
-from ..watch.store import delete_snapshot, list_snapshots, validate_snapshot_id
-from ..watch.store_errors import SnapshotExistsError
-from ..watch.watcher_diff import create_snapshot as watch_create_snapshot
-from ..watch.watcher_diff import update_snapshot as watch_update_snapshot
+from ..snapshot.snapshot_diff import create_snapshot as snap_create_snapshot
+from ..snapshot.snapshot_diff import update_snapshot as snap_update_snapshot
+from ..snapshot.store import delete_snapshot, list_snapshots, validate_snapshot_id
+from ..snapshot.store_errors import SnapshotExistsError
 from . import register
 from ._helpers import format_profile_section, get_root
 
@@ -33,7 +30,7 @@ def _cmd_snapshot_create(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
     try:
-        sid = watch_create_snapshot(profile, name=args.name, root=root)
+        sid = snap_create_snapshot(profile, name=args.name, root=root)
         print(f"Snapshot '{sid}' created.")
     except SnapshotExistsError as e:
         print(f"Error: {e}")
@@ -69,7 +66,7 @@ def _cmd_snapshot_update(args, config: dict):
             print(f"Error: {e}")
             sys.exit(1)
     try:
-        watch_update_snapshot(sid, root=root, profile=profile)
+        snap_update_snapshot(sid, root=root, profile=profile)
         print(f"Snapshot '{sid}' updated.")
     except Exception as e:
         print(f"Error: {e}")
@@ -149,7 +146,7 @@ def _cmd_snapshot_info(args, config: dict):
 
 @register("snapshot-rename")
 def _cmd_snapshot_rename(args, config: dict):
-    from ..watch.store import rename_snapshot as store_rename_snapshot
+    from ..snapshot.store import rename_snapshot as store_rename_snapshot
 
     try:
         validate_snapshot_id(args.old)

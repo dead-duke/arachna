@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI command handlers for arachna v4.0.0.
+"""CLI command handlers.
 
 COMMAND_HANDLERS maps argparse command names to handler functions.
 Each handler signature: (args: argparse.Namespace, config: dict) -> None.
@@ -24,7 +24,6 @@ def register(command: str):
     return decorator
 
 
-# Import all submodules to trigger @register decorators
 from . import (  # noqa: E402, F401
     collect,
     completion,

@@ -1,8 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI handlers for 'arachna plugins' command.
-
-v4.0.1: _dispatch_plugins uses dict mapping instead of if/elif chain.
-"""
+"""CLI handlers for 'arachna plugins' command."""
 
 import sys
 

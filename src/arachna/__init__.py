@@ -2,7 +2,7 @@
 
 Public API (stable since v4.2.0):
 - arachna.collect_api.collect()
-- arachna.watch (create_snapshot, list_snapshots, update_snapshot,
+- arachna.snapshot (create_snapshot, list_snapshots, update_snapshot,
   delete_snapshot, snapshot_info, compute_diff, store_stats, store_gc)
 - arachna.api_errors (ArachnaError, SnapshotNotFoundError,
   SnapshotExistsError, ProfileNotFoundError)
@@ -16,10 +16,10 @@ __version__ = "4.2.1"
 # Public API — stable, backward-compatible
 __all__ = [
     "collect_api",
-    "watch",
+    "snapshot",
     "api_errors",
 ]
 
 from .api import api_errors as api_errors
 from .api import collect_api as collect_api
-from .api import watch as watch
+from .api import snapshot as snapshot

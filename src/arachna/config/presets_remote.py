@@ -1,8 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Remote presets fetching and merging for arachna v4.2.0.
-
-Extracted from presets.py during v4.2.0 decomposition.
-"""
+"""Remote presets fetching and merging."""
 
 import contextlib
 import json

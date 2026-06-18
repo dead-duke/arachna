@@ -1,8 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Language and engine presets for arachna init.
-
-v4.2.0: fetch_presets and merge_presets moved to presets_remote.py.
-"""
+"""Language and engine presets for arachna init."""
 
 import json
 from pathlib import Path

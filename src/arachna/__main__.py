@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""CLI entry point for arachna v4.0.0 — argparse subparsers."""
+"""CLI entry point — argparse subparsers."""
 
 import argparse
 import sys

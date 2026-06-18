@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..config.config import get_profile
 from ..config.profiler import print_benchmark_table, run_benchmark
-from ..watch.benchmarks import benchmark_plugins
+from ..snapshot.benchmarks import benchmark_plugins
 from . import register
 from ._helpers import parse_output_dir
 

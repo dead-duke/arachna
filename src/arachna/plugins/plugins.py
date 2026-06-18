@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Plugin system for arachna v4.0.0.
+"""Plugin system.
 
 Optional dependencies for language-specific features:
 - tree-sitter: accurate structural diff for JS/TS/Go

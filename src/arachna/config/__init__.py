@@ -2,3 +2,6 @@
 
 VALID_SPLIT_MODES = {"by_file", "by_paragraph", "by_marker", "single"}
 """Valid split modes shared across config modules."""
+
+COLLECTION_MODES = {"full", "repo-map", "headers"}
+"""Collection strategy modes used by gatherer_strategies.py."""
