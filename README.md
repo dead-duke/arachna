@@ -10,7 +10,7 @@
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=dead-duke_arachna&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=dead-duke_arachna)
 
-Context collector for AI — gathers project files into token-limited chunks.
+arachna — context layer for AI workflows. Snapshots, diffs, profiles. Collect once, diff forever.
 
 ## What arachna does
 
@@ -321,7 +321,7 @@ for remote collection:
 
 ## Profiles
 
-Profiles let you separate context by role — different context for different AI tasks.
+Profiles define what context to collect — different files, directories, and commands for different tasks. Send code to the programmer AI, tests to the tester AI, docs to the auditor AI.
 
 Example .arachna.json for a Python project:
 
