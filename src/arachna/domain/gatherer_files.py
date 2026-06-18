@@ -17,28 +17,42 @@ from .formatter import (
 from .gitignore import load_gitignore_patterns
 
 
+def _scan_one_directory(directory, patterns, exclude, root):
+    """Scan one directory for files matching patterns, excluding symlinks and excluded files."""
+    seen = []
+    dir_path = root / directory
+    if not dir_path.is_dir():
+        return seen
+    if dir_path.is_symlink():
+        print(f"  Warning: skipping symlink directory: {dir_path}")
+        return seen
+    for pattern in patterns:
+        if ".." in pattern:
+            print(f"  Warning: skipping pattern with '..': {pattern}")
+            continue
+        for filepath in sorted(dir_path.rglob(pattern)):
+            if not filepath.is_file():
+                continue
+            if filepath.is_symlink():
+                print(f"  Warning: skipping symlink: {filepath}")
+                continue
+            if is_excluded(filepath, exclude):
+                continue
+            seen.append(filepath)
+    return seen
+
+
 def _scan_directories(profile: dict[str, Any], exclude: list[str], root: Path) -> list[Path]:
     seen = []
     for directory in profile.get("directories", []):
-        dir_path = root / directory
-        if not dir_path.is_dir():
-            continue
-        if dir_path.is_symlink():
-            print(f"  Warning: skipping symlink directory: {dir_path}")
-            continue
-        for pattern in profile.get("patterns", ["*"]):
-            if ".." in pattern:
-                print(f"  Warning: skipping pattern with '..': {pattern}")
-                continue
-            for filepath in sorted(dir_path.rglob(pattern)):
-                if not filepath.is_file():
-                    continue
-                if filepath.is_symlink():
-                    print(f"  Warning: skipping symlink: {filepath}")
-                    continue
-                if is_excluded(filepath, exclude):
-                    continue
-                seen.append(filepath)
+        seen.extend(
+            _scan_one_directory(
+                directory,
+                profile.get("patterns", ["*"]),
+                exclude,
+                root,
+            )
+        )
     return seen
 
 

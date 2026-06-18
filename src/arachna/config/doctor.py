@@ -51,14 +51,9 @@ def run_doctor(project_root: Path | None = None, config: dict | None = None) -> 
     return result
 
 
-def print_doctor(report: dict):
-    """Print doctor report to stdout."""
-    print("arachna doctor — configuration diagnostic\n")
-    print(f"Profiles: {len(report['profiles'])}")
-    print(f"Errors: {report['total_errors']}")
-    print(f"Warnings: {report['total_warnings']}")
-
-    for name, info in report["profiles"].items():
+def _print_profile_results(profiles):
+    """Print validation results for each profile."""
+    for name, info in profiles.items():
         errors = info["errors"]
         warnings = info["warnings"]
         if errors or warnings:
@@ -69,6 +64,16 @@ def print_doctor(report: dict):
                 print(f"  ⚠ {w}")
         else:
             print(f"  [{name}] ✓ healthy")
+
+
+def print_doctor(report: dict):
+    """Print doctor report to stdout."""
+    print("arachna doctor — configuration diagnostic\n")
+    print(f"Profiles: {len(report['profiles'])}")
+    print(f"Errors: {report['total_errors']}")
+    print(f"Warnings: {report['total_warnings']}")
+
+    _print_profile_results(report["profiles"])
 
     if report["gitignore"]:
         print()

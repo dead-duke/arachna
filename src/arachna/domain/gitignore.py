@@ -55,21 +55,26 @@ def _should_skip_gitignore(gitignore_path: Path, root: Path) -> bool:
     return "\x00" in text
 
 
+def _parse_one_gitignore_line(line, base_dir, root):
+    """Parse a single gitignore line into a pattern string, or None if skipped."""
+    line = line.strip()
+    if not line or line.startswith("#"):
+        return None
+    try:
+        rel = str(base_dir.relative_to(root)) if base_dir != root else ""
+    except ValueError:
+        return None
+    if line.startswith("/"):
+        return f"{rel}/{line[1:]}" if rel else line[1:]
+    return f"{rel}/{line}" if rel else line
+
+
 def _parse_gitignore_lines(text: str, base_dir: Path, root: Path) -> list[str]:
     patterns = []
     for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        try:
-            rel = str(base_dir.relative_to(root)) if base_dir != root else ""
-        except ValueError:
-            continue
-        if line.startswith("/"):
-            pattern = f"{rel}/{line[1:]}" if rel else line[1:]
-        else:
-            pattern = f"{rel}/{line}" if rel else line
-        patterns.append(pattern)
+        pattern = _parse_one_gitignore_line(line, base_dir, root)
+        if pattern is not None:
+            patterns.append(pattern)
     return patterns
 
 

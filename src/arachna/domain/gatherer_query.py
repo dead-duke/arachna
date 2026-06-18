@@ -96,18 +96,23 @@ def _build_reverse_graph(graph):
     return reverse
 
 
+def _find_importers(fpath, reverse_graph):
+    """Return set of files that import the given fpath (by basename or full path)."""
+    importers = set()
+    basename = Path(fpath).name.split(".")[0]
+    for importer in reverse_graph.get(basename, []):
+        importers.add(importer)
+    for importer in reverse_graph.get(fpath, []):
+        importers.add(importer)
+    return importers
+
+
 def _expand_import_chain(matched, reverse_graph, depth=2):
     result = set(matched)
     for _ in range(depth):
         new_matches = set()
         for fpath in result:
-            basename = Path(fpath).name.split(".")[0]
-            for importer in reverse_graph.get(basename, []):
-                if importer not in result:
-                    new_matches.add(importer)
-            for importer in reverse_graph.get(fpath, []):
-                if importer not in result:
-                    new_matches.add(importer)
+            new_matches |= _find_importers(fpath, reverse_graph)
         if not new_matches:
             break
         result |= new_matches

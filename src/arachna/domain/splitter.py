@@ -155,6 +155,31 @@ def pack_into_parts(sections, max_tokens, separator="\n\n", tokenizer=None):
     return _pack_section_into_parts(sections, max_tokens, separator, tk)
 
 
+def _handle_oversized_in_build(section, max_tokens, tk, current, parts):
+    """Handle oversized section: flush current, truncate/warn, append."""
+    if current:
+        parts.append(current.strip())
+    truncated, _ = _handle_single(section, max_tokens, tokenizer=tk)
+    logger.warning(
+        "Section too large: %s tokens exceeds limit of %s tokens, truncated",
+        tk(section),
+        max_tokens,
+    )
+    parts.extend(truncated)
+    return ""
+
+
+def _append_or_start_new(
+    current, current_tokens, section, section_tokens, max_tokens, separator, parts
+):
+    """Decide whether to append to current or start a new part."""
+    if current_tokens + section_tokens > max_tokens:
+        parts.append(current.strip())
+        return section, section_tokens
+    new_current = current + separator + section if current else section
+    return new_current, current_tokens + section_tokens
+
+
 def _build_parts_for_sections(sections, max_tokens, separator, tk):
     if max_tokens == -1:
         content = separator.join(s.strip() for s in sections if s.strip())
@@ -168,25 +193,12 @@ def _build_parts_for_sections(sections, max_tokens, separator, tk):
             continue
         section_tokens = tk(section)
         if section_tokens > max_tokens:
-            if current:
-                parts.append(current.strip())
-                current = ""
-                current_tokens = 0
-            truncated, _ = _handle_single(section, max_tokens, tokenizer=tk)
-            logger.warning(
-                "Section too large: %s tokens exceeds limit of %s tokens, truncated",
-                section_tokens,
-                max_tokens,
-            )
-            parts.extend(truncated)
+            current = _handle_oversized_in_build(section, max_tokens, tk, current, parts)
+            current_tokens = 0
             continue
-        if current_tokens + section_tokens > max_tokens:
-            parts.append(current.strip())
-            current = section
-            current_tokens = section_tokens
-        else:
-            current = current + separator + section if current else section
-            current_tokens += section_tokens
+        current, current_tokens = _append_or_start_new(
+            current, current_tokens, section, section_tokens, max_tokens, separator, parts
+        )
     if current.strip():
         parts.append(current.strip())
     return parts
@@ -282,7 +294,6 @@ _RE_C_LIKE_SIG = re.compile(
     re.MULTILINE,
 )
 
-# Script signature patterns: split into single-purpose patterns.
 _RE_SIG_RUBY_DEF = re.compile(
     r"^(\s*def\s+(?:self\.)?\w+[?!]?.*)",
     re.MULTILINE,

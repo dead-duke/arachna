@@ -13,6 +13,7 @@ from .atomic_write import atomic_write_text
 from .cache import load_cache, save_cache
 from .gatherer import _assemble_content
 from .gatherer_files import _get_exclude_patterns
+from .path_utils import validate_path
 from .runner import run_command
 from .splitter import split_sections
 from .tokenizer import load_tokenizer
@@ -49,6 +50,7 @@ except ImportError:
                 os.close(fd)
                 f._arachna_lock_path = str(lock_path)
             except OSError:
+                # O_CREAT|O_EXCL failed — lock held by another process, let caller handle
                 raise
 
         def _unlock_file(f):
@@ -99,9 +101,10 @@ def clean_manifest(out_dir: Path, name_tmpl: str = ""):
                 p.unlink()
     if name_tmpl:
         for old in sorted(out_dir.glob(f"{name_tmpl}_*.md")):
-            old.unlink()
+            if validate_path(old, out_dir):
+                old.unlink()
         plain = out_dir / f"{name_tmpl}.md"
-        if plain.exists():
+        if plain.exists() and validate_path(plain, out_dir):
             plain.unlink()
 
 
@@ -167,6 +170,9 @@ def _write_parts(
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
+        if not validate_path(filepath, out_path):
+            logger.warning("Path traversal attempt in _write_parts: %s", filepath)
+            continue
         indices = section_indices[part_idx] if part_idx < len(section_indices) else []
         toc = _build_toc(
             named_sections, indices, i, start_num + total_parts - 1, all_indices=section_indices
@@ -224,6 +230,9 @@ def _write_diff_parts(
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
+        if not validate_path(filepath, out_path):
+            logger.warning("Path traversal attempt in _write_diff_parts: %s", filepath)
+            continue
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
         toc = _build_toc(named_sections, indices, i, total_parts, all_indices=section_indices)
         header = _diff_part_header(part_stats[i - 1], i, total_parts)

@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 
+from ..domain.path_utils import validate_path
 from .presets import _SEPARATOR, detect_presets, preset_to_profile
 
 
@@ -24,6 +25,14 @@ def _ask_yes(prompt: str, default: bool = True) -> bool:
     if not answer:
         return default
     return answer in ("y", "yes")
+
+
+def _validate_output_dir(output_dir):
+    """Reject output_dir values containing path separators or traversal."""
+    if not output_dir or ".." in output_dir or "/" in output_dir or "\\" in output_dir:
+        raise ValueError(
+            f"Invalid output_dir: '{output_dir}'. Must be a simple directory name without path separators."
+        )
 
 
 def run_defaults(output_dir: str = ".", preset: str | None = None, root: Path | None = None):
@@ -95,7 +104,10 @@ def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path
 
 
 def _write_config(root: Path, config: dict, output_dir: str):
+    _validate_output_dir(output_dir)
     cfg_path = root / ".arachna.json"
+    if not validate_path(cfg_path, root):
+        raise ValueError(f"Config path outside root: {cfg_path}")
     cfg_path.write_text(json.dumps(config, indent=2) + "\n")
     print(f"Created {cfg_path}")
     out_path = root / output_dir

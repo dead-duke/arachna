@@ -21,6 +21,37 @@ from ._helpers import (
 from .renderer import render_dry_run
 
 
+def _collect_one_profile(name, profile, args, out_path, root, project_name):
+    """Collect a single profile. Returns (created, tokens_by_file) or (None, dry_run_stats)."""
+    profile = apply_args_to_profile(profile, args)
+    if getattr(args, "no_pre_commands", False):
+        profile["pre_commands"] = []
+
+    if args.dry_run:
+        query = getattr(args, "query", None)
+        mode = getattr(args, "mode", "full")
+        stats = dry_run(profile, root=root, query=query, mode=mode)
+        stats["name"] = name
+        return None, None, stats
+
+    name_tmpl = profile.get("name_template", f"chat-{name}")
+    if not args.merge:
+        clean_manifest(out_path, name_tmpl)
+
+    created, tokens_by_file, _parts, _metrics = collect(
+        profile,
+        project_name,
+        str(out_path),
+        root=root,
+        verbose=args.verbose,
+        incremental=args.incremental,
+        merge=args.merge,
+        query=getattr(args, "query", None),
+        mode=getattr(args, "mode", "full"),
+    )
+    return created, tokens_by_file, None
+
+
 @register("collect-profile")
 def _cmd_collect_profile(args, config: dict):
     root = get_root(config)
@@ -36,37 +67,16 @@ def _cmd_collect_profile(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
-    profile = apply_args_to_profile(profile, args)
-
-    if getattr(args, "no_pre_commands", False):
-        profile["pre_commands"] = []
-
+    created, tokens_by_file, dry_run_stats = _collect_one_profile(
+        args.profile, profile, args, out_path, root, project_name
+    )
     if args.dry_run:
-        query = getattr(args, "query", None)
-        mode = getattr(args, "mode", "full")
-        stats = dry_run(profile, root=root, query=query, mode=mode)
-        stats["name"] = args.profile
-        render_dry_run([stats])
+        if dry_run_stats:
+            render_dry_run([dry_run_stats])
         return
 
-    name_tmpl = profile.get("name_template", f"chat-{args.profile}")
-
-    if not args.merge:
-        clean_manifest(out_path, name_tmpl)
-
-    created, _, _parts, _metrics = collect(
-        profile,
-        project_name,
-        str(out_path),
-        root=root,
-        verbose=args.verbose,
-        incremental=args.incremental,
-        merge=args.merge,
-        query=getattr(args, "query", None),
-        mode=getattr(args, "mode", "full"),
-    )
-
     prev = load_manifest(out_path)
+    name_tmpl = profile.get("name_template", f"chat-{args.profile}")
     if args.merge:
         updated = list(prev)
         for f in created:
@@ -91,55 +101,33 @@ def _cmd_collect_all(args, config: dict):
     clean_manifest(out_path, "")
     all_created = []
     all_tokens = {}
+    all_dry_run_stats = []
     for name in list_profiles(config):
         print(f"[{name}] Collecting...")
         try:
             profile = get_profile(name, root=root, config=config)
         except KeyError:
             continue
-        profile = apply_args_to_profile(profile, args)
 
-        if getattr(args, "no_pre_commands", False):
-            profile["pre_commands"] = []
-
-        if args.dry_run:
-            query = getattr(args, "query", None)
-            mode = getattr(args, "mode", "full")
-            stats = dry_run(profile, root=root, query=query, mode=mode)
-            stats["name"] = name
-            all_created_stats = getattr(args, "_all_stats", None)
-            if all_created_stats is None:
-                all_created_stats = []
-                args._all_stats = all_created_stats
-            all_created_stats.append(stats)
-            continue
-
-        name_tmpl = profile.get("name_template", f"chat-{name}")
-        clean_manifest(out_path, name_tmpl)
-
-        created, tokens_by_file, _parts, _metrics = collect(
-            profile,
-            project_name,
-            str(out_path),
-            root=root,
-            verbose=args.verbose,
-            incremental=args.incremental,
-            merge=False,
-            query=getattr(args, "query", None),
-            mode=getattr(args, "mode", "full"),
+        created, tokens_by_file, dry_run_stats = _collect_one_profile(
+            name, profile, args, out_path, root, project_name
         )
+        if args.dry_run:
+            if dry_run_stats:
+                all_dry_run_stats.append(dry_run_stats)
+            continue
 
         if created:
             all_created.extend(created)
-            all_tokens.update(tokens_by_file)
+            if tokens_by_file:
+                all_tokens.update(tokens_by_file)
             print_collected(created)
         else:
             print("  No content collected.")
 
     if args.dry_run:
-        all_stats = getattr(args, "_all_stats", [])
-        if all_stats:
-            render_dry_run(all_stats)
+        if all_dry_run_stats:
+            render_dry_run(all_dry_run_stats)
         return
 
     if all_created:
@@ -166,20 +154,22 @@ def _cmd_collect_list(args, config: dict):
             print(f"  {name}: {dirs} dirs, {files} files ({prof.get('max_tokens', '?')} tokens)")
 
 
-@register("collect-validate")
-def _cmd_collect_validate(args, config: dict):
-    root = get_root(config)
+def _resolve_profiles(config, root):
+    """Build valid profiles dict from config."""
     profiles = config.get("profiles", {})
     if not profiles:
-        profiles = {"default": get_profile("default", root=root, config=config)}
-    else:
-        valid_profiles = {}
-        for name in profiles:
-            try:
-                valid_profiles[name] = get_profile(name, root=root, config=config)
-            except KeyError as e:
-                print(f"  Warning: profile '{name}': {e}")
-        profiles = valid_profiles
+        return {"default": get_profile("default", root=root, config=config)}
+    valid_profiles = {}
+    for name in profiles:
+        try:
+            valid_profiles[name] = get_profile(name, root=root, config=config)
+        except KeyError as e:
+            print(f"  Warning: profile '{name}': {e}")
+    return valid_profiles
+
+
+def _validate_and_print(profiles):
+    """Validate profiles and print results. Returns (errors, warnings) counts."""
     all_errors = 0
     all_warnings = 0
     for name, prof in profiles.items():
@@ -196,6 +186,14 @@ def _cmd_collect_validate(args, config: dict):
             all_warnings += len(warnings)
         else:
             print(f"  [{name}] ✓ valid")
+    return all_errors, all_warnings
+
+
+@register("collect-validate")
+def _cmd_collect_validate(args, config: dict):
+    root = get_root(config)
+    profiles = _resolve_profiles(config, root)
+    all_errors, all_warnings = _validate_and_print(profiles)
     print(f"\nResult: {all_errors} error(s), {all_warnings} warning(s)")
     sys.exit(1 if all_errors > 0 else 0)
 

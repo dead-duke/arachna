@@ -153,10 +153,12 @@ def _should_skip_binary(path, include_binary, binary_extensions, binary_max_mb):
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
 
-# _RE_C_LIKE_IMPORT_CHAIN: split into single-purpose patterns to keep
-# regex complexity under 20. Tested with hypothesis fuzzing.
-_RE_ES6_IMPORT = re.compile(
-    r"^\s*(?:import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]|import\s+['\"]([^'\"]+)['\"])",
+_RE_ES6_IMPORT_FROM = re.compile(
+    r"^\s*import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_RE_ES6_IMPORT_BARE = re.compile(
+    r"^\s*import\s+['\"]([^'\"]+)['\"]",
     re.MULTILINE,
 )
 _RE_COMMONJS_REQUIRE = re.compile(
@@ -168,7 +170,8 @@ _RE_CSHARP_USING = re.compile(r"^\s*using\s+([\w.]+)\s*;", re.MULTILINE)
 _RE_MODULE_USE = re.compile(r"^\s*use\s+([\w\\]+)\s*;", re.MULTILINE)
 
 _C_LIKE_IMPORT_PATTERNS = [
-    _RE_ES6_IMPORT,
+    _RE_ES6_IMPORT_FROM,
+    _RE_ES6_IMPORT_BARE,
     _RE_COMMONJS_REQUIRE,
     _RE_C_INCLUDE,
     _RE_CSHARP_USING,
@@ -181,7 +184,6 @@ _RE_C_LIKE_EXPORT = re.compile(
     re.MULTILINE,
 )
 
-# Script import patterns: split into single-purpose patterns.
 _RE_RUBY_REQUIRE = re.compile(r"^\s*require\s+['\"]([^'\"]+)['\"]", re.MULTILINE)
 _RE_SCRIPT_IMPORT_QUOTED = re.compile(r"^\s*import\s+['\"]([^'\"]+)['\"]", re.MULTILINE)
 _RE_ELIXIR_USE = re.compile(r"^\s*use\s+([\w.]+)", re.MULTILINE)
@@ -192,7 +194,6 @@ _SCRIPT_IMPORT_PATTERNS = [
     _RE_ELIXIR_USE,
 ]
 
-# Script export patterns: split into single-purpose patterns.
 _RE_RUBY_DEF = re.compile(r"^\s*def\s+(?:self\.)?(\w+[?!]?)", re.MULTILINE)
 _RE_ELIXIR_DEFMODULE = re.compile(r"^\s*defmodule\s+([\w.]+)", re.MULTILINE)
 _RE_ELIXIR_DEFP = re.compile(r"^\s*defp\s+(\w+)", re.MULTILINE)
@@ -223,23 +224,37 @@ def _generate_header(path: Path, text: str, lang: str) -> str:
     return "".join(lines)
 
 
-def _parse_python_imports_fallback(text):
+def _parse_import_stmt(match):
+    """Parse a single import statement match, returning list of module names."""
     deps = []
-    for m in _RE_PY_IMPORT.finditer(text):
-        mod = m.group(1)
-        if mod:
-            for part in mod.split(","):
-                part = part.strip()
-                if part:
-                    deps.append(part)
-        mod = m.group(2)
-        if mod:
-            deps.append(mod)
-    for m in _RE_PY_MULTILINE_IMPORT.finditer(text):
-        for part in m.group(1).split(","):
+    mod = match.group(1)
+    if mod:
+        for part in mod.split(","):
             part = part.strip()
             if part:
                 deps.append(part)
+    mod = match.group(2)
+    if mod:
+        deps.append(mod)
+    return deps
+
+
+def _parse_multiline_import(match):
+    """Parse a multiline import match, returning list of module names."""
+    deps = []
+    for part in match.group(1).split(","):
+        part = part.strip()
+        if part:
+            deps.append(part)
+    return deps
+
+
+def _parse_python_imports_fallback(text):
+    deps = []
+    for m in _RE_PY_IMPORT.finditer(text):
+        deps.extend(_parse_import_stmt(m))
+    for m in _RE_PY_MULTILINE_IMPORT.finditer(text):
+        deps.extend(_parse_multiline_import(m))
     return deps
 
 
@@ -281,20 +296,30 @@ def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
     return deps, exports
 
 
-def _parse_script(text: str) -> tuple[list[str], list[str]]:
+def _parse_script_deps(text):
+    """Extract dependencies from script source."""
     deps = []
-    exports = []
     for pattern in _SCRIPT_IMPORT_PATTERNS:
         for m in pattern.finditer(text):
             for group in m.groups():
                 if group:
                     deps.append(group)
+    return deps
+
+
+def _parse_script_exports(text):
+    """Extract exports from script source."""
+    exports = []
     for pattern in _SCRIPT_EXPORT_PATTERNS:
         for m in pattern.finditer(text):
             name = m.group(1)
             if name:
                 exports.append(name)
-    return deps, exports
+    return exports
+
+
+def _parse_script(text: str) -> tuple[list[str], list[str]]:
+    return _parse_script_deps(text), _parse_script_exports(text)
 
 
 def _add_line_numbers(text: str) -> str:
@@ -331,21 +356,33 @@ def _try_read_text(path):
         return ("os_error", e)
 
 
+def _handle_unicode_error(path, include_binary, binary_extensions, binary_max_mb, verbose):
+    """Handle unicode_error status from file read."""
+    if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
+        return ("binary", _format_binary(path, "markdown"))
+    if verbose:
+        print(f"  Skipped (binary): {path}")
+    return ("skip", "")
+
+
+def _handle_verbose_skip(status, path, detail, verbose):
+    """Print skip message for permission/os_error statuses."""
+    if verbose:
+        if status == "permission_error":
+            print(f"  Skipped (permission): {path}")
+        elif status == "os_error":
+            print(f"  Skipped (error): {path} - {detail}")
+    return ("skip", "")
+
+
 def _handle_read_error(
     status, detail, path, include_binary, binary_extensions, binary_max_mb, verbose
 ):
     if status == "unicode_error":
-        if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
-            return ("binary", _format_binary(path, "markdown"))
-        if verbose:
-            print(f"  Skipped (binary): {path}")
-    elif status == "permission_error":
-        if verbose:
-            print(f"  Skipped (permission): {path}")
-    elif status == "os_error":
-        if verbose:
-            print(f"  Skipped (error): {path} - {detail}")
-    return ("skip", "")
+        return _handle_unicode_error(
+            path, include_binary, binary_extensions, binary_max_mb, verbose
+        )
+    return _handle_verbose_skip(status, path, detail, verbose)
 
 
 def _read_text_content(path, include_binary, binary_extensions, binary_max_mb, verbose):

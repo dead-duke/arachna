@@ -10,7 +10,7 @@ def test_get_changed_files_skips_file_that_does_not_exist(tmp_path):
     cache = {str(f): {"mtime_ns": 0, "size": 0, "hash": "abc"}}
     f.unlink()
 
-    changed, new, deleted = get_changed_files([f], cache)
+    changed, new, _ = get_changed_files([f], cache)
     assert len(changed) == 0
     assert len(new) == 0
 

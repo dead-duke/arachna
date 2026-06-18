@@ -242,6 +242,21 @@ def _diff_file_sets(old_files, new_files, fmt, line_numbers=False):
     return sections
 
 
+def _append_diff_lines(parts, tag, old_lines, i1, i2, new_lines, j1, j2):
+    """Append diff lines for one opcode to the parts list."""
+    if tag == "delete":
+        for line in old_lines[i1:i2]:
+            parts.append(f"- {line}\n")
+    elif tag == "insert":
+        for line in new_lines[j1:j2]:
+            parts.append(f"+ {line}\n")
+    elif tag == "replace":
+        for line in old_lines[i1:i2]:
+            parts.append(f"- {line}\n")
+        for line in new_lines[j1:j2]:
+            parts.append(f"+ {line}\n")
+
+
 def _diff_pre_commands_line(old_content, new_content, label):
     """Line-by-line diff for pre_commands that produce line-based output (tree, git tag)."""
     old_lines = old_content.strip().split("\n")
@@ -249,17 +264,7 @@ def _diff_pre_commands_line(old_content, new_content, label):
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
     parts = [f"### {label}\n"]
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag == "delete":
-            for line in old_lines[i1:i2]:
-                parts.append(f"- {line}\n")
-        elif tag == "insert":
-            for line in new_lines[j1:j2]:
-                parts.append(f"+ {line}\n")
-        elif tag == "replace":
-            for line in old_lines[i1:i2]:
-                parts.append(f"- {line}\n")
-            for line in new_lines[j1:j2]:
-                parts.append(f"+ {line}\n")
+        _append_diff_lines(parts, tag, old_lines, i1, i2, new_lines, j1, j2)
     return "".join(parts) if len(parts) > 1 else ""
 
 
@@ -299,26 +304,36 @@ def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt):
     return differ_compute_diff(old_content, new_content, label, fmt=fmt)
 
 
+def _build_snapshot_files_dict(snapshot_id, root):
+    """Read manifest and build old files dict from content-addressable store."""
+    manifest = load_snapshot(snapshot_id, root=root)
+    snapshot_files = manifest.get("files", {})
+    return {path: _get_content_from_manifest(h, root=root) for path, h in snapshot_files.items()}
+
+
+def _build_target_files_dict(profile, exclude, root, to_snapshot_id):
+    """Build target files dict from either another snapshot or current disk state."""
+    if to_snapshot_id is not None:
+        to_manifest = load_snapshot(to_snapshot_id, root=root)
+        to_snapshot_files = to_manifest.get("files", {})
+        return {
+            path: _get_content_from_manifest(h, root=root) for path, h in to_snapshot_files.items()
+        }
+    return _build_current_files(profile, exclude, root)
+
+
 def _diff_files_sections(
     snapshot_id, profile, exclude, to_snapshot_id, fmt, root, line_numbers=False
 ):
     """Compute file diffs between snapshot(s) and current state."""
-    manifest = load_snapshot(snapshot_id, root=root)
-    snapshot_files = manifest.get("files", {})
-    old_files = {
-        path: _get_content_from_manifest(h, root=root) for path, h in snapshot_files.items()
-    }
-    if to_snapshot_id is not None:
-        to_manifest = load_snapshot(to_snapshot_id, root=root)
-        to_snapshot_files = to_manifest.get("files", {})
-        new_files = {
-            path: _get_content_from_manifest(h, root=root) for path, h in to_snapshot_files.items()
-        }
-    else:
-        new_files = _build_current_files(profile, exclude, root)
+    old_files = _build_snapshot_files_dict(snapshot_id, root)
+    if to_snapshot_id is None:
+        new_files = _build_target_files_dict(profile, exclude, root, to_snapshot_id)
         for path in list(old_files.keys()):
             if path not in new_files and not _path_matches_profile(path, profile, root):
                 del old_files[path]
+    else:
+        new_files = _build_target_files_dict(profile, exclude, root, to_snapshot_id)
     return _diff_file_sets(old_files, new_files, fmt, line_numbers=line_numbers)
 
 

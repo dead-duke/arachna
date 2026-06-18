@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..domain.atomic_write import atomic_write_bytes, atomic_write_text
+from ..domain.path_utils import validate_path
 from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExistsError
 
 logger = logging.getLogger("arachna.store")
@@ -170,6 +171,8 @@ def list_snapshots(root: Path) -> list[dict]:
         return []
     manifests = []
     for mf in sorted(snapshots_dir.glob("*.json"), reverse=True):
+        if not validate_path(mf, snapshots_dir):
+            continue
         try:
             manifests.append(json.loads(mf.read_text()))
         except (json.JSONDecodeError, OSError):
@@ -191,18 +194,19 @@ def _load_all_manifests(store_dir: Path) -> list[dict]:
     return manifests
 
 
+def _collect_hashes_from_dict(d, referenced):
+    """Extract sha256: hashes from a dict of label -> hash_spec."""
+    for hash_spec in d.values():
+        if hash_spec.startswith(_SHA256_PREFIX):
+            referenced.add(hash_spec[len(_SHA256_PREFIX) :])
+
+
 def _collect_referenced_hashes(manifests: list[dict]) -> set[str]:
     referenced: set[str] = set()
     for manifest in manifests:
-        for hash_spec in manifest.get("files", {}).values():
-            if hash_spec.startswith(_SHA256_PREFIX):
-                referenced.add(hash_spec[len(_SHA256_PREFIX) :])
-        for hash_spec in manifest.get("pre_commands", {}).values():
-            if hash_spec.startswith(_SHA256_PREFIX):
-                referenced.add(hash_spec[len(_SHA256_PREFIX) :])
-        for hash_spec in manifest.get("command", {}).values():
-            if hash_spec.startswith(_SHA256_PREFIX):
-                referenced.add(hash_spec[len(_SHA256_PREFIX) :])
+        _collect_hashes_from_dict(manifest.get("files", {}), referenced)
+        _collect_hashes_from_dict(manifest.get("pre_commands", {}), referenced)
+        _collect_hashes_from_dict(manifest.get("command", {}), referenced)
     return referenced
 
 
