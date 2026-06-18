@@ -131,23 +131,67 @@ def test_match_exact_renames_only_added():
 
 
 def test_match_similar_renames_high_similarity():
+    """Same directory, different name → RENAMED."""
     remaining_del = {
-        "old.py": "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
+        "src/old.py": "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
     }
     remaining_add = {
-        "new.py": "line1\nline2\nCHANGED\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
+        "src/new.py": "line1\nline2\nCHANGED\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
     }
     sections, matched_del, matched_add = _match_similar_renames(
         remaining_del, remaining_add, set(), "markdown"
     )
     assert len(sections) == 1
     assert sections[0].type == "renamed"
-    assert sections[0].old_path == "old.py"
-    assert sections[0].path == "new.py"
+    assert sections[0].old_path == "src/old.py"
+    assert sections[0].path == "src/new.py"
     assert sections[0].similarity is not None
     assert sections[0].similarity > 0.7
-    assert "old.py" in matched_del
-    assert "new.py" in matched_add
+    assert "src/old.py" in matched_del
+    assert "src/new.py" in matched_add
+
+
+def test_match_similar_renames_moved():
+    """Different directory, same name → MOVED."""
+    remaining_del = {
+        "src/utils.py": "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
+    }
+    remaining_add = {
+        "lib/utils.py": "line1\nline2\nCHANGED\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
+    }
+    sections, matched_del, matched_add = _match_similar_renames(
+        remaining_del, remaining_add, set(), "markdown"
+    )
+    assert len(sections) == 1
+    assert sections[0].type == "moved"
+    assert sections[0].old_path == "src/utils.py"
+    assert sections[0].path == "lib/utils.py"
+    assert sections[0].similarity is not None
+    assert sections[0].similarity > 0.7
+    assert "src/utils.py" in matched_del
+    assert "lib/utils.py" in matched_add
+
+
+def test_match_similar_renames_move_and_rename():
+    """Different directory, different name → MOVED AND RENAMED."""
+    remaining_del = {
+        "src/old_handler.py": "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
+    }
+    remaining_add = {
+        "lib/new_service.py": "line1\nline2\nCHANGED\nline4\nline5\nline6\nline7\nline8\nline9\nline10\n"
+    }
+    sections, matched_del, matched_add = _match_similar_renames(
+        remaining_del, remaining_add, set(), "markdown"
+    )
+    assert len(sections) == 1
+    assert sections[0].type == "renamed"
+    assert "MOVED AND RENAMED" in sections[0].content
+    assert sections[0].old_path == "src/old_handler.py"
+    assert sections[0].path == "lib/new_service.py"
+    assert sections[0].similarity is not None
+    assert sections[0].similarity > 0.7
+    assert "src/old_handler.py" in matched_del
+    assert "lib/new_service.py" in matched_add
 
 
 def test_match_similar_renames_below_threshold():

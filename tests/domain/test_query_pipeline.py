@@ -1,7 +1,8 @@
-"""Tests for decomposed query pipeline: _score_files, _build_reverse_graph, _expand_import_chain."""
+"""Tests for decomposed query pipeline: _score_files, _build_reverse_graph, _expand_import_chain, _collect_import_graph."""
 
 from arachna.domain.gatherer_query import (
     _build_reverse_graph,
+    _collect_import_graph,
     _expand_import_chain,
     _score_files,
 )
@@ -78,3 +79,45 @@ def test_expand_import_chain_no_expansion():
     matched = {"src/auth.py"}
     expanded = _expand_import_chain(matched, reverse_graph)
     assert expanded == matched
+
+
+def test_collect_import_graph_cache_overflow():
+    """Cache clears when >128 entries to prevent memory leak."""
+    sections = []
+    for i in range(200):
+        sections.append(
+            _make_section(
+                f"src/file_{i}.py",
+                f"### src/file_{i}.py\n\ndeps: os, sys\n\n```python\ndef func_{i}(): pass\n```\n",
+            )
+        )
+    graph_cache = {}
+    _collect_import_graph(sections[:100], graph_cache)
+    assert len(graph_cache) <= 128
+    _collect_import_graph(sections[100:], graph_cache)
+    assert len(graph_cache) <= 128
+
+
+def test_score_exports_match():
+    """_score_files detects exports line in content."""
+    sections = [
+        _make_section(
+            "src/auth.py",
+            "### src/auth.py\n\ndeps: crypto\n\nexports: login, logout\n\n```python\ndef login(): pass\ndef logout(): pass\n```\n",
+        ),
+    ]
+    scores = _score_files(sections, ["logout"], {})
+    assert "src/auth.py" in scores
+    assert scores["src/auth.py"] >= 8
+
+
+def test_score_exports_no_match():
+    """_score_files returns no score when exports don't match query."""
+    sections = [
+        _make_section(
+            "src/auth.py",
+            "### src/auth.py\n\ndeps: crypto\n\nexports: login\n\n```python\ndef login(): pass\n```\n",
+        ),
+    ]
+    scores = _score_files(sections, ["nonexistent"], {})
+    assert scores == {}

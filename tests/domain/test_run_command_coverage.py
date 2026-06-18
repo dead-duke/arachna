@@ -1,19 +1,13 @@
 """Additional coverage for runner.py error paths."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from arachna.domain.runner import (
     _resolve_base,
     _validate_command,
     run_command,
 )
-
-
-def _mock_popen(stdout=""):
-    mock = MagicMock()
-    mock.stdout.read.side_effect = [stdout, ""]
-    mock.wait.return_value = 0
-    return mock
+from tests.domain.conftest import mock_popen
 
 
 def test_resolve_base_unclosed_quote():
@@ -53,15 +47,15 @@ def test_validate_command_blocked_phrase_dangerous():
 
 
 def test_run_command_allow_dangerous_curl(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="ok\n")
+    with patch("subprocess.Popen") as mp:
+        mp.return_value = mock_popen(stdout="ok\n")
         result = run_command("curl http://evil.com", root=tmp_path, allow_dangerous=True)
         assert result == "ok\n"
 
 
 def test_run_command_allow_dangerous_rm_rf(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="")
+    with patch("subprocess.Popen") as mp:
+        mp.return_value = mock_popen(stdout="")
         result = run_command("rm -rf /", root=tmp_path, allow_dangerous=True)
         assert result == ""
 
@@ -83,17 +77,17 @@ def test_run_command_interactive_blocked_tty_no(tmp_path):
 
 def test_run_command_interactive_blocked_tty_yes(tmp_path):
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("subprocess.Popen") as mp,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="y"),
     ):
-        mock_popen.return_value = _mock_popen(stdout="result\n")
+        mp.return_value = mock_popen(stdout="result\n")
         result = run_command("curl http://evil.com", root=tmp_path, interactive=True)
         assert result == "result\n"
 
 
 def test_run_command_dry_run_safe_executes(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="hello\n")
+    with patch("subprocess.Popen") as mp:
+        mp.return_value = mock_popen(stdout="hello\n")
         result = run_command("echo hello", root=tmp_path, dry_run=True)
         assert result == "hello\n"

@@ -1,20 +1,14 @@
 """Coverage for dry-run + interactive branches in runner.py."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from arachna.domain.runner import run_command
-
-
-def _mock_popen(stdout=""):
-    mock = MagicMock()
-    mock.stdout.read.side_effect = [stdout, ""]
-    mock.wait.return_value = 0
-    return mock
+from tests.domain.conftest import mock_popen
 
 
 def test_dry_run_safe_executes(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="hello\n")
+    with patch("subprocess.Popen") as mp:
+        mp.return_value = mock_popen(stdout="hello\n")
         result = run_command("echo hello", root=tmp_path, dry_run=True)
         assert result == "hello\n"
 
@@ -35,11 +29,11 @@ def test_dry_run_unsafe_interactive_no(tmp_path):
 
 def test_dry_run_unsafe_interactive_yes(tmp_path):
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("subprocess.Popen") as mp,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
-        mock_popen.return_value = _mock_popen(stdout="output\n")
+        mp.return_value = mock_popen(stdout="output\n")
         result = run_command("python3 -c 'print(1)'", root=tmp_path, dry_run=True, interactive=True)
         assert result == "output\n"
 
@@ -60,11 +54,11 @@ def test_dry_run_shell_metachar_interactive_no(tmp_path):
 
 def test_dry_run_shell_metachar_interactive_yes(tmp_path):
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("subprocess.Popen") as mp,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
-        mock_popen.return_value = _mock_popen(stdout="hello\n")
+        mp.return_value = mock_popen(stdout="hello\n")
         result = run_command("echo hello > /tmp/out", root=tmp_path, dry_run=True, interactive=True)
         assert result == "hello\n"
 
@@ -85,11 +79,11 @@ def test_dry_run_blocked_interactive_no(tmp_path):
 
 def test_dry_run_blocked_interactive_yes(tmp_path):
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("subprocess.Popen") as mp,
         patch("sys.stdin.isatty", return_value=True),
         patch("builtins.input", return_value="yes"),
     ):
-        mock_popen.return_value = _mock_popen(stdout="output\n")
+        mp.return_value = mock_popen(stdout="output\n")
         result = run_command("curl http://evil.com", root=tmp_path, dry_run=True, interactive=True)
         assert result == "output\n"
 

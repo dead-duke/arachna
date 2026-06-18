@@ -1,20 +1,14 @@
 """Tests for restricted mode in run_command (v2.9.0)."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from arachna.domain.runner import _validate_command, run_command
-
-
-def _mock_popen(stdout=""):
-    mock = MagicMock()
-    mock.stdout.read.side_effect = [stdout, ""]
-    mock.wait.return_value = 0
-    return mock
+from tests.domain.conftest import mock_popen
 
 
 def test_restricted_mode_allows_safe_commands(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="hello\n")
+    with patch("subprocess.Popen") as mp:
+        mp.return_value = mock_popen(stdout="hello\n")
         result = run_command("echo hello", root=tmp_path)
         assert result == "hello\n"
 
@@ -52,7 +46,7 @@ def test_run_command_restricted_blocks_cat(tmp_path):
 
 
 def test_run_command_pre_commands_allows_cat(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="content\n")
+    with patch("subprocess.Popen") as mp:
+        mp.return_value = mock_popen(stdout="content\n")
         result = run_command("cat file.txt", root=tmp_path, allow_file_args=True)
         assert result == "content\n"

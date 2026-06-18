@@ -1,20 +1,14 @@
 """Tests for run_pre_commands in runner.py."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from arachna.domain.runner import run_pre_commands
-
-
-def _mock_popen(stdout=""):
-    mock = MagicMock()
-    mock.stdout.read.side_effect = [stdout, ""]
-    mock.wait.return_value = 0
-    return mock
+from tests.domain.conftest import mock_popen
 
 
 def test_run_pre_commands_single(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _mock_popen(stdout="output\n")
+    with patch("subprocess.Popen") as mp:
+        mp.return_value = mock_popen(stdout="output\n")
         results = run_pre_commands(["echo hello"], root=tmp_path)
     assert len(results) == 1
     assert results[0][0] == "echo hello"
@@ -22,10 +16,10 @@ def test_run_pre_commands_single(tmp_path):
 
 
 def test_run_pre_commands_multiple(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.side_effect = [
-            _mock_popen(stdout="first\n"),
-            _mock_popen(stdout="second\n"),
+    with patch("subprocess.Popen") as mp:
+        mp.side_effect = [
+            mock_popen(stdout="first\n"),
+            mock_popen(stdout="second\n"),
         ]
         results = run_pre_commands(["echo first", "echo second"], root=tmp_path)
     assert len(results) == 2
@@ -42,13 +36,13 @@ def test_run_pre_commands_empty(tmp_path):
 
 def test_run_pre_commands_with_delay(tmp_path):
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("subprocess.Popen") as mp,
         patch("arachna.domain.runner.time.sleep") as mock_sleep,
     ):
-        mock_popen.side_effect = [
-            _mock_popen(stdout="a\n"),
-            _mock_popen(stdout="b\n"),
-            _mock_popen(stdout="c\n"),
+        mp.side_effect = [
+            mock_popen(stdout="a\n"),
+            mock_popen(stdout="b\n"),
+            mock_popen(stdout="c\n"),
         ]
         results = run_pre_commands(
             ["echo a", "echo b", "echo c"], root=tmp_path, pre_command_delay=0.1
@@ -61,12 +55,12 @@ def test_run_pre_commands_with_delay(tmp_path):
 
 def test_run_pre_commands_no_delay_default(tmp_path):
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("subprocess.Popen") as mp,
         patch("arachna.domain.runner.time.sleep") as mock_sleep,
     ):
-        mock_popen.side_effect = [
-            _mock_popen(stdout="x\n"),
-            _mock_popen(stdout="y\n"),
+        mp.side_effect = [
+            mock_popen(stdout="x\n"),
+            mock_popen(stdout="y\n"),
         ]
         run_pre_commands(["echo x", "echo y"], root=tmp_path)
 
@@ -79,16 +73,15 @@ def test_run_pre_commands_failure_continues(tmp_path):
     assert len(results) == 2
     assert results[0][0] == "bad_cmd"
     assert results[0][1] == ""
-    # Second command also fails because mock returns same error for both
     assert results[1][0] == "echo ok"
 
 
 def test_run_pre_commands_partial_failure_middle(tmp_path):
-    with patch("subprocess.Popen") as mock_popen:
-        mock_popen.side_effect = [
-            _mock_popen(stdout="first\n"),
+    with patch("subprocess.Popen") as mp:
+        mp.side_effect = [
+            mock_popen(stdout="first\n"),
             OSError("middle failed"),
-            _mock_popen(stdout="third\n"),
+            mock_popen(stdout="third\n"),
         ]
         results = run_pre_commands(["echo first", "echo middle", "echo third"], root=tmp_path)
     assert len(results) == 3
