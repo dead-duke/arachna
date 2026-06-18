@@ -185,7 +185,9 @@ def test_safepath_relative_to(tmp_path):
     sub = root / "sub"
     f = sub / "file.py"
     result = f.relative_to(root)
-    assert str(result) == "sub/file.py"
+    # Path.relative_to returns OS-native separators
+    expected = str(Path("sub") / "file.py")
+    assert str(result) == expected
 
 
 def test_safepath_unlink_missing_ok(tmp_path):
