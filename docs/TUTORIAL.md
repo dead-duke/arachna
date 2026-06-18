@@ -4,13 +4,13 @@
 
 ```python
 from pathlib import Path
-from arachna import watch
+from arachna import snapshot
 from arachna.collect_api import collect
 
 root = Path.cwd()
 
 # 1. Create a snapshot of your project
-snapshot_id = watch.create_snapshot(root=root, profile="full", name="baseline")
+snapshot_id = snapshot.create_snapshot(root=root, profile="full", name="baseline")
 print(f"Snapshot '{snapshot_id}' created")
 
 # 2. Collect full context for the AI
@@ -20,7 +20,7 @@ print(f"Collected {result.tokens} tokens in {len(result.parts)} parts")
 # 3. Make changes to your project...
 
 # 4. See what changed
-diff = watch.compute_diff(root=root, snapshot_id="baseline", profile="full")
+diff = snapshot.compute_diff(root=root, snapshot_id="baseline", profile="full")
 print(f"Modified: {diff.stats.modified}, Added: {diff.stats.added}")
 
 # 5. Send diff to the AI (only 1-5K tokens instead of 50K+)
@@ -33,7 +33,7 @@ for section in diff.sections:
 
 ```python
 # Line numbers help AI reference specific lines in responses
-diff = watch.compute_diff(
+diff = snapshot.compute_diff(
     root=root,
     snapshot_id="baseline",
     profile="full",
@@ -168,7 +168,7 @@ print(f"Tokens compressed: {result.metrics.tokens_compressed}")
 
 ```python
 from pathlib import Path
-import arachna.watch as watch
+from arachna import snapshot
 from arachna.collect_api import collect
 
 class AIAgent:
@@ -179,7 +179,7 @@ class AIAgent:
 
     def start_task(self, task_name: str):
         """Create a baseline snapshot before making changes."""
-        self.snapshot_id = watch.create_snapshot(
+        self.snapshot_id = snapshot.create_snapshot(
             root=self.root,
             profile=self.profile,
             name=f"task-{task_name}"
@@ -191,7 +191,7 @@ class AIAgent:
         if not self.snapshot_id:
             return collect(root=self.root, profile=self.profile, write_to_disk=False).parts[0]
 
-        diff = watch.compute_diff(
+        diff = snapshot.compute_diff(
             root=self.root,
             snapshot_id=self.snapshot_id,
             profile=self.profile,
@@ -206,7 +206,7 @@ class AIAgent:
     def finish_task(self):
         """Clean up after task completion."""
         if self.snapshot_id:
-            watch.delete_snapshot(self.snapshot_id, root=self.root)
+            snapshot.delete_snapshot(self.snapshot_id, root=self.root)
             self.snapshot_id = None
 ```
 
@@ -221,9 +221,9 @@ from arachna.api_errors import (
 )
 
 try:
-    sid = watch.create_snapshot(root=root, profile="full", name="my-snap")
+    sid = snapshot.create_snapshot(root=root, profile="full", name="my-snap")
 except SnapshotExistsError:
-    watch.update_snapshot("my-snap", root=root)
+    snapshot.update_snapshot("my-snap", root=root)
 except ProfileNotFoundError:
     print("Profile 'full' not found in .arachna.json")
 except ArachnaError as e:

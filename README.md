@@ -20,7 +20,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1613 tests, 95% coverage, 200+ commits.
+day one. 1611 tests, 95% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -90,7 +90,7 @@ For collaboration: Telegram in the [GitHub profile](https://github.com/dead-duke
 - [Output](#output)
 - [Manifest and cleanup](#manifest-and-cleanup)
 - [Incremental mode](#incremental-mode)
-- [Watch — snapshots and diffs](#watch--snapshots-and-diffs)
+- [Snapshots and diffs](#snapshots-and-diffs)
 - [Plugin system](#plugin-system)
 - [Safety](#safety)
 - [Performance](#performance)
@@ -257,7 +257,7 @@ for remote collection:
     arachna manifest          show collected files manifest
     arachna manifest --json   machine-readable JSON manifest
 
-### Watch commands
+### Snapshot commands
 
     arachna snapshot list                     list all snapshots
     arachna snapshot create --profile X --name Y   create snapshot
@@ -416,9 +416,9 @@ Uses .arachna_cache.json with mtime_ns + size + SHA256 hashes
 (smart hybrid — fast path without hashing, SHA256 fallback for
 false positives like git checkout).
 
-## Watch — snapshots and diffs
+## Snapshots and diffs
 
-Watch is a subsystem for incremental AI workflows. Instead of sending
+Snapshots are the core of incremental AI workflows. Instead of sending
 full project context (50k+ tokens) every time, create a snapshot once,
 then send only changes (diff) in subsequent iterations.
 
@@ -528,23 +528,23 @@ content — only one copy stored.
 
 ### Programmatic API (v2.0.0+)
 
-All Watch and collection features are available as a Python API:
+All snapshot and collection features are available as a Python API:
 
 ```python
 from pathlib import Path
-from arachna import watch
+from arachna import snapshot
 from arachna.collect_api import collect
 
 root = Path.cwd()
 
 # Create snapshot
-sid = watch.create_snapshot(root=root, profile="full", name="baseline")
+sid = snapshot.create_snapshot(root=root, profile="full", name="baseline")
 
 # Collect context
 result = collect(root=root, profile="full", mode="repo-map")
 
 # Compute diff
-diff = watch.compute_diff(root=root, snapshot_id="baseline", mode="structural")
+diff = snapshot.compute_diff(root=root, snapshot_id="baseline", mode="structural")
 print(f"Modified: {diff.stats.modified}, Added: {diff.stats.added}")
 ```
 
@@ -685,7 +685,7 @@ Full details: [docs/BENCHMARKS.md](docs/BENCHMARKS.md). Run locally: `make bench
   before file collection. Query filtering works on filenames in streaming mode.
 - **Snapshot portability** across Windows and Linux — paths stored relative to project root.
 
-## Stable API (v4.2.0+)
+## Stable API (v5.0.0+)
 
 arachna's public API is stable and follows semantic versioning:
 
@@ -699,7 +699,7 @@ These modules will not break without a major version bump:
 
 ```python
 from arachna.collect_api import collect      # collection API
-from arachna import watch                     # snapshot + diff API
+from arachna import snapshot                  # snapshot + diff API
 from arachna.api_errors import (             # exception classes
     ArachnaError,
     SnapshotNotFoundError,
@@ -718,7 +718,7 @@ something from internals, open an issue — it may be promoted to public API.
 
 Breaking changes to public API are announced one minor version before
 removal with a `FutureWarning`. Example: if `collect()` parameter order
-changes in v4.4, v4.3 will emit a warning.
+changes in v4.5, v4.4 will emit a warning.
 
 ## Doctor
 

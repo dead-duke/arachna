@@ -1,4 +1,4 @@
-"""Tests for the Watch content-addressable store."""
+"""Tests for the content-addressable store."""
 
 import pytest
 

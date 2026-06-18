@@ -1,5 +1,14 @@
 # Changelog
 
+## v5.0.0 — Architecture cleanup
+- Renamed watch/ package to snapshot/ (~60 files)
+- Deduplicated DiffSection: differ.py now imports from api_types.py
+- Cleaned docstrings: removed version tags, standardized to one-line descriptions
+- Narrowed __all__ exports to intended public API surface
+- Documented split mode dispatch distinction (splitter vs gatherer strategies)
+- SonarCloud fixes: S1481, S3776 x3, S5145, S8502, S7504
+- 1611 tests, 95% coverage
+
 ## v4.2.1 — SonarCloud cleanup
 - S3776: 14 functions reduced to cognitive complexity <=15
 - S5843: _RE_ES6_IMPORT split into _RE_ES6_IMPORT_FROM + _RE_ES6_IMPORT_BARE

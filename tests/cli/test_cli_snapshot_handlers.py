@@ -1,4 +1,4 @@
-"""Tests for Watch CLI handlers."""
+"""Tests for snapshot CLI handlers."""
 
 import json
 from io import StringIO

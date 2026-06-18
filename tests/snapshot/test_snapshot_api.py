@@ -1,4 +1,4 @@
-"""Tests for public Watch API - compute_diff, store operations (v2.0.0)."""
+"""Tests for public Snapshot API - compute_diff, store operations (v2.0.0)."""
 
 import pytest
 

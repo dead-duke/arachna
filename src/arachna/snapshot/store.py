@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Content-addressable store for Watch snapshots."""
+"""Content-addressable store for snapshots."""
 
 import contextlib
 import hashlib

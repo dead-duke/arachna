@@ -186,7 +186,7 @@ help:
 	@echo "  make context-docs     - collect docs profile (documentation)"
 	@echo "  make context-config   - collect config profile (config files only)"
 	@echo ""
-	@echo "Watch (snapshots and diffs):"
+	@echo "Snapshots and diffs:"
 	@echo "  make snapshot-create SNAPSHOT=name  - create named snapshot (default: cycle)"
 	@echo "  make snapshot-list                  - list all snapshots"
 	@echo "  make snapshot-update SNAPSHOT=name  - update existing snapshot (default: cycle)"
@@ -297,7 +297,7 @@ context-docs:
 context-config:
 	arachna collect --profile config
 
-# ── Watch commands ──────────────────────────────────────────────────
+# ── Snapshot commands ───────────────────────────────────────────────
 
 snapshot-create:
 	arachna snapshot create --profile $(PROFILE) --name $(SNAPSHOT)

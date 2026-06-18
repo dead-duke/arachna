@@ -1,4 +1,4 @@
-"""Tests for v1.6.3 - Watch command-based profiles support."""
+"""Tests for v1.6.3 - command-based profiles support."""
 
 import json
 

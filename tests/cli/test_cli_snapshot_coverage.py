@@ -1,4 +1,4 @@
-"""Coverage for Watch CLI handlers."""
+"""Coverage for snapshot CLI handlers."""
 
 from io import StringIO
 

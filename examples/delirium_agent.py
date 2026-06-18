@@ -1,4 +1,4 @@
-"""Example: Delirium agent using arachna Watch API.
+"""Example: Delirium agent using arachna Snapshot API.
 
 This example shows how an AI agent framework (Delirium) can use
 arachna's snapshot and diff API for incremental context management.
@@ -14,7 +14,7 @@ Run:
 
 from pathlib import Path
 
-from arachna import watch
+from arachna import snapshot
 from arachna.collect_api import collect
 
 
@@ -33,7 +33,7 @@ class DeliriumAgent:
         Returns repo-map (signatures only) for quick project overview.
         """
         self.task_name = task_name
-        self.snapshot_id = watch.create_snapshot(
+        self.snapshot_id = snapshot.create_snapshot(
             root=self.root,
             profile=self.profile,
             name=f"task-{task_name}",
@@ -55,7 +55,7 @@ class DeliriumAgent:
             result = collect(root=self.root, profile=self.profile, query=query)
             return result.parts[0] if result.parts else ""
 
-        diff = watch.compute_diff(
+        diff = snapshot.compute_diff(
             root=self.root,
             snapshot_id=self.snapshot_id,
             profile=self.profile,
@@ -83,7 +83,7 @@ class DeliriumAgent:
     def finish_task(self) -> None:
         """Clean up after task completion."""
         if self.snapshot_id:
-            watch.delete_snapshot(self.snapshot_id, root=self.root)
+            snapshot.delete_snapshot(self.snapshot_id, root=self.root)
             print(f"[{self.task_name}] Snapshot '{self.snapshot_id}' deleted")
             self.snapshot_id = None
             self.task_name = None
@@ -91,7 +91,7 @@ class DeliriumAgent:
     def update_baseline(self) -> None:
         """Update the baseline snapshot to current state."""
         if self.snapshot_id:
-            watch.update_snapshot(self.snapshot_id, root=self.root)
+            snapshot.update_snapshot(self.snapshot_id, root=self.root)
             print(f"[{self.task_name}] Snapshot '{self.snapshot_id}' updated")
 
 

@@ -92,13 +92,13 @@ For LLM agents that want to call arachna directly:
 
 ```python
 from pathlib import Path
-from arachna import watch
+from arachna import snapshot
 from arachna.collect_api import collect
 
 root = Path.cwd()
 
 # Create a baseline snapshot
-sid = watch.create_snapshot(root=root, profile="full", name="before-fix")
+sid = snapshot.create_snapshot(root=root, profile="full", name="before-fix")
 
 # Collect context filtered by query
 result = collect(root=root, profile="full", query="authentication", mode="repo-map")
@@ -106,7 +106,7 @@ for part in result.parts:
     print(part)  # send to LLM
 
 # After changes, get the diff with line numbers
-diff = watch.compute_diff(
+diff = snapshot.compute_diff(
     root=root,
     snapshot_id="before-fix",
     mode="structural",
@@ -116,7 +116,7 @@ for section in diff.sections:
     print(section.content)  # send to LLM
 
 # Update snapshot for next iteration
-watch.update_snapshot("before-fix", root=root)
+snapshot.update_snapshot("before-fix", root=root)
 ```
 
 ## Performance tips

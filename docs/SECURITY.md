@@ -13,7 +13,7 @@ The `.arachna.json` file is a **trust boundary** — commands defined in
 ### Command Execution (domain/runner.py)
 
 Commands come from two sources: user config (pre_commands, post_commands, command)
-and internal calls (store operations, Watch subsystem). Each uses a different
+and internal calls (store operations, snapshot subsystem). Each uses a different
 security level.
 
 ### Tokenizer Loading (domain/tokenizer.py)
@@ -21,7 +21,7 @@ security level.
 Custom tokenizer spec in profile `tokenizer` field triggers `importlib.import_module()`.
 Malicious tokenizer files could execute arbitrary code at import time.
 
-### Snapshot Storage (watch/store.py)
+### Snapshot Storage (snapshot/store.py)
 
 Snapshot IDs from CLI arguments are used as filesystem paths.
 Malicious IDs could traverse directories.
@@ -79,7 +79,7 @@ chown, mkdir, touch, tee, xargs, sed, awk) are not in the allowlist.
 
 ### Snapshot ID Validation
 
-`validate_snapshot_id()` in `watch/store.py` enforces `^[\w][\w.-]*$`:
+`validate_snapshot_id()` in `snapshot/store.py` enforces `^[\w][\w.-]*$`:
 no path separators, no shell metacharacters. Applied to all store operations.
 
 ### URL Validation

@@ -2,10 +2,9 @@
 
 ## Overview
 
-arachna is a context collector for AI. It gathers project files, splits them
-by token limits, and writes output files ready for AI consumption.
+arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
-## Package structure (v4.2.0)
+## Package structure (v5.0.0)
 
 src/arachna/
   __init__.py           Version + public API re-exports
@@ -13,7 +12,7 @@ src/arachna/
   interfaces.py         Backward-compat re-export from domain/
 
   domain/               Pure data transformations, no I/O dependencies
-    api_types.py        Public API dataclasses
+    api_types.py        Public API dataclasses (DiffSection, DiffStats, etc.)
     atomic_write.py     Atomic file writes (mkstemp + os.replace)
     cache.py            Smart hybrid incremental cache (mtime_ns + size + SHA256)
     collector.py        Orchestrator: gather -> split -> write -> post_commands
@@ -33,7 +32,7 @@ src/arachna/
     tokenizer.py        Token estimation, pluggable tokenizers, safety validation
 
   config/               Configuration, presets, init, validation
-    __init__.py         VALID_SPLIT_MODES constant
+    __init__.py         VALID_SPLIT_MODES + COLLECTION_MODES constants
     completion.py       Bash and zsh shell completion (argparse subparsers)
     config.py           .arachna.json loader, profile resolution with extends
     doctor.py           Full diagnostic: run_doctor(project_root, config)
@@ -45,15 +44,15 @@ src/arachna/
     remote.py           Remote repository collection (git clone + collect)
     validator.py        Profile validation
 
-  watch/                Snapshots, diff, store, benchmarks
+  snapshot/             Snapshots, diff, store, benchmarks
     benchmarks.py       Plugin benchmarks (structural-diff, tiktoken)
     differ.py           LLM-optimized text diff (markdown + XML), line numbers
     differ_structural.py  Structural diff: Python AST, C-like regex, tree-sitter plugin
     store.py            Content-addressable store (SHA256 + zlib, dedup, GC)
     store_errors.py     Store subsystem exceptions
-    watcher.py          Backward-compat re-exports from watcher_diff + watcher_rename
-    watcher_diff.py     Diff computation: files, pre_commands, command, cross-snapshot
-    watcher_rename.py   Rename/move detection: exact hash + similarity matching
+    snapshots.py        Backward-compat re-exports from snapshot_diff + snapshot_rename
+    snapshot_diff.py    Diff computation: files, pre_commands, command, cross-snapshot
+    snapshot_rename.py  Rename/move detection: exact hash + similarity matching
 
   plugins/              Optional dependency management
     plugins.py          Plugin system: environment detector, install/uninstall/list
@@ -61,7 +60,7 @@ src/arachna/
   api/                  Stable public API for external consumers
     api_errors.py       Public API exception classes
     collect_api.py      Public Collection API (programmatic use)
-    watch.py            Public Watch API (programmatic use)
+    snapshot.py         Public Snapshot API (programmatic use)
 
   cli/                  CLI command handlers
     __init__.py         COMMAND_HANDLERS registry, @register decorator
@@ -83,9 +82,9 @@ src/arachna/
 
 ## Dependency flow
 
-CLI handlers import from domain/, watch/, plugins/, api/, config/.
-API layer imports from domain/ and watch/.
-Watch layer imports from domain/.
+CLI handlers import from domain/, snapshot/, plugins/, api/, config/.
+API layer imports from domain/ and snapshot/.
+Snapshot layer imports from domain/.
 Config layer imports from domain/.
 Domain layer imports only from stdlib and other domain/ modules.
 
@@ -93,9 +92,17 @@ No circular dependencies. No lazy imports between packages.
 
 ## Key architectural decisions
 
+### v5.0.0: Architecture cleanup
+- Renamed watch/ package to snapshot/ — watch implied active monitoring, actual functionality is snapshot management (create, store, diff, delete). ~60 files affected.
+- Deduplicated DiffSection: differ.py now imports from domain/api_types.py instead of defining its own copy. ~15 files updated.
+- Docstrings cleaned: version tags removed from module docstrings, standardized to one-line descriptions. ~30 files.
+- __all__ narrowed to intended public API surface. ~15 modules.
+- Split mode dispatch documented: _SPLIT_MODE_DISPATCH (splitter.py) handles token-limit splitting, _get_mode_strategies (gatherer_strategies.py) handles collection strategy. Both are distinct.
+- SonarCloud fixes: S1481, S3776 x3, S5145, S8502, S7504.
+
 ### v4.2.0: Code quality refactoring
 - _CollectParams dataclass: 14 params -> 1 object in _FullModeStrategy
-- Module splits: gatherer_core -> gatherer_files + gatherer_commands, watcher -> watcher_diff + watcher_rename, presets -> presets_remote
+- Module splits: gatherer_core -> gatherer_files + gatherer_commands, watcher -> snapshot_diff + snapshot_rename, presets -> presets_remote
 - _BLOCK_PATTERNS: named groups -> numbered for simpler regex
 - _RE_C_LIKE_IMPORT -> _RE_C_LIKE_IMPORT_CHAIN (5 single-purpose patterns)
 - compressor.py: _RE_TRAILING_WS regex -> str.rstrip()
@@ -161,11 +168,11 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1613 tests, 95% coverage. Tests mirror src/arachna/ package structure.
+1611 tests, 95% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
   domain/       Tests for domain/ modules
-  watch/        Tests for watch/ modules
+  snapshot/     Tests for snapshot/ modules
   api/          Tests for api/ modules
   config/       Tests for config/ modules
   cli/          Tests for cli/ modules

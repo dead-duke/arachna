@@ -1,5 +1,5 @@
 .\" Man page for arachna
-.TH ARACHNA 1 "2026-06-18" "arachna v4.2.1" "User Commands"
+.TH ARACHNA 1 "2026-06-18" "arachna v5.0.0" "User Commands"
 .SH NAME
 arachna \- context layer for AI workflows
 .SH SYNOPSIS
@@ -15,7 +15,7 @@ Collect once, diff forever.
 It collects project files into token-limited chunks ready for AI consumption,
 understands tokens (not lines), and splits output smartly.
 .PP
-Watch subsystem provides incremental diffs via snapshots: snapshot what an AI
+Snapshot subsystem provides incremental diffs: snapshot what an AI
 has seen, then send only what changed. Works across multiple chats, agents,
 and sessions.
 .PP
@@ -264,7 +264,7 @@ Project configuration with profiles.
 Default output directory for collected files.
 .TP
 \fI.arachna/\fR
-Content-addressable store for Watch snapshots (auto-gitignored).
+Content-addressable store for snapshots (auto-gitignored).
 .SH EXIT STATUS
 .TP
 0
