@@ -4,7 +4,8 @@
 import json
 from pathlib import Path
 
-from ..domain.path_utils import validate_path
+from ..domain.atomic_write import atomic_write_text
+from ..domain.path_utils import SafePath
 from .presets import _SEPARATOR, detect_presets, preset_to_profile
 
 
@@ -105,12 +106,10 @@ def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path
 
 def _write_config(root: Path, config: dict, output_dir: str):
     _validate_output_dir(output_dir)
-    cfg_path = root / ".arachna.json"
-    if not validate_path(cfg_path, root):
-        raise ValueError(f"Config path outside root: {cfg_path}")
-    cfg_path.write_text(json.dumps(config, indent=2) + "\n")
+    cfg_path = SafePath(root / ".arachna.json", root)
+    atomic_write_text(Path(str(cfg_path)), json.dumps(config, indent=2) + "\n")
     print(f"Created {cfg_path}")
-    out_path = root / output_dir
+    out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     print(f"Created {out_path}/")
     print("Done. Run 'arachna --all' to collect context.")

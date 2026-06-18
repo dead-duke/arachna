@@ -1,7 +1,7 @@
 """Test _apply_repo_map_to_sections with to_snapshot_id (cross-snapshot)."""
 
 from arachna.domain.api_types import DiffSection
-from arachna.snapshot.snapshots import _apply_repo_map_to_sections, create_snapshot
+from arachna.snapshot.snapshots import apply_repo_map_to_sections, create_snapshot
 
 
 def test_apply_repo_map_cross_snapshot(tmp_path, setup_config, make_profile):
@@ -20,7 +20,7 @@ def test_apply_repo_map_cross_snapshot(tmp_path, setup_config, make_profile):
             content="### src/main.py\n\nREMOVED lines 1:\n    old\n\nADDED lines 1:\n    new\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, sid1, sid2, root=root)
+    result = apply_repo_map_to_sections(sections, sid1, sid2, root=root)
     assert len(result) == 1
     assert "foo" in result[0].content
 
@@ -41,6 +41,6 @@ def test_apply_repo_map_cross_snapshot_added(tmp_path, setup_config, make_profil
             content="### src/new.py\n\nADDED (new file):\n\n```\ndef new_func():\n    pass\n```\n",
         ),
     ]
-    result = _apply_repo_map_to_sections(sections, sid1, sid2, root=root)
+    result = apply_repo_map_to_sections(sections, sid1, sid2, root=root)
     assert len(result) == 1
     assert "new_func" in result[0].content

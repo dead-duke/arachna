@@ -2,8 +2,10 @@
 """Language and engine presets for arachna init."""
 
 import json
+import threading
 from pathlib import Path
 
+from ..domain.path_utils import SafePath
 from ..domain.tokenizer import _is_safe_tokenizer as _tokenizer_is_safe
 from . import VALID_SPLIT_MODES
 
@@ -39,7 +41,8 @@ _VALID_PRESET_KEYS = {
 
 
 def _load_builtin_presets_raw() -> dict[str, dict]:
-    presets_dir = Path(__file__).parent.parent / "presets"
+    presets_root = Path(__file__).parent.parent
+    presets_dir = SafePath(presets_root / "presets", presets_root)
     if not presets_dir.is_dir():
         return {}
     result = {}
@@ -55,17 +58,20 @@ def _load_builtin_presets_raw() -> dict[str, dict]:
 
 
 _builtin_cache: tuple[float, dict[str, dict]] | None = None
+_builtin_cache_lock = threading.Lock()
 
 
 def _load_builtin_presets() -> dict[str, dict]:
     global _builtin_cache
-    presets_dir = Path(__file__).parent.parent / "presets"
+    presets_root = Path(__file__).parent.parent
+    presets_dir = SafePath(presets_root / "presets", presets_root)
     dir_mtime = presets_dir.stat().st_mtime if presets_dir.is_dir() else 0
-    if _builtin_cache is not None and _builtin_cache[0] == dir_mtime:
-        return _builtin_cache[1]
-    data = _load_builtin_presets_raw()
-    _builtin_cache = (dir_mtime, data)
-    return data
+    with _builtin_cache_lock:
+        if _builtin_cache is not None and _builtin_cache[0] == dir_mtime:
+            return _builtin_cache[1]
+        data = _load_builtin_presets_raw()
+        _builtin_cache = (dir_mtime, data)
+        return data
 
 
 def _is_safe_tokenizer(spec: str) -> bool:

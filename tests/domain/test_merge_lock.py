@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from arachna.domain.collector import _find_next_part_num, _merge_lock
+from arachna.domain.collector import _find_next_part_num, _get_lock_functions, _merge_lock
 
 
 def test_merge_lock_context_manager(tmp_path):
@@ -54,15 +54,13 @@ def test_merge_lock_msvcrt_on_unix_mocked(tmp_path):
     mock_msvcrt.LK_UNLCK = 2
 
     with patch.dict(sys.modules, {"fcntl": None, "msvcrt": mock_msvcrt}):
-        import importlib
-
-        import arachna.domain.collector as collector_module
-
-        importlib.reload(collector_module)
-
-        out = tmp_path / "out"
-        out.mkdir()
-        with collector_module._merge_lock(out):
-            (out / "test.txt").write_text("locked")
-
-        assert not (out / ".arachna_merge.lock").exists()
+        # Clear lru_cache so the mocked modules take effect
+        _get_lock_functions.cache_clear()
+        try:
+            out = tmp_path / "out"
+            out.mkdir()
+            with _merge_lock(out):
+                (out / "test.txt").write_text("locked")
+            assert not (out / ".arachna_merge.lock").exists()
+        finally:
+            _get_lock_functions.cache_clear()

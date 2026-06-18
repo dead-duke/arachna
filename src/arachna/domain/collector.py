@@ -1,6 +1,7 @@
 """Orchestrator - gathers content, splits by tokens, writes output files."""
 
 import contextlib
+import functools
 import json
 import logging
 import os
@@ -13,7 +14,7 @@ from .atomic_write import atomic_write_text
 from .cache import load_cache, save_cache
 from .gatherer import _assemble_content
 from .gatherer_files import _get_exclude_patterns
-from .path_utils import validate_path
+from .path_utils import SafePath
 from .runner import run_command
 from .splitter import split_sections
 from .tokenizer import load_tokenizer
@@ -24,58 +25,78 @@ _MANIFEST = ".arachna_manifest.json"
 _MERGE_LOCK_FILE = ".arachna_merge.lock"
 _METRICS_FILE = ".arachna_metrics.json"
 
-try:
-    import fcntl
 
-    def _lock_file(f):
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+@functools.lru_cache(maxsize=1)
+def _get_lock_functions():
+    """Detect platform file locking and return (lock_fn, unlock_fn).
 
-    def _unlock_file(f):
-        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-except ImportError:
+    Uses lru_cache so platform detection happens once at runtime,
+    not at import time. This eliminates the need for importlib.reload
+    in tests — tests can mock at the function level.
+    """
+    try:
+        import fcntl
+
+        def lock_fn(f):
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+
+        def unlock_fn(f):
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+        return lock_fn, unlock_fn
+    except ImportError:
+        pass
+
     try:
         import msvcrt
 
-        def _lock_file(f):
+        def lock_fn(f):
             msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
 
-        def _unlock_file(f):
+        def unlock_fn(f):
             msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+
+        return lock_fn, unlock_fn
     except ImportError:
+        pass
 
-        def _lock_file(f):
-            lock_path = Path(str(f.name) + ".lock")
-            try:
-                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
-                os.close(fd)
-                f._arachna_lock_path = str(lock_path)
-            except OSError:
-                raise
+    def lock_fn(f):
+        lock_path = Path(str(f.name) + ".lock")
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            os.close(fd)
+            f._arachna_lock_path = str(lock_path)
+        except OSError:
+            # Lock file already exists — another process holds the lock.
+            # Re-raise so the caller can retry or report the conflict.
+            raise
 
-        def _unlock_file(f):
-            if hasattr(f, "_arachna_lock_path"):
-                with contextlib.suppress(OSError):
-                    Path(f._arachna_lock_path).unlink()
+    def unlock_fn(f):
+        if hasattr(f, "_arachna_lock_path"):
+            with contextlib.suppress(OSError):
+                Path(f._arachna_lock_path).unlink()
 
-        logger.warning(
-            "Neither fcntl nor msvcrt available - using O_CREAT|O_EXCL file lock. Merge mode may have reduced concurrency."
-        )
+    logger.warning(
+        "Neither fcntl nor msvcrt available - using O_CREAT|O_EXCL file lock. Merge mode may have reduced concurrency."
+    )
+    return lock_fn, unlock_fn
 
 
 @contextlib.contextmanager
-def _merge_lock(out_dir: Path):
+def _merge_lock(out_dir: SafePath):
     lock_path = out_dir / _MERGE_LOCK_FILE
     out_dir.mkdir(parents=True, exist_ok=True)
+    lock_fn, unlock_fn = _get_lock_functions()
     try:
-        with open(lock_path, "w") as lock_file:
-            _lock_file(lock_file)
+        with open(str(lock_path), "w") as lock_file:
+            lock_fn(lock_file)
             yield
     finally:
         with contextlib.suppress(OSError):
             lock_path.unlink()
 
 
-def load_manifest(out_dir: Path) -> list[str]:
+def load_manifest(out_dir: SafePath) -> list[str]:
     mf = out_dir / _MANIFEST
     if mf.exists():
         try:
@@ -85,22 +106,23 @@ def load_manifest(out_dir: Path) -> list[str]:
     return []
 
 
-def save_manifest(out_dir: Path, files: list[str]):
+def save_manifest(out_dir: SafePath, files: list[str]):
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / _MANIFEST
-    atomic_write_text(manifest_path, json.dumps({"files": files, "time": time.time()}, indent=2))
+    atomic_write_text(
+        Path(str(manifest_path)), json.dumps({"files": files, "time": time.time()}, indent=2)
+    )
 
 
-def _clean_numbered_files(out_dir: Path, name_tmpl: str):
+def _clean_numbered_files(out_dir: SafePath, name_tmpl: str):
     for old in sorted(out_dir.glob(f"{name_tmpl}_*.md")):
-        if validate_path(old, out_dir):
-            old.unlink()
+        old.unlink()
     plain = out_dir / f"{name_tmpl}.md"
-    if plain.exists() and validate_path(plain, out_dir):
+    if plain.exists():
         plain.unlink()
 
 
-def clean_manifest(out_dir: Path, name_tmpl: str = ""):
+def clean_manifest(out_dir: SafePath, name_tmpl: str = ""):
     prev = load_manifest(out_dir)
     for f in prev:
         if not name_tmpl or f.startswith(name_tmpl):
@@ -111,7 +133,7 @@ def clean_manifest(out_dir: Path, name_tmpl: str = ""):
         _clean_numbered_files(out_dir, name_tmpl)
 
 
-def _find_next_part_num(out_dir: Path, name_tmpl: str) -> int:
+def _find_next_part_num(out_dir: SafePath, name_tmpl: str) -> int:
     with _merge_lock(out_dir):
         max_num = 0
         pattern = re.compile(rf"^{re.escape(name_tmpl)}_(\d+)\.md$")
@@ -173,17 +195,11 @@ def _write_parts(
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
-        if not validate_path(filepath, out_path):
-            logger.warning("Path traversal attempt in _write_parts, skipping file")
-            continue
         indices = section_indices[part_idx] if part_idx < len(section_indices) else []
         toc = _build_toc(
             named_sections, indices, i, start_num + total_parts - 1, all_indices=section_indices
         )
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(title)
-            f.write(toc)
-            f.write(part_content)
+        filepath.write_text(title + toc + part_content)
         created.append(str(filepath))
         tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
     return created, tokens_by_file
@@ -233,17 +249,10 @@ def _write_diff_parts(
         title = title_tmpl.format(project_name=project_name, part=i, total=total_parts)
         filename = f"{name_tmpl}_{i}.md"
         filepath = out_path / filename
-        if not validate_path(filepath, out_path):
-            logger.warning("Path traversal attempt in _write_diff_parts, skipping file")
-            continue
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
         toc = _build_toc(named_sections, indices, i, total_parts, all_indices=section_indices)
         header = _diff_part_header(part_stats[i - 1], i, total_parts)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(title)
-            f.write(header)
-            f.write(toc)
-            f.write(part_content)
+        filepath.write_text(title + header + toc + part_content)
         created.append(str(filepath))
     return created
 
@@ -255,7 +264,7 @@ def _run_post_commands(commands: list[str], root: Path, verbose: bool = False):
             print(f"  post: {output.strip()}")
 
 
-def _write_metrics(out_path: Path, metrics: PipelineMetrics):
+def _write_metrics(out_path: SafePath, metrics: PipelineMetrics):
     out_path.mkdir(parents=True, exist_ok=True)
     metrics_path = out_path / _METRICS_FILE
     payload = {
@@ -268,7 +277,7 @@ def _write_metrics(out_path: Path, metrics: PipelineMetrics):
         "tokens_compressed": metrics.tokens_compressed,
         "compression_ratio": metrics.compression_ratio,
     }
-    atomic_write_text(metrics_path, json.dumps(payload, indent=2))
+    atomic_write_text(Path(str(metrics_path)), json.dumps(payload, indent=2))
 
 
 def _build_profile_for_collect(profile, name_template, allow_pre_commands):
@@ -321,7 +330,7 @@ def collect(
     profile, name_tmpl, title_tmpl = _build_profile_for_collect(
         profile, name_template, allow_pre_commands
     )
-    out_path = root / output_dir
+    out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     tokenizer = _build_tokenizer(profile, root)
     t0 = time.perf_counter()

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from arachna.domain.collector import (
     _build_toc,
+    _get_lock_functions,
     clean_manifest,
     save_manifest,
 )
@@ -14,18 +15,19 @@ def test_merge_lock_no_fcntl_no_msvcrt(tmp_path):
     import sys
 
     with patch.dict(sys.modules, {"fcntl": None, "msvcrt": None}):
-        import importlib
+        # Clear lru_cache so the mocked modules take effect
+        _get_lock_functions.cache_clear()
+        try:
+            from arachna.domain.collector import _merge_lock
 
-        import arachna.domain.collector as collector_module
+            out = tmp_path / "out"
+            out.mkdir()
+            with _merge_lock(out):
+                (out / "test.txt").write_text("locked")
 
-        importlib.reload(collector_module)
-
-        out = tmp_path / "out"
-        out.mkdir()
-        with collector_module._merge_lock(out):
-            (out / "test.txt").write_text("locked")
-
-        assert not (out / ".arachna_merge.lock").exists()
+            assert not (out / ".arachna_merge.lock").exists()
+        finally:
+            _get_lock_functions.cache_clear()
 
 
 def test_clean_manifest_empty_name_tmpl(tmp_path):

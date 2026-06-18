@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..domain.atomic_write import atomic_write_bytes, atomic_write_text
-from ..domain.path_utils import validate_path
+from ..domain.path_utils import SafePath
 from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExistsError
 
 logger = logging.getLogger("arachna.store")
@@ -28,21 +28,21 @@ def validate_snapshot_id(sid: str) -> None:
         )
 
 
-def _store_root(root: Path) -> Path:
-    arachna_dir = root / ".arachna"
+def _store_root(root: Path) -> SafePath:
+    arachna_dir = SafePath(root / ".arachna", root)
+    arachna_dir.mkdir(parents=True, exist_ok=True)
     gitignore = arachna_dir / ".gitignore"
-    if not arachna_dir.is_dir():
-        arachna_dir.mkdir(parents=True, exist_ok=True)
+    if not gitignore.exists():
         try:
-            atomic_write_text(gitignore, "*\n")
+            atomic_write_text(Path(str(gitignore)), "*\n")
         except OSError:
-            gitignore.write_text("*\n")
+            Path(str(gitignore)).write_text("*\n")
     store_dir = arachna_dir / "store"
     store_dir.mkdir(parents=True, exist_ok=True)
     return store_dir
 
 
-def _hash_path(store_dir: Path, object_hash: str, mkdir: bool = False) -> Path:
+def _hash_path(store_dir: SafePath, object_hash: str, mkdir: bool = False) -> SafePath:
     objects_dir = store_dir / "objects"
     prefix = object_hash[:2]
     rest = object_hash[2:]
@@ -59,7 +59,7 @@ def write_object(data: bytes, root: Path) -> str:
     if not path.exists():
         compressed = zlib.compress(data)
         content = compressed if len(compressed) < len(data) else data
-        atomic_write_bytes(path, content)
+        atomic_write_bytes(Path(str(path)), content)
     return object_hash
 
 
@@ -114,9 +114,9 @@ def create_snapshot(
         manifest["pre_commands"] = pre_commands
     if command:
         manifest["command"] = command
-    atomic_write_text(manifest_path, json.dumps(manifest, indent=2) + "\n")
+    atomic_write_text(Path(str(manifest_path)), json.dumps(manifest, indent=2) + "\n")
     head_path = store_dir / "HEAD"
-    atomic_write_text(head_path, snapshot_id + "\n")
+    atomic_write_text(Path(str(head_path)), snapshot_id + "\n")
     return snapshot_id
 
 
@@ -148,10 +148,10 @@ def update_snapshot(
         del manifest["command"]
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
-    atomic_write_text(manifest_path, json.dumps(manifest, indent=2) + "\n")
+    atomic_write_text(Path(str(manifest_path)), json.dumps(manifest, indent=2) + "\n")
     head_path = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
-        atomic_write_text(head_path, snapshot_id + "\n")
+        atomic_write_text(Path(str(head_path)), snapshot_id + "\n")
     return snapshot_id
 
 
@@ -171,8 +171,6 @@ def list_snapshots(root: Path) -> list[dict]:
         return []
     manifests = []
     for mf in sorted(snapshots_dir.glob("*.json"), reverse=True):
-        if not validate_path(mf, snapshots_dir):
-            continue
         try:
             manifests.append(json.loads(mf.read_text()))
         except (json.JSONDecodeError, OSError):
@@ -181,7 +179,7 @@ def list_snapshots(root: Path) -> list[dict]:
     return manifests
 
 
-def _load_all_manifests(store_dir: Path) -> list[dict]:
+def _load_all_manifests(store_dir: SafePath) -> list[dict]:
     snapshots_dir = store_dir / "snapshots"
     if not snapshots_dir.is_dir():
         return []
@@ -221,7 +219,7 @@ def delete_snapshot(snapshot_id: str, root: Path) -> None:
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
         remaining = list_snapshots(root=root)
         if remaining:
-            atomic_write_text(head_path, remaining[0]["id"] + "\n")
+            atomic_write_text(Path(str(head_path)), remaining[0]["id"] + "\n")
         else:
             head_path.unlink()
 
@@ -240,15 +238,15 @@ def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     manifest = json.loads(old_path.read_text())
     manifest["id"] = new_id
     manifest["name"] = new_id
-    atomic_write_text(new_path, json.dumps(manifest, indent=2) + "\n")
+    atomic_write_text(Path(str(new_path)), json.dumps(manifest, indent=2) + "\n")
     old_path.unlink()
     head_path = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == old_id:
-        atomic_write_text(head_path, new_id + "\n")
+        atomic_write_text(Path(str(head_path)), new_id + "\n")
     return new_id
 
 
-def _count_objects(objects_dir: Path) -> tuple[int, int]:
+def _count_objects(objects_dir: SafePath) -> tuple[int, int]:
     objects_count = 0
     total_bytes = 0
     if objects_dir.is_dir():
@@ -290,7 +288,7 @@ def _cleanup_empty_dirs(objects_dir):
     for subdir in sorted(objects_dir.glob("*"), reverse=True):
         if subdir.is_dir():
             with contextlib.suppress(OSError):
-                subdir.rmdir()
+                Path(str(subdir)).rmdir()
 
 
 def gc(root: Path) -> dict:

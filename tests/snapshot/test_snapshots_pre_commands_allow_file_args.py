@@ -1,6 +1,6 @@
 """TC-185, TC-186, TC-187: pre_commands executed with allow_file_args=True in snapshot layer."""
 
-from arachna.snapshot.snapshots import _collect_snapshot_content, compute_diff, create_snapshot
+from arachna.snapshot.snapshots import collect_snapshot_content, compute_diff, create_snapshot
 from arachna.snapshot.store import load_snapshot
 
 
@@ -21,7 +21,7 @@ def test_collect_snapshot_content_pre_commands_with_pipes(tmp_path, setup_config
         ],
     }
 
-    files, pre, cmd = _collect_snapshot_content(profile, root=root)
+    files, pre, cmd = collect_snapshot_content(profile, root=root)
     assert len(files) == 1
     assert len(pre) == 2
     for hash_spec in pre.values():

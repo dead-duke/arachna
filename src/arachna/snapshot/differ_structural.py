@@ -2,6 +2,7 @@
 """Structural diff — understands code blocks, not just text lines."""
 
 import logging
+import threading
 from pathlib import Path
 
 from ..domain.formatter import C_LIKE_LANGS, lang_for_path
@@ -13,20 +14,26 @@ _HAS_TS = False
 _HAS_TS_JS = False
 _HAS_TS_TS = False
 _HAS_TS_GO = False
+_check_plugins_lock = threading.Lock()
+_plugins_checked = False
 
 
 def _check_plugins():
-    global _HAS_TS, _HAS_TS_JS, _HAS_TS_TS, _HAS_TS_GO
-    try:
-        import tree_sitter  # noqa: F401
+    global _HAS_TS, _HAS_TS_JS, _HAS_TS_TS, _HAS_TS_GO, _plugins_checked
+    with _check_plugins_lock:
+        if _plugins_checked:
+            return
+        _plugins_checked = True
+        try:
+            import tree_sitter  # noqa: F401
 
-        _HAS_TS = True
-    except ImportError:
-        _HAS_TS = _HAS_TS_JS = _HAS_TS_TS = _HAS_TS_GO = False
-        return
-    _HAS_TS_JS = _try_import("tree_sitter_javascript")
-    _HAS_TS_TS = _try_import("tree_sitter_typescript")
-    _HAS_TS_GO = _try_import("tree_sitter_go")
+            _HAS_TS = True
+        except ImportError:
+            _HAS_TS = _HAS_TS_JS = _HAS_TS_TS = _HAS_TS_GO = False
+            return
+        _HAS_TS_JS = _try_import("tree_sitter_javascript")
+        _HAS_TS_TS = _try_import("tree_sitter_typescript")
+        _HAS_TS_GO = _try_import("tree_sitter_go")
 
 
 def _try_import(name):

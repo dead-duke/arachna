@@ -35,7 +35,7 @@ def test_atomic_write_text_os_replace_fails_falls_back(tmp_path):
 
 
 def test_atomic_write_text_inner_exception_cleanup(tmp_path):
-    """When inner block fails with non-OSError, tmp file is cleaned up and error propagates."""
+    """When inner block fails with non-OSError, exception propagates. Cleanup of tmp file is best-effort."""
     f = tmp_path / "test.txt"
 
     def failing_fdopen(fd, mode, encoding=None):
@@ -47,6 +47,9 @@ def test_atomic_write_text_inner_exception_cleanup(tmp_path):
     ):
         with contextlib.suppress(RuntimeError):
             atomic_write_text(f, "content")
+        # RuntimeError is not caught by inner except Exception for cleanup,
+        # but re-raised. The test suppresses it. os.unlink should be called
+        # for cleanup (best-effort).
         mock_unlink.assert_called_once()
 
 
@@ -79,7 +82,7 @@ def test_atomic_write_bytes_os_replace_fails_falls_back(tmp_path):
 
 
 def test_atomic_write_bytes_inner_exception_cleanup(tmp_path):
-    """When inner block fails with non-OSError, tmp file is cleaned up and error propagates."""
+    """When inner block fails with non-OSError, exception propagates. Cleanup of tmp file is best-effort."""
     f = tmp_path / "test.bin"
 
     def failing_fdopen(fd, mode):
@@ -91,4 +94,7 @@ def test_atomic_write_bytes_inner_exception_cleanup(tmp_path):
     ):
         with contextlib.suppress(RuntimeError):
             atomic_write_bytes(f, b"content")
+        # RuntimeError is not caught by inner except Exception for cleanup,
+        # but re-raised. The test suppresses it. os.unlink should be called
+        # for cleanup (best-effort).
         mock_unlink.assert_called_once()

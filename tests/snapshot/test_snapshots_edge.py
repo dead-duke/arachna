@@ -95,7 +95,7 @@ def test_rel_path_outside_root(tmp_path):
     """_rel_path with path outside root falls back to normalized absolute path."""
     from pathlib import Path
 
-    from arachna.snapshot.snapshot_diff import _rel_path
+    from arachna.snapshot.snapshot_diff_helpers import _rel_path
 
     result = _rel_path(Path("/etc/passwd"), tmp_path)
     assert result == "/etc/passwd"
@@ -103,7 +103,7 @@ def test_rel_path_outside_root(tmp_path):
 
 def test_rel_path_inside_root(tmp_path):
     """_rel_path with path inside root returns relative path."""
-    from arachna.snapshot.snapshot_diff import _rel_path
+    from arachna.snapshot.snapshot_diff_helpers import _rel_path
 
     f = tmp_path / "src" / "main.py"
     f.parent.mkdir()
@@ -114,7 +114,7 @@ def test_rel_path_inside_root(tmp_path):
 
 def test_normalize_path_backslashes():
     """_normalize_path converts backslashes to forward slashes."""
-    from arachna.snapshot.snapshot_diff import _normalize_path
+    from arachna.snapshot.snapshot_diff_helpers import _normalize_path
 
     assert _normalize_path("src\\main.py") == "src/main.py"
     assert _normalize_path("src\\\\nested\\file.py") == "src/nested/file.py"

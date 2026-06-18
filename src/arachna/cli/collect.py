@@ -3,12 +3,12 @@
 
 import json
 import sys
-from pathlib import Path
 
 from ..config.config import get_profile
 from ..config.validator import validate_profile
 from ..domain.collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
 from ..domain.gatherer import dry_run
+from ..domain.path_utils import SafePath
 from . import register
 from ._helpers import (
     apply_args_to_profile,
@@ -68,7 +68,7 @@ def _cmd_collect_profile(args, config: dict):
     root = get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
-    out_path = Path(output_dir)
+    out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
 
     print(f"[{args.profile}] Collecting...")
@@ -78,7 +78,7 @@ def _cmd_collect_profile(args, config: dict):
         print(f"Error: {e}")
         sys.exit(1)
 
-    created, tokens_by_file, dry_run_stats = _collect_one_profile(
+    created, _, dry_run_stats = _collect_one_profile(
         args.profile, profile, args, out_path, root, project_name
     )
     if args.dry_run:
@@ -106,7 +106,7 @@ def _cmd_collect_all(args, config: dict):
     root = get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
-    out_path = Path(output_dir)
+    out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
 
     clean_manifest(out_path, "")
@@ -160,17 +160,19 @@ def _cmd_collect_list(args, config: dict):
 
 
 def _resolve_profiles(config, root):
-    """Build valid profiles dict from config."""
+    """Build valid profiles dict from config. Returns (valid_profiles, error_count)."""
     profiles = config.get("profiles", {})
     if not profiles:
-        return {"default": get_profile("default", root=root, config=config)}
+        return {"default": get_profile("default", root=root, config=config)}, 0
     valid_profiles = {}
+    error_count = 0
     for name in profiles:
         try:
             valid_profiles[name] = get_profile(name, root=root, config=config)
         except KeyError as e:
-            print(f"  Warning: profile '{name}': {e}")
-    return valid_profiles
+            print(f"  Error: profile '{name}': {e}")
+            error_count += 1
+    return valid_profiles, error_count
 
 
 def _validate_and_print(profiles):
@@ -197,8 +199,9 @@ def _validate_and_print(profiles):
 @register("collect-validate")
 def _cmd_collect_validate(args, config: dict):
     root = get_root(config)
-    profiles = _resolve_profiles(config, root)
+    profiles, resolve_errors = _resolve_profiles(config, root)
     all_errors, all_warnings = _validate_and_print(profiles)
+    all_errors += resolve_errors
     print(f"\nResult: {all_errors} error(s), {all_warnings} warning(s)")
     sys.exit(1 if all_errors > 0 else 0)
 
@@ -207,7 +210,7 @@ def _cmd_collect_validate(args, config: dict):
 def _cmd_collect_clean(args, config: dict):
     root = get_root(config)
     output_dir = parse_output_dir(args, config)
-    out_path = root / output_dir
+    out_path = SafePath(root / output_dir, root)
     cleaned = 0
     mf = out_path / _MANIFEST
     if mf.exists():

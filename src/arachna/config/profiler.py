@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..domain.collector import clean_manifest, collect
+from ..domain.path_utils import SafePath
 
 
 def make_profile(profile: dict, **overrides) -> dict:
@@ -28,7 +29,7 @@ def _run_one(
     query: str | None = None,
     incremental: bool = False,
 ) -> dict[str, Any]:
-    out = Path(output_dir)
+    out = SafePath(root / output_dir, root)
     out.mkdir(parents=True, exist_ok=True)
     name_tmpl = f"bench-{mode}"
     p = make_profile(profile, name_template=name_tmpl)

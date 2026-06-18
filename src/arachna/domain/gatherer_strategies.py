@@ -8,6 +8,7 @@ for assembling content from files, pre_commands, and commands.
 
 import os as _os
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -217,6 +218,7 @@ class _HeadersModeStrategy:
 
 
 _MODE_STRATEGIES = None
+_mode_strategies_lock = threading.Lock()
 
 
 def _get_mode_strategies():
@@ -229,11 +231,13 @@ def _get_mode_strategies():
     """
     global _MODE_STRATEGIES
     if _MODE_STRATEGIES is None:
-        _MODE_STRATEGIES = {
-            "full": _FullModeStrategy(),
-            "repo-map": _RepoMapModeStrategy(),
-            "headers": _HeadersModeStrategy(),
-        }
+        with _mode_strategies_lock:
+            if _MODE_STRATEGIES is None:
+                _MODE_STRATEGIES = {
+                    "full": _FullModeStrategy(),
+                    "repo-map": _RepoMapModeStrategy(),
+                    "headers": _HeadersModeStrategy(),
+                }
     return _MODE_STRATEGIES
 
 

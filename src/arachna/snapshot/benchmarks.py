@@ -7,6 +7,7 @@ from typing import Any
 
 from ..config.profiler import make_profile
 from ..domain.collector import clean_manifest, collect
+from ..domain.path_utils import SafePath
 
 
 def benchmark_plugins(profile: dict, output_dir: str, root: Path) -> dict[str, dict[str, Any]]:
@@ -32,7 +33,7 @@ def benchmark_structural_diff(profile: dict, output_dir: str, root: Path) -> dic
     from .snapshots import compute_diff as snapshots_diff
     from .snapshots import create_snapshot
 
-    out = Path(output_dir)
+    out = SafePath(root / output_dir, root)
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
     sid = create_snapshot(profile, name="bench-struct", root=root)
@@ -62,7 +63,7 @@ def benchmark_structural_diff(profile: dict, output_dir: str, root: Path) -> dic
 
 
 def benchmark_tiktoken(profile: dict, output_dir: str, root: Path) -> dict[str, Any]:
-    out = Path(output_dir)
+    out = SafePath(root / output_dir, root)
     out.mkdir(parents=True, exist_ok=True)
 
     default_p = make_profile(profile, name_template="bench-full")

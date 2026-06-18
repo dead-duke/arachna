@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 logger = logging.getLogger("arachna.runner")
@@ -200,7 +201,7 @@ def _check_base_command(cmd, allowlist):
 
 def _handle_dangerous_override(is_safe, reason, allow_dangerous, cmd):
     if not is_safe and allow_dangerous:
-        logger.warning("DANGEROUS command allowed via flag: %s", cmd)
+        logger.error("DANGEROUS command allowed via flag: %s", cmd)
         return True, ""
     return is_safe, reason
 
@@ -254,12 +255,9 @@ def _get_audit_log_path(root: Path) -> Path | None:
         return None
 
 
-_log_writer = None
-
-
-def _write_log(log_path, entry):
-    if _log_writer is not None:
-        _log_writer(log_path, entry)
+def _write_log(log_path, entry, log_writer=None):
+    if log_writer is not None:
+        log_writer(log_path, entry)
         return
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -269,7 +267,7 @@ def _write_log(log_path, entry):
         pass
 
 
-def _log_command(cmd, success, root):
+def _log_command(cmd, success, root, log_writer=None):
     log_path = _get_audit_log_path(root)
     if log_path is None:
         return
@@ -277,7 +275,11 @@ def _log_command(cmd, success, root):
 
     status = "OK" if success else "FAIL"
     sanitized_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
-    _write_log(log_path, f"[{datetime.now().isoformat()}] {status}: {sanitized_cmd}\n")
+    _write_log(
+        log_path,
+        f"[{datetime.now().isoformat()}] {status}: {sanitized_cmd}\n",
+        log_writer=log_writer,
+    )
 
 
 def _run_popen(cmd, needs_shell, max_output_size):
@@ -318,32 +320,32 @@ def _run_popen(cmd, needs_shell, max_output_size):
         return "", False
 
 
-def _execute_command(cmd, root, max_output_size):
+def _execute_command(cmd, root, max_output_size, log_writer=None):
     output, was_truncated = _run_popen(cmd, any(c in cmd for c in _SHELL_CHARS), max_output_size)
     if was_truncated:
         logger.warning("Command output truncated: %s", cmd[:80])
-    _log_command(cmd, True, root)
+    _log_command(cmd, True, root, log_writer=log_writer)
     return output
 
 
-def _handle_interactive_blocked(cmd, reason, root, max_output_size):
+def _handle_interactive_blocked(cmd, reason, root, max_output_size, log_writer=None):
     print("\n⚠  Potentially dangerous command blocked:")
     print(f"   {cmd}")
     print(f"   Reason: {reason}")
     if input("   Execute anyway? [y/N]: ").strip().lower() in ("y", "yes"):
-        return _execute_command(cmd, root, max_output_size)
-    _log_command(cmd, False, root)
+        return _execute_command(cmd, root, max_output_size, log_writer=log_writer)
+    _log_command(cmd, False, root, log_writer=log_writer)
     return ""
 
 
-def _handle_dry_run_unsafe(cmd, root, max_output_size):
+def _handle_dry_run_unsafe(cmd, root, max_output_size, log_writer=None):
     print(f"  [DRY-RUN] Would execute: {cmd}")
     if sys.stdin.isatty():
         print("\n⚠  Command requires shell or is not in allowlist:")
         print(f"   {cmd}")
         if input("   Execute anyway? [y/N]: ").strip().lower() in ("y", "yes"):
-            return _execute_command(cmd, root, max_output_size)
-    _log_command(cmd, False, root)
+            return _execute_command(cmd, root, max_output_size, log_writer=log_writer)
+    _log_command(cmd, False, root, log_writer=log_writer)
     return ""
 
 
@@ -355,6 +357,7 @@ def run_command(
     dry_run=False,
     allow_file_args=False,
     max_output_size=None,
+    log_writer: Callable[[Path, str], None] | None = None,
 ):
     if not cmd.strip():
         return ""
@@ -363,12 +366,14 @@ def run_command(
     is_safe, reason = _validate_command(cmd, allow_dangerous, allow_file_args=allow_file_args)
     if not is_safe:
         if interactive and sys.stdin.isatty():
-            return _handle_interactive_blocked(cmd, reason, root, max_output_size)
-        _log_command(cmd, False, root)
+            return _handle_interactive_blocked(
+                cmd, reason, root, max_output_size, log_writer=log_writer
+            )
+        _log_command(cmd, False, root, log_writer=log_writer)
         return ""
     if dry_run and not _is_safe_command(cmd, allow_file_args=allow_file_args):
-        return _handle_dry_run_unsafe(cmd, root, max_output_size)
-    return _execute_command(cmd, root, max_output_size)
+        return _handle_dry_run_unsafe(cmd, root, max_output_size, log_writer=log_writer)
+    return _execute_command(cmd, root, max_output_size, log_writer=log_writer)
 
 
 def run_pre_commands(commands, root, pre_command_delay=None):

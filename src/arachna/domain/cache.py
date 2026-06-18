@@ -18,6 +18,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from .path_utils import SafePath
+
 _CACHE_FILE = ".arachna_cache.json"
 _VERSION = 2
 _MAX_HASH_SIZE = int(os.environ.get("ARACHNA_MAX_HASH_SIZE", 10 * 1024 * 1024))
@@ -33,7 +35,7 @@ def _file_hash(filepath: Path) -> str | None:
         return None
 
 
-def load_cache(out_dir: Path) -> dict[str, dict]:
+def load_cache(out_dir: SafePath) -> dict[str, dict]:
     cf = out_dir / _CACHE_FILE
     if cf.exists():
         with contextlib.suppress(json.JSONDecodeError, OSError):
@@ -43,7 +45,7 @@ def load_cache(out_dir: Path) -> dict[str, dict]:
     return {}
 
 
-def save_cache(out_dir: Path, cache: dict[str, dict]):
+def save_cache(out_dir: SafePath, cache: dict[str, dict]):
     out_dir.mkdir(parents=True, exist_ok=True)
     cache_path = out_dir / _CACHE_FILE
     payload = {"_version": _VERSION, "files": cache}
@@ -52,13 +54,13 @@ def save_cache(out_dir: Path, cache: dict[str, dict]):
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(payload, f, indent=2)
-            os.replace(tmp_path, cache_path)
-        except Exception:
+            os.replace(tmp_path, Path(str(cache_path)))
+        except OSError:
             with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
             raise
     except OSError:
-        cache_path.write_text(json.dumps(payload, indent=2))
+        Path(str(cache_path)).write_text(json.dumps(payload, indent=2))
 
 
 def _is_fast_path(size, mtime_ns, entry):

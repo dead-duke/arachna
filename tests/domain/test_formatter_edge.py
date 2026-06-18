@@ -76,7 +76,7 @@ def test_format_file_section_verbose_file_too_large(tmp_path, capsys):
     """Verbose output for file exceeding ARACHNA_MAX_FILE_SIZE."""
     f = tmp_path / "huge.py"
     f.write_text("x" * 200)
-    with patch("arachna.domain.formatter._ARACHNA_MAX_FILE_SIZE", 50):
+    with patch("arachna.domain.format_output._ARACHNA_MAX_FILE_SIZE", 50):
         result = format_file_section(f, verbose=True)
     captured = capsys.readouterr()
     assert result == ""

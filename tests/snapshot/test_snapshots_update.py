@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from arachna.snapshot.snapshots import _collect_snapshot_content, create_snapshot, update_snapshot
+from arachna.snapshot.snapshots import collect_snapshot_content, create_snapshot, update_snapshot
 from arachna.snapshot.store import load_snapshot
 
 
@@ -15,7 +15,7 @@ def test_collect_snapshot_content_files(tmp_path, setup_config, make_profile):
     (src / "main.py").write_text("print('hello')")
     (src / "utils.py").write_text("x = 1")
     profile = make_profile("src", ["*.py"])
-    files, pre, cmd = _collect_snapshot_content(profile, root=root)
+    files, pre, cmd = collect_snapshot_content(profile, root=root)
     assert len(files) == 2
     assert any("main.py" in f for f in files)
     assert any("utils.py" in f for f in files)
@@ -35,7 +35,7 @@ def test_collect_snapshot_content_with_pre_commands(tmp_path, setup_config):
         "use_gitignore": False,
         "pre_commands": ["echo 'hello world'"],
     }
-    files, pre, cmd = _collect_snapshot_content(profile, root=root)
+    files, pre, cmd = collect_snapshot_content(profile, root=root)
     assert len(files) == 1
     assert len(pre) == 1
     assert any("sha256:" in v for v in pre.values())
@@ -49,7 +49,7 @@ def test_collect_snapshot_content_with_command(tmp_path, setup_config):
         "split_mode": "by_paragraph",
         "max_tokens": 16000,
     }
-    files, pre, cmd = _collect_snapshot_content(profile, root=root)
+    files, pre, cmd = collect_snapshot_content(profile, root=root)
     assert files == {}
     assert pre == {}
     assert len(cmd) == 1
@@ -69,7 +69,7 @@ def test_collect_snapshot_content_empty_pre_commands(tmp_path, setup_config):
         "use_gitignore": False,
         "pre_commands": ["echo -n ''"],
     }
-    files, pre, cmd = _collect_snapshot_content(profile, root=root)
+    files, pre, cmd = collect_snapshot_content(profile, root=root)
     assert len(files) == 1
     assert pre == {}
 

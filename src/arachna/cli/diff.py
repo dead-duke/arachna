@@ -12,9 +12,10 @@ from ..domain.collector import (
     load_manifest,
     save_manifest,
 )
+from ..domain.path_utils import SafePath
 from ..domain.tokenizer import count_tokens, load_tokenizer
 from ..snapshot.differ import compute_diff_stats
-from ..snapshot.snapshot_diff import compute_diff
+from ..snapshot.snapshots import compute_diff
 from ..snapshot.store import list_snapshots, load_snapshot
 from . import register
 from ._helpers import get_root, parse_output_dir, print_collected
@@ -25,7 +26,7 @@ def _cmd_diff_all(args, config: dict):
     root = get_root(config)
     project_name = config.get("project_name", "Project")
     output_dir = parse_output_dir(args, config)
-    out_path = Path(output_dir)
+    out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     profile_name = args.profile or "full"
     try:
@@ -104,16 +105,17 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root):
 
         return structural_diff_sections(sections, args.format or "markdown")
     elif args.mode == "repo-map":
-        from ..snapshot.snapshot_diff import _apply_repo_map_to_sections
+        from ..snapshot.snapshots import apply_repo_map_to_sections
 
-        return _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
+        return apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
     return sections
 
 
 def _write_diff_output(sections, snapshot_id, to_snapshot_id, profile, config, args):
     output_dir = parse_output_dir(args, config)
     project_name = config.get("project_name", "Project")
-    out_path = Path(output_dir)
+    root = get_root(config)
+    out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     max_tokens = profile.get("max_tokens", 16000)
     tokenizer_spec = profile.get("tokenizer", "default")

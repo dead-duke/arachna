@@ -4,6 +4,8 @@
 import copy
 from pathlib import Path
 
+from ..domain.atomic_write import atomic_write_text
+from ..domain.path_utils import SafePath
 from ..domain.tokenizer import count_tokens
 
 
@@ -54,7 +56,7 @@ def print_collected(created: list[str]):
 
 
 def write_manifest(
-    out_path: Path, all_files: list[str], tokens_by_file: dict[str, int], config: dict
+    out_path: SafePath, all_files: list[str], tokens_by_file: dict[str, int], config: dict
 ):
     lines = [
         f"# {config.get('project_name', 'Project')} — MANIFEST\n",
@@ -65,7 +67,7 @@ def write_manifest(
         lines.append(f"  {f} (~{tokens} tokens)")
     lines.append(f"\nTotal: {len(all_files)} file(s)\n")
     mf = out_path / "chat-manifest.md"
-    mf.write_text("\n".join(lines))
+    atomic_write_text(Path(str(mf)), "\n".join(lines))
     print(f"  chat-manifest.md ({len(all_files)} files)")
 
 

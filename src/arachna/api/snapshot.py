@@ -15,8 +15,8 @@ from ..domain.api_types import (
 )
 from ..snapshot.differ import compute_diff_stats
 from ..snapshot.differ_structural import structural_diff_sections
-from ..snapshot.snapshot_diff import _apply_repo_map_to_sections, _collect_snapshot_content
-from ..snapshot.snapshot_diff import compute_diff as _snapshot_compute_diff
+from ..snapshot.snapshots import apply_repo_map_to_sections, collect_snapshot_content
+from ..snapshot.snapshots import compute_diff as _snapshot_compute_diff
 from ..snapshot.store import create_snapshot as _store_create
 from ..snapshot.store import delete_snapshot as _store_delete
 from ..snapshot.store import gc as _store_gc
@@ -41,7 +41,7 @@ def create_snapshot(root: Path, profile: str | dict = "full", name: str | None =
             raise ProfileNotFoundError(f"Profile '{profile}' not found.") from None
     else:
         profile_dict = profile
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile_dict, root)
+    files, pre_commands_data, command_data = collect_snapshot_content(profile_dict, root)
     try:
         return _store_create(
             files,
@@ -95,7 +95,7 @@ def update_snapshot(snapshot_id: str, root: Path, profile: str | dict | None = N
             raise ValueError(
                 f"Snapshot '{snapshot_id}' has legacy format. Provide profile explicitly."
             )
-    files, pre_commands_data, command_data = _collect_snapshot_content(profile_dict, root)
+    files, pre_commands_data, command_data = collect_snapshot_content(profile_dict, root)
     try:
         return _store_update(
             snapshot_id,
@@ -159,7 +159,7 @@ def _build_diff_sections(sections, mode, snapshot_id, to_snapshot_id, root):
     if mode == "structural" and sections:
         sections = structural_diff_sections(sections, "markdown")
     elif mode == "repo-map" and sections:
-        sections = _apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
+        sections = apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
     return [
         DiffSection(
             type=s.type,

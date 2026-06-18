@@ -8,9 +8,9 @@ Safe tokenizers list configurable via ARACHNA_SAFE_TOKENIZERS env var.
 """
 
 import ast as _ast
-import importlib
 import os as _os
 import sys
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -180,6 +180,7 @@ def _safe_local_imports(filepath: Path) -> bool:
     return _validate_top_level_statements(filepath)
 
 
+_plugins_lock = threading.Lock()
 _plugins_checked = False
 _HAS_TIKTOKEN = False
 _HAS_TRANSFORMERS = False
@@ -187,11 +188,12 @@ _HAS_TRANSFORMERS = False
 
 def _check_tokenizer_plugins():
     global _plugins_checked, _HAS_TIKTOKEN, _HAS_TRANSFORMERS
-    if _plugins_checked:
-        return
-    _plugins_checked = True
-    _HAS_TIKTOKEN = _try_import_quiet("tiktoken")
-    _HAS_TRANSFORMERS = _try_import_quiet("transformers")
+    with _plugins_lock:
+        if _plugins_checked:
+            return
+        _plugins_checked = True
+        _HAS_TIKTOKEN = _try_import_quiet("tiktoken")
+        _HAS_TRANSFORMERS = _try_import_quiet("transformers")
 
 
 def _try_import_quiet(name):
@@ -283,5 +285,10 @@ def load_tokenizer(
     if filepath is not None:
         mod = _import_local_module(module_name, filepath)
         return getattr(mod, func_name)
-    mod = importlib.import_module(module_name)
-    return getattr(mod, func_name)
+    raise ValueError(
+        f"Tokenizer '{spec}' not found. Allowed sources:\n"
+        f"  - 'default' (built-in chars-per-token estimator)\n"
+        f"  - 'tiktoken' or 'tiktoken:<encoding>' (requires: pip install tiktoken)\n"
+        f"  - 'transformers' or 'transformers:<model>' (requires: pip install transformers)\n"
+        f"  - custom .py file placed in project root or Python path"
+    )

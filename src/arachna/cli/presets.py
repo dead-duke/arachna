@@ -10,6 +10,8 @@ from ..config.presets import (
     load_presets_from_file,
 )
 from ..config.presets_remote import fetch_presets, merge_presets
+from ..domain.atomic_write import atomic_write_text
+from ..domain.path_utils import SafePath
 from . import register
 
 
@@ -22,9 +24,9 @@ def _cmd_presets_update(args, config: dict):
         sys.exit(1)
 
     root = Path(config.get("_root", "."))
-    presets_path = root / "presets.json"
+    presets_path = SafePath(root / "presets.json", root)
 
-    local = load_presets_from_file(presets_path)
+    local = load_presets_from_file(Path(str(presets_path)))
     if local:
         print(f"Local presets.json: {len(local)} preset(s) — will be preserved.")
     elif presets_path.exists():
@@ -42,7 +44,7 @@ def _cmd_presets_update(args, config: dict):
     merged = merge_presets(builtin, remote, local)
 
     out = json.dumps(merged, indent=2) + "\n"
-    presets_path.write_text(out)
+    atomic_write_text(Path(str(presets_path)), out)
     new_count = len(remote)
     local_count = len(local)
     print(

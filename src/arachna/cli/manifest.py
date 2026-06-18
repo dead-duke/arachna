@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from ..domain.collector import load_manifest
+from ..domain.path_utils import SafePath
 from ..domain.tokenizer import count_tokens
 from . import register
 from ._helpers import get_root, parse_output_dir
@@ -50,7 +51,7 @@ def _manifest_text(manifest_files, out_path, project_name):
 def _cmd_manifest(args, config: dict):
     root = get_root(config)
     output_dir = parse_output_dir(args, config)
-    out_path = root / output_dir if root else Path(output_dir)
+    out_path = SafePath(root / output_dir, root) if root else SafePath(Path(output_dir))
     project_name = config.get("project_name", "Project")
 
     manifest_files = load_manifest(out_path)

@@ -1,6 +1,7 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Git hook installer for arachna."""
 
+import json
 import stat
 from pathlib import Path
 
@@ -30,7 +31,7 @@ def install_hook(
             config = load_config(root=root)
             hook_config = config.get("hook", {})
             command = hook_config.get("post-commit", "arachna collect --all")
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             command = "arachna collect --all"
 
     if hook_path.exists():
