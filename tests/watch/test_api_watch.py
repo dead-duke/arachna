@@ -27,6 +27,18 @@ def test_api_create_snapshot(tmp_path, setup_config, make_profile):
     assert sid == "api-test"
 
 
+def test_api_create_snapshot_name_required(tmp_path, setup_config, make_profile):
+    """create_snapshot raises ValueError when name is None."""
+    root = setup_config()
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "main.py").write_text("hello")
+
+    profile = make_profile("src", ["*.py"])
+    with pytest.raises(ValueError, match="name is required"):
+        create_snapshot(profile=profile, name=None, root=root)
+
+
 def test_api_create_snapshot_duplicate(tmp_path, setup_config, make_profile):
     root = setup_config()
     src = tmp_path / "src"
@@ -116,3 +128,51 @@ def test_api_update_snapshot(tmp_path, setup_config, make_profile):
 
     info = snapshot_info("upd-test", root=root)
     assert info.file_count == 1
+
+
+def test_api_update_snapshot_without_profile(tmp_path, setup_config, make_profile):
+    """update_snapshot with profile=None uses stored profile from manifest."""
+    root = setup_config()
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "a.py").write_text("original")
+
+    profile = make_profile("src", ["*.py"])
+    create_snapshot(profile=profile, name="upd-no-prof", root=root)
+
+    (src / "a.py").write_text("modified")
+    update_snapshot("upd-no-prof", root=root, profile=None)
+
+    info = snapshot_info("upd-no-prof", root=root)
+    assert info.file_count == 1
+
+
+def test_api_update_snapshot_not_found(tmp_path, setup_config):
+    root = setup_config()
+    with pytest.raises(SnapshotNotFoundError):
+        update_snapshot("nonexistent", root=root)
+
+
+def test_api_update_snapshot_legacy_profile(tmp_path, setup_config, make_profile):
+    """update_snapshot with legacy format snapshot raises ValueError."""
+    import json
+
+    from arachna.watch.store import _store_root, write_object
+
+    root = setup_config()
+    store_dir = _store_root(root=root)
+    snapshots_dir = store_dir / "snapshots"
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+
+    test_hash = write_object(b"legacy content", root=root)
+    old_manifest = {
+        "id": "legacy-snap",
+        "name": "legacy-snap",
+        "created": "2026-01-01T00:00:00",
+        "profile": "code",
+        "files": {"src/main.py": f"sha256:{test_hash}"},
+    }
+    (snapshots_dir / "legacy-snap.json").write_text(json.dumps(old_manifest))
+
+    with pytest.raises(ValueError, match="legacy format"):
+        update_snapshot("legacy-snap", root=root, profile=None)

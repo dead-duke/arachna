@@ -255,6 +255,18 @@ def test_match_similar_renames_binary_content_skipped():
     assert len(sections) == 0
 
 
+def test_match_similar_renames_binary_content_in_added_skipped():
+    """Binary content (null byte) in added candidate -> skipped, line 116 coverage."""
+    remaining_del = {"old.py": "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\n"}
+    remaining_add = {"new.py": "text\x00binary"}
+    sections, matched_del, matched_add = _match_similar_renames(
+        remaining_del, remaining_add, set(), "markdown"
+    )
+    assert len(sections) == 0
+    assert "old.py" not in matched_del
+    assert "new.py" not in matched_add
+
+
 def test_match_similar_renames_first_match_wins():
     """Multiple candidates for similarity -> first match above 0.7 wins."""
     remaining_del = {"old.py": "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\n"}

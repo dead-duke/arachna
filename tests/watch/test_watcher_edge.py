@@ -89,3 +89,32 @@ def test_path_matches_profile_wrong_pattern(tmp_path, setup_config):
 
     profile = {"directories": ["src"], "patterns": ["*.rs"]}
     assert not _path_matches_profile("src/main.py", profile, root)
+
+
+def test_rel_path_outside_root(tmp_path):
+    """_rel_path with path outside root falls back to normalized absolute path."""
+    from pathlib import Path
+
+    from arachna.watch.watcher_diff import _rel_path
+
+    result = _rel_path(Path("/etc/passwd"), tmp_path)
+    assert result == "/etc/passwd"
+
+
+def test_rel_path_inside_root(tmp_path):
+    """_rel_path with path inside root returns relative path."""
+    from arachna.watch.watcher_diff import _rel_path
+
+    f = tmp_path / "src" / "main.py"
+    f.parent.mkdir()
+    f.write_text("code")
+    result = _rel_path(f.resolve(), tmp_path)
+    assert result == "src/main.py"
+
+
+def test_normalize_path_backslashes():
+    """_normalize_path converts backslashes to forward slashes."""
+    from arachna.watch.watcher_diff import _normalize_path
+
+    assert _normalize_path("src\\main.py") == "src/main.py"
+    assert _normalize_path("src\\\\nested\\file.py") == "src/nested/file.py"
