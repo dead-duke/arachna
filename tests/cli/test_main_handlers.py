@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from arachna.cli._helpers import list_profiles, print_collected, write_manifest
 from arachna.cli.collect import _cmd_collect_clean, _cmd_collect_list, _cmd_collect_validate
+from arachna.domain.path_utils import SafePath
 
 
 def test_list_profiles_empty_config():
@@ -44,7 +45,7 @@ def test_write_manifest(tmp_path):
     out.mkdir()
     f1 = str(out / "chat-c.md")
     (out / "chat-c.md").write_text("content")
-    write_manifest(out, [f1], {f1: 10}, {"project_name": "Test"})
+    write_manifest(SafePath(out, tmp_path), [f1], {f1: 10}, {"project_name": "Test"})
     mf = out / "chat-manifest.md"
     assert mf.exists()
     content = mf.read_text()

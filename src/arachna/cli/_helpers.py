@@ -67,7 +67,7 @@ def write_manifest(
         lines.append(f"  {f} (~{tokens} tokens)")
     lines.append(f"\nTotal: {len(all_files)} file(s)\n")
     mf = out_path / "chat-manifest.md"
-    atomic_write_text(Path(str(mf)), "\n".join(lines))
+    atomic_write_text(mf.to_path(), "\n".join(lines))
     print(f"  chat-manifest.md ({len(all_files)} files)")
 
 

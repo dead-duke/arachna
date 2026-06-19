@@ -173,6 +173,8 @@ def _check_blocked_phrases(cmd_lower):
 def _check_shell_metachars(cmd, allow_file_args):
     if not allow_file_args and _SHELL_CHARS.intersection(cmd):
         return False, "shell metacharacters not allowed in restricted mode"
+    if "$(" in cmd or "`" in cmd:
+        return False, "command substitution not allowed"
     return True, ""
 
 
@@ -201,7 +203,8 @@ def _check_base_command(cmd, allowlist):
 
 def _handle_dangerous_override(is_safe, reason, allow_dangerous, cmd):
     if not is_safe and allow_dangerous:
-        logger.error("DANGEROUS command allowed via flag: %s", cmd)
+        safe_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
+        logger.error("DANGEROUS command allowed via flag: %s", safe_cmd)
         return True, ""
     return is_safe, reason
 

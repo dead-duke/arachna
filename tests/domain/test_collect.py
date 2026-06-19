@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import patch
 
 from arachna.domain.collector import (
@@ -7,6 +8,13 @@ from arachna.domain.collector import (
     load_manifest,
     save_manifest,
 )
+from arachna.domain.path_utils import SafePath
+
+
+def _safe_out(tmp_path, name="out"):
+    out = tmp_path / name
+    out.mkdir(exist_ok=True)
+    return SafePath(out, tmp_path)
 
 
 def test_single_file(tmp_path):
@@ -147,16 +155,14 @@ def test_merge_mode_multiple_parts(tmp_path):
 
 
 def test_save_and_load_manifest(tmp_path):
-    out = tmp_path / "manifest_out"
-    out.mkdir()
+    out = _safe_out(tmp_path, "manifest_out")
     save_manifest(out, ["a.md", "b.md"])
     loaded = load_manifest(out)
     assert loaded == ["a.md", "b.md"]
 
 
 def test_load_manifest_empty(tmp_path):
-    out = tmp_path / "load_empty_out"
-    out.mkdir()
+    out = _safe_out(tmp_path, "load_empty_out")
     assert load_manifest(out) == []
 
 
@@ -164,47 +170,42 @@ def test_load_manifest_corrupted(tmp_path):
     out = tmp_path / "corrupt_out"
     out.mkdir()
     (out / ".arachna_manifest.json").write_text("not json")
-    assert load_manifest(out) == []
+    assert load_manifest(SafePath(out, tmp_path)) == []
 
 
 def test_clean_manifest(tmp_path):
-    out = tmp_path / "clean_out"
-    out.mkdir()
-    (out / "chat-c_1.md").write_text("x")
-    (out / "chat-c.md").write_text("x")
+    out = _safe_out(tmp_path, "clean_out")
+    (Path(str(out)) / "chat-c_1.md").write_text("x")
+    (Path(str(out)) / "chat-c.md").write_text("x")
     save_manifest(out, ["chat-c_1.md", "chat-c.md"])
 
     clean_manifest(out, "chat-c")
-    assert not (out / "chat-c_1.md").exists()
-    assert not (out / "chat-c.md").exists()
+    assert not (Path(str(out)) / "chat-c_1.md").exists()
+    assert not (Path(str(out)) / "chat-c.md").exists()
 
 
 def test_find_next_part_num_empty(tmp_path):
-    out = tmp_path / "find_empty_out"
-    out.mkdir()
+    out = _safe_out(tmp_path, "find_empty_out")
     assert _find_next_part_num(out, "chat-c") == 1
 
 
 def test_find_next_part_num_existing(tmp_path):
-    out = tmp_path / "find_existing_out"
-    out.mkdir()
-    (out / "chat-c_1.md").write_text("x")
-    (out / "chat-c_2.md").write_text("x")
+    out = _safe_out(tmp_path, "find_existing_out")
+    (Path(str(out)) / "chat-c_1.md").write_text("x")
+    (Path(str(out)) / "chat-c_2.md").write_text("x")
     assert _find_next_part_num(out, "chat-c") == 3
 
 
 def test_find_next_part_num_single_file(tmp_path):
-    out = tmp_path / "find_single_out"
-    out.mkdir()
-    (out / "chat-c.md").write_text("x")
+    out = _safe_out(tmp_path, "find_single_out")
+    (Path(str(out)) / "chat-c.md").write_text("x")
     assert _find_next_part_num(out, "chat-c") == 2
 
 
 def test_find_next_part_num_mixed(tmp_path):
-    out = tmp_path / "find_mixed_out"
-    out.mkdir()
-    (out / "chat-c.md").write_text("x")
-    (out / "chat-c_3.md").write_text("x")
+    out = _safe_out(tmp_path, "find_mixed_out")
+    (Path(str(out)) / "chat-c.md").write_text("x")
+    (Path(str(out)) / "chat-c_3.md").write_text("x")
     assert _find_next_part_num(out, "chat-c") == 4
 
 

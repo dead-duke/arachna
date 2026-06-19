@@ -62,14 +62,9 @@ def _get_lock_functions():
 
     def lock_fn(f):
         lock_path = Path(str(f.name) + ".lock")
-        try:
-            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
-            os.close(fd)
-            f._arachna_lock_path = str(lock_path)
-        except OSError:
-            # Lock file already exists — another process holds the lock.
-            # Re-raise so the caller can retry or report the conflict.
-            raise
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        os.close(fd)
+        f._arachna_lock_path = str(lock_path)
 
     def unlock_fn(f):
         if hasattr(f, "_arachna_lock_path"):
@@ -86,7 +81,7 @@ def _get_lock_functions():
 def _merge_lock(out_dir: SafePath):
     lock_path = out_dir / _MERGE_LOCK_FILE
     out_dir.mkdir(parents=True, exist_ok=True)
-    lock_fn, unlock_fn = _get_lock_functions()
+    lock_fn, _ = _get_lock_functions()
     try:
         with open(str(lock_path), "w") as lock_file:
             lock_fn(lock_file)
@@ -110,7 +105,7 @@ def save_manifest(out_dir: SafePath, files: list[str]):
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / _MANIFEST
     atomic_write_text(
-        Path(str(manifest_path)), json.dumps({"files": files, "time": time.time()}, indent=2)
+        manifest_path.to_path(), json.dumps({"files": files, "time": time.time()}, indent=2)
     )
 
 
@@ -199,7 +194,7 @@ def _write_parts(
         toc = _build_toc(
             named_sections, indices, i, start_num + total_parts - 1, all_indices=section_indices
         )
-        filepath.write_text(title + toc + part_content)
+        atomic_write_text(filepath.to_path(), title + toc + part_content)
         created.append(str(filepath))
         tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
     return created, tokens_by_file
@@ -252,7 +247,7 @@ def _write_diff_parts(
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
         toc = _build_toc(named_sections, indices, i, total_parts, all_indices=section_indices)
         header = _diff_part_header(part_stats[i - 1], i, total_parts)
-        filepath.write_text(title + header + toc + part_content)
+        atomic_write_text(filepath.to_path(), title + header + toc + part_content)
         created.append(str(filepath))
     return created
 
@@ -277,7 +272,7 @@ def _write_metrics(out_path: SafePath, metrics: PipelineMetrics):
         "tokens_compressed": metrics.tokens_compressed,
         "compression_ratio": metrics.compression_ratio,
     }
-    atomic_write_text(Path(str(metrics_path)), json.dumps(payload, indent=2))
+    atomic_write_text(metrics_path.to_path(), json.dumps(payload, indent=2))
 
 
 def _build_profile_for_collect(profile, name_template, allow_pre_commands):

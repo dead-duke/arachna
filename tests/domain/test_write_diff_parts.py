@@ -1,13 +1,21 @@
 """Tests for _write_diff_parts in collector.py (v1.7.1)."""
 
+from pathlib import Path
+
 from arachna.domain.api_types import DiffSection
 from arachna.domain.collector import _write_diff_parts
+from arachna.domain.path_utils import SafePath
 from arachna.domain.tokenizer import count_tokens
 
 
+def _safe_out(tmp_path, name="out"):
+    out = tmp_path / name
+    out.mkdir(exist_ok=True)
+    return SafePath(out, tmp_path)
+
+
 def test_write_diff_parts_single_file(tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
+    out = _safe_out(tmp_path)
     sections = [
         DiffSection(
             type="modified",
@@ -29,8 +37,7 @@ def test_write_diff_parts_single_file(tmp_path):
 
 
 def test_write_diff_parts_multiple_files(tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
+    out = _safe_out(tmp_path)
     big = "x" * 2000
     sections = [
         DiffSection(
@@ -53,8 +60,7 @@ def test_write_diff_parts_multiple_files(tmp_path):
 
 
 def test_write_diff_parts_empty_sections(tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
+    out = _safe_out(tmp_path)
     created = _write_diff_parts(
         [],
         out,
@@ -68,8 +74,7 @@ def test_write_diff_parts_empty_sections(tmp_path):
 
 
 def test_write_diff_parts_empty_content(tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
+    out = _safe_out(tmp_path)
     sections = [
         DiffSection(type="modified", path="empty.py", content=""),
         DiffSection(
@@ -85,13 +90,12 @@ def test_write_diff_parts_empty_content(tmp_path):
         32768,
         count_tokens,
     )
-    content = (out / "chat-diff_1.md").read_text()
+    content = (Path(str(out)) / "chat-diff_1.md").read_text()
     assert "real.py" in content
 
 
 def test_write_diff_parts_with_toc(tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
+    out = _safe_out(tmp_path)
     sections = [
         DiffSection(
             type="modified",
@@ -113,15 +117,14 @@ def test_write_diff_parts_with_toc(tmp_path):
         32768,
         count_tokens,
     )
-    content = (out / "chat-diff_1.md").read_text()
+    content = (Path(str(out)) / "chat-diff_1.md").read_text()
     assert "Part 1 of 1" in content
     assert "main.py" in content
     assert "new.py" in content
 
 
 def test_write_diff_parts_toc_built_from_names(tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
+    out = _safe_out(tmp_path)
     sections = [
         DiffSection(
             type="added",
@@ -143,6 +146,6 @@ def test_write_diff_parts_toc_built_from_names(tmp_path):
         32768,
         count_tokens,
     )
-    content = (out / "chat-diff_1.md").read_text()
+    content = (Path(str(out)) / "chat-diff_1.md").read_text()
     assert "auth.py" in content
     assert "login.py" in content

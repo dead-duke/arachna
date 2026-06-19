@@ -15,6 +15,7 @@ from arachna.cli.snapshot import (
     _cmd_snapshot_rename,
     _cmd_snapshot_update,
 )
+from arachna.domain.path_utils import SafePath
 
 
 def _config(tmp_path, profiles=None):
@@ -252,7 +253,7 @@ def test_write_manifest_basic(tmp_path):
     out.mkdir()
     f = tmp_path / "out" / "chat-c.md"
     f.write_text("content")
-    write_manifest(out, [str(f)], {str(f): 50}, {"project_name": "Test"})
+    write_manifest(SafePath(out, tmp_path), [str(f)], {str(f): 50}, {"project_name": "Test"})
     mf = out / "chat-manifest.md"
     assert mf.exists()
     content = mf.read_text()

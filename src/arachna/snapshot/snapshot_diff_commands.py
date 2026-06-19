@@ -27,7 +27,8 @@ def _collect_snapshot_pre_commands(profile: dict, root: Path) -> dict[str, str]:
             obj_hash = write_object(output.encode("utf-8"), root=root)
             pre_commands_data[f"{_PRE_LABEL_PREFIX}{label}"] = f"{_SHA256_PREFIX}{obj_hash}"
         else:
-            logger.warning("pre_command produced no output: %s", cmd[:80])
+            sanitized = cmd[:80].replace("\n", "\\n").replace("\r", "\\r")
+            logger.warning("pre_command produced no output: %s", sanitized)
     return pre_commands_data
 
 
@@ -41,7 +42,8 @@ def _collect_snapshot_command(profile: dict, root: Path) -> dict[str, str]:
             obj_hash = write_object(output.encode("utf-8"), root=root)
             command_data[_COMMAND_OUTPUT_LABEL] = f"{_SHA256_PREFIX}{obj_hash}"
         else:
-            logger.warning("command produced no output: %s", cmd[:80])
+            sanitized = cmd[:80].replace("\n", "\\n").replace("\r", "\\r")
+            logger.warning("command produced no output: %s", sanitized)
     return command_data
 
 

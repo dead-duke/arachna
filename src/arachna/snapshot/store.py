@@ -19,6 +19,7 @@ logger = logging.getLogger("arachna.store")
 
 _SNAPSHOT_ID_RE = re.compile(r"^[\w][\w.-]*$")
 _SHA256_PREFIX = "sha256:"
+_VERSION = 1
 
 
 def validate_snapshot_id(sid: str) -> None:
@@ -34,9 +35,9 @@ def _store_root(root: Path) -> SafePath:
     gitignore = arachna_dir / ".gitignore"
     if not gitignore.exists():
         try:
-            atomic_write_text(Path(str(gitignore)), "*\n")
+            atomic_write_text(gitignore.to_path(), "*\n")
         except OSError:
-            Path(str(gitignore)).write_text("*\n")
+            gitignore.write_text("*\n")
     store_dir = arachna_dir / "store"
     store_dir.mkdir(parents=True, exist_ok=True)
     return store_dir
@@ -59,7 +60,7 @@ def write_object(data: bytes, root: Path) -> str:
     if not path.exists():
         compressed = zlib.compress(data)
         content = compressed if len(compressed) < len(data) else data
-        atomic_write_bytes(Path(str(path)), content)
+        atomic_write_bytes(path.to_path(), content)
     return object_hash
 
 
@@ -104,6 +105,7 @@ def create_snapshot(
         obj_hash = write_object(content.encode("utf-8"), root=root)
         file_hashes[path] = f"{_SHA256_PREFIX}{obj_hash}"
     manifest = {
+        "_version": _VERSION,
         "id": snapshot_id,
         "name": name,
         "created": datetime.now().isoformat(),
@@ -114,9 +116,9 @@ def create_snapshot(
         manifest["pre_commands"] = pre_commands
     if command:
         manifest["command"] = command
-    atomic_write_text(Path(str(manifest_path)), json.dumps(manifest, indent=2) + "\n")
+    atomic_write_text(manifest_path.to_path(), json.dumps(manifest, indent=2) + "\n")
     head_path = store_dir / "HEAD"
-    atomic_write_text(Path(str(head_path)), snapshot_id + "\n")
+    atomic_write_text(head_path.to_path(), snapshot_id + "\n")
     return snapshot_id
 
 
@@ -148,10 +150,10 @@ def update_snapshot(
         del manifest["command"]
     store_dir = _store_root(root)
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
-    atomic_write_text(Path(str(manifest_path)), json.dumps(manifest, indent=2) + "\n")
+    atomic_write_text(manifest_path.to_path(), json.dumps(manifest, indent=2) + "\n")
     head_path = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
-        atomic_write_text(Path(str(head_path)), snapshot_id + "\n")
+        atomic_write_text(head_path.to_path(), snapshot_id + "\n")
     return snapshot_id
 
 
@@ -161,7 +163,25 @@ def load_snapshot(snapshot_id: str, root: Path) -> dict:
     manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
     if not manifest_path.exists():
         raise ObjectNotFoundError(f"Snapshot not found: {snapshot_id}")
-    return json.loads(manifest_path.read_text())
+    manifest = json.loads(manifest_path.read_text())
+    manifest_version = manifest.get("_version", 0)
+    if manifest_version > _VERSION:
+        raise ValueError(
+            f"Snapshot '{snapshot_id}' version {manifest_version} is newer than supported {_VERSION}. Upgrade arachna to read this snapshot."
+        )
+    if manifest_version < _VERSION:
+        manifest = _migrate_manifest(manifest, _VERSION)
+    return manifest
+
+
+def _migrate_manifest(manifest: dict, to_version: int) -> dict:
+    """Migrate manifest from older version to current version.
+
+    Placeholder for future migration logic. Currently no migrations needed
+    since v0→v1 transition adds _version field without structural changes.
+    """
+    manifest["_version"] = to_version
+    return manifest
 
 
 def list_snapshots(root: Path) -> list[dict]:
@@ -219,7 +239,7 @@ def delete_snapshot(snapshot_id: str, root: Path) -> None:
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
         remaining = list_snapshots(root=root)
         if remaining:
-            atomic_write_text(Path(str(head_path)), remaining[0]["id"] + "\n")
+            atomic_write_text(head_path.to_path(), remaining[0]["id"] + "\n")
         else:
             head_path.unlink()
 
@@ -238,11 +258,11 @@ def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     manifest = json.loads(old_path.read_text())
     manifest["id"] = new_id
     manifest["name"] = new_id
-    atomic_write_text(Path(str(new_path)), json.dumps(manifest, indent=2) + "\n")
+    atomic_write_text(new_path.to_path(), json.dumps(manifest, indent=2) + "\n")
     old_path.unlink()
     head_path = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == old_id:
-        atomic_write_text(Path(str(head_path)), new_id + "\n")
+        atomic_write_text(head_path.to_path(), new_id + "\n")
     return new_id
 
 
@@ -288,7 +308,7 @@ def _cleanup_empty_dirs(objects_dir):
     for subdir in sorted(objects_dir.glob("*"), reverse=True):
         if subdir.is_dir():
             with contextlib.suppress(OSError):
-                Path(str(subdir)).rmdir()
+                subdir.to_path().rmdir()
 
 
 def gc(root: Path) -> dict:

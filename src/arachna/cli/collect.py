@@ -21,7 +21,7 @@ from ._helpers import (
 from .renderer import render_dry_run
 
 
-def _collect_one_profile(name, profile, args, out_path, root, project_name):
+def _collect_one_profile(name, profile, args, out_path, root, project_name, skip_clean=False):
     """Collect a single profile. Returns (created, tokens_by_file) or (None, dry_run_stats)."""
     profile = apply_args_to_profile(profile, args)
     if getattr(args, "no_pre_commands", False):
@@ -35,7 +35,7 @@ def _collect_one_profile(name, profile, args, out_path, root, project_name):
         return None, None, stats
 
     name_tmpl = profile.get("name_template", f"chat-{name}")
-    if not args.merge:
+    if not args.merge and not skip_clean:
         clean_manifest(out_path, name_tmpl)
 
     created, tokens_by_file, _parts, _metrics = collect(
@@ -121,7 +121,7 @@ def _cmd_collect_all(args, config: dict):
             continue
 
         created, tokens_by_file, dry_run_stats = _collect_one_profile(
-            name, profile, args, out_path, root, project_name
+            name, profile, args, out_path, root, project_name, skip_clean=True
         )
         if args.dry_run:
             if dry_run_stats:

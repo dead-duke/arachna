@@ -28,7 +28,7 @@ def _read_profile_files(profile: dict, root: Path) -> dict[str, str]:
             content = fp.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        result[_rel_path(Path(str(fp)).resolve(), root)] = content
+        result[_rel_path(fp.to_path().resolve(), root)] = content
     return result
 
 
@@ -148,8 +148,8 @@ def _diff_files_sections(
     old_files = _build_snapshot_files_dict(snapshot_id, root)
     if to_snapshot_id is None:
         new_files = _build_target_files_dict(profile, exclude, root, to_snapshot_id)
-        # list() is required: dict is mutated during iteration below
-        for path in list(old_files.keys()):
+        # set() creates a copy: dict is mutated during iteration below
+        for path in set(old_files):
             if path not in new_files and not _path_matches_profile(path, profile, root):
                 del old_files[path]
     else:
