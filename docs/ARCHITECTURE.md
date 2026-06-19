@@ -4,7 +4,7 @@
 
 arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
-## Package structure (v5.1.0)
+## Package structure (v5.1.1)
 
 src/arachna/
   __init__.py           Version + public API re-exports
@@ -32,7 +32,7 @@ src/arachna/
     gitignore.py        .gitignore parser for auto-exclusion
     interfaces.py       Protocol definitions: Tokenizer, ObjectStore, ContentFormatter
     language_dispatch.py  HEADER_PARSERS + BLOCK_PARSERS mappings, regex timeout
-    path_utils.py       Path validation (validate_path) + SafePath class
+    path_utils.py       Path validation (validate_path) + SafePath class with TOCTOU protection
     runner.py           Popen-based command execution, dual-mode allowlist, decomposed helpers
     splitter.py         Token-based splitting, oversized section fallback, pack_into_parts
     tokenizer.py        Token estimation, pluggable tokenizers, safety validation
@@ -54,13 +54,13 @@ src/arachna/
     benchmarks.py       Plugin benchmarks (structural-diff, tiktoken)
     differ.py           LLM-optimized text diff (markdown + XML), line numbers
     differ_structural.py  Structural diff: Python AST, C-like regex, tree-sitter plugin
-    store.py            Content-addressable store (SHA256 + zlib, dedup, GC)
+    store.py            Content-addressable store (SHA256 + zlib, dedup, GC), manifest versioning
     store_errors.py     Store subsystem exceptions
     snapshots.py        Re-exports from all snapshot_diff_* sub-modules
-    snapshot_diff.py    Diff computation — orchestration + grouping (120 lines)
+    snapshot_diff.py    Diff computation — orchestration + grouping (167 lines)
     snapshot_diff_helpers.py  Path normalization (_rel_path, _normalize_path)
     snapshot_diff_files.py    File collection, diff sections, path matching, store I/O
-    snapshot_diff_commands.py Pre_commands/command execution and diff strategies
+    snapshot_diff_commands.py Pre_commands/command execution and diff strategies, CRLF sanitization
     snapshot_diff_repo_map.py Repo-map transformation for diff sections
     snapshot_rename.py  Rename/move detection: exact hash + similarity matching
 
@@ -102,57 +102,52 @@ No circular dependencies. No lazy imports between packages.
 
 ## Key architectural decisions
 
+### v5.1.1: Security hardening + SonarCloud cleanup
+- **Command substitution blocked:** `$()` and backticks rejected in both restricted and pre_commands modes. Prevents allowlist bypass attacks like `git $(rm -rf /)`.
+- **CRLF sanitization:** All logger calls that include user-configured commands sanitize `\n` → `\\n`, `\r` → `\\r` before logging. Applied to `_handle_dangerous_override`, `_collect_snapshot_pre_commands`, `_collect_snapshot_command`.
+- **TOCTOU protection:** SafePath I/O methods (`read_text`, `write_text`, `read_bytes`, `write_bytes`) double-check path via `resolve()` + `is_relative_to()` at I/O time. Detects symlink swaps between construction and I/O.
+- **SafePath.to_path():** Clean SafePath→Path conversions without `Path(str(...))` workarounds. All callers updated.
+- **Manifest versioning:** `_version` field in snapshot manifests with migration placeholder. Future versions rejected with clear error.
+- **Atomic output:** `_write_parts` and `_write_diff_parts` use `atomic_write_text` for output files.
+- **SonarCloud:** S2737, S1481, S7504 fixed. 10 false positives accepted as secure-by-design. 1643 tests, 96% coverage.
+
 ### v5.1.0: SafePath + full audit resolution
-- **SafePath:** Path wrapper with mandatory root validation in domain/path_utils.py. All file I/O goes through SafePath — validation is structural, not comment-based. Eliminates all SonarCloud S2083/S8707 false positives. Refactored into collector.py, store.py, cli/*.py, config/*.py, cache.py, format_output.py.
-- **CRITICAL fix:** Removed importlib.import_module fallback in tokenizer.py. Unknown tokenizer packages now rejected with clear error. Only local files (validated via AST) + known-safe tokenizers allowed.
-- **HIGH fix:** Made snapshot_diff functions public — apply_repo_map_to_sections, collect_snapshot_content. Public API no longer imports underscored private functions.
-- **MEDIUM decomposition:** formatter.py (605 lines → 6 sub-modules: format_language, format_binary, format_headers, format_output, format_exclude, format_sigs). snapshot_diff.py (720 lines → 4 sub-modules + helpers: snapshot_diff_files, snapshot_diff_commands, snapshot_diff_repo_map, snapshot_diff_helpers).
-- **MEDIUM hardening:** Narrowed except Exception → specific types in atomic_write.py, cache.py, hook.py, snapshot_diff.py.
-- **LOW polish:** Atomic writes in init.py/presets.py/_helpers.py, KeyError counted as error in validation, DANGEROUS log elevated to error, _log_writer → parameter injection, threading.Lock for all global state (4 modules), importlib.reload → @lru_cache.
-- **SonarCloud:** S1481, S2737, S7504 fixed. 1616 tests, 96% coverage, 0 SonarCloud findings.
+- **SafePath:** Path wrapper with mandatory root validation in domain/path_utils.py. All file I/O goes through SafePath — validation is structural, not comment-based. Eliminates all SonarCloud S2083/S8707 false positives.
+- **CRITICAL fix:** Removed importlib.import_module fallback in tokenizer.py. Unknown tokenizer packages now rejected with clear error.
+- **HIGH fix:** Made snapshot_diff functions public — apply_repo_map_to_sections, collect_snapshot_content.
+- **MEDIUM decomposition:** formatter.py (605 lines → 6 sub-modules), snapshot_diff.py (720 lines → 4 sub-modules + helpers).
+- **MEDIUM hardening:** Narrowed except Exception → specific types in 5 locations.
+- **LOW polish:** Atomic writes, KeyError as error, DANGEROUS log → error, _log_writer → parameter, threading.Lock, lru_cache.
 
 ### v5.0.0: Architecture cleanup
-- Renamed watch/ package to snapshot/ — watch implied active monitoring, actual functionality is snapshot management (create, store, diff, delete). ~60 files affected.
-- Deduplicated DiffSection: differ.py now imports from domain/api_types.py instead of defining its own copy. ~15 files updated.
-- Docstrings cleaned: version tags removed from module docstrings, standardized to one-line descriptions. ~30 files.
-- __all__ narrowed to intended public API surface. ~15 modules.
-- Split mode dispatch documented: _SPLIT_MODE_DISPATCH (splitter.py) handles token-limit splitting, _get_mode_strategies (gatherer_strategies.py) handles collection strategy. Both are distinct.
+- Renamed watch/ package to snapshot/ (~60 files). Public API: `from arachna import snapshot`.
+- Deduplicated DiffSection, cleaned docstrings, narrowed __all__.
 - SonarCloud fixes: S1481, S3776 x3, S5145, S8502, S7504.
 
 ### v4.2.0: Code quality refactoring
-- _CollectParams dataclass: 14 params -> 1 object in _FullModeStrategy
-- Module splits: gatherer_core -> gatherer_files + gatherer_commands, watcher -> snapshot_diff + snapshot_rename, presets -> presets_remote
-- _BLOCK_PATTERNS: named groups -> numbered for simpler regex
-- _RE_C_LIKE_IMPORT -> _RE_C_LIKE_IMPORT_CHAIN (5 single-purpose patterns)
-- compressor.py: _RE_TRAILING_WS regex -> str.rstrip()
-- remote.py: domain/ -> config/ (layer violation fix)
-- path_utils.py: validate_path() for S2083 path injection
-- Cognitive complexity: all 35+ C-functions -> B
-- diff --line-numbers: line numbers in REMOVED/ADDED blocks
+- _CollectParams dataclass, module splits, _BLOCK_PATTERNS simplification.
+- compressor.py: _RE_TRAILING_WS regex → str.rstrip().
+- path_utils.py: validate_path() for S2083.
+- Cognitive complexity: all 35+ C-functions → B.
+- diff --line-numbers: line numbers in REMOVED/ADDED blocks.
 
 ### Strategy pattern for collection modes
-FullModeStrategy, RepoMapModeStrategy, HeadersModeStrategy — each encapsulates
-its own import graph cache. Mode dispatch via _get_mode_strategies() which
-lazy-initializes the mapping.
+FullModeStrategy, RepoMapModeStrategy, HeadersModeStrategy — each with own graph cache.
+Mode dispatch via _get_mode_strategies() which lazy-initializes the mapping.
 
 ### Dual-mode command sandbox
-Restricted mode (internal calls): 11 safe commands, no shell, no pipes.
-Pre_commands mode (user config): extended read-only allowlist, shell=True, pipes allowed.
-See docs/SECURITY.md for full threat model.
+Restricted mode (internal calls): 11 safe commands, no shell, no pipes, no command substitution.
+Pre_commands mode (user config): extended read-only allowlist, shell=True, pipes allowed, command substitution blocked.
 
 ### Content-addressable store
-Files stored by SHA256 hash. Deduplication across snapshots.
-Atomic writes via mkstemp + os.replace. Snapshots share identical objects.
+Files stored by SHA256 hash. Deduplication across snapshots. Manifest versioning for forward compatibility.
+Atomic writes via mkstemp + os.replace.
 
 ### Smart hybrid incremental cache
-mtime_ns + size fast path (99% of cases). SHA256 fallback for false positives
-(git checkout, touch). Automatic v1->v2 migration.
+mtime_ns + size fast path (99% of cases). SHA256 fallback for false positives. Versioned format with migration.
 
 ### Language dispatch
-C_LIKE_LANGS and SCRIPT_LANGS defined once in format_language.py. HEADER_PARSERS
-and BLOCK_PARSERS mappings in language_dispatch.py cover all languages via
-get_header_parser() and get_block_parser(). Adding a language requires
-editing format_language.py only.
+C_LIKE_LANGS and SCRIPT_LANGS defined once in format_language.py. HEADER_PARSERS and BLOCK_PARSERS auto-generated.
 
 ## Plugin architecture
 
@@ -187,14 +182,14 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1616 tests, 96% coverage. Tests mirror src/arachna/ package structure.
+1643 tests, 96% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
-  domain/       Tests for domain/ modules (SafePath: 14 tests)
-  snapshot/     Tests for snapshot/ modules
+  domain/       Tests for domain/ modules (SafePath: 20 tests, runner: 42 tests)
+  snapshot/     Tests for snapshot/ modules (manifest versioning: 4, log sanitization: 5)
   api/          Tests for api/ modules
   config/       Tests for config/ modules
-  cli/          Tests for cli/ modules
+  cli/          Tests for cli/ modules (skip_clean: 2)
   plugins/      Tests for plugins/ module
-  integration/  CLI end-to-end tests (7 snapshot edge case tests)
+  integration/  CLI end-to-end tests
   benchmark/    Performance benchmarks

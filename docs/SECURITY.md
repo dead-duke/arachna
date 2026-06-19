@@ -41,10 +41,10 @@ configs or pre_commands.
 
 ### Two-Level Command Sandbox
 
-| Mode | Allowlist | Shell | Pipes | Used For |
-|------|-----------|-------|-------|----------|
-| Restricted | echo, pwd, date, whoami, id, uname, which, true, false, test | No | No | Internal calls |
-| Pre_commands | cat, ls, tree, grep, git, diff, sort, wc, head, tail, cut, tr, comm, join, paste | Yes | Yes | User config |
+| Mode | Allowlist | Shell | Pipes | Cmd Sub | Used For |
+|------|-----------|-------|-------|---------|----------|
+| Restricted | echo, pwd, date, whoami, id, uname, which, true, false, test | No | No | No | Internal calls |
+| Pre_commands | cat, ls, tree, grep, git, diff, sort, wc, head, tail, cut, tr, comm, join, paste | Yes | Yes | No | User config |
 
 **Restricted mode** is the default. Commands are executed without shell,
 pipes are blocked, only 11 safe commands allowed. Used for all internal calls.
@@ -53,17 +53,27 @@ pipes are blocked, only 11 safe commands allowed. Used for all internal calls.
 Used only for pre_commands, post_commands, and command from `.arachna.json`.
 Shell is enabled (required for `2>/dev/null` in legitimate tree/git commands).
 Pipes are allowed — each pipe part is validated against the allowlist individually.
-Redirection is not blocked — user controls their own config file.
 
-**Blocked patterns** apply to both modes. Defined in `domain/runner.py`:
-`_BLOCKED_WORDS` (curl, wget, find, eval, etc.) and `_BLOCKED_PHRASES`
-(rm -rf /, dd if=, fork bomb patterns). Matching is word-boundary for
-words, substring for phrases.
+**Command substitution is blocked in both modes.** `$()` and backticks are
+rejected regardless of `allow_file_args`. This prevents bypasses like
+`git $(rm -rf /)` where git is in the allowlist but the subshell executes
+arbitrary commands.
+
+**Blocked patterns** apply to both modes: `_BLOCKED_WORDS` (curl, wget, find,
+eval, etc.) and `_BLOCKED_PHRASES` (rm -rf /, dd if=, fork bomb patterns).
 
 **Design note:** pre_commands can read arbitrary files (`cat /etc/passwd` works).
 This is by design — the user explicitly configures these commands.
 The allowlist restricts to read-only utilities. Write operations (rm, mv, cp, chmod,
 chown, mkdir, touch, tee, xargs, sed, awk) are not in the allowlist.
+
+### SafePath — Mandatory Path Validation
+
+All file I/O goes through `SafePath` — a `Path` wrapper that validates
+the path is within the project root at construction time. Additional
+TOCTOU protection: every I/O method (`read_text`, `write_text`, `read_bytes`,
+`write_bytes`) re-validates via `resolve()` + `is_relative_to()` to detect
+symlink swaps between construction and I/O.
 
 ### Tokenizer Validation
 
@@ -76,26 +86,25 @@ chown, mkdir, touch, tee, xargs, sed, awk) are not in the allowlist.
    - Imports checked against `_SUSPICIOUS_MODULES` (os, subprocess, sys, etc.)
    - Top-level statements: only `FunctionDef`, `ClassDef`, `Import`, `ImportFrom`, `Assign` allowed
    - `Call` and `Expr` rejected — prevents code execution at import time
+5. No `importlib.import_module` fallback — unknown third-party packages rejected
 
 ### Snapshot ID Validation
 
 `validate_snapshot_id()` in `snapshot/store.py` enforces `^[\w][\w.-]*$`:
 no path separators, no shell metacharacters. Applied to all store operations.
 
+### Snapshot Manifest Versioning
+
+Snapshot manifests include a `_version` field. On load, the version is checked:
+- Future versions are rejected with a clear error message
+- Old versions are migrated to the current format
+- Follows the same pattern as cache.py (`_version: 2`)
+
 ### URL Validation
 
 All user-supplied URLs (`--repo`, `--url` for presets, `fetch_presets()`,
 `collect_remote()`) are validated to only allow `http://` and `https://`
 schemes. File, FTP, and other schemes are rejected.
-
-HTTP is allowed intentionally — users may host presets or git repositories
-on local network servers without TLS. This is a deliberate trade-off:
-convenience for local development over strict transport security. Users
-who need HTTPS can use it; arachna does not force either.
-
-For remote collection, the cloned repository's `.arachna.json` is treated
-as untrusted — pre_commands from cloned repos are NOT executed. arachna
-only collects files and auto-detects presets.
 
 ### Output Size Limit
 
@@ -105,10 +114,10 @@ truncated with a marker. Prevents memory exhaustion from runaway commands.
 
 ### Atomic Writes
 
-All persistent writes (cache, manifest, store objects, snapshots) use
-`tempfile.mkstemp()` + `os.replace()`. Power loss or crash during write
-cannot corrupt existing data — the write either completes or the old
-file remains intact.
+All persistent writes (cache, manifest, store objects, snapshots, presets,
+init config, collected output files) use `tempfile.mkstemp()` + `os.replace()`.
+Power loss or crash during write cannot corrupt existing data — the write
+either completes or the old file remains intact.
 
 ### Audit Log
 
@@ -116,6 +125,7 @@ All command executions logged to `.arachna_commands.log`:
 - Format: `[ISO timestamp] STATUS: command`
 - Newlines sanitized: `\n` → `\\n`, `\r` → `\\r`
 - Log path search: up to 5 parent directories for `.arachna.json`
+- CRLF sanitized in all logger calls that include user-configured commands
 
 ## Environment Variables
 

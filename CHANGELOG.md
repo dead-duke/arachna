@@ -1,5 +1,18 @@
 # Changelog
 
+## v5.1.1 — Security hardening + SonarCloud cleanup
+- S2076: Block command substitution $() and backticks in pre_commands mode (CRITICAL)
+- S5145: Sanitize CRLF in logger calls before logging (runner.py, snapshot_diff_commands.py)
+- S2737: Remove unnecessary try-except from fallback lock_fn in collector.py
+- S1481: Replace unused unlock_fn with _ in _merge_lock
+- S7504: Replace list(old_files.keys()) with set(old_files) in snapshot_diff_files.py
+- TOCTOU protection in SafePath I/O methods (resolve + is_relative_to double-check)
+- SafePath.to_path() method — clean conversions without Path(str(...)) workarounds
+- _version field in snapshot manifests with migration placeholder (store.py)
+- Atomic output file writes via atomic_write_text in _write_parts and _write_diff_parts
+- skip_clean parameter to deduplicate manifest cleanup in collect --all
+- 1643 tests, 96% coverage, 0 SonarCloud findings (10 accepted as secure-by-design)
+
 ## v5.1.0 — SafePath + full audit resolution
 - CRITICAL: Removed importlib.import_module fallback in tokenizer.py — unknown packages rejected
 - HIGH: Renamed private functions to public in snapshot_diff (apply_repo_map_to_sections, collect_snapshot_content)

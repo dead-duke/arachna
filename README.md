@@ -20,7 +20,7 @@ gets cut in the middle.
 
 arachna is built with arachna — the context for this README and every
 commit in this project was collected by arachna itself. Dogfooding since
-day one. 1616 tests, 96% coverage, 200+ commits.
+day one. 1643 tests, 96% coverage, 200+ commits.
 
 ## Who this is for
 
@@ -637,18 +637,21 @@ before execution. arachna uses two security levels:
 
 **Restricted mode** — for internal operations (snapshot names, preset URLs).
 Only 11 safe commands allowed: echo, pwd, date, whoami, id, uname, which,
-true, false, test, [. No shell metacharacters, no shell=True. This protects
-against injection via external input.
+true, false, test, [. No shell metacharacters, no shell=True, no command
+substitution. This protects against injection via external input.
 
 **Pre_commands mode** — for your .arachna.json. Extended read-only allowlist:
 cat, tree, git, grep, sort, wc, head, tail, diff, and more. Shell=True with
-pipes (|, ||, &&) and redirection (>, <) allowed. You control your config —
-you are responsible for what's in it.
+pipes (|, ||, &&) and redirection (>, <) allowed. Command substitution
+($() and backticks) is blocked — prevents allowlist bypass attacks.
+You control your config — you are responsible for what's in it.
 
-Snapshot IDs are validated against path traversal (no ../). Tokenizer files
-are checked for malicious code before import. Preset URLs are restricted to
-http:// and https:// only. Sandbox limits command output to 10MB by default
-(ARACHNA_MAX_OUTPUT_SIZE).
+All file I/O goes through SafePath — mandatory path validation with TOCTOU
+protection (symlink swap detection at I/O time). Snapshot IDs are validated
+against path traversal (no ../). Tokenizer files are checked for malicious
+code before import. Preset URLs restricted to http:// and https:// only.
+Sandbox limits command output to 10MB (ARACHNA_MAX_OUTPUT_SIZE). Log entries
+are sanitized against CRLF injection.
 
 Use --dry-run to preview what will be executed.
 
