@@ -1,5 +1,18 @@
 # Changelog
 
+## v5.2.0 — Architecture: package reorganization + type safety
+- domain/ split into 5 subpackages: cache/, collection/, formatting/, tokenization/, execution/
+- snapshot/ split into 3 subpackages: store/, diff/, rename/
+- config/ split into 3 subpackages: core/, presets/, setup/
+- Dataclass config: ProfileConfig + ArachnaConfig replace dict-based access (~200 get() calls)
+- Enum/Literal types: CollectionMode, OutputFormat, SplitMode for static checking
+- Break api/ ↔ config/ cycle: api/ no longer imports from config/
+- Move compute_diff_stats to domain/differ_stats.py (pure function, no snapshot dependency)
+- SafeLogger: _sanitize_log() centralized in domain/runner.py
+- time.sleep → os.utime in incremental tests (deterministic)
+- mock_popen deduplicated to tests/conftest.py
+- 1641 tests, 96% coverage, 0 bugs
+
 ## v5.1.1 — Security hardening + SonarCloud cleanup
 - S2076: Block command substitution $() and backticks in pre_commands mode (CRITICAL)
 - S5145: Sanitize CRLF in logger calls before logging (runner.py, snapshot_diff_commands.py)

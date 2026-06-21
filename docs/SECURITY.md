@@ -10,28 +10,28 @@ The `.arachna.json` file is a **trust boundary** — commands defined in
 
 ## Attack Surface
 
-### Command Execution (domain/runner.py)
+### Command Execution (domain/execution/runner.py)
 
 Commands come from two sources: user config (pre_commands, post_commands, command)
 and internal calls (store operations, snapshot subsystem). Each uses a different
 security level.
 
-### Tokenizer Loading (domain/tokenizer.py)
+### Tokenizer Loading (domain/tokenization/tokenizer.py)
 
-Custom tokenizer spec in profile `tokenizer` field triggers `importlib.import_module()`.
+Custom tokenizer spec in profile `tokenizer` field triggers module loading.
 Malicious tokenizer files could execute arbitrary code at import time.
 
-### Snapshot Storage (snapshot/store.py)
+### Snapshot Storage (snapshot/store/store.py)
 
 Snapshot IDs from CLI arguments are used as filesystem paths.
 Malicious IDs could traverse directories.
 
-### Presets Fetching (config/presets.py)
+### Presets Fetching (config/presets/presets_remote.py)
 
 `arachna presets update` downloads JSON from remote URLs.
 Malicious presets could inject unsafe tokenizer specs or invalid configs.
 
-### Remote Repository Collection (domain/remote.py)
+### Remote Repository Collection (config/remote.py)
 
 `arachna collect --repo` clones git repositories from user-supplied URLs.
 Malicious URLs could point to repositories with harmful `.arachna.json`
@@ -77,7 +77,7 @@ symlink swaps between construction and I/O.
 
 ### Tokenizer Validation
 
-`_is_safe_tokenizer()` in `domain/tokenizer.py` validates tokenizer specs:
+`_is_safe_tokenizer()` in `domain/tokenization/tokenizer.py` validates tokenizer specs:
 
 1. `default` — always safe (built-in char-counting)
 2. `tiktoken`, `transformers` — in `_SAFE_TOKENIZERS` allowlist
@@ -90,7 +90,7 @@ symlink swaps between construction and I/O.
 
 ### Snapshot ID Validation
 
-`validate_snapshot_id()` in `snapshot/store.py` enforces `^[\w][\w.-]*$`:
+`validate_snapshot_id()` in `snapshot/store/store.py` enforces `^[\w][\w.-]*$`:
 no path separators, no shell metacharacters. Applied to all store operations.
 
 ### Snapshot Manifest Versioning
@@ -108,9 +108,9 @@ schemes. File, FTP, and other schemes are rejected.
 
 ### Output Size Limit
 
-`_MAX_OUTPUT_SIZE` (default 10MB, configurable via `ARACHNA_MAX_OUTPUT_SIZE`)
-limits command output. When exceeded, the process is killed and output
-truncated with a marker. Prevents memory exhaustion from runaway commands.
+`ARACHNA_MAX_OUTPUT_SIZE` (default 10MB) limits command output. When exceeded,
+the process is killed and output truncated with a marker. Prevents memory
+exhaustion from runaway commands.
 
 ### Atomic Writes
 

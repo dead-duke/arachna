@@ -4,7 +4,7 @@
 
 arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
-## Package structure (v5.1.1)
+## Package structure (v5.2.0)
 
 src/arachna/
   __init__.py           Version + public API re-exports
@@ -12,57 +12,93 @@ src/arachna/
   interfaces.py         Backward-compat re-export from domain/
 
   domain/               Pure data transformations, no I/O dependencies
+    __init__.py         Re-exports all public names
     api_types.py        Public API dataclasses (DiffSection, DiffStats, etc.)
     atomic_write.py     Atomic file writes (mkstemp + os.replace)
-    cache.py            Smart hybrid incremental cache (mtime_ns + size + SHA256)
-    collector.py        Orchestrator: gather -> split -> write -> post_commands
     compressor.py       Safe whitespace compression (str.rstrip, no regex)
-    format_language.py  Language detection, C_LIKE_LANGS, SCRIPT_LANGS, _EXT_LANG
-    format_binary.py    Binary file detection and base64 formatting
-    format_headers.py   Deps/exports extraction for all languages (regex + AST)
-    format_output.py    File section formatting (markdown/xml/json), SafePath integration
-    format_exclude.py   fnmatch exclusion matching with directory support
-    format_sigs.py      Signature formatting for repo-map mode
-    formatter.py        Re-exports from all format_* sub-modules (backward-compatible)
-    gatherer.py         Facade over gatherer_files + gatherer_commands + gatherer_query + gatherer_strategies
-    gatherer_files.py   Directory scanning, file formatting, exclude patterns
-    gatherer_commands.py  Command execution: pre_commands, gather_files, gather_command
-    gatherer_query.py   Query pipeline: import graph, scoring, filtering
-    gatherer_strategies.py  Strategy pattern: FullModeStrategy with _CollectParams dataclass
-    gitignore.py        .gitignore parser for auto-exclusion
+    differ_stats.py     compute_diff_stats — pure function on DiffSection
     interfaces.py       Protocol definitions: Tokenizer, ObjectStore, ContentFormatter
-    language_dispatch.py  HEADER_PARSERS + BLOCK_PARSERS mappings, regex timeout
     path_utils.py       Path validation (validate_path) + SafePath class with TOCTOU protection
-    runner.py           Popen-based command execution, dual-mode allowlist, decomposed helpers
-    splitter.py         Token-based splitting, oversized section fallback, pack_into_parts
-    tokenizer.py        Token estimation, pluggable tokenizers, safety validation
+
+    cache/
+      __init__.py
+      cache.py          Smart hybrid incremental cache (mtime_ns + size + SHA256)
+
+    collection/
+      __init__.py
+      collector.py      Orchestrator: gather -> split -> write -> post_commands
+      gatherer.py       Facade over gatherer_files + gatherer_commands + gatherer_query + gatherer_strategies
+      gatherer_files.py Directory scanning, file formatting, exclude patterns
+      gatherer_commands.py  Command execution: pre_commands, gather_files, gather_command
+      gatherer_query.py Query pipeline: import graph, scoring, filtering
+      gatherer_strategies.py  Strategy pattern: FullModeStrategy with _CollectParams dataclass
+
+    formatting/
+      __init__.py
+      formatter.py      Re-exports from all format_* sub-modules (backward-compatible)
+      format_binary.py  Binary file detection and base64 formatting
+      format_exclude.py fnmatch exclusion matching with directory support
+      format_headers.py Deps/exports extraction for all languages (regex + AST)
+      format_language.py Language detection, C_LIKE_LANGS, SCRIPT_LANGS, _EXT_LANG
+      format_output.py  File section formatting (markdown/xml/json), SafePath integration
+      format_sigs.py    Signature formatting for repo-map mode
+
+    tokenization/
+      __init__.py
+      tokenizer.py      Token estimation, pluggable tokenizers, safety validation
+      language_dispatch.py  HEADER_PARSERS + BLOCK_PARSERS mappings, regex timeout
+
+    execution/
+      __init__.py
+      runner.py         Popen-based command execution, dual-mode allowlist, decomposed helpers
+      splitter.py       Token-based splitting, oversized section fallback, pack_into_parts
+      gitignore.py      .gitignore parser for auto-exclusion
 
   config/               Configuration, presets, init, validation
-    __init__.py         VALID_SPLIT_MODES + COLLECTION_MODES constants
+    __init__.py         VALID_SPLIT_MODES, COLLECTION_MODES, CollectionMode/OutputFormat/SplitMode Literal types
     completion.py       Bash and zsh shell completion (argparse subparsers)
-    config.py           .arachna.json loader, profile resolution with extends
     doctor.py           Full diagnostic: run_doctor(project_root, config)
-    hook.py             Git post-commit hook installer
-    init.py             Interactive .arachna.json bootstrap
-    presets.py          Language/engine presets, auto-detection, validation
-    presets_remote.py   Remote presets: fetch_presets + merge_presets
     profiler.py         Benchmark runner: measures token savings across modes
     remote.py           Remote repository collection (git clone + collect)
-    validator.py        Profile validation
+
+    core/
+      __init__.py
+      config.py         .arachna.json loader, profile resolution with extends, ProfileConfig/ArachnaConfig
+      validator.py      Profile validation
+
+    presets/
+      __init__.py
+      presets.py        Language/engine presets, auto-detection, validation
+      presets_remote.py Remote presets: fetch_presets + merge_presets
+
+    setup/
+      __init__.py
+      init.py           Interactive .arachna.json bootstrap
+      hook.py           Git post-commit hook installer
 
   snapshot/             Snapshots, diff, store, benchmarks
+    __init__.py         Re-exports all public names
     benchmarks.py       Plugin benchmarks (structural-diff, tiktoken)
-    differ.py           LLM-optimized text diff (markdown + XML), line numbers
-    differ_structural.py  Structural diff: Python AST, C-like regex, tree-sitter plugin
-    store.py            Content-addressable store (SHA256 + zlib, dedup, GC), manifest versioning
-    store_errors.py     Store subsystem exceptions
     snapshots.py        Re-exports from all snapshot_diff_* sub-modules
-    snapshot_diff.py    Diff computation — orchestration + grouping (167 lines)
-    snapshot_diff_helpers.py  Path normalization (_rel_path, _normalize_path)
-    snapshot_diff_files.py    File collection, diff sections, path matching, store I/O
-    snapshot_diff_commands.py Pre_commands/command execution and diff strategies, CRLF sanitization
-    snapshot_diff_repo_map.py Repo-map transformation for diff sections
-    snapshot_rename.py  Rename/move detection: exact hash + similarity matching
+
+    store/
+      __init__.py
+      store.py          Content-addressable store (SHA256 + zlib, dedup, GC), manifest versioning
+      store_errors.py   Store subsystem exceptions
+
+    diff/
+      __init__.py
+      differ.py         LLM-optimized text diff (markdown + XML), line numbers
+      differ_structural.py  Structural diff: Python AST, C-like regex, tree-sitter plugin
+      snapshot_diff.py  Diff computation — orchestration + grouping
+      snapshot_diff_helpers.py  Path normalization (_rel_path, _normalize_path)
+      snapshot_diff_files.py    File collection, diff sections, path matching, store I/O
+      snapshot_diff_commands.py Pre_commands/command execution and diff strategies, CRLF sanitization
+      snapshot_diff_repo_map.py Repo-map transformation for diff sections
+
+    rename/
+      __init__.py
+      snapshot_rename.py  Rename/move detection: exact hash + similarity matching
 
   plugins/              Optional dependency management
     plugins.py          Plugin system: environment detector, install/uninstall/list
@@ -93,7 +129,7 @@ src/arachna/
 ## Dependency flow
 
 CLI handlers import from domain/, snapshot/, plugins/, api/, config/.
-API layer imports from domain/ and snapshot/.
+API layer imports from domain/ and snapshot/ — NO config/ imports.
 Snapshot layer imports from domain/.
 Config layer imports from domain/.
 Domain layer imports only from stdlib and other domain/ modules.
@@ -101,6 +137,16 @@ Domain layer imports only from stdlib and other domain/ modules.
 No circular dependencies. No lazy imports between packages.
 
 ## Key architectural decisions
+
+### v5.2.0: Package reorganization + type safety
+- **domain/ split into 5 subpackages:** cache/, collection/, formatting/, tokenization/, execution/ — 27 files organized by subsystem
+- **snapshot/ split into 3 subpackages:** store/, diff/, rename/ — 12 files organized by responsibility
+- **config/ split into 3 subpackages:** core/, presets/, setup/ — 10 files organized by domain
+- **Dataclass config:** ProfileConfig + ArachnaConfig replace ~200 dict.get() calls with typed field access
+- **Enum/Literal types:** CollectionMode, OutputFormat, SplitMode — linters catch typos at development time
+- **api/ ↔ config/ cycle broken:** api/ no longer imports get_profile/load_config from config/
+- **compute_diff_stats moved** to domain/differ_stats.py — pure function, no snapshot/ dependency
+- **_sanitize_log centralized** in domain/runner.py — single CRLF sanitization for all logger calls
 
 ### v5.1.1: Security hardening + SonarCloud cleanup
 - **Command substitution blocked:** `$()` and backticks rejected in both restricted and pre_commands modes. Prevents allowlist bypass attacks like `git $(rm -rf /)`.
@@ -123,31 +169,6 @@ No circular dependencies. No lazy imports between packages.
 - Renamed watch/ package to snapshot/ (~60 files). Public API: `from arachna import snapshot`.
 - Deduplicated DiffSection, cleaned docstrings, narrowed __all__.
 - SonarCloud fixes: S1481, S3776 x3, S5145, S8502, S7504.
-
-### v4.2.0: Code quality refactoring
-- _CollectParams dataclass, module splits, _BLOCK_PATTERNS simplification.
-- compressor.py: _RE_TRAILING_WS regex → str.rstrip().
-- path_utils.py: validate_path() for S2083.
-- Cognitive complexity: all 35+ C-functions → B.
-- diff --line-numbers: line numbers in REMOVED/ADDED blocks.
-
-### Strategy pattern for collection modes
-FullModeStrategy, RepoMapModeStrategy, HeadersModeStrategy — each with own graph cache.
-Mode dispatch via _get_mode_strategies() which lazy-initializes the mapping.
-
-### Dual-mode command sandbox
-Restricted mode (internal calls): 11 safe commands, no shell, no pipes, no command substitution.
-Pre_commands mode (user config): extended read-only allowlist, shell=True, pipes allowed, command substitution blocked.
-
-### Content-addressable store
-Files stored by SHA256 hash. Deduplication across snapshots. Manifest versioning for forward compatibility.
-Atomic writes via mkstemp + os.replace.
-
-### Smart hybrid incremental cache
-mtime_ns + size fast path (99% of cases). SHA256 fallback for false positives. Versioned format with migration.
-
-### Language dispatch
-C_LIKE_LANGS and SCRIPT_LANGS defined once in format_language.py. HEADER_PARSERS and BLOCK_PARSERS auto-generated.
 
 ## Plugin architecture
 
@@ -182,14 +203,14 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1643 tests, 96% coverage. Tests mirror src/arachna/ package structure.
+1641 tests, 96% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
-  domain/       Tests for domain/ modules (SafePath: 20 tests, runner: 42 tests)
-  snapshot/     Tests for snapshot/ modules (manifest versioning: 4, log sanitization: 5)
+  domain/       Tests for domain/ modules
+  snapshot/     Tests for snapshot/ modules
   api/          Tests for api/ modules
   config/       Tests for config/ modules
-  cli/          Tests for cli/ modules (skip_clean: 2)
+  cli/          Tests for cli/ modules
   plugins/      Tests for plugins/ module
   integration/  CLI end-to-end tests
   benchmark/    Performance benchmarks
