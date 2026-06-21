@@ -10,20 +10,21 @@ from ..config.presets import (
     load_presets_from_file,
 )
 from ..config.presets_remote import fetch_presets, merge_presets
+from ..config.profile_config import ArachnaConfig
 from ..domain.atomic_write import atomic_write_text
 from ..domain.path_utils import SafePath
 from . import register
 
 
 @register("presets-update")
-def _cmd_presets_update(args, config: dict):
+def _cmd_presets_update(args, config: ArachnaConfig | dict):
     url = args.url or "https://raw.githubusercontent.com/dead-duke/arachna/main/presets.json"
     if not url.startswith(("http://", "https://")):
         print("Error: only http:// and https:// URLs are allowed for security reasons.")
         print(f"  Got: {url}")
         sys.exit(1)
 
-    root = Path(config.get("_root", "."))
+    root = Path(config._root or ".") if hasattr(config, "_root") else Path(config.get("_root", "."))
     presets_path = SafePath(root / "presets.json", root)
 
     local = load_presets_from_file(presets_path.to_path())

@@ -1,18 +1,23 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Public Collection API."""
+"""Public Collection API.
+
+All functions require an explicit ArachnaConfig. The caller is responsible
+for loading the configuration and resolving profile names to ProfileConfig
+before calling this API. This keeps the API layer free of config/ dependencies.
+"""
 
 import contextlib
 from pathlib import Path
 
-from ..config.config import get_profile, load_config
+from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..domain.api_types import CollectResult
 from ..domain.collector import collect as _collect
-from .api_errors import ProfileNotFoundError
 
 
 def collect(
     root: Path,
-    profile: str | dict = "full",
+    profile: ProfileConfig,
+    config: ArachnaConfig,
     output_dir: str | None = None,
     query: str | None = None,
     mode: str = "full",
@@ -22,25 +27,15 @@ def collect(
     write_to_disk: bool = True,
     allow_pre_commands: bool = True,
 ) -> CollectResult:
-    if isinstance(profile, str):
-        config = load_config(root=root)
-        try:
-            profile_dict = get_profile(profile, root=root, config=config)
-        except KeyError:
-            raise ProfileNotFoundError(f"Profile '{profile}' not found.") from None
-    else:
-        profile_dict = profile
-
     if output_dir is None:
-        config = load_config(root=root)
-        output_dir = config.get("output_dir", "arachna_context")
+        output_dir = config.output_dir
 
-    project_name = profile_dict.get("project_name", "Project")
+    project_name = config.project_name
     out_path = root / output_dir
     out_path.mkdir(parents=True, exist_ok=True)
 
     created_files, tokens_by_file, parts, metrics = _collect(
-        profile_dict,
+        profile,
         project_name,
         str(out_path),
         root=root,

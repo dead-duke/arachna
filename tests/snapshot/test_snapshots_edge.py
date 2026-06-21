@@ -1,8 +1,8 @@
-"""Edge case tests for snapshot layer."""
-
 import sys
 
 import pytest
+
+from arachna.config.profile_config import ProfileConfig
 
 
 def test_create_snapshot_skip_unreadable(tmp_path, setup_config, make_profile):
@@ -67,32 +67,54 @@ def test_compute_diff_file_outside_root(tmp_path, setup_config):
     root = setup_config()
     from arachna.snapshot.snapshots import _path_matches_profile
 
-    assert not _path_matches_profile(
-        "/etc/passwd", {"directories": ["src"], "patterns": ["*"]}, root
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*"],
+        use_gitignore=False,
     )
+    assert not _path_matches_profile("/etc/passwd", p, root)
 
 
 def test_path_matches_profile_nested(tmp_path, setup_config):
     root = setup_config()
     from arachna.snapshot.snapshots import _path_matches_profile
 
-    profile = {"directories": ["src"], "patterns": ["*.py"]}
-    assert _path_matches_profile("src/main.py", profile, root)
-    assert _path_matches_profile("src/sub/nested.py", profile, root)
-    assert not _path_matches_profile("tests/test.py", profile, root)
-    assert not _path_matches_profile("README.md", profile, root)
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+    )
+    assert _path_matches_profile("src/main.py", p, root)
+    assert _path_matches_profile("src/sub/nested.py", p, root)
+    assert not _path_matches_profile("tests/test.py", p, root)
+    assert not _path_matches_profile("README.md", p, root)
 
 
 def test_path_matches_profile_wrong_pattern(tmp_path, setup_config):
     root = setup_config()
     from arachna.snapshot.snapshots import _path_matches_profile
 
-    profile = {"directories": ["src"], "patterns": ["*.rs"]}
-    assert not _path_matches_profile("src/main.py", profile, root)
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.rs"],
+        use_gitignore=False,
+    )
+    assert not _path_matches_profile("src/main.py", p, root)
 
 
 def test_rel_path_outside_root(tmp_path):
-    """_rel_path with path outside root falls back to normalized absolute path."""
     from pathlib import Path
 
     from arachna.snapshot.snapshot_diff_helpers import _rel_path
@@ -102,7 +124,6 @@ def test_rel_path_outside_root(tmp_path):
 
 
 def test_rel_path_inside_root(tmp_path):
-    """_rel_path with path inside root returns relative path."""
     from arachna.snapshot.snapshot_diff_helpers import _rel_path
 
     f = tmp_path / "src" / "main.py"
@@ -113,7 +134,6 @@ def test_rel_path_inside_root(tmp_path):
 
 
 def test_normalize_path_backslashes():
-    """_normalize_path converts backslashes to forward slashes."""
     from arachna.snapshot.snapshot_diff_helpers import _normalize_path
 
     assert _normalize_path("src\\main.py") == "src/main.py"

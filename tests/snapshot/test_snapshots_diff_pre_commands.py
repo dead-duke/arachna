@@ -1,5 +1,4 @@
-"""Tests for _diff_pre_commands_* helpers in snapshot layer."""
-
+from arachna.config.profile_config import ProfileConfig
 from arachna.snapshot.snapshots import (
     _diff_pre_commands_line,
     _diff_pre_commands_marker,
@@ -7,6 +6,22 @@ from arachna.snapshot.snapshots import (
     compute_diff,
     create_snapshot,
 )
+
+
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+        exclude_patterns=[],
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_diff_pre_commands_line_added_only():
@@ -122,23 +137,11 @@ def test_compute_diff_pre_commands_tree_changed(tmp_path):
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
 
-    profile1 = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo 'file1.py'"],
-    }
-    sid = create_snapshot(profile1, name="tree-int-snap", root=tmp_path)
+    p1 = _profile(pre_commands=["echo 'file1.py'"])
+    sid = create_snapshot(p1, name="tree-int-snap", root=tmp_path)
 
-    profile2 = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo 'file1.py\nfile2.py'"],
-    }
-    diffs = compute_diff(sid, profile2, root=tmp_path)
+    p2 = _profile(pre_commands=["echo 'file1.py\nfile2.py'"])
+    diffs = compute_diff(sid, p2, root=tmp_path)
 
     pre_diffs = [d for d in diffs if d.path and d.path.startswith("pre:")]
     assert len(pre_diffs) >= 1

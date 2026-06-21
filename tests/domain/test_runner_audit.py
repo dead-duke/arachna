@@ -51,7 +51,7 @@ def test_run_command_with_custom_log_writer(tmp_path):
         calls.append((str(path), entry))
 
     with patch("subprocess.Popen") as mp:
-        from tests.domain.conftest import mock_popen
+        from tests.conftest import mock_popen
 
         mp.return_value = mock_popen(stdout="hello\n")
         run_command("echo hello", root=tmp_path, log_writer=custom_writer)

@@ -6,7 +6,7 @@ from arachna.domain.runner import (
     _validate_command,
     run_command,
 )
-from tests.domain.conftest import mock_popen
+from tests.conftest import mock_popen
 
 
 def test_simple(tmp_path):

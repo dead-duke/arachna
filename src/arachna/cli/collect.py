@@ -5,6 +5,7 @@ import json
 import sys
 
 from ..config.config import get_profile
+from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..config.validator import validate_profile
 from ..domain.collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
 from ..domain.gatherer import dry_run
@@ -21,11 +22,41 @@ from ._helpers import (
 from .renderer import render_dry_run
 
 
+def _cfg_project_name(config: ArachnaConfig | dict) -> str:
+    return (
+        config.project_name
+        if isinstance(config, ArachnaConfig)
+        else config.get("project_name", "Project")
+    )
+
+
+def _cfg_get_profile(name: str, root, config: ArachnaConfig | dict) -> ProfileConfig:
+    return get_profile(
+        name, root=root, config=config if isinstance(config, ArachnaConfig) else None
+    )
+
+
+def _resolve_profiles(config, root):
+    profiles = config.profiles if isinstance(config, ArachnaConfig) else config.get("profiles", {})
+    if not profiles:
+        return {"default": get_profile("default", root=root)}, 0
+    valid_profiles = {}
+    error_count = 0
+    for name in profiles:
+        try:
+            valid_profiles[name] = get_profile(
+                name, root=root, config=config if isinstance(config, ArachnaConfig) else None
+            )
+        except KeyError as e:
+            print(f"  Error: profile '{name}': {e}")
+            error_count += 1
+    return valid_profiles, error_count
+
+
 def _collect_one_profile(name, profile, args, out_path, root, project_name, skip_clean=False):
-    """Collect a single profile. Returns (created, tokens_by_file) or (None, dry_run_stats)."""
     profile = apply_args_to_profile(profile, args)
     if getattr(args, "no_pre_commands", False):
-        profile["pre_commands"] = []
+        profile.pre_commands = []
 
     if args.dry_run:
         query = getattr(args, "query", None)
@@ -34,7 +65,7 @@ def _collect_one_profile(name, profile, args, out_path, root, project_name, skip
         stats["name"] = name
         return None, None, stats
 
-    name_tmpl = profile.get("name_template", f"chat-{name}")
+    name_tmpl = profile.name_template
     if not args.merge and not skip_clean:
         clean_manifest(out_path, name_tmpl)
 
@@ -52,8 +83,7 @@ def _collect_one_profile(name, profile, args, out_path, root, project_name, skip
     return created, tokens_by_file, None
 
 
-def _process_collect_results(created, tokens_by_file, all_created, all_tokens):
-    """Aggregate collection results into running totals."""
+def _aggregate_results(created, tokens_by_file, all_created, all_tokens):
     if created:
         all_created.extend(created)
         if tokens_by_file:
@@ -63,17 +93,29 @@ def _process_collect_results(created, tokens_by_file, all_created, all_tokens):
         print("  No content collected.")
 
 
+def _update_manifest(out_path, created, name_tmpl, merge):
+    prev = load_manifest(out_path)
+    if merge:
+        updated = list(prev)
+        for f in created:
+            if f not in updated:
+                updated.append(f)
+    else:
+        updated = [f for f in prev if not f.startswith(name_tmpl)]
+        updated.extend(created)
+    save_manifest(out_path, updated)
+
+
 @register("collect-profile")
-def _cmd_collect_profile(args, config: dict):
+def _cmd_collect_profile(args, config: ArachnaConfig | dict):
     root = get_root(config)
-    project_name = config.get("project_name", "Project")
-    output_dir = parse_output_dir(args, config)
-    out_path = SafePath(root / output_dir, root)
+    project_name = _cfg_project_name(config)
+    out_path = SafePath(root / parse_output_dir(args, config), root)
     out_path.mkdir(parents=True, exist_ok=True)
 
     print(f"[{args.profile}] Collecting...")
     try:
-        profile = get_profile(args.profile, root=root, config=config)
+        profile = _cfg_get_profile(args.profile, root, config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -86,37 +128,24 @@ def _cmd_collect_profile(args, config: dict):
             render_dry_run([dry_run_stats])
         return
 
-    prev = load_manifest(out_path)
-    name_tmpl = profile.get("name_template", f"chat-{args.profile}")
-    if args.merge:
-        updated = list(prev)
-        for f in created:
-            if f not in updated:
-                updated.append(f)
-    else:
-        updated = [f for f in prev if not f.startswith(name_tmpl)]
-        updated.extend(created)
-    save_manifest(out_path, updated)
-
+    _update_manifest(out_path, created, profile.name_template, args.merge)
     print_collected(created)
 
 
 @register("collect-all")
-def _cmd_collect_all(args, config: dict):
+def _cmd_collect_all(args, config: ArachnaConfig | dict):
     root = get_root(config)
-    project_name = config.get("project_name", "Project")
-    output_dir = parse_output_dir(args, config)
-    out_path = SafePath(root / output_dir, root)
+    project_name = _cfg_project_name(config)
+    out_path = SafePath(root / parse_output_dir(args, config), root)
     out_path.mkdir(parents=True, exist_ok=True)
 
     clean_manifest(out_path, "")
-    all_created = []
-    all_tokens = {}
-    all_dry_run_stats = []
+    all_created, all_tokens, all_dry_run_stats = [], {}, []
+
     for name in list_profiles(config):
         print(f"[{name}] Collecting...")
         try:
-            profile = get_profile(name, root=root, config=config)
+            profile = _cfg_get_profile(name, root, config)
         except KeyError:
             continue
 
@@ -127,8 +156,7 @@ def _cmd_collect_all(args, config: dict):
             if dry_run_stats:
                 all_dry_run_stats.append(dry_run_stats)
             continue
-
-        _process_collect_results(created, tokens_by_file, all_created, all_tokens)
+        _aggregate_results(created, tokens_by_file, all_created, all_tokens)
 
     if args.dry_run:
         if all_dry_run_stats:
@@ -142,41 +170,23 @@ def _cmd_collect_all(args, config: dict):
 
 
 @register("collect-list")
-def _cmd_collect_list(args, config: dict):
+def _cmd_collect_list(args, config: ArachnaConfig | dict):
     root = get_root(config)
     for name in list_profiles(config):
         try:
-            prof = get_profile(name, root=root, config=config)
+            prof = _cfg_get_profile(name, root, config)
         except KeyError:
             print(f"  Warning: profile '{name}' not found, skipping")
             continue
-        cmd = prof.get("command")
-        if cmd:
-            print(f"  {name}: command ({prof.get('max_tokens', '?')} tokens)")
+        if prof.command:
+            print(f"  {name}: command ({prof.max_tokens} tokens)")
         else:
-            dirs = len(prof.get("directories", []))
-            files = len(prof.get("files", []))
-            print(f"  {name}: {dirs} dirs, {files} files ({prof.get('max_tokens', '?')} tokens)")
-
-
-def _resolve_profiles(config, root):
-    """Build valid profiles dict from config. Returns (valid_profiles, error_count)."""
-    profiles = config.get("profiles", {})
-    if not profiles:
-        return {"default": get_profile("default", root=root, config=config)}, 0
-    valid_profiles = {}
-    error_count = 0
-    for name in profiles:
-        try:
-            valid_profiles[name] = get_profile(name, root=root, config=config)
-        except KeyError as e:
-            print(f"  Error: profile '{name}': {e}")
-            error_count += 1
-    return valid_profiles, error_count
+            print(
+                f"  {name}: {len(prof.directories)} dirs, {len(prof.files)} files ({prof.max_tokens} tokens)"
+            )
 
 
 def _validate_and_print(profiles):
-    """Validate profiles and print results. Returns (errors, warnings) counts."""
     all_errors = 0
     all_warnings = 0
     for name, prof in profiles.items():
@@ -197,20 +207,19 @@ def _validate_and_print(profiles):
 
 
 @register("collect-validate")
-def _cmd_collect_validate(args, config: dict):
+def _cmd_collect_validate(args, config: ArachnaConfig | dict):
     root = get_root(config)
     profiles, resolve_errors = _resolve_profiles(config, root)
-    all_errors, all_warnings = _validate_and_print(profiles)
-    all_errors += resolve_errors
+    all_errors = _validate_and_print(profiles)[0] + resolve_errors
+    all_warnings = _validate_and_print(profiles)[1]
     print(f"\nResult: {all_errors} error(s), {all_warnings} warning(s)")
     sys.exit(1 if all_errors > 0 else 0)
 
 
 @register("collect-clean")
-def _cmd_collect_clean(args, config: dict):
+def _cmd_collect_clean(args, config: ArachnaConfig | dict):
     root = get_root(config)
-    output_dir = parse_output_dir(args, config)
-    out_path = SafePath(root / output_dir, root)
+    out_path = SafePath(root / parse_output_dir(args, config), root)
     cleaned = 0
     mf = out_path / _MANIFEST
     if mf.exists():
@@ -235,29 +244,26 @@ def _cmd_collect_clean(args, config: dict):
     print(f"Cleaned {cleaned} file(s).")
 
 
-def _cmd_collect_repo(args, config: dict):
-    """Handle arachna collect --repo <url>."""
+def _cmd_collect_repo(args, config: ArachnaConfig | dict):
     url = args.repo
     if not url.startswith(("http://", "https://")):
         print("Error: only http:// and https:// URLs are allowed.")
         print(f"  Got: {url}")
         sys.exit(1)
 
-    profile = args.profile or "full"
-    output_dir = parse_output_dir(args, config)
     root = get_root(config)
-
     print(f"Cloning {url}...")
     try:
         from ..config.remote import collect_remote
 
-        result = collect_remote(
-            url=url,
-            profile=profile,
-            output_dir=output_dir,
-            root=root,
+        print(
+            collect_remote(
+                url=url,
+                profile=args.profile or "full",
+                output_dir=parse_output_dir(args, config),
+                root=root,
+            )
         )
-        print(result)
     except RuntimeError as e:
         print(f"Error: {e}")
         sys.exit(1)

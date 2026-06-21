@@ -13,16 +13,47 @@ from typing import Any
 
 from ..domain.collector import clean_manifest, collect
 from ..domain.path_utils import SafePath
+from .profile_config import ProfileConfig
 
 
-def make_profile(profile: dict, **overrides) -> dict:
-    p = dict(profile)
+def make_profile(profile: ProfileConfig, **overrides) -> ProfileConfig:
+    p = profile.to_dict()
     p.update(overrides)
-    return p
+    return _dict_to_profile(p)
+
+
+def _dict_to_profile(d: dict) -> ProfileConfig:
+    defaults = ProfileConfig()
+    return ProfileConfig(
+        name_template=d.get("name_template", defaults.name_template),
+        title_template=d.get("title_template", defaults.title_template),
+        max_tokens=d.get("max_tokens", defaults.max_tokens),
+        split_mode=d.get("split_mode", defaults.split_mode),
+        directories=d.get("directories", defaults.directories),
+        patterns=d.get("patterns", defaults.patterns),
+        files=d.get("files", defaults.files),
+        exclude_patterns=d.get("exclude_patterns", defaults.exclude_patterns),
+        pre_commands=d.get("pre_commands", defaults.pre_commands),
+        post_commands=d.get("post_commands", defaults.post_commands),
+        command=d.get("command"),
+        section_format=d.get("section_format", defaults.section_format),
+        compress=d.get("compress", defaults.compress),
+        include_binary=d.get("include_binary", defaults.include_binary),
+        binary_extensions=d.get("binary_extensions"),
+        binary_max_mb=d.get("binary_max_mb", defaults.binary_max_mb),
+        tokenizer=d.get("tokenizer", defaults.tokenizer),
+        chars_per_token=d.get("chars_per_token"),
+        line_numbers=d.get("line_numbers", defaults.line_numbers),
+        extends=d.get("extends"),
+        remote=d.get("remote", defaults.remote),
+        use_gitignore=d.get("use_gitignore", defaults.use_gitignore),
+        split_marker=d.get("split_marker", defaults.split_marker),
+        _explicit_keys=set(d.keys()),
+    )
 
 
 def _run_one(
-    profile: dict,
+    profile: ProfileConfig,
     output_dir: str,
     root: Path,
     mode: str = "full",
@@ -49,7 +80,7 @@ def _run_one(
     return {"parts": len(parts), "tokens": total_tokens, "time": elapsed, "files": len(created)}
 
 
-def run_benchmark(profile: dict, output_dir: str, root: Path) -> dict[str, dict[str, Any]]:
+def run_benchmark(profile: ProfileConfig, output_dir: str, root: Path) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
     results["full"] = _run_one(profile, output_dir, root, mode="full")
     results["compress"] = _run_one(
@@ -64,10 +95,10 @@ def run_benchmark(profile: dict, output_dir: str, root: Path) -> dict[str, dict[
     return results
 
 
-def _find_query_candidate(profile: dict, root: Path) -> str | None:
+def _find_query_candidate(profile: ProfileConfig, root: Path) -> str | None:
     from ..domain.gatherer_files import _scan_directories
 
-    exclude = profile.get("exclude_patterns", [])
+    exclude = profile.exclude_patterns
     files = _scan_directories(profile, exclude, root=root)
     if not files:
         return None

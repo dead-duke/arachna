@@ -21,11 +21,11 @@ __all__ = [
 
 
 def _assemble_command_content(profile, tokenizer, root):
-    command = profile["command"]
-    do_compress = profile.get("compress", False)
-    split_mode = profile.get("split_mode", "by_file")
-    split_marker = profile.get("split_marker", "\n\n")
-    max_tokens = profile.get("max_tokens", 16000)
+    command = profile.command
+    do_compress = profile.compress
+    split_mode = profile.split_mode
+    split_marker = profile.split_marker
+    max_tokens = profile.max_tokens
     raw_content = gather_command(command, root=root)
     if do_compress and raw_content.strip():
         raw_content = _compress(raw_content)
@@ -62,8 +62,8 @@ def _assemble_content(
     query=None,
     mode="full",
 ):
-    if profile.get("command"):
-        if profile.get("directories") or profile.get("files"):
+    if profile.command:
+        if profile.directories or profile.files:
             print(
                 "  Warning: profile has both 'command' and 'directories'/'files'. Using 'command', ignoring directories and files."
             )
@@ -84,8 +84,8 @@ def _assemble_content(
 def dry_run(profile, root, tokenizer=None, query=None, mode="full"):
     tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns(profile, root=root)
-    max_tokens = profile.get("max_tokens", 16000)
-    name_tmpl = profile.get("name_template", "chat")
+    max_tokens = profile.max_tokens
+    name_tmpl = profile.name_template
     named_sections, parts, indices, _ = _assemble_content(
         profile,
         exclude,

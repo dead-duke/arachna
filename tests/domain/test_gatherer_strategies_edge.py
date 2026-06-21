@@ -1,27 +1,28 @@
-"""Edge case tests for gatherer_strategies.py uncovered branches."""
-
 import os
 from unittest.mock import patch
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.gatherer_strategies import _assemble_in_memory, _FullModeStrategy
 from arachna.domain.tokenizer import count_tokens
 
 
-def _profile(**kw):
-    return {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "files": [],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        **kw,
-    }
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+        files=[],
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_full_mode_profile_files_dedup(tmp_path):
-    """profile files already in filepaths are not duplicated."""
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("code")
@@ -44,7 +45,6 @@ def test_full_mode_profile_files_dedup(tmp_path):
 
 
 def test_full_mode_incremental_deleted(tmp_path):
-    """Incremental mode reports deleted files."""
     src = tmp_path / "src"
     src.mkdir()
     f = src / "temp.py"
@@ -79,7 +79,6 @@ def test_full_mode_incremental_deleted(tmp_path):
 
 
 def test_full_mode_parallel_fallback_to_sequential(tmp_path):
-    """When concurrent.futures import fails, falls back to sequential."""
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("code")
@@ -112,7 +111,6 @@ def test_full_mode_parallel_fallback_to_sequential(tmp_path):
 
 
 def test_assemble_in_memory_unlimited_tokens(tmp_path):
-    """_assemble_in_memory with max_tokens=-1 returns single part."""
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("code1")
@@ -135,7 +133,6 @@ def test_assemble_in_memory_unlimited_tokens(tmp_path):
 
 
 def test_assemble_in_memory_verbose_compress_stats(tmp_path, capsys):
-    """_assemble_in_memory with verbose and compress prints stats."""
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("a\n\n\n\nb\n")

@@ -1,7 +1,18 @@
-"""Tests for snapshot orchestration layer."""
-
+from arachna.config.profile_config import ProfileConfig
 from arachna.snapshot.snapshots import compute_diff, create_snapshot
 from arachna.snapshot.store import load_snapshot
+
+
+def _profile(dirs=None, pats=None):
+    return ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=dirs or ["src"],
+        patterns=pats or ["*.py"],
+        use_gitignore=False,
+    )
 
 
 def test_create_snapshot_returns_id(tmp_path, setup_config, make_profile):

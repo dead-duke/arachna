@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 from arachna.domain.runner import _validate_command, run_command
-from tests.domain.conftest import mock_popen
+from tests.conftest import mock_popen
 
 
 def test_restricted_mode_allows_safe_commands(tmp_path):

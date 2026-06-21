@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 
 from ..domain.api_types import DiffSection
-from ..domain.runner import run_command
+from ..domain.runner import _sanitize_log, run_command
 from .differ import compute_diff as differ_compute_diff
 from .snapshot_diff_files import _get_content_from_manifest
 from .store import _SHA256_PREFIX, load_snapshot, write_object
@@ -27,7 +27,7 @@ def _collect_snapshot_pre_commands(profile: dict, root: Path) -> dict[str, str]:
             obj_hash = write_object(output.encode("utf-8"), root=root)
             pre_commands_data[f"{_PRE_LABEL_PREFIX}{label}"] = f"{_SHA256_PREFIX}{obj_hash}"
         else:
-            sanitized = cmd[:80].replace("\n", "\\n").replace("\r", "\\r")
+            sanitized = _sanitize_log(cmd[:80])
             logger.warning("pre_command produced no output: %s", sanitized)
     return pre_commands_data
 
@@ -42,7 +42,7 @@ def _collect_snapshot_command(profile: dict, root: Path) -> dict[str, str]:
             obj_hash = write_object(output.encode("utf-8"), root=root)
             command_data[_COMMAND_OUTPUT_LABEL] = f"{_SHA256_PREFIX}{obj_hash}"
         else:
-            sanitized = cmd[:80].replace("\n", "\\n").replace("\r", "\\r")
+            sanitized = _sanitize_log(cmd[:80])
             logger.warning("command produced no output: %s", sanitized)
     return command_data
 

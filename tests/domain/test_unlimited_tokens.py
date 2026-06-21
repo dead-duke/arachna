@@ -1,6 +1,20 @@
-"""Tests for max_tokens=-1 unlimited mode."""
-
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import collect
+
+
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T (part {part})\n\n",
+        max_tokens=-1,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_unlimited_single_part(tmp_path):
@@ -13,14 +27,7 @@ def test_unlimited_single_part(tmp_path):
     out.mkdir()
 
     created, tokens_by_file, parts, metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": -1,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
+        _profile(),
         "P",
         str(out),
         root=tmp_path,
@@ -40,14 +47,7 @@ def test_unlimited_all_files_present(tmp_path):
     out.mkdir()
 
     created, tokens_by_file, parts, metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": -1,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
+        _profile(),
         "P",
         str(out),
         root=tmp_path,

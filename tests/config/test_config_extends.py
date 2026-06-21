@@ -1,5 +1,3 @@
-"""Tests for config inheritance via 'extends' field (v2.9.2)."""
-
 import json
 
 import pytest
@@ -22,8 +20,8 @@ def test_config_extends_scalar(tmp_path):
     )
     config = load_config(root=tmp_path)
     profile = get_profile("child", root=tmp_path, config=config)
-    assert profile["max_tokens"] == 32000
-    assert profile["directories"] == ["src"]
+    assert profile.max_tokens == 32000
+    assert profile.directories == ["src"]
 
 
 def test_config_extends_exclude_append(tmp_path):
@@ -45,8 +43,8 @@ def test_config_extends_exclude_append(tmp_path):
     )
     config = load_config(root=tmp_path)
     profile = get_profile("child", root=tmp_path, config=config)
-    assert "*.pyc" in profile["exclude_patterns"]
-    assert "*.log" in profile["exclude_patterns"]
+    assert "*.pyc" in profile.exclude_patterns
+    assert "*.log" in profile.exclude_patterns
 
 
 def test_config_extends_source_override(tmp_path):
@@ -64,7 +62,7 @@ def test_config_extends_source_override(tmp_path):
     )
     config = load_config(root=tmp_path)
     profile = get_profile("child", root=tmp_path, config=config)
-    assert profile["directories"] == ["lib"]
+    assert profile.directories == ["lib"]
 
 
 def test_config_extends_circular(tmp_path):
@@ -104,8 +102,8 @@ def test_config_extends_deep_chain(tmp_path):
     )
     config = load_config(root=tmp_path)
     profile = get_profile("child", root=tmp_path, config=config)
-    assert profile["max_tokens"] == 500
-    assert profile["directories"] == ["src"]
-    assert profile["patterns"] == ["*.py"]
-    assert "*.pyc" in profile["exclude_patterns"]
-    assert "*.log" in profile["exclude_patterns"]
+    assert profile.max_tokens == 500
+    assert profile.directories == ["src"]
+    assert profile.patterns == ["*.py"]
+    assert "*.pyc" in profile.exclude_patterns
+    assert "*.log" in profile.exclude_patterns

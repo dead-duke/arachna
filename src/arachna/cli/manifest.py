@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 
+from ..config.profile_config import ArachnaConfig
 from ..domain.collector import load_manifest
 from ..domain.path_utils import SafePath
 from ..domain.tokenizer import count_tokens
@@ -48,14 +49,18 @@ def _manifest_text(manifest_files, out_path, project_name):
 
 
 @register("manifest")
-def _cmd_manifest(args, config: dict):
+def _cmd_manifest(args, config: ArachnaConfig | dict):
     root = get_root(config)
     output_dir = parse_output_dir(args, config)
     out_path = SafePath(root / output_dir, root) if root else SafePath(Path(output_dir))
-    project_name = config.get("project_name", "Project")
+    if isinstance(config, ArachnaConfig):
+        project_name = config.project_name
+        profiles = config.profiles
+    else:
+        project_name = config.get("project_name", "Project")
+        profiles = config.get("profiles", {})
 
     manifest_files = load_manifest(out_path)
-    profiles = config.get("profiles", {})
 
     if args.json:
         _manifest_json(manifest_files, out_path, profiles, project_name)

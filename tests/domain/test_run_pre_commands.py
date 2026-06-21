@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 from arachna.domain.runner import run_pre_commands
-from tests.domain.conftest import mock_popen
+from tests.conftest import mock_popen
 
 
 def test_run_pre_commands_single(tmp_path):

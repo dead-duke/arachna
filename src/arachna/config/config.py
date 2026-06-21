@@ -3,29 +3,11 @@
 
 import json
 from pathlib import Path
-from typing import Any
 
-_COMMON_EXCLUDE_DIRS = frozenset(
-    {
-        ".git",
-        ".tox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "__pycache__",
-        "venv",
-        "node_modules",
-    }
-)
+from .profile_config import DEFAULT_PROFILE_CONFIG, ArachnaConfig, ProfileConfig
 
-DEFAULT_EXCLUDE = ["*__pycache__*", "*.pyc", "*.egg-info*", ".DS_Store"]
-for _d in sorted(_COMMON_EXCLUDE_DIRS):
-    DEFAULT_EXCLUDE.extend([_d, f"{_d}/*"])
-
-DEFAULT_PATTERNS = ["*.py", "*.md", "*.yaml", "*.yml", "*.toml", "*.json", "*.cfg", "*.ini"]
-
-_MERGE_APPEND = {"exclude_patterns", "patterns"}
 _MAX_EXTENDS_DEPTH = 5
+_MERGE_APPEND = {"exclude_patterns", "patterns"}
 
 
 def find_config(root: Path) -> Path | None:
@@ -37,96 +19,105 @@ def find_config(root: Path) -> Path | None:
     return None
 
 
-def load_config(root: Path) -> dict[str, Any]:
+def load_config(root: Path) -> ArachnaConfig:
     """Load config from .arachna.json found from root."""
     cfg_path = find_config(root)
     if not cfg_path:
-        return _default_config()
+        return ArachnaConfig()
     with open(cfg_path, encoding="utf-8") as f:
         data = json.load(f)
-    defaults = _default_config()
-    defaults.update(data)
-    return defaults
+    profiles_raw = data.get("profiles", {})
+    profiles = {}
+    for name, prof_dict in profiles_raw.items():
+        if isinstance(prof_dict, dict):
+            profiles[name] = _dict_to_profile(prof_dict)
+    return ArachnaConfig(
+        project_name=data.get("project_name", "Project"),
+        output_dir=data.get("output_dir", "arachna_context"),
+        tokenizer=data.get("tokenizer", "default"),
+        profiles=profiles,
+    )
 
 
-def _default_config() -> dict[str, Any]:
-    return {
-        "project_name": "Project",
-        "output_dir": "arachna_context",
-        "tokenizer": "default",
-        "profiles": {},
-    }
+def _dict_to_profile(d: dict) -> ProfileConfig:
+    """Convert a raw dict from .arachna.json to ProfileConfig.
+
+    Tracks which keys were explicitly present in the source dict
+    via _explicit_keys — used by extends merging to distinguish
+    user-specified values from defaults.
+    """
+    defaults = ProfileConfig()
+    return ProfileConfig(
+        name_template=d.get("name_template", defaults.name_template),
+        title_template=d.get("title_template", defaults.title_template),
+        max_tokens=d.get("max_tokens", defaults.max_tokens),
+        split_mode=d.get("split_mode", defaults.split_mode),
+        directories=d.get("directories", defaults.directories),
+        patterns=d.get("patterns", defaults.patterns),
+        files=d.get("files", defaults.files),
+        exclude_patterns=d.get("exclude_patterns", defaults.exclude_patterns),
+        pre_commands=d.get("pre_commands", defaults.pre_commands),
+        post_commands=d.get("post_commands", defaults.post_commands),
+        command=d.get("command"),
+        section_format=d.get("section_format", defaults.section_format),
+        compress=d.get("compress", defaults.compress),
+        include_binary=d.get("include_binary", defaults.include_binary),
+        binary_extensions=d.get("binary_extensions"),
+        binary_max_mb=d.get("binary_max_mb", defaults.binary_max_mb),
+        tokenizer=d.get("tokenizer", defaults.tokenizer),
+        chars_per_token=d.get("chars_per_token"),
+        line_numbers=d.get("line_numbers", defaults.line_numbers),
+        extends=d.get("extends"),
+        remote=d.get("remote", defaults.remote),
+        use_gitignore=d.get("use_gitignore", defaults.use_gitignore),
+        split_marker=d.get("split_marker", defaults.split_marker),
+        _explicit_keys=set(d.keys()),
+    )
 
 
-def _resolve_profile(name: str, profiles: dict, depth: int = 0) -> dict[str, Any]:
+def _resolve_profile(name: str, profiles: dict, depth: int = 0) -> ProfileConfig:
     if depth > _MAX_EXTENDS_DEPTH:
         raise ValueError(
             f"Circular or too deep extends chain for profile '{name}' (max depth {_MAX_EXTENDS_DEPTH})"
         )
     if name not in profiles:
         raise KeyError(f"Profile '{name}' not found. Available: {list(profiles.keys())}")
-    profile = dict(profiles[name])
-    if "extends" in profile:
-        parent_name = profile.pop("extends")
+    profile = profiles[name]
+    if profile.extends:
+        parent_name = profile.extends
         parent = _resolve_profile(parent_name, profiles, depth + 1)
         profile = _merge_profiles(parent, profile)
     return profile
 
 
-def _merge_profiles(base: dict, child: dict) -> dict:
-    merged = dict(base)
-    for key, value in child.items():
-        if key in _MERGE_APPEND and key in merged:
-            merged[key] = merged[key] + value
+def _merge_profiles(base: ProfileConfig, child: ProfileConfig) -> ProfileConfig:
+    merged = base.to_dict()
+    for key in child._explicit_keys:
+        if key == "extends":
+            continue
+        if key in _MERGE_APPEND:
+            if key in base._explicit_keys:
+                merged[key] = merged.get(key, []) + getattr(child, key)
+            else:
+                merged[key] = getattr(child, key)
         else:
-            if key in merged and key not in _MERGE_APPEND and merged[key] != value:
-                print(
-                    f"  Warning: profile field '{key}' overridden by child (parent: {merged[key]}, child: {value})"
-                )
-            merged[key] = value
-    return merged
+            merged[key] = getattr(child, key)
+    return _dict_to_profile(merged)
 
 
-def get_profile(name: str, root: Path, config: dict[str, Any] | None = None) -> dict[str, Any]:
+def get_profile(name: str, root: Path, config: ArachnaConfig | None = None) -> ProfileConfig:
     """Get profile by name from config. Falls back to load_config(root) if config is None."""
     if config is None:
         config = load_config(root)
-    project_name = config.get("project_name", "Project")
-    profiles = config.get("profiles", {})
+    project_name = config.project_name
+    profiles = config.profiles
     if not profiles:
-        return _default_profile()
+        return DEFAULT_PROFILE_CONFIG
     if name not in profiles:
         raise KeyError(f"Profile '{name}' not found. Available: {list(profiles.keys())}")
     profile = _resolve_profile(name, profiles)
-    profile.setdefault("name_template", f"chat-{name}")
-    profile.setdefault("title_template", f"# {project_name} — {name.upper()} (part {{part}})\n\n")
-    profile.setdefault("max_tokens", 16000)
-    profile.setdefault("split_mode", "by_file")
-    profile.setdefault("directories", [])
-    profile.setdefault("patterns", ["*"])
-    profile.setdefault("files", [])
-    profile.setdefault("pre_commands", [])
-    profile.setdefault("command", None)
-    profile.setdefault("exclude_patterns", DEFAULT_EXCLUDE.copy())
-    profile.setdefault("split_marker", "\n\n")
-    profile.setdefault("tokenizer", "default")
-    profile.setdefault("line_numbers", False)
-    profile.setdefault("remote", False)
+    if "name_template" not in profile._explicit_keys:
+        profile.name_template = f"chat-{name}"
+    if "title_template" not in profile._explicit_keys:
+        profile.title_template = f"# {project_name} — {name.upper()} (part {{part}})\n\n"
     return profile
-
-
-def _default_profile() -> dict[str, Any]:
-    return {
-        "name_template": "chat-default",
-        "title_template": "# Project — DEFAULT (part {part})\n\n",
-        "max_tokens": 32000,
-        "split_mode": "by_file",
-        "directories": ["."],
-        "patterns": DEFAULT_PATTERNS.copy(),
-        "exclude_patterns": DEFAULT_EXCLUDE.copy(),
-        "pre_commands": ["tree -I '__pycache__|*.pyc|*.egg-info|venv|.git' || ls -la"],
-        "split_marker": "\n\n",
-        "tokenizer": "default",
-        "line_numbers": False,
-        "remote": False,
-    }

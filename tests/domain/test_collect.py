@@ -1,6 +1,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import (
     _find_next_part_num,
     clean_manifest,
@@ -17,6 +18,18 @@ def _safe_out(tmp_path, name="out"):
     return SafePath(out, tmp_path)
 
 
+def _profile():
+    return ProfileConfig(
+        name_template="c",
+        title_template="# T (part {part})\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+    )
+
+
 def test_single_file(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
@@ -24,14 +37,7 @@ def test_single_file(tmp_path):
     out = tmp_path / "single_out"
     out.mkdir()
     created, tokens_by_file, _parts, _metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
+        _profile(),
         "P",
         str(out),
         root=tmp_path,
@@ -47,19 +53,9 @@ def test_multiple_parts(tmp_path):
     (src / "b.py").write_text("y" * 2000)
     out = tmp_path / "multi_out"
     out.mkdir()
-    created, tokens_by_file, _parts, _metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 10,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
-        "P",
-        str(out),
-        root=tmp_path,
-    )
+    p = _profile()
+    p.max_tokens = 10
+    created, tokens_by_file, _parts, _metrics = collect(p, "P", str(out), root=tmp_path)
     assert len(created) >= 4
 
 
@@ -69,14 +65,7 @@ def test_empty(tmp_path):
     out = tmp_path / "empty_out"
     out.mkdir()
     created, tokens_by_file, _parts, _metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
+        _profile(),
         "P",
         str(out),
         root=tmp_path,
@@ -87,18 +76,17 @@ def test_empty(tmp_path):
 def test_command_mode(tmp_path):
     out = tmp_path / "cmd_out"
     out.mkdir()
-    created, tokens_by_file, _parts, _metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_paragraph",
-            "command": "echo hi",
-        },
-        "P",
-        str(out),
-        root=tmp_path,
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T (part {part})\n\n",
+        max_tokens=16000,
+        split_mode="by_paragraph",
+        command="echo hi",
+        directories=[],
+        patterns=[],
+        use_gitignore=False,
     )
+    created, tokens_by_file, _parts, _metrics = collect(p, "P", str(out), root=tmp_path)
     assert len(created) == 1
 
 
@@ -109,15 +97,7 @@ def test_merge_mode_single_part(tmp_path):
     out = tmp_path / "merge_single_out"
     out.mkdir()
 
-    profile = {
-        "name_template": "c",
-        "title_template": "# T (part {part})\n\n",
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "use_gitignore": False,
-    }
+    profile = _profile()
 
     created1, _, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created1) == 1
@@ -136,15 +116,8 @@ def test_merge_mode_multiple_parts(tmp_path):
     out = tmp_path / "merge_multi_out"
     out.mkdir()
 
-    profile = {
-        "name_template": "c",
-        "title_template": "# T (part {part})\n\n",
-        "max_tokens": 10,
-        "split_mode": "by_file",
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "use_gitignore": False,
-    }
+    profile = _profile()
+    profile.max_tokens = 10
 
     created1, _, _, _ = collect(profile, "P", str(out), merge=True, root=tmp_path)
     assert len(created1) >= 4
@@ -216,23 +189,12 @@ def test_post_commands_executed(tmp_path):
     out = tmp_path / "post_out"
     out.mkdir()
 
+    p = _profile()
+    p.post_commands = ["echo done"]
+
     with patch("arachna.domain.collector.run_command") as mock_run:
         mock_run.return_value = "done"
-        collect(
-            {
-                "name_template": "c",
-                "title_template": "# T (part {part})\n\n",
-                "max_tokens": 16000,
-                "split_mode": "by_file",
-                "directories": ["src"],
-                "patterns": ["*.py"],
-                "use_gitignore": False,
-                "post_commands": ["echo done"],
-            },
-            "P",
-            str(out),
-            root=tmp_path,
-        )
+        collect(p, "P", str(out), root=tmp_path)
         mock_run.assert_called_with("echo done", root=tmp_path, allow_file_args=True)
 
 
@@ -243,14 +205,7 @@ def test_metrics_written(tmp_path):
     out = tmp_path / "metrics_out"
     out.mkdir()
     created, tokens_by_file, parts, metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
+        _profile(),
         "P",
         str(out),
         root=tmp_path,

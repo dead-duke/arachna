@@ -1,6 +1,20 @@
-"""Tests for progress output to stderr."""
-
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import collect
+
+
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T (part {part})\n\n",
+        max_tokens=32000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_progress_stderr_large_collection(tmp_path, capsys):
@@ -12,20 +26,7 @@ def test_progress_stderr_large_collection(tmp_path, capsys):
     out = tmp_path / "out"
     out.mkdir()
 
-    collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 32000,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
-        "P",
-        str(out),
-        verbose=True,
-        root=tmp_path,
-    )
+    collect(_profile(max_tokens=32000), "P", str(out), verbose=True, root=tmp_path)
 
     captured = capsys.readouterr()
     assert "Collecting..." in captured.err
@@ -41,20 +42,7 @@ def test_no_progress_small_collection(tmp_path, capsys):
     out = tmp_path / "out"
     out.mkdir()
 
-    collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-        },
-        "P",
-        str(out),
-        verbose=True,
-        root=tmp_path,
-    )
+    collect(_profile(), "P", str(out), verbose=True, root=tmp_path)
 
     captured = capsys.readouterr()
     assert "Collecting..." not in captured.err

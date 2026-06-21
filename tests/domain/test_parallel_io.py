@@ -1,8 +1,22 @@
-"""Tests for ThreadPoolExecutor parallel I/O in gatherer.py."""
-
 import os
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import collect
+
+
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T (part {part})\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_parallel_io_fallback_sequential(tmp_path):
@@ -18,14 +32,7 @@ def test_parallel_io_fallback_sequential(tmp_path):
     os.environ["ARACHNA_MAX_WORKERS"] = "1"
     try:
         created, tokens_by_file, parts, metrics = collect(
-            {
-                "name_template": "c",
-                "title_template": "# T (part {part})\n\n",
-                "max_tokens": 16000,
-                "split_mode": "by_file",
-                "directories": ["src"],
-                "patterns": ["*.py"],
-            },
+            _profile(),
             "P",
             str(out),
             root=tmp_path,
@@ -53,14 +60,7 @@ def test_parallel_io_with_workers(tmp_path):
     os.environ["ARACHNA_MAX_WORKERS"] = "2"
     try:
         created, tokens_by_file, parts, metrics = collect(
-            {
-                "name_template": "c",
-                "title_template": "# T (part {part})\n\n",
-                "max_tokens": 16000,
-                "split_mode": "by_file",
-                "directories": ["src"],
-                "patterns": ["*.py"],
-            },
+            _profile(),
             "P",
             str(out),
             root=tmp_path,
@@ -88,14 +88,7 @@ def test_parallel_io_single_file(tmp_path):
     os.environ["ARACHNA_MAX_WORKERS"] = "4"
     try:
         created, tokens_by_file, parts, metrics = collect(
-            {
-                "name_template": "c",
-                "title_template": "# T (part {part})\n\n",
-                "max_tokens": 16000,
-                "split_mode": "by_file",
-                "directories": ["src"],
-                "patterns": ["*.py"],
-            },
+            _profile(),
             "P",
             str(out),
             root=tmp_path,
@@ -124,14 +117,7 @@ def test_parallel_io_preserves_order(tmp_path):
     os.environ["ARACHNA_MAX_WORKERS"] = "4"
     try:
         created, tokens_by_file, parts, metrics = collect(
-            {
-                "name_template": "c",
-                "title_template": "# T (part {part})\n\n",
-                "max_tokens": -1,
-                "split_mode": "by_file",
-                "directories": ["src"],
-                "patterns": ["*.py"],
-            },
+            _profile(max_tokens=-1),
             "P",
             str(out),
             root=tmp_path,

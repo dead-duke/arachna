@@ -1,9 +1,9 @@
 # TODO
 
 ## v5.2.0 — Code quality + architecture fixes (details: llm_docs/specs/spec-v5.2.0-code-quality-architecture.md)
-- [ ] Break api/ ↔ config/ cycle — api accepts config as parameter, config/remote uses domain/ directly
-- [ ] Move compute_diff_stats from snapshot/differ.py to domain/differ_stats.py
-- [ ] SafeLogger: Centralize CRLF sanitization with _sanitize_log() helper
+- [x] Break api/ ↔ config/ cycle — api accepts config as parameter, config/remote uses domain/ directly
+- [x] Move compute_diff_stats from snapshot/differ.py to domain/differ_stats.py
+- [x] SafeLogger: Centralize CRLF sanitization with _sanitize_log() helper
 - [ ] Dataclass-based config: ProfileConfig + ArachnaConfig with __post_init__ validation
 - [ ] Enum/Literal for modes: CollectionMode, OutputFormat, SplitMode
 - [ ] Replace time.sleep with os.utime in incremental cache tests

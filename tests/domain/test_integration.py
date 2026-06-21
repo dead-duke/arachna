@@ -1,7 +1,7 @@
-"""Integration tests for gitignore-based file exclusion."""
-
 from pathlib import Path
 
+from arachna.config.profile_config import ProfileConfig
+from arachna.domain.collector import collect
 from arachna.domain.gatherer import gather_files
 
 
@@ -11,10 +11,16 @@ def test_gitignore_excludes_matched_files(tmp_path):
     (tmp_path / "debug.txt").write_text("some log")
     (tmp_path / "secret.key").write_text("top secret")
 
-    sections = gather_files(
-        {"directories": [str(tmp_path)], "patterns": ["*"], "use_gitignore": True},
-        root=tmp_path,
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=[str(tmp_path)],
+        patterns=["*"],
+        use_gitignore=True,
     )
+    sections = gather_files(p, root=tmp_path)
     filenames = [Path(s.split("\n")[0].replace("### ", "")).name for s in sections]
     assert "main.py" in filenames
     assert ".gitignore" in filenames
@@ -32,10 +38,16 @@ def test_gitignore_nested_patterns(tmp_path):
     (sub / "nested.py").write_text("nested")
     (sub / "nested.csv").write_text("comma,separated")
 
-    sections = gather_files(
-        {"directories": [str(tmp_path)], "patterns": ["*"], "use_gitignore": True},
-        root=tmp_path,
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=[str(tmp_path)],
+        patterns=["*"],
+        use_gitignore=True,
     )
+    sections = gather_files(p, root=tmp_path)
     filenames = [Path(s.split("\n")[0].replace("### ", "")).name for s in sections]
     assert "main.py" in filenames
     assert "nested.py" in filenames
@@ -48,10 +60,16 @@ def test_gitignore_use_gitignore_false_includes_all(tmp_path):
     (tmp_path / "main.py").write_text("print('hello')")
     (tmp_path / "debug.txt").write_text("some log")
 
-    sections = gather_files(
-        {"directories": [str(tmp_path)], "patterns": ["*"], "use_gitignore": False},
-        root=tmp_path,
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=[str(tmp_path)],
+        patterns=["*"],
+        use_gitignore=False,
     )
+    sections = gather_files(p, root=tmp_path)
     filenames = [Path(s.split("\n")[0].replace("### ", "")).name for s in sections]
     assert "main.py" in filenames
     assert "debug.txt" in filenames
@@ -63,22 +81,17 @@ def test_gitignore_patterns_tracked_in_manifest(tmp_path):
     (tmp_path / "src" / "main.py").write_text("print('hi')")
     (tmp_path / "src" / "debug.txt").write_text("log")
 
-    from arachna.domain.collector import collect
-
-    created, _, _, _ = collect(
-        {
-            "name_template": "chat-test",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*"],
-            "use_gitignore": True,
-        },
-        "TestProject",
-        "out",
-        root=tmp_path,
+    p = ProfileConfig(
+        name_template="chat-test",
+        title_template="# T (part {part})\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*"],
+        use_gitignore=True,
     )
+
+    created, _, _, _ = collect(p, "TestProject", "out", root=tmp_path)
     assert len(created) == 1
     full = Path(created[0]).read_text()
     assert "main.py" in full

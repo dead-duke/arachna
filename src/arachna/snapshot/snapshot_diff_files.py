@@ -5,6 +5,7 @@ import fnmatch
 import logging
 from pathlib import Path
 
+from ..config.profile_config import ProfileConfig
 from ..domain.api_types import DiffSection
 from ..domain.gatherer_files import _get_exclude_patterns, _scan_directories
 from ..domain.path_utils import SafePath
@@ -17,10 +18,10 @@ from .store_errors import CorruptedStoreError, ObjectNotFoundError
 logger = logging.getLogger("arachna.snapshot")
 
 
-def _read_profile_files(profile: dict, root: Path) -> dict[str, str]:
+def _read_profile_files(profile: ProfileConfig, root: Path) -> dict[str, str]:
     """Read files explicitly listed in profile.files, return dict[rel_path, content]."""
     result = {}
-    for filepath_str in profile.get("files", []):
+    for filepath_str in profile.files:
         fp = SafePath(filepath_str, root)
         if not fp.is_file():
             continue
@@ -32,7 +33,7 @@ def _read_profile_files(profile: dict, root: Path) -> dict[str, str]:
     return result
 
 
-def _collect_snapshot_files(profile: dict, root: Path) -> dict[str, str]:
+def _collect_snapshot_files(profile: ProfileConfig, root: Path) -> dict[str, str]:
     """Collect files matching profile directories and patterns."""
     exclude = _get_exclude_patterns(profile, root=root)
     filepaths = _scan_directories(profile, exclude, root=root)
@@ -54,7 +55,7 @@ def _get_content_from_manifest(hash_spec: str, root: Path) -> str:
     return read_object(hash_spec[len(_SHA256_PREFIX) :], root=root).decode("utf-8")
 
 
-def _build_current_files(profile: dict, exclude: list[str], root: Path) -> dict[str, str]:
+def _build_current_files(profile: ProfileConfig, exclude: list[str], root: Path) -> dict[str, str]:
     """Build dict of current files on disk matching profile."""
     current_filepaths = _scan_directories(profile, exclude, root=root)
     current_files = {}
@@ -148,7 +149,6 @@ def _diff_files_sections(
     old_files = _build_snapshot_files_dict(snapshot_id, root)
     if to_snapshot_id is None:
         new_files = _build_target_files_dict(profile, exclude, root, to_snapshot_id)
-        # set() creates a copy: dict is mutated during iteration below
         for path in set(old_files):
             if path not in new_files and not _path_matches_profile(path, profile, root):
                 del old_files[path]
@@ -159,11 +159,11 @@ def _diff_files_sections(
 
 def _path_matches_profile(path, profile, root):
     """Check if a file path belongs to the given profile's directories/patterns/files."""
-    normalized_files = [_rel_path(Path(f), root) for f in profile.get("files", [])]
+    normalized_files = [_rel_path(Path(f), root) for f in profile.files]
     if path in normalized_files:
         return True
-    directories = profile.get("directories", [])
-    patterns = profile.get("patterns", ["*"])
+    directories = profile.directories
+    patterns = profile.patterns
     path_obj = Path(path)
     for directory in directories:
         dir_path = Path(directory)
@@ -189,11 +189,7 @@ def _read_file_from_store(path, files, root):
 
 
 def _read_file_from_disk(path, root=None):
-    """Read file content from disk with error handling.
-
-    Accepts str, Path, or SafePath. When root is provided, validates
-    that the path is within root before reading via SafePath.
-    """
+    """Read file content from disk with error handling."""
     fp = Path(str(path))
     if root is not None:
         sfp = SafePath(fp, root)

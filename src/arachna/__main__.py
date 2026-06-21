@@ -117,7 +117,7 @@ def build_argparse() -> argparse.ArgumentParser:
     return parser
 
 
-def _dispatch_collect(args, config: dict):
+def _dispatch_collect(args, config):
     if args.repo:
         from .cli.collect import _cmd_collect_repo
 
@@ -141,7 +141,7 @@ def _load_root_config():
     cfg_path = find_config(root)
     config = load_config(root)
     if cfg_path is not None:
-        config["_root"] = str(cfg_path.parent)
+        config._root = str(cfg_path.parent)
     return root, cfg_path, config
 
 

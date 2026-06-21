@@ -1,9 +1,40 @@
-"""Tests for v1.6.3 - command-based profiles support."""
-
 import json
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.snapshot.snapshots import compute_diff, create_snapshot
 from arachna.snapshot.store import load_snapshot
+
+
+def _file_profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+        exclude_patterns=[],
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
+
+
+def _cmd_profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_paragraph",
+        command="echo 'command output'",
+        directories=[],
+        patterns=[],
+        use_gitignore=False,
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_create_snapshot_with_pre_commands(tmp_path, setup_config):
@@ -12,15 +43,8 @@ def test_create_snapshot_with_pre_commands(tmp_path, setup_config):
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
 
-    profile = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo '=== TREE ==='", "echo 'another command'"],
-    }
-
-    sid = create_snapshot(profile, name="with-pre-commands", root=root)
+    p = _file_profile(pre_commands=["echo '=== TREE ==='", "echo 'another command'"])
+    sid = create_snapshot(p, name="with-pre-commands", root=root)
     manifest = load_snapshot(sid, root=root)
 
     assert "pre_commands" in manifest
@@ -35,13 +59,7 @@ def test_create_snapshot_with_command_profile(tmp_path, setup_config):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
-    profile = {
-        "command": "echo 'command output'",
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-
-    sid = create_snapshot(profile, name="cmd-profile", root=root)
+    sid = create_snapshot(_cmd_profile(), name="cmd-profile", root=root)
     manifest = load_snapshot(sid, root=root)
 
     assert "command" in manifest
@@ -51,21 +69,8 @@ def test_create_snapshot_with_command_profile(tmp_path, setup_config):
 
 def test_compute_diff_command_changed(tmp_path, setup_config):
     root = setup_config()
-
-    profile = {
-        "command": "echo 'version 1'",
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-    sid = create_snapshot(profile, name="cmd-snap", root=root)
-
-    profile2 = {
-        "command": "echo 'version 2'",
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-    diffs = compute_diff(sid, profile2, root=root)
-
+    sid = create_snapshot(_cmd_profile(command="echo 'version 1'"), name="cmd-snap", root=root)
+    diffs = compute_diff(sid, _cmd_profile(command="echo 'version 2'"), root=root)
     content_diffs = [d for d in diffs if d.type == "modified" and d.path]
     assert len(content_diffs) == 1
     assert content_diffs[0].type == "modified"
@@ -78,23 +83,11 @@ def test_compute_diff_pre_commands_changed(tmp_path, setup_config):
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
 
-    profile = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo 'before'"],
-    }
-    sid = create_snapshot(profile, name="pre-snap", root=root)
+    p1 = _file_profile(pre_commands=["echo 'before'"])
+    sid = create_snapshot(p1, name="pre-snap", root=root)
 
-    profile2 = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo 'after'"],
-    }
-    diffs = compute_diff(sid, profile2, root=root)
+    p2 = _file_profile(pre_commands=["echo 'after'"])
+    diffs = compute_diff(sid, p2, root=root)
 
     pre_diffs = [d for d in diffs if d.path and d.path.startswith("pre:")]
     assert len(pre_diffs) >= 1
@@ -103,15 +96,9 @@ def test_compute_diff_pre_commands_changed(tmp_path, setup_config):
 
 def test_compute_diff_command_unchanged(tmp_path, setup_config):
     root = setup_config()
-
-    profile = {
-        "command": "echo 'stable output'",
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-    sid = create_snapshot(profile, name="stable-snap", root=root)
-
-    diffs = compute_diff(sid, profile, root=root)
+    p = _cmd_profile(command="echo 'stable output'")
+    sid = create_snapshot(p, name="stable-snap", root=root)
+    diffs = compute_diff(sid, p, root=root)
     cmd_diffs = [d for d in diffs if d.path and "command output" in d.path]
     assert len(cmd_diffs) == 0
 
@@ -138,15 +125,8 @@ def test_manifest_backward_compatible(tmp_path, setup_config):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
-    profile = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo 'new pre command'"],
-    }
-
-    diffs = compute_diff("old-snap", profile, root=root)
+    p = _file_profile(pre_commands=["echo 'new pre command'"])
+    diffs = compute_diff("old-snap", p, root=root)
     pre_diffs = [d for d in diffs if d.path and d.path.startswith("pre:")]
     assert len(pre_diffs) >= 1
     assert pre_diffs[0].type == "added"
@@ -158,17 +138,9 @@ def test_create_snapshot_empty_pre_commands_skipped(tmp_path, setup_config):
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
 
-    profile = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo ''", "echo -n ''"],
-    }
-
-    sid = create_snapshot(profile, name="empty-pre", root=root)
+    p = _file_profile(pre_commands=["echo ''", "echo -n ''"])
+    sid = create_snapshot(p, name="empty-pre", root=root)
     manifest = load_snapshot(sid, root=root)
-
     assert "pre_commands" not in manifest or len(manifest["pre_commands"]) == 0
 
 
@@ -177,20 +149,11 @@ def test_compute_diff_command_added(tmp_path, setup_config):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
-    profile_no_cmd = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
-    sid = create_snapshot(profile_no_cmd, name="no-cmd", root=root)
+    p_no_cmd = _file_profile()
+    sid = create_snapshot(p_no_cmd, name="no-cmd", root=root)
 
-    profile_with_cmd = {
-        "command": "echo 'new command'",
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-    diffs = compute_diff(sid, profile_with_cmd, root=root)
+    p_with_cmd = _cmd_profile(command="echo 'new command'")
+    diffs = compute_diff(sid, p_with_cmd, root=root)
 
     cmd_diffs = [d for d in diffs if d.path == "command output"]
     assert len(cmd_diffs) == 1
@@ -199,16 +162,19 @@ def test_compute_diff_command_added(tmp_path, setup_config):
 
 def test_compute_diff_command_removed(tmp_path, setup_config):
     root = setup_config()
+    p_with_cmd = _cmd_profile(command="echo 'old command'")
+    sid = create_snapshot(p_with_cmd, name="with-cmd", root=root)
 
-    profile_with_cmd = {
-        "command": "echo 'old command'",
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-    sid = create_snapshot(profile_with_cmd, name="with-cmd", root=root)
-
-    profile_no_cmd = {}
-    diffs = compute_diff(sid, profile_no_cmd, root=root)
+    p_no_cmd = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=[],
+        patterns=[],
+        use_gitignore=False,
+    )
+    diffs = compute_diff(sid, p_no_cmd, root=root)
 
     cmd_diffs = [d for d in diffs if d.path == "command output"]
     assert len(cmd_diffs) == 1

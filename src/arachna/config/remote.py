@@ -10,9 +10,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from ..api.collect_api import collect
-from ..config.config import load_config
-from ..config.presets import detect_presets
+from ..domain.collector import collect as _domain_collect
+from .config import get_profile, load_config
+from .presets import detect_presets
+from .profile_config import ProfileConfig
 
 
 def collect_remote(
@@ -36,32 +37,42 @@ def collect_remote(
             timeout=120,
         )
         config = load_config(root=repo_path)
-        profiles = config.get("profiles", {})
+        profiles = config.profiles
         has_config = (repo_path / ".arachna.json").exists()
         profile_name = _select_profile(
             requested=profile, profiles=profiles, has_config=has_config, repo_path=repo_path
         )
-        result = collect(
+        profile_cfg = _resolve_profile_dict(profile_name, config, repo_path)
+        result = _domain_collect(
+            profile_cfg.to_dict(),
+            config.project_name,
+            output_dir or config.output_dir,
             root=repo_path,
-            profile=profile_name,
-            output_dir=output_dir or "arachna_context",
-            write_to_disk=True,
+            verbose=False,
+            incremental=False,
+            merge=False,
+            query=None,
+            mode="full",
             allow_pre_commands=False,
         )
+        created_files, tokens_by_file, parts, metrics = result
+        total_tokens = sum(tokens_by_file.values()) if isinstance(tokens_by_file, dict) else 0
         lines = [
             f"Repository: {url}",
             f"Profile: {profile_name}",
-            f"Files collected: {len(result.files)}",
-            f"Parts: {len(result.parts)}",
-            f"Tokens: {result.tokens}",
+            f"Files collected: {len(created_files)}",
+            f"Parts: {len(parts)}",
+            f"Tokens: {total_tokens}",
         ]
-        if result.metrics:
-            lines.append(
-                f"Read: {result.metrics.files_read} files in {result.metrics.extract_time_ms:.0f}ms"
-            )
+        if metrics:
+            lines.append(f"Read: {metrics.files_read} files in {metrics.extract_time_ms:.0f}ms")
         return "\n".join(lines)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def _resolve_profile_dict(profile_name, config, repo_path) -> ProfileConfig:
+    return get_profile(profile_name, root=repo_path, config=config)
 
 
 def _select_strict(requested, has_config, profiles):
@@ -79,7 +90,7 @@ def _select_strict(requested, has_config, profiles):
 
 def _auto_select(has_config, profiles, repo_path):
     if has_config:
-        remote_profiles = {name: prof for name, prof in profiles.items() if prof.get("remote")}
+        remote_profiles = {name: prof for name, prof in profiles.items() if prof.remote}
         if len(remote_profiles) == 1:
             return next(iter(remote_profiles))
         if len(remote_profiles) > 1:
@@ -90,7 +101,9 @@ def _auto_select(has_config, profiles, repo_path):
     return detected[0] if detected else "full"
 
 
-def _select_profile(requested: str, profiles: dict, has_config: bool, repo_path: Path) -> str:
+def _select_profile(
+    requested: str, profiles: dict[str, ProfileConfig], has_config: bool, repo_path: Path
+) -> str:
     if requested != "full":
         return _select_strict(requested, has_config, profiles)
     return _auto_select(has_config, profiles, repo_path)

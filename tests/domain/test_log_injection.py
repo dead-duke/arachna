@@ -4,7 +4,7 @@ import json
 from unittest.mock import patch
 
 from arachna.domain.runner import run_command
-from tests.domain.conftest import mock_popen
+from tests.conftest import mock_popen
 
 
 def test_newline_in_command_sanitized(tmp_path):

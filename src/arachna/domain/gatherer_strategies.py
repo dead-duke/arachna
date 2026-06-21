@@ -70,8 +70,8 @@ class _FullModeStrategy:
         return target_files, update_cache(target_files, cache or {})
 
     def _build_collect_params(self, target_files, profile, pre_sections, tokenizer, root, query):
-        do_compress = profile.get("compress", False)
-        fmt = profile.get("section_format", "markdown")
+        do_compress = profile.compress
+        fmt = profile.section_format
         sections = []
         named_sections = list(pre_sections)
         for _i, (_label, output, _tokens) in enumerate(pre_sections):
@@ -79,9 +79,9 @@ class _FullModeStrategy:
         return _CollectParams(
             target_files=target_files,
             fmt=fmt,
-            include_binary=profile.get("include_binary", False),
-            binary_extensions=profile.get("binary_extensions"),
-            binary_max_mb=profile.get("binary_max_mb", 1.0),
+            include_binary=profile.include_binary,
+            binary_extensions=profile.binary_extensions,
+            binary_max_mb=profile.binary_max_mb,
             verbose=False,
             include_header=bool(query and query.strip()),
             do_compress=do_compress,
@@ -90,7 +90,7 @@ class _FullModeStrategy:
             sections=sections,
             named_sections=named_sections,
             tokenizer=tokenizer,
-            line_numbers=profile.get("line_numbers", False),
+            line_numbers=profile.line_numbers,
             root=root,
         )
 
@@ -105,12 +105,12 @@ class _FullModeStrategy:
     def assemble(self, profile, exclude, tokenizer, root, incremental, cache, verbose, query):
         from .gatherer_commands import _collect_pre_commands
 
-        max_tokens = profile.get("max_tokens", 16000)
-        do_compress = profile.get("compress", False)
+        max_tokens = profile.max_tokens
+        do_compress = profile.compress
         target_files, new_cache = self._resolve_target_files(
             profile, exclude, root, incremental, cache, query
         )
-        pre_sections = _collect_pre_commands(profile, tokenizer, root)
+        pre_sections = _collect_pre_commands(profile.to_dict(), tokenizer, root)
         params = self._build_collect_params(
             target_files, profile, pre_sections, tokenizer, root, query
         )
@@ -222,13 +222,6 @@ _mode_strategies_lock = threading.Lock()
 
 
 def _get_mode_strategies():
-    """Return dict mapping collection mode names to strategy instances.
-
-    Modes: 'full' (_FullModeStrategy), 'repo-map' (_RepoMapModeStrategy),
-    'headers' (_HeadersModeStrategy). These are collection strategies -
-    distinct from split mode dispatch (_SPLIT_MODE_DISPATCH in splitter.py)
-    which handles token-limit splitting of already-assembled content.
-    """
     global _MODE_STRATEGIES
     if _MODE_STRATEGIES is None:
         with _mode_strategies_lock:
@@ -281,8 +274,8 @@ def _assemble_in_memory(
     )
     _, parts, indices = _build_in_memory_parts(
         named_sections,
-        profile.get("compress", False),
-        profile.get("max_tokens", 16000),
+        profile.compress,
+        profile.max_tokens,
         tokenizer,
         verbose,
     )

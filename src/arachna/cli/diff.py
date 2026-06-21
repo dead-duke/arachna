@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from ..config.config import get_profile
+from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..domain.collector import (
     _write_diff_parts,
     clean_manifest,
@@ -12,9 +13,9 @@ from ..domain.collector import (
     load_manifest,
     save_manifest,
 )
+from ..domain.differ_stats import compute_diff_stats
 from ..domain.path_utils import SafePath
 from ..domain.tokenizer import count_tokens, load_tokenizer
-from ..snapshot.differ import compute_diff_stats
 from ..snapshot.snapshots import compute_diff
 from ..snapshot.store import list_snapshots, load_snapshot
 from . import register
@@ -22,20 +23,26 @@ from ._helpers import get_root, parse_output_dir, print_collected
 
 
 @register("diff-all")
-def _cmd_diff_all(args, config: dict):
+def _cmd_diff_all(args, config: ArachnaConfig | dict):
     root = get_root(config)
-    project_name = config.get("project_name", "Project")
+    project_name = (
+        config.project_name
+        if isinstance(config, ArachnaConfig)
+        else config.get("project_name", "Project")
+    )
     output_dir = parse_output_dir(args, config)
     out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     profile_name = args.profile or "full"
     try:
-        profile = get_profile(profile_name, root=root, config=config)
+        profile = get_profile(
+            profile_name, root=root, config=config if isinstance(config, ArachnaConfig) else None
+        )
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
     if args.compress:
-        profile["compress"] = True
+        profile.compress = True
     name_tmpl = "chat-diff-all"
     clean_manifest(out_path, name_tmpl)
     created, _, _parts, _metrics = collect(
@@ -84,17 +91,38 @@ def _resolve_snapshot_id(args, root: Path) -> str:
         sys.exit(1)
 
 
-def _resolve_diff_profile(args, snapshot_id: str, root: Path, config: dict) -> dict:
+def _resolve_diff_profile(
+    args, snapshot_id: str, root: Path, config: ArachnaConfig | dict
+) -> ProfileConfig:
     if args.profile:
         try:
-            return get_profile(args.profile, root=root, config=config)
+            return get_profile(
+                args.profile,
+                root=root,
+                config=config if isinstance(config, ArachnaConfig) else None,
+            )
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
     manifest = load_snapshot(snapshot_id, root=root)
     stored = manifest.get("profile", {})
     if isinstance(stored, dict):
-        return stored
+        defaults = ProfileConfig()
+        return ProfileConfig(
+            name_template=stored.get("name_template", defaults.name_template),
+            title_template=stored.get("title_template", defaults.title_template),
+            max_tokens=stored.get("max_tokens", defaults.max_tokens),
+            split_mode=stored.get("split_mode", defaults.split_mode),
+            directories=stored.get("directories", defaults.directories),
+            patterns=stored.get("patterns", defaults.patterns),
+            files=stored.get("files", defaults.files),
+            exclude_patterns=stored.get("exclude_patterns", defaults.exclude_patterns),
+            pre_commands=stored.get("pre_commands", defaults.pre_commands),
+            post_commands=stored.get("post_commands", defaults.post_commands),
+            command=stored.get("command"),
+            compress=stored.get("compress", defaults.compress),
+            use_gitignore=stored.get("use_gitignore", defaults.use_gitignore),
+        )
     print(f"Error: Snapshot '{snapshot_id}' has legacy format. Use --profile.")
     sys.exit(1)
 
@@ -113,12 +141,16 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root):
 
 def _write_diff_output(sections, snapshot_id, to_snapshot_id, profile, config, args):
     output_dir = parse_output_dir(args, config)
-    project_name = config.get("project_name", "Project")
+    project_name = (
+        config.project_name
+        if isinstance(config, ArachnaConfig)
+        else config.get("project_name", "Project")
+    )
     root = get_root(config)
     out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
-    max_tokens = profile.get("max_tokens", 16000)
-    tokenizer_spec = profile.get("tokenizer", "default")
+    max_tokens = profile.max_tokens
+    tokenizer_spec = profile.tokenizer
     tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
     if to_snapshot_id:
         name_tmpl = f"chat-diff-{snapshot_id}-to-{to_snapshot_id}"
@@ -161,7 +193,7 @@ def _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, c
 
 
 @register("diff")
-def _cmd_diff(args, config: dict):
+def _cmd_diff(args, config: ArachnaConfig | dict):
     _validate_diff_args(args)
     if args.all:
         _cmd_diff_all(args, config)
@@ -173,7 +205,7 @@ def _cmd_diff(args, config: dict):
     fmt = args.format or "markdown"
     line_numbers = getattr(args, "line_numbers", False)
     if args.compress:
-        profile["compress"] = True
+        profile.compress = True
     sections = compute_diff(
         snapshot_id,
         profile,

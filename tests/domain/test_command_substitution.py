@@ -4,7 +4,7 @@ import json
 from unittest.mock import patch
 
 from arachna.domain.runner import _check_shell_metachars, _validate_command, run_command
-from tests.domain.conftest import mock_popen
+from tests.conftest import mock_popen
 
 # -- $() and backticks blocked --
 

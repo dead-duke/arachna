@@ -1,19 +1,20 @@
-"""Edge cases for progress to stderr."""
-
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import collect
 
 
-def _profile(**kw):
-    return {
-        "name_template": "c",
-        "title_template": "# T (part {part})\n\n",
-        "max_tokens": 16000,
-        "split_mode": "by_file",
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "use_gitignore": False,
-        **kw,
-    }
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T (part {part})\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_progress_not_printed_without_verbose(tmp_path, capsys):

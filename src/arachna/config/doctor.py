@@ -5,6 +5,7 @@ from pathlib import Path
 
 from ..domain.gitignore import load_gitignore_patterns
 from .config import load_config
+from .profile_config import ProfileConfig
 from .validator import validate_profile
 
 
@@ -22,10 +23,12 @@ def run_doctor(project_root: Path | None = None, config: dict | None = None) -> 
     if config is None:
         config = load_config(root=project_root)
 
-    profiles = config.get("profiles", {})
+    profiles = config.profiles if hasattr(config, "profiles") else config.get("profiles", {})
 
     if not profiles:
-        profiles = {"default": {"max_tokens": 32000, "split_mode": "by_file", "directories": ["."]}}
+        profiles = {
+            "default": ProfileConfig(max_tokens=32000, split_mode="by_file", directories=["."])
+        }
 
     for name, profile in profiles.items():
         validation = validate_profile(name, profile)

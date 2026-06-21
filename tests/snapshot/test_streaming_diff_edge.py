@@ -1,20 +1,23 @@
-"""Basic diff tests — inline profiles, no setup_config."""
+import json
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.snapshot.snapshots import compute_diff, create_snapshot
 
 
 def _profile(tmp_path):
-    return {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-    }
+    return ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+        exclude_patterns=[],
+    )
 
 
 def test_diff_no_changes(tmp_path):
-    import json
-
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
@@ -29,8 +32,6 @@ def test_diff_no_changes(tmp_path):
 
 
 def test_diff_modified(tmp_path):
-    import json
-
     (tmp_path / ".arachna.json").write_text(
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )

@@ -5,8 +5,6 @@ import json
 import stat
 from pathlib import Path
 
-from .config import load_config
-
 _HOOK_SCRIPT_TEMPLATE = "#!/bin/sh\n{command}\n"
 
 
@@ -28,8 +26,11 @@ def install_hook(
 
     if command is None:
         try:
-            config = load_config(root=root)
-            hook_config = config.get("hook", {})
+            hook_config = {}
+            hook_path_cfg = root / ".arachna.json"
+            if hook_path_cfg.exists():
+                raw = json.loads(hook_path_cfg.read_text())
+                hook_config = raw.get("hook", {})
             command = hook_config.get("post-commit", "arachna collect --all")
         except (OSError, json.JSONDecodeError):
             command = "arachna collect --all"

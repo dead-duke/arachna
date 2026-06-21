@@ -1,20 +1,14 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Diff computation for snapshots — orchestration, grouping, helpers.
-
-Implementation split across:
-- snapshot_diff_helpers.py — path normalization (_rel_path, _normalize_path)
-- snapshot_diff_files.py — file collection, file diff sections, path matching, store I/O
-- snapshot_diff_commands.py — pre_commands/command execution and diff strategies
-- snapshot_diff_repo_map.py — repo-map transformation for diff sections
-"""
+"""Diff computation for snapshots — orchestration, grouping, helpers."""
 
 import hashlib
 import logging
 from pathlib import Path
 
+from ..config.profile_config import ProfileConfig
 from ..domain.api_types import DiffSection
+from ..domain.differ_stats import compute_diff_stats
 from ..domain.gatherer_files import _get_exclude_patterns
-from .differ import compute_diff_stats
 from .snapshot_diff_commands import (
     _collect_snapshot_command,
     _collect_snapshot_pre_commands,
@@ -44,34 +38,34 @@ def _is_binary_content(content: str) -> bool:
     return "\x00" in content
 
 
-def collect_snapshot_content(profile: dict, root: Path) -> tuple[dict, dict, dict]:
+def collect_snapshot_content(profile: ProfileConfig, root: Path) -> tuple[dict, dict, dict]:
     """Collect all content for a snapshot: files, pre_commands output, command output."""
     files = _collect_snapshot_files(profile, root)
-    pre_commands_data = _collect_snapshot_pre_commands(profile, root)
-    command_data = _collect_snapshot_command(profile, root)
+    pre_commands_data = _collect_snapshot_pre_commands(profile.to_dict(), root)
+    command_data = _collect_snapshot_command(profile.to_dict(), root)
     return files, pre_commands_data, command_data
 
 
-def create_snapshot(profile: dict, name: str, root: Path) -> str:
+def create_snapshot(profile: ProfileConfig, name: str, root: Path) -> str:
     """Create a named snapshot of the project state."""
     files, pre_commands_data, command_data = collect_snapshot_content(profile, root)
     return store_create_snapshot(
         files,
         root=root,
-        profile_dict=profile,
+        profile_dict=profile.to_dict(),
         name=name,
         pre_commands=pre_commands_data if pre_commands_data else None,
         command=command_data if command_data else None,
     )
 
 
-def update_snapshot(snapshot_id: str, root: Path, profile: dict | None = None) -> str:
+def update_snapshot(snapshot_id: str, root: Path, profile: ProfileConfig | None = None) -> str:
     """Update an existing snapshot with current project state."""
     if profile is None:
         manifest = load_snapshot(snapshot_id, root=root)
         stored = manifest.get("profile", {})
         if isinstance(stored, dict):
-            profile = stored
+            profile = _dict_to_profile_config(stored)
         else:
             raise ValueError(
                 f"Snapshot '{snapshot_id}' has legacy format. Provide profile explicitly."
@@ -81,16 +75,47 @@ def update_snapshot(snapshot_id: str, root: Path, profile: dict | None = None) -
         snapshot_id,
         files,
         root=root,
-        profile_dict=profile,
+        profile_dict=profile.to_dict(),
         pre_commands=pre_commands_data if pre_commands_data else None,
         command=command_data if command_data else None,
     )
 
 
-def _get_profile_from_manifest(manifest: dict) -> dict | None:
+def _dict_to_profile_config(d: dict) -> ProfileConfig:
+    defaults = ProfileConfig()
+    return ProfileConfig(
+        name_template=d.get("name_template", defaults.name_template),
+        title_template=d.get("title_template", defaults.title_template),
+        max_tokens=d.get("max_tokens", defaults.max_tokens),
+        split_mode=d.get("split_mode", defaults.split_mode),
+        directories=d.get("directories", defaults.directories),
+        patterns=d.get("patterns", defaults.patterns),
+        files=d.get("files", defaults.files),
+        exclude_patterns=d.get("exclude_patterns", defaults.exclude_patterns),
+        pre_commands=d.get("pre_commands", defaults.pre_commands),
+        post_commands=d.get("post_commands", defaults.post_commands),
+        command=d.get("command"),
+        section_format=d.get("section_format", defaults.section_format),
+        compress=d.get("compress", defaults.compress),
+        include_binary=d.get("include_binary", defaults.include_binary),
+        binary_extensions=d.get("binary_extensions"),
+        binary_max_mb=d.get("binary_max_mb", defaults.binary_max_mb),
+        tokenizer=d.get("tokenizer", defaults.tokenizer),
+        chars_per_token=d.get("chars_per_token"),
+        line_numbers=d.get("line_numbers", defaults.line_numbers),
+        extends=d.get("extends"),
+        remote=d.get("remote", defaults.remote),
+        use_gitignore=d.get("use_gitignore", defaults.use_gitignore),
+        split_marker=d.get("split_marker", defaults.split_marker),
+    )
+
+
+def _get_profile_from_manifest(manifest: dict) -> ProfileConfig | None:
     """Extract profile dict from snapshot manifest. Returns None if legacy format."""
     stored = manifest.get("profile", {})
-    return stored if isinstance(stored, dict) else None
+    if isinstance(stored, dict):
+        return _dict_to_profile_config(stored)
+    return None
 
 
 def _format_summary_header(stats, from_id, to_id):
@@ -113,7 +138,7 @@ def _format_summary_header(stats, from_id, to_id):
 
 
 def _group_diff_sections(sections, from_id, to_id):
-    """Group diff sections by type (renamed, moved, modified, added, deleted) with header."""
+    """Group diff sections by type with header."""
     if not sections:
         return sections
     stats = compute_diff_stats(sections)
@@ -160,8 +185,12 @@ def compute_diff(
     sections = _diff_files_sections(
         snapshot_id, profile, exclude, to_snapshot_id, fmt, root, line_numbers=line_numbers
     )
-    sections.extend(_diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root))
-    sections.extend(_diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root))
+    sections.extend(
+        _diff_pre_commands_sections(snapshot_id, profile.to_dict(), to_snapshot_id, fmt, root)
+    )
+    sections.extend(
+        _diff_command_section(snapshot_id, profile.to_dict(), to_snapshot_id, fmt, root)
+    )
     if not flat and sections:
         sections = _group_diff_sections(sections, snapshot_id, to_snapshot_id)
     return sections

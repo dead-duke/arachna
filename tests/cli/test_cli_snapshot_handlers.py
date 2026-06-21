@@ -1,5 +1,3 @@
-"""Tests for snapshot CLI handlers — unit tests for _cmd_snapshot_* and _cmd_diff."""
-
 import json
 from io import StringIO
 
@@ -82,8 +80,6 @@ def _store_args():
 
 
 # -- snapshot list --
-
-
 def test_cmd_snapshot_list_empty(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
     out = StringIO()
@@ -112,8 +108,6 @@ def test_cmd_snapshot_list_with_data(tmp_path, make_config):
 
 
 # -- snapshot create --
-
-
 def test_cmd_snapshot_create_named(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
@@ -138,8 +132,6 @@ def test_cmd_snapshot_duplicate_name(tmp_path, make_config):
 
 
 # -- snapshot update --
-
-
 def test_cmd_snapshot_update(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
@@ -177,8 +169,6 @@ def test_cmd_snapshot_update_not_found(tmp_path, make_config):
 
 
 # -- snapshot delete --
-
-
 def test_cmd_snapshot_delete(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
@@ -188,11 +178,10 @@ def test_cmd_snapshot_delete(tmp_path, make_config):
 
 
 # -- snapshot info --
-
-
 def test_cmd_snapshot_info_full(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
-    config["profiles"]["code"]["pre_commands"] = ["echo hello"]
+    code_prof = config.profiles["code"]
+    code_prof.pre_commands = ["echo hello"]
     (tmp_path / "mysrc").mkdir()
     (tmp_path / "mysrc" / "main.py").write_text("print('hi')")
     _cmd_snapshot_create(_snap_create("info-test", "code"), config)
@@ -248,8 +237,6 @@ def test_cmd_snapshot_info_stats_only(tmp_path, make_config):
 
 
 # -- snapshot rename --
-
-
 def test_cmd_snapshot_rename(tmp_path, make_config):
     config = make_config(tmp_path, dirs=["mysrc"])
     (tmp_path / "mysrc").mkdir()
@@ -282,8 +269,6 @@ def test_cmd_snapshot_rename_duplicate(tmp_path, make_config):
 
 
 # -- diff --
-
-
 def test_cmd_diff_no_head(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
     with pytest.raises(SystemExit):
@@ -479,8 +464,6 @@ def test_cmd_diff_compress(tmp_path, make_config):
 
 
 # -- store --
-
-
 def test_cmd_store_stats_empty(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
     out = StringIO()

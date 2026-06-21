@@ -1,5 +1,3 @@
-"""Benchmarks for arachna — core performance tests."""
-
 import json
 import os
 import time
@@ -8,6 +6,7 @@ from pathlib import Path
 import psutil
 import pytest
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import collect
 
 BASELINE_FILE = Path(__file__).parent / "baseline.json"
@@ -24,17 +23,10 @@ def _make_files(tmp_path: Path, count: int, content_fn=None):
 
 def _default_content(i):
     return (
-        f"# Module {i}\n"
-        f"import os\n\n"
-        f"def function_{i}(x, y):\n"
-        f'    """Docstring."""\n'
-        f"    result = x + y\n"
-        f"    return result * {i}\n\n"
-        f"class Handler_{i}:\n"
-        f"    def __init__(self):\n"
-        f"        self.value = {i}\n"
-        f"    def process(self, data):\n"
-        f"        return data + self.value\n"
+        f"# Module {i}\nimport os\n\ndef function_{i}(x, y):\n"
+        f'    """Docstring."""\n    result = x + y\n    return result * {i}\n\n'
+        f"class Handler_{i}:\n    def __init__(self):\n        self.value = {i}\n"
+        f"    def process(self, data):\n        return data + self.value\n"
     )
 
 
@@ -44,31 +36,27 @@ def _content_with_blanks(i):
 
 def _js_content(i):
     return (
-        f"// Module {i}\n"
-        f"import {{ useState }} from 'react';\n\n"
-        f"export function App{i}() {{\n"
-        f"    const [count, setCount] = useState(0);\n"
-        f"    return <div>{{count}}</div>;\n"
-        f"}}\n\n"
+        f"// Module {i}\nimport {{ useState }} from 'react';\n\n"
+        f"export function App{i}() {{\n    const [count, setCount] = useState(0);\n"
+        f"    return <div>{{count}}</div>;\n}}\n\n"
         f"export class Component{i} extends React.Component {{\n"
-        f"    render() {{\n"
-        f"        return <span>Hello</span>;\n"
-        f"    }}\n"
-        f"}}\n"
+        f"    render() {{\n        return <span>Hello</span>;\n    }}\n}}\n"
     )
 
 
 def _profile(**kw):
-    return {
-        "name_template": "bench",
-        "title_template": "# T (part {part})\n\n",
-        "max_tokens": 32768,
-        "split_mode": "by_file",
-        "directories": ["src"],
-        "patterns": ["*"],
-        "use_gitignore": False,
-        **kw,
-    }
+    return ProfileConfig(
+        **{
+            "name_template": "bench",
+            "title_template": "# T (part {part})\n\n",
+            "max_tokens": 32768,
+            "split_mode": "by_file",
+            "directories": ["src"],
+            "patterns": ["*"],
+            "use_gitignore": False,
+            **kw,
+        }
+    )
 
 
 def _run_with_memory(tmp_path, profile, mode="full", query=None, incremental=False):
@@ -133,7 +121,7 @@ def _collect_result(test_name: str, result: dict):
 @pytest.mark.benchmark
 def test_bench_full_1000(tmp_path):
     _make_files(tmp_path, 1000)
-    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     print(
         f"\n  full 1000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "
@@ -149,7 +137,7 @@ def test_bench_full_1000(tmp_path):
 @pytest.mark.benchmark
 def test_bench_repo_map_1000(tmp_path):
     _make_files(tmp_path, 1000)
-    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "repo-map")  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "repo-map")
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "repo-map")
     print(
         f"\n  repo-map 1000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "
@@ -167,7 +155,7 @@ def test_bench_repo_map_1000(tmp_path):
 @pytest.mark.benchmark
 def test_bench_headers_1000(tmp_path):
     _make_files(tmp_path, 1000)
-    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "headers")  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "headers")
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "headers")
     print(
         f"\n  headers 1000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "
@@ -181,7 +169,7 @@ def test_bench_headers_1000(tmp_path):
 @pytest.mark.benchmark
 def test_bench_full_compress_1000(tmp_path):
     _make_files(tmp_path, 1000, _content_with_blanks)
-    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     r_no = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     r_cmp = _run_with_memory(tmp_path, _profile(patterns=["*.py"], compress=True), "full")
     print(f"\n  full no-compress: {r_no['tokens']} tokens")
@@ -192,7 +180,7 @@ def test_bench_full_compress_1000(tmp_path):
 @pytest.mark.benchmark
 def test_bench_query_1000(tmp_path):
     _make_files(tmp_path, 1000)
-    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     r_no = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     r_q = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full", query="file_500")
     print(f"\n  full no-query: {r_no['tokens']} tokens")
@@ -204,7 +192,7 @@ def test_bench_query_1000(tmp_path):
 @pytest.mark.benchmark
 def test_bench_full_5000(tmp_path):
     _make_files(tmp_path, 5000)
-    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")  # warm-up
+    _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     r = _run_with_memory(tmp_path, _profile(patterns=["*.py"]), "full")
     print(
         f"\n  full 5000: {r['time']:.3f}s, {r['rss_mb']:.1f} MB, "

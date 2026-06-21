@@ -69,6 +69,11 @@ _BLOCKED_PHRASES = [
 ]
 
 
+def _sanitize_log(text: str) -> str:
+    """Escape newlines and carriage returns for safe log output."""
+    return text.replace("\n", "\\n").replace("\r", "\\r")
+
+
 def _resolve_base(cmd_part: str) -> str:
     cmd_part = cmd_part.strip()
     try:
@@ -203,7 +208,7 @@ def _check_base_command(cmd, allowlist):
 
 def _handle_dangerous_override(is_safe, reason, allow_dangerous, cmd):
     if not is_safe and allow_dangerous:
-        safe_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
+        safe_cmd = _sanitize_log(cmd)
         logger.error("DANGEROUS command allowed via flag: %s", safe_cmd)
         return True, ""
     return is_safe, reason
@@ -277,7 +282,7 @@ def _log_command(cmd, success, root, log_writer=None):
     from datetime import datetime
 
     status = "OK" if success else "FAIL"
-    sanitized_cmd = cmd.replace("\n", "\\n").replace("\r", "\\r")
+    sanitized_cmd = _sanitize_log(cmd)
     _write_log(
         log_path,
         f"[{datetime.now().isoformat()}] {status}: {sanitized_cmd}\n",
@@ -292,8 +297,8 @@ def _run_popen(cmd, needs_shell, max_output_size):
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                shell=True,
-                text=True,  # nosec B602 — pre_commands with pipes/shell features, protected by allowlist
+                shell=True,  # nosec B602 — pre_commands with pipes/shell features, protected by allowlist
+                text=True,
             )
         else:
             process = subprocess.Popen(

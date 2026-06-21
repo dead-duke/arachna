@@ -1,9 +1,9 @@
-"""Coverage for snapshot layer - repo_map and compute_diff gaps."""
-
 import pytest
 
-from arachna.api.api_errors import ProfileNotFoundError, SnapshotNotFoundError
+from arachna.api.api_errors import SnapshotNotFoundError
 from arachna.api.snapshot import compute_diff, create_snapshot
+from arachna.config.config import get_profile, load_config
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.api_types import DiffSection
 from arachna.domain.language_dispatch import get_block_parser
 from arachna.snapshot.snapshots import (
@@ -13,6 +13,13 @@ from arachna.snapshot.snapshots import (
     _read_file_from_store,
     apply_repo_map_to_sections,
 )
+
+
+def _resolve(tmp_path, profile):
+    if isinstance(profile, ProfileConfig):
+        return profile, load_config(root=tmp_path)
+    config = load_config(root=tmp_path)
+    return get_profile(profile, root=tmp_path, config=config), config
 
 
 def test_format_repo_map_diff_sig_changed():
@@ -89,8 +96,8 @@ def test_apply_repo_map_to_sections_modified(tmp_path, setup_config, make_profil
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile = make_profile("src", ["*.py"])
-    create_snapshot(root=root, profile=profile, name="rm-mod")
+    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, config=config, name="rm-mod")
     (src / "main.py").write_text("def foo():\n    return 2\n")
     sections = [
         DiffSection(
@@ -109,8 +116,8 @@ def test_apply_repo_map_to_sections_added(tmp_path, setup_config, make_profile):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile = make_profile("src", ["*.py"])
-    create_snapshot(root=root, profile=profile, name="rm-add")
+    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, config=config, name="rm-add")
     sections = [
         DiffSection(
             type="added",
@@ -128,8 +135,8 @@ def test_apply_repo_map_to_sections_header_passthrough(tmp_path, setup_config, m
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile = make_profile("src", ["*.py"])
-    create_snapshot(root=root, profile=profile, name="rm-header")
+    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, config=config, name="rm-header")
     sections = [DiffSection(type="header", path="", content="## Changes\n")]
     result = apply_repo_map_to_sections(sections, "rm-header", None, root=root)
     assert result[0].type == "header"
@@ -141,8 +148,8 @@ def test_apply_repo_map_to_sections_deleted(tmp_path, setup_config, make_profile
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile = make_profile("src", ["*.py"])
-    create_snapshot(root=root, profile=profile, name="rm-del")
+    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, config=config, name="rm-del")
     sections = [DiffSection(type="deleted", path="src/main.py", content="[DELETED]\n")]
     result = apply_repo_map_to_sections(sections, "rm-del", None, root=root)
     assert len(result) == 1
@@ -154,8 +161,8 @@ def test_apply_repo_map_to_sections_cannot_read(tmp_path, setup_config, make_pro
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile = make_profile("src", ["*.py"])
-    create_snapshot(root=root, profile=profile, name="rm-readfail")
+    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, config=config, name="rm-readfail")
     sections = [
         DiffSection(
             type="modified",
@@ -168,21 +175,14 @@ def test_apply_repo_map_to_sections_cannot_read(tmp_path, setup_config, make_pro
     assert "REMOVED" in result[0].content
 
 
-def test_compute_diff_profile_not_found(tmp_path, setup_config):
-    root = setup_config(profiles={"x": {"command": "echo hi", "max_tokens": 100}})
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "a.py").write_text("x")
-    with pytest.raises(ProfileNotFoundError):
-        compute_diff(root=root, profile="nonexistent", snapshot_id="no-such")
-
-
 def test_compute_diff_snapshot_not_found(tmp_path, setup_config, make_profile):
     root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("x")
+    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
     with pytest.raises(SnapshotNotFoundError):
-        compute_diff(root=root, profile=make_profile("src", ["*.py"]))
+        compute_diff(root=root, profile=profile, config=config)
 
 
 def test_read_file_from_store_not_found(tmp_path):

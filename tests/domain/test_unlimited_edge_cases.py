@@ -1,8 +1,22 @@
-"""Edge cases for max_tokens=-1 unlimited mode."""
-
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import collect
 from arachna.domain.gatherer import dry_run
 from arachna.domain.splitter import split
+
+
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T (part {part})\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_unlimited_split_by_file(tmp_path):
@@ -27,16 +41,8 @@ def test_unlimited_split_single(tmp_path):
 def test_unlimited_dry_run(tmp_path):
     (tmp_path / "a.py").write_text("x" * 500)
     (tmp_path / "b.py").write_text("y" * 500)
-    stats = dry_run(
-        {
-            "directories": [str(tmp_path)],
-            "patterns": ["*.py"],
-            "max_tokens": -1,
-            "name_template": "chat",
-            "use_gitignore": False,
-        },
-        root=tmp_path,
-    )
+    p = _profile(directories=[str(tmp_path)], max_tokens=-1)
+    stats = dry_run(p, root=tmp_path)
     assert len(stats["parts"]) == 1
 
 
@@ -49,15 +55,7 @@ def test_unlimited_collect_single_part(tmp_path):
     out.mkdir()
 
     created, tokens_by_file, parts, metrics = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": -1,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-            "use_gitignore": False,
-        },
+        _profile(max_tokens=-1),
         "P",
         str(out),
         root=tmp_path,
@@ -75,15 +73,7 @@ def test_unlimited_collect_with_query(tmp_path):
     out.mkdir()
 
     _, _, parts, _ = collect(
-        {
-            "name_template": "c",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": -1,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-            "use_gitignore": False,
-        },
+        _profile(max_tokens=-1),
         "P",
         str(out),
         root=tmp_path,
@@ -101,15 +91,7 @@ def test_unlimited_collect_with_merge(tmp_path):
     out = tmp_path / "out"
     out.mkdir()
 
-    profile = {
-        "name_template": "c",
-        "title_template": "# T (part {part})\n\n",
-        "max_tokens": -1,
-        "split_mode": "by_file",
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "use_gitignore": False,
-    }
+    profile = _profile(max_tokens=-1)
     c1, _, _, _ = collect(profile, "P", str(out), root=tmp_path, merge=True)
     c2, _, _, _ = collect(profile, "P", str(out), root=tmp_path, merge=True)
     assert len(c1) == 1

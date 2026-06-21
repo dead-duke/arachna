@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.config.remote import _select_profile, collect_remote
 
 # -- URL validation -----------------------------------------------------
@@ -60,18 +61,22 @@ def test_collect_remote_success(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
-    mock_result = MagicMock()
-    mock_result.files = ["chat-code_1.md"]
-    mock_result.parts = ["content"]
-    mock_result.tokens = 100
-    mock_result.metrics = MagicMock()
-    mock_result.metrics.files_read = 1
-    mock_result.metrics.extract_time_ms = 5.0
+    mock_metrics = MagicMock()
+    mock_metrics.files_read = 1
+    mock_metrics.extract_time_ms = 5.0
 
     with (
         patch("shutil.which", return_value="/usr/bin/git"),
         patch("subprocess.run") as mock_run,
-        patch("arachna.config.remote.collect", return_value=mock_result),
+        patch(
+            "arachna.config.remote._domain_collect",
+            return_value=(
+                ["chat-code_1.md"],
+                {"chat-code_1.md": 100},
+                ["content"],
+                mock_metrics,
+            ),
+        ),
         patch("arachna.config.remote.detect_presets", return_value=["python"]),
         patch("tempfile.mkdtemp", return_value=str(tmp_path / "tmpdir")),
     ):
@@ -89,16 +94,18 @@ def test_collect_remote_no_presets_falls_back_to_full(tmp_path):
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "main.py").write_text("print('hello')")
 
-    mock_result = MagicMock()
-    mock_result.files = ["chat-full_1.md"]
-    mock_result.parts = ["content"]
-    mock_result.tokens = 50
-    mock_result.metrics = None
-
     with (
         patch("shutil.which", return_value="/usr/bin/git"),
         patch("subprocess.run") as mock_run,
-        patch("arachna.config.remote.collect", return_value=mock_result),
+        patch(
+            "arachna.config.remote._domain_collect",
+            return_value=(
+                ["chat-full_1.md"],
+                {"chat-full_1.md": 50},
+                ["content"],
+                None,
+            ),
+        ),
         patch("arachna.config.remote.detect_presets", return_value=[]),
         patch("tempfile.mkdtemp", return_value=str(tmp_path / "tmpdir")),
     ):
@@ -115,16 +122,18 @@ def test_collect_remote_cleans_up_temp_dir(tmp_path):
     tmpdir_path = tmp_path / "tmpdir"
     tmpdir_path.mkdir()
 
-    mock_result = MagicMock()
-    mock_result.files = []
-    mock_result.parts = []
-    mock_result.tokens = 0
-    mock_result.metrics = None
-
     with (
         patch("shutil.which", return_value="/usr/bin/git"),
         patch("subprocess.run") as mock_run,
-        patch("arachna.config.remote.collect", return_value=mock_result),
+        patch(
+            "arachna.config.remote._domain_collect",
+            return_value=(
+                [],
+                {},
+                [],
+                None,
+            ),
+        ),
         patch("arachna.config.remote.detect_presets", return_value=[]),
         patch("tempfile.mkdtemp", return_value=str(tmpdir_path)),
     ):
@@ -157,7 +166,7 @@ def test_select_profile_exact_match():
     """--profile go, config has go -> uses it."""
     result = _select_profile(
         requested="go",
-        profiles={"go": {"directories": ["."]}, "python": {"directories": ["src"]}},
+        profiles={"go": ProfileConfig(), "python": ProfileConfig()},
         has_config=True,
         repo_path=Path("/tmp/repo"),
     )
@@ -169,7 +178,7 @@ def test_select_profile_not_found_with_config():
     with pytest.raises(ValueError, match="Profile 'rust' not found.*go, python"):
         _select_profile(
             requested="rust",
-            profiles={"go": {}, "python": {}},
+            profiles={"go": ProfileConfig(), "python": ProfileConfig()},
             has_config=True,
             repo_path=Path("/tmp/repo"),
         )
@@ -194,8 +203,8 @@ def test_select_auto_one_remote():
     result = _select_profile(
         requested="full",
         profiles={
-            "go": {"remote": True, "directories": ["."]},
-            "python": {"directories": ["src"]},
+            "go": ProfileConfig(remote=True),
+            "python": ProfileConfig(),
         },
         has_config=True,
         repo_path=Path("/tmp/repo"),
@@ -209,8 +218,8 @@ def test_select_auto_multiple_remote():
         _select_profile(
             requested="full",
             profiles={
-                "go": {"remote": True},
-                "python": {"remote": True},
+                "go": ProfileConfig(remote=True),
+                "python": ProfileConfig(remote=True),
             },
             has_config=True,
             repo_path=Path("/tmp/repo"),
@@ -222,7 +231,7 @@ def test_select_auto_no_remote_autodetect():
     with patch("arachna.config.remote.detect_presets", return_value=["python", "docs"]):
         result = _select_profile(
             requested="full",
-            profiles={"go": {"directories": ["."]}},
+            profiles={"go": ProfileConfig()},
             has_config=True,
             repo_path=Path("/tmp/repo"),
         )
@@ -276,16 +285,18 @@ def test_collect_remote_exact_profile(tmp_path):
         '{"profiles": {"go": {"directories": ["."], "max_tokens": 16000}}}'
     )
 
-    mock_result = MagicMock()
-    mock_result.files = ["chat-go_1.md"]
-    mock_result.parts = ["content"]
-    mock_result.tokens = 200
-    mock_result.metrics = None
-
     with (
         patch("shutil.which", return_value="/usr/bin/git"),
         patch("subprocess.run") as mock_run,
-        patch("arachna.config.remote.collect", return_value=mock_result),
+        patch(
+            "arachna.config.remote._domain_collect",
+            return_value=(
+                ["chat-go_1.md"],
+                {"chat-go_1.md": 200},
+                ["content"],
+                None,
+            ),
+        ),
         patch("tempfile.mkdtemp", return_value=str(tmp_path / "tmpdir")),
     ):
         mock_run.return_value = MagicMock()

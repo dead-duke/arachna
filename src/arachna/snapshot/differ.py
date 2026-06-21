@@ -5,7 +5,6 @@ import difflib
 import logging
 from xml.sax.saxutils import escape as _xml_escape
 
-from ..domain.api_types import DiffSection
 from ..domain.tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.differ")
@@ -143,27 +142,3 @@ def _format_deleted(path: str, fmt: str) -> str:
         escaped_path = _xml_escape(path)
         return f'<file path="{escaped_path}">\n  <removed>\n    [DELETED]\n  </removed>\n</file>\n'
     return f"### {path}\n\n[DELETED]\n"
-
-
-def compute_diff_stats(diffs: list[DiffSection]) -> dict:
-    modified = added = deleted = renamed = moved = tokens = 0
-    for d in diffs:
-        if d.type == "modified":
-            modified += 1
-        elif d.type == "added":
-            added += 1
-        elif d.type == "deleted":
-            deleted += 1
-        elif d.type == "renamed":
-            renamed += 1
-        elif d.type == "moved":
-            moved += 1
-        tokens += count_tokens(d.content)
-    return {
-        "modified": modified,
-        "added": added,
-        "deleted": deleted,
-        "renamed": renamed,
-        "moved": moved,
-        "tokens": tokens,
-    }

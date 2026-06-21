@@ -16,6 +16,8 @@ from pathlib import Path
 
 from arachna import snapshot
 from arachna.collect_api import collect
+from arachna.config.config import get_profile, load_config
+from arachna.config.profile_config import ProfileConfig
 
 
 class DeliriumAgent:
@@ -24,8 +26,12 @@ class DeliriumAgent:
     def __init__(self, profile: str = "full", root: Path | None = None):
         self.profile = profile
         self.root = root or Path.cwd()
+        self.config = load_config(root=self.root)
         self.snapshot_id = None
         self.task_name = None
+
+    def _resolve_profile(self) -> ProfileConfig:
+        return get_profile(self.profile, root=self.root, config=self.config)
 
     def start_task(self, task_name: str) -> str:
         """Create a baseline snapshot before the agent starts working.
@@ -33,14 +39,16 @@ class DeliriumAgent:
         Returns repo-map (signatures only) for quick project overview.
         """
         self.task_name = task_name
+        profile_dict = self._resolve_profile()
         self.snapshot_id = snapshot.create_snapshot(
             root=self.root,
-            profile=self.profile,
+            profile=profile_dict,
+            config=self.config,
             name=f"task-{task_name}",
         )
         print(f"[{task_name}] Snapshot '{self.snapshot_id}' created")
 
-        result = collect(root=self.root, profile=self.profile, mode="repo-map")
+        result = collect(root=self.root, profile=profile_dict, config=self.config, mode="repo-map")
         overview = result.parts[0] if result.parts else ""
         print(f"[{task_name}] Overview: {result.tokens} tokens")
         return overview
@@ -51,14 +59,16 @@ class DeliriumAgent:
         If a snapshot exists, returns only changes since the baseline.
         If query is provided, filters to relevant files.
         """
+        profile_dict = self._resolve_profile()
         if not self.snapshot_id:
-            result = collect(root=self.root, profile=self.profile, query=query)
+            result = collect(root=self.root, profile=profile_dict, config=self.config, query=query)
             return result.parts[0] if result.parts else ""
 
         diff = snapshot.compute_diff(
             root=self.root,
             snapshot_id=self.snapshot_id,
-            profile=self.profile,
+            profile=profile_dict,
+            config=self.config,
         )
 
         if diff.stats.tokens > 10000:
@@ -66,7 +76,7 @@ class DeliriumAgent:
                 f"[{self.task_name}] Changes too large "
                 f"({diff.stats.tokens} tokens), using full context"
             )
-            result = collect(root=self.root, profile=self.profile, query=query)
+            result = collect(root=self.root, profile=profile_dict, config=self.config, query=query)
             return result.parts[0] if result.parts else ""
 
         print(
@@ -91,7 +101,10 @@ class DeliriumAgent:
     def update_baseline(self) -> None:
         """Update the baseline snapshot to current state."""
         if self.snapshot_id:
-            snapshot.update_snapshot(self.snapshot_id, root=self.root)
+            profile_dict = self._resolve_profile()
+            snapshot.update_snapshot(
+                self.snapshot_id, root=self.root, config=self.config, profile=profile_dict
+            )
             print(f"[{self.task_name}] Snapshot '{self.snapshot_id}' updated")
 
 

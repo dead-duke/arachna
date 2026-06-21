@@ -3,8 +3,8 @@
 
 import contextlib
 from pathlib import Path
-from typing import Any
 
+from ..config.profile_config import ProfileConfig
 from .cache import get_changed_files, update_cache
 from .compressor import compress as _compress
 from .formatter import (
@@ -49,13 +49,13 @@ def _scan_one_directory(directory, patterns, exclude, root):
     return seen
 
 
-def _scan_directories(profile: dict[str, Any], exclude: list[str], root: Path) -> list[Path]:
+def _scan_directories(profile: ProfileConfig, exclude: list[str], root: Path) -> list[Path]:
     seen = []
-    for directory in profile.get("directories", []):
+    for directory in profile.directories:
         seen.extend(
             _scan_one_directory(
                 directory,
-                profile.get("patterns", ["*"]),
+                profile.patterns,
                 exclude,
                 root,
             )
@@ -114,7 +114,7 @@ def _format_file_list(
 
 
 def _collect_directory_sections(
-    profile,
+    profile: ProfileConfig,
     exclude,
     tokenizer,
     root,
@@ -124,11 +124,11 @@ def _collect_directory_sections(
     include_header=False,
     mode="full",
 ):
-    fmt = profile.get("section_format", "markdown")
-    include_binary = profile.get("include_binary", False)
-    binary_extensions = profile.get("binary_extensions")
-    binary_max_mb = profile.get("binary_max_mb", 1.0)
-    line_numbers = profile.get("line_numbers", False)
+    fmt = profile.section_format
+    include_binary = profile.include_binary
+    binary_extensions = profile.binary_extensions
+    binary_max_mb = profile.binary_max_mb
+    line_numbers = profile.line_numbers
     seen_files = _scan_directories(profile, exclude, root)
     if incremental and cache is not None:
         changed, new, deleted = get_changed_files(seen_files, cache)
@@ -157,14 +157,20 @@ def _collect_directory_sections(
 
 
 def _collect_file_sections(
-    profile, exclude, tokenizer, root, verbose=False, include_header=False, mode="full"
+    profile: ProfileConfig,
+    exclude,
+    tokenizer,
+    root,
+    verbose=False,
+    include_header=False,
+    mode="full",
 ):
-    fmt = profile.get("section_format", "markdown")
-    include_binary = profile.get("include_binary", False)
-    binary_extensions = profile.get("binary_extensions")
-    binary_max_mb = profile.get("binary_max_mb", 1.0)
-    line_numbers = profile.get("line_numbers", False)
-    file_paths_str = profile.get("files", [])
+    fmt = profile.section_format
+    include_binary = profile.include_binary
+    binary_extensions = profile.binary_extensions
+    binary_max_mb = profile.binary_max_mb
+    line_numbers = profile.line_numbers
+    file_paths_str = profile.files
     filepaths = []
     for filepath_str in file_paths_str:
         filepath = root / filepath_str
@@ -190,9 +196,9 @@ def _collect_file_sections(
     )
 
 
-def _get_profile_files(profile, exclude, root):
+def _get_profile_files(profile: ProfileConfig, exclude, root):
     filepaths = []
-    for filepath_str in profile.get("files", []):
+    for filepath_str in profile.files:
         filepath = root / filepath_str
         if not filepath.is_file():
             continue
@@ -202,9 +208,9 @@ def _get_profile_files(profile, exclude, root):
     return filepaths
 
 
-def _get_exclude_patterns(profile, root):
-    exclude = list(profile.get("exclude_patterns", []))
-    if profile.get("use_gitignore", True):
+def _get_exclude_patterns(profile: ProfileConfig, root):
+    exclude = list(profile.exclude_patterns)
+    if profile.use_gitignore:
         exclude.extend(load_gitignore_patterns(root))
     return exclude
 
@@ -246,7 +252,7 @@ def _format_one_file(
 
 
 def _collect_named_sections(
-    profile,
+    profile: ProfileConfig,
     exclude,
     tokenizer,
     root,
@@ -264,7 +270,7 @@ def _collect_named_sections(
     if graph_cache is None:
         graph_cache = {}
     named_sections = []
-    named_sections.extend(_collect_pre_commands(profile, tokenizer, root))
+    named_sections.extend(_collect_pre_commands(profile.to_dict(), tokenizer, root))
     dir_sections, new_cache = _collect_directory_sections(
         profile,
         exclude,

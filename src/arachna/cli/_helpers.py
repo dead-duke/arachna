@@ -4,42 +4,40 @@
 import copy
 from pathlib import Path
 
+from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..domain.atomic_write import atomic_write_text
 from ..domain.path_utils import SafePath
 from ..domain.tokenizer import count_tokens
 
 
-def get_root(config: dict) -> Path:
-    """Extract project root from config, falling back to current directory.
-
-    Args:
-        config: Config dict with optional '_root' key.
-
-    Returns:
-        Path to project root.
-    """
+def get_root(config: ArachnaConfig | dict) -> Path:
+    """Extract project root from config, falling back to current directory."""
+    if isinstance(config, ArachnaConfig):
+        return Path(config._root) if config._root else Path.cwd()
     return Path(config.get("_root", Path.cwd()))
 
 
-def list_profiles(config: dict) -> list[str]:
-    profiles = config.get("profiles", {})
+def list_profiles(config: ArachnaConfig | dict) -> list[str]:
+    profiles = config.profiles if isinstance(config, ArachnaConfig) else config.get("profiles", {})
     if profiles:
         return list(profiles.keys())
     return ["default"]
 
 
-def apply_args_to_profile(profile: dict, args):
+def apply_args_to_profile(profile: ProfileConfig, args) -> ProfileConfig:
     profile = copy.deepcopy(profile)
     if getattr(args, "compress", False):
-        profile["compress"] = True
+        profile.compress = True
     if getattr(args, "format", None):
-        profile["section_format"] = args.format
+        profile.section_format = args.format
     return profile
 
 
-def parse_output_dir(args, config: dict) -> str:
+def parse_output_dir(args, config: ArachnaConfig | dict) -> str:
     if getattr(args, "output_dir", None):
         return args.output_dir
+    if isinstance(config, ArachnaConfig):
+        return config.output_dir
     return config.get("output_dir", ".")
 
 
@@ -56,10 +54,18 @@ def print_collected(created: list[str]):
 
 
 def write_manifest(
-    out_path: SafePath, all_files: list[str], tokens_by_file: dict[str, int], config: dict
+    out_path: SafePath,
+    all_files: list[str],
+    tokens_by_file: dict[str, int],
+    config: ArachnaConfig | dict,
 ):
+    project_name = (
+        config.project_name
+        if isinstance(config, ArachnaConfig)
+        else config.get("project_name", "Project")
+    )
     lines = [
-        f"# {config.get('project_name', 'Project')} — MANIFEST\n",
+        f"# {project_name} — MANIFEST\n",
         "\nAll collected files:\n",
     ]
     for f in sorted(all_files):

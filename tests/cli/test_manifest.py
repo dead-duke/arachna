@@ -1,5 +1,3 @@
-"""Tests for arachna manifest command."""
-
 import json
 
 from arachna.cli.manifest import _cmd_manifest

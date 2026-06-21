@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from ..config.config import get_profile
+from ..config.profile_config import ArachnaConfig
 from ..config.profiler import print_benchmark_table, run_benchmark
 from ..snapshot.benchmarks import benchmark_plugins
 from . import register
@@ -12,9 +13,12 @@ from ._helpers import parse_output_dir
 
 
 @register("profile")
-def _cmd_benchmark(args, config: dict):
+def _cmd_benchmark(args, config: ArachnaConfig | dict):
     profile_name = args.profile or "full"
-    root = Path(config.get("_root", Path.cwd()))
+    if isinstance(config, ArachnaConfig):
+        root = Path(config._root or Path.cwd())
+    else:
+        root = Path(config.get("_root", Path.cwd()))
     try:
         profile = get_profile(profile_name, root=root)
     except KeyError as e:

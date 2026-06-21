@@ -4,6 +4,7 @@
 import sys
 
 from ..config.config import get_profile
+from ..config.profile_config import ArachnaConfig
 from ..snapshot.snapshot_diff import create_snapshot as snap_create_snapshot
 from ..snapshot.snapshot_diff import update_snapshot as snap_update_snapshot
 from ..snapshot.store import delete_snapshot, list_snapshots, validate_snapshot_id
@@ -13,7 +14,7 @@ from ._helpers import format_profile_section, get_root
 
 
 @register("snapshot-create")
-def _cmd_snapshot_create(args, config: dict):
+def _cmd_snapshot_create(args, config: ArachnaConfig | dict):
     if not args.name:
         print("Error: --name is required for 'create'.")
         sys.exit(1)
@@ -25,7 +26,9 @@ def _cmd_snapshot_create(args, config: dict):
     root = get_root(config)
     profile_name = args.profile or "full"
     try:
-        profile = get_profile(profile_name, root=root, config=config)
+        profile = get_profile(
+            profile_name, root=root, config=config if isinstance(config, ArachnaConfig) else None
+        )
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -38,7 +41,7 @@ def _cmd_snapshot_create(args, config: dict):
 
 
 @register("snapshot-list")
-def _cmd_snapshot_list(args, config: dict):
+def _cmd_snapshot_list(args, config: ArachnaConfig | dict):
     root = get_root(config)
     snaps = list_snapshots(root=root)
     if not snaps:
@@ -50,7 +53,7 @@ def _cmd_snapshot_list(args, config: dict):
 
 
 @register("snapshot-update")
-def _cmd_snapshot_update(args, config: dict):
+def _cmd_snapshot_update(args, config: ArachnaConfig | dict):
     sid = args.id
     try:
         validate_snapshot_id(sid)
@@ -61,7 +64,11 @@ def _cmd_snapshot_update(args, config: dict):
     profile = None
     if args.profile:
         try:
-            profile = get_profile(args.profile, root=root, config=config)
+            profile = get_profile(
+                args.profile,
+                root=root,
+                config=config if isinstance(config, ArachnaConfig) else None,
+            )
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
@@ -74,7 +81,7 @@ def _cmd_snapshot_update(args, config: dict):
 
 
 @register("snapshot-delete")
-def _cmd_snapshot_delete(args, config: dict):
+def _cmd_snapshot_delete(args, config: ArachnaConfig | dict):
     sid = args.id
     try:
         validate_snapshot_id(sid)
@@ -120,7 +127,7 @@ def _print_snapshot_details(target, args):
 
 
 @register("snapshot-info")
-def _cmd_snapshot_info(args, config: dict):
+def _cmd_snapshot_info(args, config: ArachnaConfig | dict):
     sid = args.id
     try:
         validate_snapshot_id(sid)
@@ -145,7 +152,7 @@ def _cmd_snapshot_info(args, config: dict):
 
 
 @register("snapshot-rename")
-def _cmd_snapshot_rename(args, config: dict):
+def _cmd_snapshot_rename(args, config: ArachnaConfig | dict):
     from ..snapshot.store import rename_snapshot as store_rename_snapshot
 
     try:
@@ -173,7 +180,7 @@ _SNAPSHOT_HANDLERS = {
 }
 
 
-def _dispatch_snapshot(args, config: dict, parser):
+def _dispatch_snapshot(args, config: ArachnaConfig | dict, parser):
     snap_cmd = getattr(args, "snap_command", None)
     handler = _SNAPSHOT_HANDLERS.get(snap_cmd)
     if handler:

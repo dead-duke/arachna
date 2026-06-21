@@ -1,11 +1,26 @@
-"""Tests for update_snapshot and _collect_snapshot_content in snapshot layer (v1.6.4)."""
-
 import json
 
 import pytest
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.snapshot.snapshots import collect_snapshot_content, create_snapshot, update_snapshot
 from arachna.snapshot.store import load_snapshot
+
+
+def _profile(**overrides):
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+        exclude_patterns=[],
+    )
+    for k, v in overrides.items():
+        setattr(p, k, v)
+    return p
 
 
 def test_collect_snapshot_content_files(tmp_path, setup_config, make_profile):
@@ -28,14 +43,8 @@ def test_collect_snapshot_content_with_pre_commands(tmp_path, setup_config):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
-    profile = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo 'hello world'"],
-    }
-    files, pre, cmd = collect_snapshot_content(profile, root=root)
+    p = _profile(pre_commands=["echo 'hello world'"])
+    files, pre, cmd = collect_snapshot_content(p, root=root)
     assert len(files) == 1
     assert len(pre) == 1
     assert any("sha256:" in v for v in pre.values())
@@ -44,12 +53,17 @@ def test_collect_snapshot_content_with_pre_commands(tmp_path, setup_config):
 
 def test_collect_snapshot_content_with_command(tmp_path, setup_config):
     root = setup_config()
-    profile = {
-        "command": "echo 'command output'",
-        "split_mode": "by_paragraph",
-        "max_tokens": 16000,
-    }
-    files, pre, cmd = collect_snapshot_content(profile, root=root)
+    p = ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_paragraph",
+        command="echo 'command output'",
+        directories=[],
+        patterns=[],
+        use_gitignore=False,
+    )
+    files, pre, cmd = collect_snapshot_content(p, root=root)
     assert files == {}
     assert pre == {}
     assert len(cmd) == 1
@@ -62,14 +76,8 @@ def test_collect_snapshot_content_empty_pre_commands(tmp_path, setup_config):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
-    profile = {
-        "directories": ["src"],
-        "patterns": ["*.py"],
-        "exclude_patterns": [],
-        "use_gitignore": False,
-        "pre_commands": ["echo -n ''"],
-    }
-    files, pre, cmd = collect_snapshot_content(profile, root=root)
+    p = _profile(pre_commands=["echo -n ''"])
+    files, pre, cmd = collect_snapshot_content(p, root=root)
     assert len(files) == 1
     assert pre == {}
 

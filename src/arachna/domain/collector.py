@@ -9,9 +9,11 @@ import re
 import time
 from pathlib import Path
 
+from ..config.profile_config import ProfileConfig
 from .api_types import PipelineMetrics
 from .atomic_write import atomic_write_text
 from .cache import load_cache, save_cache
+from .differ_stats import compute_diff_stats
 from .gatherer import _assemble_content
 from .gatherer_files import _get_exclude_patterns
 from .path_utils import SafePath
@@ -28,12 +30,7 @@ _METRICS_FILE = ".arachna_metrics.json"
 
 @functools.lru_cache(maxsize=1)
 def _get_lock_functions():
-    """Detect platform file locking and return (lock_fn, unlock_fn).
-
-    Uses lru_cache so platform detection happens once at runtime,
-    not at import time. This eliminates the need for importlib.reload
-    in tests — tests can mock at the function level.
-    """
+    """Detect platform file locking and return (lock_fn, unlock_fn)."""
     try:
         import fcntl
 
@@ -216,8 +213,6 @@ def _diff_part_header(stats: dict, part_num: int, total_parts: int) -> str:
 
 
 def _build_part_stats(diff_sections, section_indices):
-    from ..snapshot.differ import compute_diff_stats
-
     part_stats = []
     for indices in section_indices:
         part_sections = [diff_sections[i] for i in indices if i < len(diff_sections)]
@@ -276,20 +271,22 @@ def _write_metrics(out_path: SafePath, metrics: PipelineMetrics):
 
 
 def _build_profile_for_collect(profile, name_template, allow_pre_commands):
-    profile = dict(profile)
+    profile_dict = profile.to_dict() if isinstance(profile, ProfileConfig) else dict(profile)
     if not allow_pre_commands:
-        profile["pre_commands"] = []
-        profile["post_commands"] = []
-    name_tmpl = name_template if name_template is not None else profile["name_template"]
-    return profile, name_tmpl, profile["title_template"]
+        profile_dict["pre_commands"] = []
+        profile_dict["post_commands"] = []
+    name_tmpl = name_template if name_template is not None else profile_dict["name_template"]
+    return profile_dict, name_tmpl, profile_dict["title_template"]
 
 
 def _build_tokenizer(profile, root):
-    return load_tokenizer(
-        profile.get("tokenizer", "default"),
-        chars_per_token=profile.get("chars_per_token"),
-        root=root,
-    )
+    if isinstance(profile, ProfileConfig):
+        spec = profile.tokenizer
+        chars = profile.chars_per_token
+    else:
+        spec = profile.get("tokenizer", "default")
+        chars = profile.get("chars_per_token")
+    return load_tokenizer(spec, chars_per_token=chars, root=root)
 
 
 def _build_metrics(extract_time_ms, named_sections, tokens_by_file):
@@ -322,7 +319,7 @@ def collect(
     name_template=None,
     allow_pre_commands=True,
 ):
-    profile, name_tmpl, title_tmpl = _build_profile_for_collect(
+    profile_dict, name_tmpl, title_tmpl = _build_profile_for_collect(
         profile, name_template, allow_pre_commands
     )
     out_path = SafePath(root / output_dir, root)
@@ -360,7 +357,7 @@ def collect(
         tokenizer,
         merge=merge,
     )
-    _run_post_commands(profile.get("post_commands", []), root=root, verbose=verbose)
+    _run_post_commands(profile_dict.get("post_commands", []), root=root, verbose=verbose)
     metrics = _build_metrics(extract_time_ms, named_sections, tokens_by_file)
     _write_metrics(out_path, metrics)
     return created, tokens_by_file, parts, metrics

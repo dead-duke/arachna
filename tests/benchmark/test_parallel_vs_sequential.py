@@ -1,15 +1,9 @@
-"""Benchmark: parallel vs sequential collect (v3.6.0).
-
-Parallel I/O is opt-in via ARACHNA_MAX_WORKERS (default 1).
-This benchmark compares sequential (workers=1) vs parallel (workers=4)
-across different file sizes and counts.
-"""
-
 import os
 import time
 
 import pytest
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collector import collect
 
 
@@ -18,17 +12,10 @@ def _make_small_files(tmp_path, count):
     src.mkdir()
     for i in range(count):
         (src / f"file_{i}.py").write_text(
-            f"# Module {i}\n"
-            f"import os\n\n"
-            f"def function_{i}(x, y):\n"
-            f'    """Docstring."""\n'
-            f"    result = x + y\n"
-            f"    return result * {i}\n\n"
-            f"class Handler_{i}:\n"
-            f"    def __init__(self):\n"
-            f"        self.value = {i}\n"
-            f"    def process(self, data):\n"
-            f"        return data + self.value\n"
+            f"# Module {i}\nimport os\n\ndef function_{i}(x, y):\n"
+            f'    """Docstring."""\n    result = x + y\n    return result * {i}\n\n'
+            f"class Handler_{i}:\n    def __init__(self):\n        self.value = {i}\n"
+            f"    def process(self, data):\n        return data + self.value\n"
         )
 
 
@@ -51,16 +38,18 @@ def _make_mixed_files(tmp_path, small_count, large_count, large_size_kb=100):
 
 
 def _profile(**kw):
-    return {
-        "name_template": "bench",
-        "title_template": "# T (part {part})\n\n",
-        "max_tokens": -1,
-        "split_mode": "by_file",
-        "directories": ["src"],
-        "patterns": ["*"],
-        "use_gitignore": False,
-        **kw,
-    }
+    return ProfileConfig(
+        **{
+            "name_template": "bench",
+            "title_template": "# T (part {part})\n\n",
+            "max_tokens": -1,
+            "split_mode": "by_file",
+            "directories": ["src"],
+            "patterns": ["*"],
+            "use_gitignore": False,
+            **kw,
+        }
+    )
 
 
 def _run_collect(tmp_path, profile, workers=None):
@@ -83,12 +72,7 @@ def _run_collect(tmp_path, profile, workers=None):
             os.environ.pop("ARACHNA_MAX_WORKERS", None)
 
     total_tokens = sum(tokens_by_file.values()) if isinstance(tokens_by_file, dict) else 0
-    return {
-        "files": len(created),
-        "parts": len(parts),
-        "tokens": total_tokens,
-        "time": elapsed,
-    }
+    return {"files": len(created), "parts": len(parts), "tokens": total_tokens, "time": elapsed}
 
 
 def _bench(name, tmp_path, profile, workers_list=(1, 2, 4, 8)):

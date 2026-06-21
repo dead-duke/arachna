@@ -1,5 +1,3 @@
-"""Tests for cross-snapshot diff in snapshot layer (v1.7.0)."""
-
 from arachna.snapshot.snapshots import (
     _build_current_files,
     _diff_file_sets,

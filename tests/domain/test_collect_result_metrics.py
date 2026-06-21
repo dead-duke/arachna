@@ -3,6 +3,8 @@
 import json
 
 from arachna.api.collect_api import collect
+from arachna.config.config import load_config
+from arachna.config.profile_config import ProfileConfig
 
 
 def test_collect_result_has_metrics(tmp_path):
@@ -13,16 +15,18 @@ def test_collect_result_has_metrics(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
+    config = load_config(root=tmp_path)
     result = collect(
-        profile={
-            "name_template": "chat-api",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_file",
-            "directories": ["src"],
-            "patterns": ["*.py"],
-            "use_gitignore": False,
-        },
+        profile=ProfileConfig(
+            name_template="chat-api",
+            title_template="# T (part {part})\n\n",
+            max_tokens=16000,
+            split_mode="by_file",
+            directories=["src"],
+            patterns=["*.py"],
+            use_gitignore=False,
+        ),
+        config=config,
         output_dir="out",
         root=tmp_path,
     )
@@ -40,16 +44,18 @@ def test_collect_result_metrics_empty(tmp_path):
     )
     (tmp_path / "empty").mkdir()
 
+    config = load_config(root=tmp_path)
     result = collect(
-        profile={
-            "name_template": "chat-api",
-            "title_template": "# T (part {part})\n\n",
-            "max_tokens": 16000,
-            "split_mode": "by_file",
-            "directories": ["empty"],
-            "patterns": ["*.py"],
-            "use_gitignore": False,
-        },
+        profile=ProfileConfig(
+            name_template="chat-api",
+            title_template="# T (part {part})\n\n",
+            max_tokens=16000,
+            split_mode="by_file",
+            directories=["empty"],
+            patterns=["*.py"],
+            use_gitignore=False,
+        ),
+        config=config,
         output_dir="out",
         root=tmp_path,
     )

@@ -1,5 +1,3 @@
-import json
-
 from arachna.cli.collect import _cmd_collect_all, _cmd_collect_profile
 
 
@@ -41,11 +39,19 @@ def test_collect_all(tmp_path, make_config):
 
 
 def test_no_profiles_default(tmp_path, make_config):
-    config = make_config(tmp_path)
-    config["profiles"] = {}
-    cfg = tmp_path / ".arachna.json"
-    cfg.write_text(json.dumps({"profiles": {}}))
+    config = make_config(
+        tmp_path,
+        profiles={
+            "code": {
+                "directories": ["."],
+                "patterns": ["*.py"],
+                "max_tokens": 32000,
+                "split_mode": "by_file",
+                "use_gitignore": False,
+            }
+        },
+    )
     (tmp_path / "main.py").write_text("print('hi')")
     _cmd_collect_all(_args(all=True), config)
-    files = list((tmp_path / "out").glob("chat-default*.md"))
+    files = list((tmp_path / "out").glob("chat-code*.md"))
     assert len(files) == 1
