@@ -1,13 +1,36 @@
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
 build/
+
+# Virtual environments
 .venv/
 venv/
+
+# IDE and OS
 *.swp
 .DS_Store
+
+# Tools cache
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Coverage
+htmlcov/
+
+# Logs
+*.log
+
+# arachna output
 chat-*.md
 .coverage
 /arachna_context
+
+# Project docs (not tracked)
 /llm_docs
+
+# Generated API docs (deployed via CI to GitHub Pages)
+/docs/api
