@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from arachna.domain.formatter import _EXT_LANG, lang_for_path
+from arachna.domain.formatting.formatter import _EXT_LANG, lang_for_path
 
 
 def test_hpp_extension():

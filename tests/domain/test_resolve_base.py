@@ -1,6 +1,6 @@
 """Tests for _resolve_base edge cases in runner.py."""
 
-from arachna.domain.runner import _resolve_base
+from arachna.domain.execution.runner import _resolve_base
 
 
 def test_resolve_base_value_error():

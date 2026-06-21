@@ -1,6 +1,10 @@
 """Tests for repo-map formatting helpers in formatter.py."""
 
-from arachna.domain.formatter import _format_sigs_json, _format_sigs_markdown, _format_sigs_xml
+from arachna.domain.formatting.formatter import (
+    _format_sigs_json,
+    _format_sigs_markdown,
+    _format_sigs_xml,
+)
 
 
 def test_format_markdown_sigs_with_lang(tmp_path):

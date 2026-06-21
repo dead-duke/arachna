@@ -5,7 +5,7 @@ from arachna.api.snapshot import compute_diff, create_snapshot
 from arachna.config.config import get_profile, load_config
 from arachna.config.profile_config import ProfileConfig
 from arachna.domain.api_types import DiffSection
-from arachna.domain.language_dispatch import get_block_parser
+from arachna.domain.tokenization.language_dispatch import get_block_parser
 from arachna.snapshot.snapshots import (
     _format_repo_map_added,
     _format_repo_map_diff,

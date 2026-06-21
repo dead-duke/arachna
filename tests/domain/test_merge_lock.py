@@ -10,7 +10,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from arachna.domain.collector import _find_next_part_num, _get_lock_functions, _merge_lock
+from arachna.domain.collection.collector import (
+    _find_next_part_num,
+    _get_lock_functions,
+    _merge_lock,
+)
 
 
 def test_merge_lock_context_manager(tmp_path):

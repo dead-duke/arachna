@@ -1,7 +1,7 @@
 """Tests for oversized section splitting in split_sections."""
 
-from arachna.domain.splitter import _split_oversized_section, split_sections
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.execution.splitter import _split_oversized_section, split_sections
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def test_split_oversized_by_paragraphs():
@@ -88,7 +88,7 @@ def test_split_sections_base64():
 
 def test_split_sections_toc_dedup():
     """TOC _build_toc deduplicates indices within a part."""
-    from arachna.domain.collector import _build_toc
+    from arachna.domain.collection.collector import _build_toc
 
     sections = [("src/big.py", "x" * 2000, 500)]
     parts, indices = split_sections([sections[0][1]], max_tokens=100, tokenizer=count_tokens)

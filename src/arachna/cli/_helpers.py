@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Shared helpers for CLI handlers."""
 
 import copy
@@ -7,7 +6,7 @@ from pathlib import Path
 from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..domain.atomic_write import atomic_write_text
 from ..domain.path_utils import SafePath
-from ..domain.tokenizer import count_tokens
+from ..domain.tokenization.tokenizer import count_tokens
 
 
 def get_root(config: ArachnaConfig | dict) -> Path:

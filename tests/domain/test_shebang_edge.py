@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from arachna.domain.formatter import format_file_section
+from arachna.domain.formatting.formatter import format_file_section
 
 
 def test_shebang_env_no_args():

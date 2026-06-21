@@ -1,6 +1,6 @@
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer import _assemble_content
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.collection.gatherer import _assemble_content
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _profile(**overrides):

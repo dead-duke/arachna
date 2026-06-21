@@ -1,7 +1,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def test_empty_string():

@@ -1,6 +1,6 @@
 """Tests for _generate_header in formatter.py."""
 
-from arachna.domain.formatter import _generate_header
+from arachna.domain.formatting.formatter import _generate_header
 
 
 def test_header_python_ast(tmp_path):

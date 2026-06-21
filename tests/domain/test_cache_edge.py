@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from arachna.domain.cache import _file_hash, get_changed_files, save_cache, update_cache
+from arachna.domain.cache.cache import _file_hash, get_changed_files, save_cache, update_cache
 
 # -- _file_hash error handling --
 
@@ -19,7 +19,7 @@ def test_file_hash_nonexistent():
 def test_file_hash_returns_none_when_file_exceeds_max_size(tmp_path):
     f = tmp_path / "big.py"
     f.write_text("x" * 100)
-    with patch("arachna.domain.cache._MAX_HASH_SIZE", 50):
+    with patch("arachna.domain.cache.cache._MAX_HASH_SIZE", 50):
         assert _file_hash(f) is None
 
 
@@ -67,7 +67,7 @@ def test_save_cache_falls_back_on_replace_error(tmp_path):
 
 
 def test_save_cache_fallback_direct_write(tmp_path, monkeypatch):
-    import arachna.domain.cache as cache_module
+    import arachna.domain.cache.cache as cache_module
 
     def failing_mkstemp(*args, **kwargs):
         raise OSError("No space left on device")

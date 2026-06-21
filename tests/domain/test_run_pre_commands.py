@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from arachna.domain.runner import run_pre_commands
+from arachna.domain.execution.runner import run_pre_commands
 from tests.conftest import mock_popen
 
 
@@ -37,7 +37,7 @@ def test_run_pre_commands_empty(tmp_path):
 def test_run_pre_commands_with_delay(tmp_path):
     with (
         patch("subprocess.Popen") as mp,
-        patch("arachna.domain.runner.time.sleep") as mock_sleep,
+        patch("arachna.domain.execution.runner.time.sleep") as mock_sleep,
     ):
         mp.side_effect = [
             mock_popen(stdout="a\n"),
@@ -56,7 +56,7 @@ def test_run_pre_commands_with_delay(tmp_path):
 def test_run_pre_commands_no_delay_default(tmp_path):
     with (
         patch("subprocess.Popen") as mp,
-        patch("arachna.domain.runner.time.sleep") as mock_sleep,
+        patch("arachna.domain.execution.runner.time.sleep") as mock_sleep,
     ):
         mp.side_effect = [
             mock_popen(stdout="x\n"),

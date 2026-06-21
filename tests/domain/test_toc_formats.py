@@ -1,6 +1,6 @@
 """Tests for _build_toc with different output formats."""
 
-from arachna.domain.collector import _build_toc
+from arachna.domain.collection.collector import _build_toc
 
 
 def test_toc_markdown():

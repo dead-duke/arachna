@@ -2,8 +2,8 @@
 
 from unittest.mock import patch
 
-import arachna.domain.runner as runner_mod
-from arachna.domain.runner import _write_log, run_command
+import arachna.domain.execution.runner as runner_mod
+from arachna.domain.execution.runner import _write_log, run_command
 
 
 def test_get_audit_log_path_os_error(tmp_path):

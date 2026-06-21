@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Signature formatting for repo-map mode."""
 
 import json
@@ -30,7 +29,7 @@ _SIGS_FORMATTERS = {
 
 
 def _apply_repo_map_to_section(filepath, section, raw_text, lang, fmt, include_header, header=""):
-    from .splitter import extract_signatures
+    from ..execution.splitter import extract_signatures
 
     if raw_text is None:
         return section

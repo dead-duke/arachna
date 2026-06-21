@@ -2,8 +2,8 @@ import os
 from unittest.mock import patch
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer_strategies import _assemble_in_memory, _FullModeStrategy
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.collection.gatherer_strategies import _assemble_in_memory, _FullModeStrategy
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _profile(**overrides):

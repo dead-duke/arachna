@@ -139,7 +139,7 @@ def test_preset_to_profile_gleam(tmp_path):
 
 
 def test_formatter_extensions_new_languages():
-    from arachna.domain.formatter import _EXT_LANG
+    from arachna.domain.formatting.formatter import _EXT_LANG
 
     assert _EXT_LANG["go"] == "go"
     assert _EXT_LANG["rs"] == "rust"
@@ -153,7 +153,7 @@ def test_formatter_extensions_new_languages():
 
 
 def test_formatter_extensions_tsx_jsx():
-    from arachna.domain.formatter import _EXT_LANG
+    from arachna.domain.formatting.formatter import _EXT_LANG
 
     assert _EXT_LANG["tsx"] == "tsx"
     assert _EXT_LANG["jsx"] == "jsx"

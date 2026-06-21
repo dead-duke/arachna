@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Language and engine presets for arachna init."""
 
 import json
@@ -6,7 +5,7 @@ import threading
 from pathlib import Path
 
 from ..domain.path_utils import SafePath
-from ..domain.tokenizer import _is_safe_tokenizer as _tokenizer_is_safe
+from ..domain.tokenization.tokenizer import _is_safe_tokenizer as _tokenizer_is_safe
 from . import VALID_SPLIT_MODES
 
 _SEPARATOR = "-" * 50

@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Collection strategies.
 
 Uses mode strategy pattern: different strategies for 'full', 'repo-map',
@@ -13,7 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .compressor import compress as _compress
+from ..compressor import compress as _compress
+from ..execution.splitter import pack_into_parts, split_sections
 from .gatherer_files import (
     _format_one_file,
     _get_profile_files,
@@ -21,7 +21,6 @@ from .gatherer_files import (
     _scan_directories,
 )
 from .gatherer_query import _filter_by_query, _filter_filenames_by_query
-from .splitter import pack_into_parts, split_sections
 
 
 @dataclass
@@ -50,7 +49,7 @@ class _FullModeStrategy:
         self._graph_cache: dict = {}
 
     def _resolve_target_files(self, profile, exclude, root, incremental, cache, query):
-        from .cache import get_changed_files, update_cache
+        from ..cache.cache import get_changed_files, update_cache
 
         filepaths = _scan_directories(profile, exclude, root)
         for fp in _get_profile_files(profile, exclude, root):

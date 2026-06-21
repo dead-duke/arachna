@@ -1,6 +1,6 @@
 """Tests for ARACHNA_SAFE_TOKENIZERS env var."""
 
-from arachna.domain.tokenizer import _is_safe_tokenizer
+from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer
 
 
 def test_known_safe_tokenizers():

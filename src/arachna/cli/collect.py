@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna collect' command."""
 
 import json
@@ -7,8 +6,14 @@ import sys
 from ..config.config import get_profile
 from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..config.validator import validate_profile
-from ..domain.collector import _MANIFEST, clean_manifest, collect, load_manifest, save_manifest
-from ..domain.gatherer import dry_run
+from ..domain.collection.collector import (
+    _MANIFEST,
+    clean_manifest,
+    collect,
+    load_manifest,
+    save_manifest,
+)
+from ..domain.collection.gatherer import dry_run
 from ..domain.path_utils import SafePath
 from . import register
 from ._helpers import (

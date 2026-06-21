@@ -3,7 +3,7 @@
 import json
 from unittest.mock import patch
 
-from arachna.domain.runner import _check_shell_metachars, _validate_command, run_command
+from arachna.domain.execution.runner import _check_shell_metachars, _validate_command, run_command
 from tests.conftest import mock_popen
 
 # -- $() and backticks blocked --
@@ -67,9 +67,9 @@ def test_legitimate_pre_commands_pass_validation():
 
 def test_dangerous_override_sanitizes_newlines_before_logging():
     """Newlines in command are escaped before logger.error in dangerous override path."""
-    from arachna.domain.runner import _handle_dangerous_override
+    from arachna.domain.execution.runner import _handle_dangerous_override
 
-    with patch("arachna.domain.runner.logger.error") as mock_log:
+    with patch("arachna.domain.execution.runner.logger.error") as mock_log:
         _handle_dangerous_override(False, "blocked", True, "echo hello\nevil")
         logged_message = mock_log.call_args[0][1]
         assert "\n" not in logged_message
@@ -78,9 +78,9 @@ def test_dangerous_override_sanitizes_newlines_before_logging():
 
 def test_dangerous_override_sanitizes_carriage_return_before_logging():
     """Carriage returns in command are escaped before logger.error."""
-    from arachna.domain.runner import _handle_dangerous_override
+    from arachna.domain.execution.runner import _handle_dangerous_override
 
-    with patch("arachna.domain.runner.logger.error") as mock_log:
+    with patch("arachna.domain.execution.runner.logger.error") as mock_log:
         _handle_dangerous_override(False, "blocked", True, "echo hello\revil")
         logged_message = mock_log.call_args[0][1]
         assert "\r" not in logged_message

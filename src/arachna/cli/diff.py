@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna diff' command."""
 
 import sys
@@ -6,7 +5,7 @@ from pathlib import Path
 
 from ..config.config import get_profile
 from ..config.profile_config import ArachnaConfig, ProfileConfig
-from ..domain.collector import (
+from ..domain.collection.collector import (
     _write_diff_parts,
     clean_manifest,
     collect,
@@ -15,7 +14,7 @@ from ..domain.collector import (
 )
 from ..domain.differ_stats import compute_diff_stats
 from ..domain.path_utils import SafePath
-from ..domain.tokenizer import count_tokens, load_tokenizer
+from ..domain.tokenization.tokenizer import count_tokens, load_tokenizer
 from ..snapshot.snapshots import compute_diff
 from ..snapshot.store import list_snapshots, load_snapshot
 from . import register

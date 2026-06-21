@@ -1,7 +1,7 @@
 """Test _filter_by_query with include_pre_commands parameter."""
 
-from arachna.domain.gatherer_query import _filter_by_query
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.collection.gatherer_query import _filter_by_query
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _make_section(filepath: str, content: str) -> tuple[str, str, int]:

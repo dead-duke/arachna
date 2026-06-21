@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Language dispatch — unified parser mapping."""
 
 import ast as _ast
@@ -6,10 +5,10 @@ import logging
 import re
 import threading
 
-from .formatter import C_LIKE_LANGS, SCRIPT_LANGS
-from .formatter import _parse_c_like as _header_parse_c_like
-from .formatter import _parse_python as _header_parse_python
-from .formatter import _parse_script as _header_parse_script
+from ..formatting.formatter import C_LIKE_LANGS, SCRIPT_LANGS
+from ..formatting.formatter import _parse_c_like as _header_parse_c_like
+from ..formatting.formatter import _parse_python as _header_parse_python
+from ..formatting.formatter import _parse_script as _header_parse_script
 
 logger = logging.getLogger("arachna.language_dispatch")
 
@@ -146,22 +145,10 @@ def _parse_c_like_blocks(text: str, lang: str) -> dict:
     return blocks
 
 
-_RE_SCRIPT_DEF = re.compile(
-    r"^(\s*def\s+(?:self\.)?(\w+[?!]?).*)",
-    re.MULTILINE,
-)
-_RE_SCRIPT_DEFMODULE = re.compile(
-    r"^(\s*defmodule\s+([\w.]+).*)",
-    re.MULTILINE,
-)
-_RE_SCRIPT_DEFP = re.compile(
-    r"^(\s*defp\s+(\w+).*)",
-    re.MULTILINE,
-)
-_RE_SCRIPT_FUNCTION = re.compile(
-    r"^(\s*function\s+(\w+).*)",
-    re.MULTILINE,
-)
+_RE_SCRIPT_DEF = re.compile(r"^(\s*def\s+(?:self\.)?(\w+[?!]?).*)", re.MULTILINE)
+_RE_SCRIPT_DEFMODULE = re.compile(r"^(\s*defmodule\s+([\w.]+).*)", re.MULTILINE)
+_RE_SCRIPT_DEFP = re.compile(r"^(\s*defp\s+(\w+).*)", re.MULTILINE)
+_RE_SCRIPT_FUNCTION = re.compile(r"^(\s*function\s+(\w+).*)", re.MULTILINE)
 
 _SCRIPT_BLOCK_PATTERNS = [
     _RE_SCRIPT_DEF,

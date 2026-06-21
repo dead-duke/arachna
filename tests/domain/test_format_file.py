@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from arachna.domain.formatter import (
+from arachna.domain.formatting.formatter import (
     _is_binary_allowed,
     _lang_from_shebang,
     _should_skip_binary,

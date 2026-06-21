@@ -7,7 +7,7 @@ import psutil
 import pytest
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.collector import collect
+from arachna.domain.collection.collector import collect
 
 BASELINE_FILE = Path(__file__).parent / "baseline.json"
 RESULTS = []

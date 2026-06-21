@@ -1,19 +1,17 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna manifest' command."""
 
 import json
 from pathlib import Path
 
 from ..config.profile_config import ArachnaConfig
-from ..domain.collector import load_manifest
+from ..domain.collection.collector import load_manifest
 from ..domain.path_utils import SafePath
-from ..domain.tokenizer import count_tokens
+from ..domain.tokenization.tokenizer import count_tokens
 from . import register
 from ._helpers import get_root, parse_output_dir
 
 
 def _manifest_json(manifest_files, out_path, profiles, project_name):
-    """Build and print JSON manifest output."""
     parts = []
     for f in manifest_files:
         fp = out_path / f
@@ -30,7 +28,6 @@ def _manifest_json(manifest_files, out_path, profiles, project_name):
 
 
 def _manifest_text(manifest_files, out_path, project_name):
-    """Build and print text manifest output."""
     if not manifest_files:
         print("No collected files found.")
         return

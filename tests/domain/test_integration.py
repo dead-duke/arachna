@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.collector import collect
-from arachna.domain.gatherer import gather_files
+from arachna.domain.collection.collector import collect
+from arachna.domain.collection.gatherer import gather_files
 
 
 def test_gitignore_excludes_matched_files(tmp_path):

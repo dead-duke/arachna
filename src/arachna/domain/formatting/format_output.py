@@ -1,9 +1,9 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """File formatting for markdown/xml/json output."""
 
 import json
 import os as _os
 
+from ..path_utils import SafePath
 from .format_binary import (
     _format_binary,
     _format_binary_for_fmt,
@@ -13,7 +13,6 @@ from .format_binary import (
 )
 from .format_headers import _generate_header
 from .format_language import _lang_from_shebang, lang_for_path
-from .path_utils import SafePath
 
 _ARACHNA_MAX_FILE_SIZE = int(_os.environ.get("ARACHNA_MAX_FILE_SIZE", 100 * 1024 * 1024))
 
@@ -38,7 +37,6 @@ def _try_read_text(path):
 
 
 def _handle_unicode_error(path, include_binary, binary_extensions, binary_max_mb, verbose):
-    """Handle unicode_error status from file read."""
     if include_binary and _is_binary_allowed(path, binary_extensions, binary_max_mb):
         return ("binary", _format_binary(path, "markdown"))
     if verbose:
@@ -47,7 +45,6 @@ def _handle_unicode_error(path, include_binary, binary_extensions, binary_max_mb
 
 
 def _handle_verbose_skip(status, path, detail, verbose):
-    """Print skip message for permission/os_error statuses."""
     if verbose:
         if status == "permission_error":
             print(f"  Skipped (permission): {path}")

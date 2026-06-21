@@ -1,5 +1,5 @@
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer import dry_run
+from arachna.domain.collection.gatherer import dry_run
 
 
 def _profile(**overrides):

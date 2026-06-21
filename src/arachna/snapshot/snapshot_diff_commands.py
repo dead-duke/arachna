@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Snapshot command and pre_command diff — execution, output diff strategies."""
 
 import difflib
@@ -6,7 +5,7 @@ import logging
 from pathlib import Path
 
 from ..domain.api_types import DiffSection
-from ..domain.runner import _sanitize_log, run_command
+from ..domain.execution.runner import _sanitize_log, run_command
 from .differ import compute_diff as differ_compute_diff
 from .snapshot_diff_files import _get_content_from_manifest
 from .store import _SHA256_PREFIX, load_snapshot, write_object
@@ -18,7 +17,6 @@ _PRE_LABEL_PREFIX = "pre: "
 
 
 def _collect_snapshot_pre_commands(profile: dict, root: Path) -> dict[str, str]:
-    """Execute pre_commands and store outputs."""
     pre_commands_data = {}
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd, root=root, allow_file_args=True)
@@ -33,7 +31,6 @@ def _collect_snapshot_pre_commands(profile: dict, root: Path) -> dict[str, str]:
 
 
 def _collect_snapshot_command(profile: dict, root: Path) -> dict[str, str]:
-    """Execute command profile and store output."""
     command_data = {}
     cmd = profile.get("command")
     if cmd:
@@ -48,7 +45,6 @@ def _collect_snapshot_command(profile: dict, root: Path) -> dict[str, str]:
 
 
 def _append_diff_lines(parts, tag, old_lines, i1, i2, new_lines, j1, j2):
-    """Append diff lines for one opcode to the parts list."""
     if tag == "delete":
         for line in old_lines[i1:i2]:
             parts.append(f"- {line}\n")
@@ -63,7 +59,6 @@ def _append_diff_lines(parts, tag, old_lines, i1, i2, new_lines, j1, j2):
 
 
 def _diff_pre_commands_line(old_content, new_content, label):
-    """Line-by-line diff for pre_commands that produce line-based output (tree, git tag)."""
     old_lines = old_content.strip().split("\n")
     new_lines = new_content.strip().split("\n")
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
@@ -74,8 +69,7 @@ def _diff_pre_commands_line(old_content, new_content, label):
 
 
 def _diff_pre_commands_marker(old_content, new_content, label, marker, fmt):
-    """Section-by-section diff for pre_commands with marker separators (git log)."""
-    from ..domain.splitter import _split_to_sections
+    from ..domain.execution.splitter import _split_to_sections
 
     old_sections = _split_to_sections(old_content, marker)
     new_sections = _split_to_sections(new_content, marker)
@@ -100,7 +94,6 @@ def _diff_pre_commands_marker(old_content, new_content, label, marker, fmt):
 
 
 def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt):
-    """Dispatch pre_command diff to line-based or marker-based based on command type."""
     cmd_basename = Path(cmd.strip().split()[0]).name if cmd.strip() else ""
     if cmd_basename == "tree" or (cmd_basename == "git" and "tag" in cmd):
         return _diff_pre_commands_line(old_content, new_content, label)
@@ -110,7 +103,6 @@ def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt):
 
 
 def _build_pre_command_map(profile: dict) -> dict[str, str]:
-    """Build mapping from pre_command label to original command."""
     cmd_map = {}
     for cmd in profile.get("pre_commands", []):
         label = f"{_PRE_LABEL_PREFIX}{cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
@@ -119,7 +111,6 @@ def _build_pre_command_map(profile: dict) -> dict[str, str]:
 
 
 def _build_current_pre_commands(profile: dict, root: Path) -> dict[str, str]:
-    """Execute current pre_commands and return label -> output mapping."""
     current_pre = {}
     for cmd in profile.get("pre_commands", []):
         output = run_command(cmd, root=root, allow_file_args=True)
@@ -130,7 +121,6 @@ def _build_current_pre_commands(profile: dict, root: Path) -> dict[str, str]:
 
 
 def _diff_existing_pre_command(label, old_content, current_pre, cmd_map, fmt):
-    """Diff a pre_command that existed in the snapshot."""
     if label in current_pre:
         cmd = cmd_map.get(label, "")
         diff_output = (
@@ -151,7 +141,6 @@ def _diff_existing_pre_command(label, old_content, current_pre, cmd_map, fmt):
 
 
 def _diff_new_pre_command(label, cmd_map, fmt):
-    """Create an 'added' section for a new pre_command."""
     cmd = cmd_map.get(label, "")
     diff_output = (
         _diff_pre_commands_structural("", "", label, cmd, fmt)
@@ -162,7 +151,6 @@ def _diff_new_pre_command(label, cmd_map, fmt):
 
 
 def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root):
-    """Compute pre_commands diffs between snapshot(s) and current state."""
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_pre = manifest.get("pre_commands", {})
     current_pre = {}
@@ -187,7 +175,6 @@ def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root)
 
 
 def _get_current_cmd_output(to_snapshot_id, profile, root):
-    """Get current command output from either target snapshot or current profile."""
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id, root=root)
         snapshot_to_cmd = to_manifest.get("command", {})
@@ -203,7 +190,6 @@ def _get_current_cmd_output(to_snapshot_id, profile, root):
 
 
 def _diff_cmd_modified(snapshot_cmd, current_cmd_output, fmt, root):
-    """Build modified sections for command diff."""
     sections = []
     for label, hash_spec in snapshot_cmd.items():
         old_content = _get_content_from_manifest(hash_spec, root=root)
@@ -214,7 +200,6 @@ def _diff_cmd_modified(snapshot_cmd, current_cmd_output, fmt, root):
 
 
 def _diff_cmd_deleted(snapshot_cmd, root):
-    """Build deleted sections for command diff."""
     sections = []
     for label, hash_spec in snapshot_cmd.items():
         old_content = _get_content_from_manifest(hash_spec, root=root)
@@ -230,13 +215,11 @@ def _diff_cmd_deleted(snapshot_cmd, root):
 
 
 def _diff_cmd_added(current_cmd_output, fmt):
-    """Build added section for command diff."""
     diff_output = differ_compute_diff("", current_cmd_output, _COMMAND_OUTPUT_LABEL, fmt=fmt)
     return [DiffSection(type="added", path=_COMMAND_OUTPUT_LABEL, content=diff_output)]
 
 
 def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
-    """Compute command output diff between snapshot(s) and current state."""
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_cmd = manifest.get("command", {})
     current_cmd_output = _get_current_cmd_output(to_snapshot_id, profile, root)

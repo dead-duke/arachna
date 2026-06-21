@@ -1,6 +1,6 @@
 """Tests for _validate_command allow_dangerous branches."""
 
-from arachna.domain.runner import _validate_command
+from arachna.domain.execution.runner import _validate_command
 
 
 def test_allow_dangerous_pipe_unknown():

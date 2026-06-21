@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.collector import (
+from arachna.domain.collection.collector import (
     _find_next_part_num,
     clean_manifest,
     collect,
@@ -192,7 +192,7 @@ def test_post_commands_executed(tmp_path):
     p = _profile()
     p.post_commands = ["echo done"]
 
-    with patch("arachna.domain.collector.run_command") as mock_run:
+    with patch("arachna.domain.collection.collector.run_command") as mock_run:
         mock_run.return_value = "done"
         collect(p, "P", str(out), root=tmp_path)
         mock_run.assert_called_with("echo done", root=tmp_path, allow_file_args=True)

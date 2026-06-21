@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from arachna.domain.language_dispatch import RegexTimeoutError, _run_with_timeout
+from arachna.domain.tokenization.language_dispatch import RegexTimeoutError, _run_with_timeout
 
 
 def test_run_with_timeout_completes_fast():

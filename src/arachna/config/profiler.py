@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Benchmark module — config layer.
 
 Measures collection performance across modes (full, compress, repo-map,
@@ -11,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ..domain.collector import clean_manifest, collect
+from ..domain.collection.collector import clean_manifest, collect
 from ..domain.path_utils import SafePath
 from .profile_config import ProfileConfig
 
@@ -96,7 +95,7 @@ def run_benchmark(profile: ProfileConfig, output_dir: str, root: Path) -> dict[s
 
 
 def _find_query_candidate(profile: ProfileConfig, root: Path) -> str | None:
-    from ..domain.gatherer_files import _scan_directories
+    from ..domain.collection.gatherer_files import _scan_directories
 
     exclude = profile.exclude_patterns
     files = _scan_directories(profile, exclude, root=root)

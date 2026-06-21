@@ -1,12 +1,12 @@
 """Tests for decomposed query pipeline: _score_files, _build_reverse_graph, _expand_import_chain, _collect_import_graph."""
 
-from arachna.domain.gatherer_query import (
+from arachna.domain.collection.gatherer_query import (
     _build_reverse_graph,
     _collect_import_graph,
     _expand_import_chain,
     _score_files,
 )
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _make_section(filepath: str, content: str) -> tuple[str, str, int]:

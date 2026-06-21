@@ -1,17 +1,15 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Repo-map diff transformation — signatures only for modified/added/deleted sections."""
 
 import hashlib
 from pathlib import Path
 
-from ..domain.formatter import C_LIKE_LANGS, lang_for_path
-from ..domain.language_dispatch import get_block_parser
+from ..domain.formatting.formatter import C_LIKE_LANGS, lang_for_path
+from ..domain.tokenization.language_dispatch import get_block_parser
 from .snapshot_diff_files import _read_file_from_disk, _read_file_from_store
 from .store import load_snapshot
 
 
 def _get_snapshot_files(snapshot_id, to_snapshot_id, root):
-    """Get file dicts from snapshot(s)."""
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
     to_files = None
@@ -22,7 +20,6 @@ def _get_snapshot_files(snapshot_id, to_snapshot_id, root):
 
 
 def _parse_blocks_for_lang(content, lang, parser):
-    """Parse content into blocks for the given language."""
     if content is None or parser is None:
         return None
     if lang in C_LIKE_LANGS or lang == "gdscript":
@@ -31,7 +28,6 @@ def _parse_blocks_for_lang(content, lang, parser):
 
 
 def _repo_map_modified_section(s, lang, parser, snapshot_files, to_files, root):
-    """Apply repo-map transformation to a modified section."""
     old_content = _read_file_from_store(s.path, snapshot_files, root)
     new_content = (
         _read_file_from_disk(root / s.path, root)
@@ -45,7 +41,6 @@ def _repo_map_modified_section(s, lang, parser, snapshot_files, to_files, root):
 
 
 def _repo_map_added_section(s, lang, parser, to_files, root):
-    """Apply repo-map transformation to an added section."""
     new_content = (
         _read_file_from_disk(root / s.path, root)
         if to_files is None
@@ -57,7 +52,6 @@ def _repo_map_added_section(s, lang, parser, to_files, root):
 
 
 def _repo_map_deleted_section(s, lang, parser, snapshot_files, root):
-    """Apply repo-map transformation to a deleted section."""
     old_content = _read_file_from_store(s.path, snapshot_files, root)
     blocks = _parse_blocks_for_lang(old_content, lang, parser)
     if blocks is not None:
@@ -69,7 +63,6 @@ def _repo_map_deleted_section(s, lang, parser, snapshot_files, root):
 
 
 def _format_repo_map_entry(old, new, parts):
-    """Format a single repo-map diff entry for one named block."""
     if old is None and new is not None:
         sig, _body = new
         parts.append(f"+ {sig}\n")
@@ -91,7 +84,6 @@ def _format_repo_map_entry(old, new, parts):
 
 
 def _format_repo_map_diff(path, old_blocks, new_blocks):
-    """Format repo-map diff output showing added/removed/modified signatures."""
     all_names = set(old_blocks.keys()) | set(new_blocks.keys())
     parts = [f"### {path}\n"]
     for name in sorted(all_names):
@@ -102,7 +94,6 @@ def _format_repo_map_diff(path, old_blocks, new_blocks):
 
 
 def _format_repo_map_added(path, blocks):
-    """Format repo-map output for added files (all signatures)."""
     parts = [f"### {path}\n"]
     for _name, (sig, _body) in blocks.items():
         parts.append(f"+ {sig}\n")
@@ -110,7 +101,6 @@ def _format_repo_map_added(path, blocks):
 
 
 def apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root):
-    """Apply repo-map transformation to diff sections (signatures only)."""
     snapshot_files, to_files = _get_snapshot_files(snapshot_id, to_snapshot_id, root)
     result = []
     for s in sections:

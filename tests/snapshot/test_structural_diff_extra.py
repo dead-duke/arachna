@@ -1,6 +1,6 @@
 """Extra coverage for differ_structural.py — C-like, script, fallback, formatting."""
 
-from arachna.domain.language_dispatch import (
+from arachna.domain.tokenization.language_dispatch import (
     _extract_braced_block,
     _parse_c_like_blocks,
     _parse_script_blocks,

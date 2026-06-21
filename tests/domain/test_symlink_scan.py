@@ -1,5 +1,5 @@
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer import _scan_directories
+from arachna.domain.collection.gatherer import _scan_directories
 
 
 def test_scan_skips_symlink_directory(tmp_path):

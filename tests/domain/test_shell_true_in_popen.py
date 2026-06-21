@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from arachna.domain.runner import run_command
+from arachna.domain.execution.runner import run_command
 
 
 def test_pipe_uses_shell_true(tmp_path):

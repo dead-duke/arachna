@@ -1,6 +1,6 @@
 """Coverage for _generate_header with edge cases."""
 
-from arachna.domain.formatter import _generate_header
+from arachna.domain.formatting.formatter import _generate_header
 
 
 def test_header_python_empty_file(tmp_path):

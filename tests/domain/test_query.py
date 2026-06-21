@@ -1,7 +1,7 @@
 """Tests for _filter_by_query and _collect_import_graph in gatherer_query.py."""
 
-from arachna.domain.gatherer_query import _collect_import_graph, _filter_by_query
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.collection.gatherer_query import _collect_import_graph, _filter_by_query
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _make_section(filepath: str, content: str) -> tuple[str, str, int]:

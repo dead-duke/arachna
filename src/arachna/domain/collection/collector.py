@@ -9,17 +9,17 @@ import re
 import time
 from pathlib import Path
 
-from ..config.profile_config import ProfileConfig
-from .api_types import PipelineMetrics
-from .atomic_write import atomic_write_text
-from .cache import load_cache, save_cache
-from .differ_stats import compute_diff_stats
+from ...config.profile_config import ProfileConfig
+from ..api_types import PipelineMetrics
+from ..atomic_write import atomic_write_text
+from ..cache.cache import load_cache, save_cache
+from ..differ_stats import compute_diff_stats
+from ..execution.runner import run_command
+from ..execution.splitter import split_sections
+from ..path_utils import SafePath
+from ..tokenization.tokenizer import load_tokenizer
 from .gatherer import _assemble_content
 from .gatherer_files import _get_exclude_patterns
-from .path_utils import SafePath
-from .runner import run_command
-from .splitter import split_sections
-from .tokenizer import load_tokenizer
 
 logger = logging.getLogger("arachna.collector")
 

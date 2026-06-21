@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from arachna.domain.api_types import DiffSection
-from arachna.domain.collector import _write_diff_parts
+from arachna.domain.collection.collector import _write_diff_parts
 from arachna.domain.path_utils import SafePath
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _safe_out(tmp_path, name="out"):

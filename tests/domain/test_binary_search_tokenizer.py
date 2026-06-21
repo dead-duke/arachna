@@ -1,6 +1,6 @@
 """Tests for binary search with custom tokenizers (v2.9.2)."""
 
-from arachna.domain.splitter import _handle_single
+from arachna.domain.execution.splitter import _handle_single
 
 
 def test_binary_search_custom_tokenizer():

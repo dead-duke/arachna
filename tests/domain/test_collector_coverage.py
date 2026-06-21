@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from arachna.domain.collector import (
+from arachna.domain.collection.collector import (
     _build_toc,
     _get_lock_functions,
     clean_manifest,
@@ -25,7 +25,7 @@ def test_merge_lock_no_fcntl_no_msvcrt(tmp_path):
     with patch.dict(sys.modules, {"fcntl": None, "msvcrt": None}):
         _get_lock_functions.cache_clear()
         try:
-            from arachna.domain.collector import _merge_lock
+            from arachna.domain.collection.collector import _merge_lock
 
             out = _safe_out(tmp_path)
             with _merge_lock(out):

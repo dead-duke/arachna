@@ -1,24 +1,22 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """File collection."""
 
 import contextlib
 from pathlib import Path
 
-from ..config.profile_config import ProfileConfig
-from .cache import get_changed_files, update_cache
-from .compressor import compress as _compress
-from .formatter import (
+from ...config.profile_config import ProfileConfig
+from ..cache.cache import get_changed_files, update_cache
+from ..compressor import compress as _compress
+from ..execution.gitignore import load_gitignore_patterns
+from ..formatting.formatter import (
     _apply_repo_map_to_section,
     _generate_header,
     format_file_section,
     is_excluded,
     lang_for_path,
 )
-from .gitignore import load_gitignore_patterns
 
 
 def _scan_directory_pattern(dir_path, pattern, exclude):
-    """Scan one pattern in a directory, returning matching files."""
     seen = []
     if ".." in pattern:
         print(f"  Warning: skipping pattern with '..': {pattern}")
@@ -36,7 +34,6 @@ def _scan_directory_pattern(dir_path, pattern, exclude):
 
 
 def _scan_one_directory(directory, patterns, exclude, root):
-    """Scan one directory for files matching patterns, excluding symlinks and excluded files."""
     seen = []
     dir_path = root / directory
     if not dir_path.is_dir():
@@ -52,14 +49,7 @@ def _scan_one_directory(directory, patterns, exclude, root):
 def _scan_directories(profile: ProfileConfig, exclude: list[str], root: Path) -> list[Path]:
     seen = []
     for directory in profile.directories:
-        seen.extend(
-            _scan_one_directory(
-                directory,
-                profile.patterns,
-                exclude,
-                root,
-            )
-        )
+        seen.extend(_scan_one_directory(directory, profile.patterns, exclude, root))
     return seen
 
 
@@ -170,9 +160,8 @@ def _collect_file_sections(
     binary_extensions = profile.binary_extensions
     binary_max_mb = profile.binary_max_mb
     line_numbers = profile.line_numbers
-    file_paths_str = profile.files
     filepaths = []
-    for filepath_str in file_paths_str:
+    for filepath_str in profile.files:
         filepath = root / filepath_str
         if not filepath.exists():
             if verbose:

@@ -5,10 +5,10 @@ This test verifies that language_dispatch.py mappings cover all languages
 and that splitter imports match formatter (same source).
 """
 
-from arachna.domain.formatter import C_LIKE_LANGS, SCRIPT_LANGS
-from arachna.domain.language_dispatch import BLOCK_PARSERS, HEADER_PARSERS
-from arachna.domain.splitter import C_LIKE_LANGS as SP_C_LIKE
-from arachna.domain.splitter import SCRIPT_LANGS as SP_SCRIPT
+from arachna.domain.execution.splitter import C_LIKE_LANGS as SP_C_LIKE
+from arachna.domain.execution.splitter import SCRIPT_LANGS as SP_SCRIPT
+from arachna.domain.formatting.formatter import C_LIKE_LANGS, SCRIPT_LANGS
+from arachna.domain.tokenization.language_dispatch import BLOCK_PARSERS, HEADER_PARSERS
 
 
 def test_c_like_langs_identical_in_splitter():

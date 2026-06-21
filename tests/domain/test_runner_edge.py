@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from arachna.domain.runner import (
+from arachna.domain.execution.runner import (
     _is_safe_command,
     _resolve_base,
     _validate_command,

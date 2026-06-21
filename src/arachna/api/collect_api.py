@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Public Collection API.
 
 All functions require an explicit ArachnaConfig. The caller is responsible
@@ -11,7 +10,7 @@ from pathlib import Path
 
 from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..domain.api_types import CollectResult
-from ..domain.collector import collect as _collect
+from ..domain.collection.collector import collect as _collect
 
 
 def collect(

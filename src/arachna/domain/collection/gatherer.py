@@ -1,15 +1,14 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Content gatherer facade.
 
 Orchestrates file collection, command execution, and mode dispatch.
 Thin facade over gatherer_core, gatherer_query, and gatherer_strategies.
 """
 
-from .compressor import compress as _compress
+from ..compressor import compress as _compress
+from ..execution.splitter import split
+from ..tokenization.tokenizer import count_tokens
 from .gatherer_core import _get_exclude_patterns, _scan_directories, gather_command, gather_files
 from .gatherer_strategies import _get_mode_strategies
-from .splitter import split
-from .tokenizer import count_tokens
 
 __all__ = [
     "_assemble_content",

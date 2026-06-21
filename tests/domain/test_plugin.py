@@ -3,7 +3,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from arachna.domain.tokenizer import load_tokenizer
+from arachna.domain.tokenization.tokenizer import load_tokenizer
 
 
 def test_load_default():

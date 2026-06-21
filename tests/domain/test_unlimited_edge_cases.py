@@ -1,7 +1,7 @@
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.collector import collect
-from arachna.domain.gatherer import dry_run
-from arachna.domain.splitter import split
+from arachna.domain.collection.collector import collect
+from arachna.domain.collection.gatherer import dry_run
+from arachna.domain.execution.splitter import split
 
 
 def _profile(**overrides):

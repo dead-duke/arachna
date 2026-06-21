@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Whitespace compression for token savings."""
 
 
@@ -29,7 +28,7 @@ def compress(text: str) -> str:
 
 def estimate_savings(original: str, compressed: str) -> tuple[int, int, float]:
     """Return (original_tokens, compressed_tokens, savings_percent)."""
-    from .tokenizer import count_tokens
+    from .tokenization.tokenizer import count_tokens
 
     orig = count_tokens(original)
     comp = count_tokens(compressed)

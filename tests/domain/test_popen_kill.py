@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from arachna.domain.runner import _run_popen
+from arachna.domain.execution.runner import _run_popen
 
 
 def test_run_popen_kill_on_exceed():

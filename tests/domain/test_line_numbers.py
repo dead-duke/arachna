@@ -1,6 +1,6 @@
 """Tests for line_numbers feature in format_file_section."""
 
-from arachna.domain.formatter import _add_line_numbers, format_file_section
+from arachna.domain.formatting.formatter import _add_line_numbers, format_file_section
 
 
 def test_add_line_numbers_basic():

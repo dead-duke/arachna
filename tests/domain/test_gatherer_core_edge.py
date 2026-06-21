@@ -1,11 +1,11 @@
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer_core import (
+from arachna.domain.collection.gatherer_core import (
     _collect_file_sections,
     _collect_named_sections,
     _format_one_file,
     _get_profile_files,
 )
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _profile(**overrides):
@@ -79,10 +79,10 @@ def test_collect_named_sections_with_query(tmp_path):
 def test_pre_command_long_label_is_truncated(tmp_path):
     from unittest.mock import patch
 
-    from arachna.domain.gatherer_commands import _collect_pre_commands
+    from arachna.domain.collection.gatherer_commands import _collect_pre_commands
 
     long_cmd = "echo " + "x" * 60
-    with patch("arachna.domain.gatherer_commands.run_pre_commands") as mock_run:
+    with patch("arachna.domain.collection.gatherer_commands.run_pre_commands") as mock_run:
         mock_run.return_value = [(long_cmd, "output")]
         p = ProfileConfig(
             name_template="c",

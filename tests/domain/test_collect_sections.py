@@ -1,8 +1,8 @@
 import os
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer_core import _collect_named_sections
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.collection.gatherer_core import _collect_named_sections
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _profile(**overrides):

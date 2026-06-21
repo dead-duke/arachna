@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from arachna.domain.splitter import split
+from arachna.domain.execution.splitter import split
 
 
 def test_by_file_single():

@@ -1,9 +1,8 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Query pipeline."""
 
 from pathlib import Path
 
-from .formatter import _generate_header, lang_for_path
+from ..formatting.formatter import _generate_header, lang_for_path
 
 _PRE_LABEL_PREFIX = "pre: "
 
@@ -97,7 +96,6 @@ def _build_reverse_graph(graph):
 
 
 def _find_importers(fpath, reverse_graph):
-    """Return set of files that import the given fpath (by basename or full path)."""
     importers = set()
     basename = Path(fpath).name.split(".")[0]
     importers.update(reverse_graph.get(basename, []))

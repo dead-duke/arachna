@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from hypothesis import given
 from hypothesis import strategies as st
 
-from arachna.domain.splitter import pack_into_parts, split_sections
+from arachna.domain.execution.splitter import pack_into_parts, split_sections
 
 
 def test_single_section():

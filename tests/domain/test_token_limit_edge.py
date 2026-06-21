@@ -1,7 +1,7 @@
 """Edge case tests for token limit splitting."""
 
-from arachna.domain.splitter import split
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.execution.splitter import split
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def test_exact_max_tokens_single_part(tmp_path):

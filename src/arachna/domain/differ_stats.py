@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Diff statistics — pure functions on DiffSection.
 
 compute_diff_stats is a pure function that operates on DiffSection
@@ -7,7 +6,7 @@ no dependencies on snapshot/ internals.
 """
 
 from .api_types import DiffSection
-from .tokenizer import count_tokens
+from .tokenization.tokenizer import count_tokens
 
 
 def compute_diff_stats(diffs: list[DiffSection]) -> dict:

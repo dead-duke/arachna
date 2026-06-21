@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from arachna.domain.formatter import format_file_section
+from arachna.domain.formatting.formatter import format_file_section
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod 0o000 does not work on Windows")

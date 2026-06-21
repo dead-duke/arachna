@@ -1,6 +1,6 @@
 """TC-178: find, env, hg, svn removed from _ALLOWED_COMMANDS."""
 
-from arachna.domain.runner import _ALLOWED_COMMANDS, _validate_command
+from arachna.domain.execution.runner import _ALLOWED_COMMANDS, _validate_command
 
 
 def test_find_not_in_allowlist():

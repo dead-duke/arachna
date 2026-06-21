@@ -5,7 +5,7 @@ import time
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from arachna.domain.language_dispatch import _BLOCK_PATTERNS
+from arachna.domain.tokenization.language_dispatch import _BLOCK_PATTERNS
 
 
 @settings(deadline=500)

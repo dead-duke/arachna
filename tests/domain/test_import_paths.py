@@ -2,7 +2,7 @@
 
 import sys
 
-from arachna.domain.tokenizer import _is_safe_tokenizer, load_tokenizer
+from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer, load_tokenizer
 
 
 def test_load_tokenizer_custom_chars_per_token():

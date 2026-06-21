@@ -1,6 +1,6 @@
 """Tests for decomposed runner.py pure helpers — v4.2.0."""
 
-from arachna.domain.runner import (
+from arachna.domain.execution.runner import (
     _check_base_command,
     _check_blocked_phrases,
     _check_blocked_words,

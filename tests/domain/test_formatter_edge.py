@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from arachna.domain.formatter import (
+from arachna.domain.formatting.formatter import (
     _apply_repo_map_to_section,
     _format_sigs_json,
     _format_sigs_markdown,
@@ -69,7 +69,7 @@ def test_verbose_binary_not_in_allowlist(tmp_path, capsys):
 def test_verbose_file_too_large(tmp_path, capsys):
     f = tmp_path / "huge.py"
     f.write_text("x" * 200)
-    with patch("arachna.domain.format_output._ARACHNA_MAX_FILE_SIZE", 50):
+    with patch("arachna.domain.formatting.format_output._ARACHNA_MAX_FILE_SIZE", 50):
         result = format_file_section(f, verbose=True)
     captured = capsys.readouterr()
     assert result == ""

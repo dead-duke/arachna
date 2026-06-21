@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Diff computation for snapshots — orchestration, grouping, helpers."""
 
 import hashlib
@@ -7,8 +6,8 @@ from pathlib import Path
 
 from ..config.profile_config import ProfileConfig
 from ..domain.api_types import DiffSection
+from ..domain.collection.gatherer_files import _get_exclude_patterns
 from ..domain.differ_stats import compute_diff_stats
-from ..domain.gatherer_files import _get_exclude_patterns
 from .snapshot_diff_commands import (
     _collect_snapshot_command,
     _collect_snapshot_pre_commands,
@@ -29,17 +28,14 @@ _MAX_SIMILARITY_SIZE = 1_048_576
 
 
 def _content_hash(content: str) -> str:
-    """Return SHA256 hex digest of content string."""
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 def _is_binary_content(content: str) -> bool:
-    """Check if content contains null bytes (binary file indicator)."""
     return "\x00" in content
 
 
 def collect_snapshot_content(profile: ProfileConfig, root: Path) -> tuple[dict, dict, dict]:
-    """Collect all content for a snapshot: files, pre_commands output, command output."""
     files = _collect_snapshot_files(profile, root)
     pre_commands_data = _collect_snapshot_pre_commands(profile.to_dict(), root)
     command_data = _collect_snapshot_command(profile.to_dict(), root)
@@ -47,7 +43,6 @@ def collect_snapshot_content(profile: ProfileConfig, root: Path) -> tuple[dict, 
 
 
 def create_snapshot(profile: ProfileConfig, name: str, root: Path) -> str:
-    """Create a named snapshot of the project state."""
     files, pre_commands_data, command_data = collect_snapshot_content(profile, root)
     return store_create_snapshot(
         files,
@@ -60,7 +55,6 @@ def create_snapshot(profile: ProfileConfig, name: str, root: Path) -> str:
 
 
 def update_snapshot(snapshot_id: str, root: Path, profile: ProfileConfig | None = None) -> str:
-    """Update an existing snapshot with current project state."""
     if profile is None:
         manifest = load_snapshot(snapshot_id, root=root)
         stored = manifest.get("profile", {})
@@ -111,7 +105,6 @@ def _dict_to_profile_config(d: dict) -> ProfileConfig:
 
 
 def _get_profile_from_manifest(manifest: dict) -> ProfileConfig | None:
-    """Extract profile dict from snapshot manifest. Returns None if legacy format."""
     stored = manifest.get("profile", {})
     if isinstance(stored, dict):
         return _dict_to_profile_config(stored)
@@ -119,7 +112,6 @@ def _get_profile_from_manifest(manifest: dict) -> ProfileConfig | None:
 
 
 def _format_summary_header(stats, from_id, to_id):
-    """Format diff summary header with change counts."""
     parts = []
     if stats["renamed"]:
         parts.append(f"{stats['renamed']} renamed")
@@ -138,7 +130,6 @@ def _format_summary_header(stats, from_id, to_id):
 
 
 def _group_diff_sections(sections, from_id, to_id):
-    """Group diff sections by type with header."""
     if not sections:
         return sections
     stats = compute_diff_stats(sections)
@@ -175,7 +166,6 @@ def compute_diff(
     flat=False,
     line_numbers=False,
 ):
-    """Compute diff between snapshot and current state or between two snapshots."""
     manifest = load_snapshot(snapshot_id, root=root)
     if profile is None:
         profile = _get_profile_from_manifest(manifest)

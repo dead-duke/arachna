@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer import gather_files
+from arachna.domain.collection.gatherer import gather_files
 
 
 def _profile(**overrides):

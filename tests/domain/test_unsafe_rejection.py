@@ -2,7 +2,7 @@
 
 import pytest
 
-from arachna.domain.tokenizer import _is_safe_tokenizer, load_tokenizer
+from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer, load_tokenizer
 
 
 def test_is_safe_tokenizer_blocks_os():

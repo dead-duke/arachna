@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Snapshot file collection and diff — file I/O, diff sections, path matching."""
 
 import fnmatch
@@ -7,7 +6,7 @@ from pathlib import Path
 
 from ..config.profile_config import ProfileConfig
 from ..domain.api_types import DiffSection
-from ..domain.gatherer_files import _get_exclude_patterns, _scan_directories
+from ..domain.collection.gatherer_files import _get_exclude_patterns, _scan_directories
 from ..domain.path_utils import SafePath
 from .differ import compute_diff as differ_compute_diff
 from .snapshot_diff_helpers import _rel_path
@@ -19,7 +18,6 @@ logger = logging.getLogger("arachna.snapshot")
 
 
 def _read_profile_files(profile: ProfileConfig, root: Path) -> dict[str, str]:
-    """Read files explicitly listed in profile.files, return dict[rel_path, content]."""
     result = {}
     for filepath_str in profile.files:
         fp = SafePath(filepath_str, root)
@@ -34,7 +32,6 @@ def _read_profile_files(profile: ProfileConfig, root: Path) -> dict[str, str]:
 
 
 def _collect_snapshot_files(profile: ProfileConfig, root: Path) -> dict[str, str]:
-    """Collect files matching profile directories and patterns."""
     exclude = _get_exclude_patterns(profile, root=root)
     filepaths = _scan_directories(profile, exclude, root=root)
     files = {}
@@ -51,12 +48,10 @@ def _collect_snapshot_files(profile: ProfileConfig, root: Path) -> dict[str, str
 
 
 def _get_content_from_manifest(hash_spec: str, root: Path) -> str:
-    """Read file content from content-addressable store by sha256: hash spec."""
     return read_object(hash_spec[len(_SHA256_PREFIX) :], root=root).decode("utf-8")
 
 
 def _build_current_files(profile: ProfileConfig, exclude: list[str], root: Path) -> dict[str, str]:
-    """Build dict of current files on disk matching profile."""
     current_filepaths = _scan_directories(profile, exclude, root=root)
     current_files = {}
     for fp in current_filepaths:
@@ -74,7 +69,6 @@ def _build_current_files(profile: ProfileConfig, exclude: list[str], root: Path)
 
 
 def _build_deleted_added_dicts(old_files, new_files):
-    """Build dicts for deleted, added, modified_old, modified_new from two file sets."""
     deleted = {}
     added = {}
     modified_old = {}
@@ -92,7 +86,6 @@ def _build_deleted_added_dicts(old_files, new_files):
 
 
 def _diff_file_sets(old_files, new_files, fmt, line_numbers=False):
-    """Compute diff between two file sets, including rename/move detection."""
     deleted, added, modified_old, modified_new = _build_deleted_added_dicts(old_files, new_files)
     sections = []
     rename_sections, matched_deleted, matched_added = _detect_renames_and_moves(
@@ -125,14 +118,12 @@ def _diff_file_sets(old_files, new_files, fmt, line_numbers=False):
 
 
 def _build_snapshot_files_dict(snapshot_id, root):
-    """Read manifest and build old files dict from content-addressable store."""
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_files = manifest.get("files", {})
     return {path: _get_content_from_manifest(h, root=root) for path, h in snapshot_files.items()}
 
 
 def _build_target_files_dict(profile, exclude, root, to_snapshot_id):
-    """Build target files dict from either another snapshot or current disk state."""
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id, root=root)
         to_snapshot_files = to_manifest.get("files", {})
@@ -145,7 +136,6 @@ def _build_target_files_dict(profile, exclude, root, to_snapshot_id):
 def _diff_files_sections(
     snapshot_id, profile, exclude, to_snapshot_id, fmt, root, line_numbers=False
 ):
-    """Compute file diffs between snapshot(s) and current state."""
     old_files = _build_snapshot_files_dict(snapshot_id, root)
     if to_snapshot_id is None:
         new_files = _build_target_files_dict(profile, exclude, root, to_snapshot_id)
@@ -158,7 +148,6 @@ def _diff_files_sections(
 
 
 def _path_matches_profile(path, profile, root):
-    """Check if a file path belongs to the given profile's directories/patterns/files."""
     normalized_files = [_rel_path(Path(f), root) for f in profile.files]
     if path in normalized_files:
         return True
@@ -178,7 +167,6 @@ def _path_matches_profile(path, profile, root):
 
 
 def _read_file_from_store(path, files, root):
-    """Read file content from content-addressable store by path lookup."""
     for fpath, hash_spec in files.items():
         if fpath == path:
             try:
@@ -189,7 +177,6 @@ def _read_file_from_store(path, files, root):
 
 
 def _read_file_from_disk(path, root=None):
-    """Read file content from disk with error handling."""
     fp = Path(str(path))
     if root is not None:
         sfp = SafePath(fp, root)

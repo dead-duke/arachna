@@ -3,7 +3,11 @@
 import json
 from pathlib import Path
 
-from arachna.domain.formatter import _is_binary_allowed, _should_skip_binary, format_file_section
+from arachna.domain.formatting.formatter import (
+    _is_binary_allowed,
+    _should_skip_binary,
+    format_file_section,
+)
 
 # -- format_file_section integration tests --
 

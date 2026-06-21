@@ -1,6 +1,6 @@
 """BUG-002 regression: unknown extensions checked for null bytes before skipping."""
 
-from arachna.domain.formatter import _should_skip_binary, format_file_section
+from arachna.domain.formatting.formatter import _should_skip_binary, format_file_section
 
 
 def test_unknown_extension_text_file_not_skipped(tmp_path):

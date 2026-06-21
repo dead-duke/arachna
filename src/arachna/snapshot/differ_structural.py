@@ -1,12 +1,11 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Structural diff — understands code blocks, not just text lines."""
 
 import logging
 import threading
 from pathlib import Path
 
-from ..domain.formatter import C_LIKE_LANGS, lang_for_path
-from ..domain.language_dispatch import get_block_parser
+from ..domain.formatting.formatter import C_LIKE_LANGS, lang_for_path
+from ..domain.tokenization.language_dispatch import get_block_parser
 
 logger = logging.getLogger("arachna.differ_structural")
 

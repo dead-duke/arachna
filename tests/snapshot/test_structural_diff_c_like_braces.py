@@ -1,6 +1,6 @@
 """Test structural diff for C-like code with braces in strings (ARCH-01 awareness)."""
 
-from arachna.domain.language_dispatch import _parse_c_like_blocks
+from arachna.domain.tokenization.language_dispatch import _parse_c_like_blocks
 from arachna.snapshot.differ_structural import structural_diff
 
 

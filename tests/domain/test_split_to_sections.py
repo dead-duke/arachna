@@ -1,4 +1,4 @@
-from arachna.domain.splitter import _split_to_sections
+from arachna.domain.execution.splitter import _split_to_sections
 
 
 def test_restores_marker():

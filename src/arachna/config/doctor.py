@@ -1,9 +1,8 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Doctor — validates config and collected context integrity."""
 
 from pathlib import Path
 
-from ..domain.gitignore import load_gitignore_patterns
+from ..domain.execution.gitignore import load_gitignore_patterns
 from .config import load_config
 from .profile_config import ProfileConfig
 from .validator import validate_profile
@@ -55,7 +54,6 @@ def run_doctor(project_root: Path | None = None, config: dict | None = None) -> 
 
 
 def _print_profile_results(profiles):
-    """Print validation results for each profile."""
     for name, info in profiles.items():
         errors = info["errors"]
         warnings = info["warnings"]
@@ -70,7 +68,6 @@ def _print_profile_results(profiles):
 
 
 def print_doctor(report: dict):
-    """Print doctor report to stdout."""
     print("arachna doctor — configuration diagnostic\n")
     print(f"Profiles: {len(report['profiles'])}")
     print(f"Errors: {report['total_errors']}")

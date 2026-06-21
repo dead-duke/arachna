@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from arachna.domain.tokenizer import _is_safe_tokenizer, load_tokenizer
+from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer, load_tokenizer
 
 
 def test_load_tokenizer_unsafe_module_raises_value_error():

@@ -1,9 +1,9 @@
 from pathlib import Path
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.gatherer import _assemble_content, _assemble_file_content
-from arachna.domain.gatherer_query import _filter_filenames_by_query
-from arachna.domain.tokenizer import count_tokens
+from arachna.domain.collection.gatherer import _assemble_content, _assemble_file_content
+from arachna.domain.collection.gatherer_query import _filter_filenames_by_query
+from arachna.domain.tokenization.tokenizer import count_tokens
 
 
 def _file_profile(**overrides):

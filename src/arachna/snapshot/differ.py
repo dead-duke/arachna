@@ -1,11 +1,10 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """LLM-optimized differ for snapshots."""
 
 import difflib
 import logging
 from xml.sax.saxutils import escape as _xml_escape
 
-from ..domain.tokenizer import count_tokens
+from ..domain.tokenization.tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.differ")
 

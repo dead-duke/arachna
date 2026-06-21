@@ -1,6 +1,6 @@
 """Tests for verbose output branches in format_file_section."""
 
-from arachna.domain.formatter import format_file_section
+from arachna.domain.formatting.formatter import format_file_section
 
 
 def test_verbose_os_error_on_stat(tmp_path, capsys):

@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Plugin benchmarks for snapshot layer — structural-diff and tiktoken."""
 
 import time
@@ -6,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config.profiler import make_profile
-from ..domain.collector import clean_manifest, collect
+from ..domain.collection.collector import clean_manifest, collect
 from ..domain.path_utils import SafePath
 
 
@@ -20,7 +19,7 @@ def benchmark_plugins(profile: dict, output_dir: str, root: Path) -> dict[str, d
     except ImportError:
         pass
     try:
-        from ..domain.tokenizer import _has_tiktoken
+        from ..domain.tokenization.tokenizer import _has_tiktoken
 
         if _has_tiktoken():
             results["tiktoken"] = benchmark_tiktoken(profile, output_dir, root)
@@ -65,7 +64,6 @@ def benchmark_structural_diff(profile: dict, output_dir: str, root: Path) -> dic
 def benchmark_tiktoken(profile: dict, output_dir: str, root: Path) -> dict[str, Any]:
     out = SafePath(root / output_dir, root)
     out.mkdir(parents=True, exist_ok=True)
-
     default_p = make_profile(profile, name_template="bench-full")
     _, tokens_d, _parts_d, _metrics_d = collect(
         default_p,
@@ -77,7 +75,6 @@ def benchmark_tiktoken(profile: dict, output_dir: str, root: Path) -> dict[str, 
     )
     default_tokens = sum(tokens_d.values()) if isinstance(tokens_d, dict) else 0
     clean_manifest(out, "bench-full")
-
     tik_p = make_profile(profile, tokenizer="tiktoken", name_template="bench-full")
     created, tokens_by_file, parts, _metrics = collect(
         tik_p,
@@ -89,7 +86,6 @@ def benchmark_tiktoken(profile: dict, output_dir: str, root: Path) -> dict[str, 
     )
     total_tokens = sum(tokens_by_file.values()) if isinstance(tokens_by_file, dict) else 0
     clean_manifest(out, "bench-full")
-
     return {
         "parts": len(parts),
         "tokens": total_tokens,

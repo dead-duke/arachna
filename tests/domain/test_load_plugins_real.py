@@ -2,7 +2,7 @@
 
 import pytest
 
-from arachna.domain.tokenizer import _has_tiktoken, _has_transformers, load_tokenizer
+from arachna.domain.tokenization.tokenizer import _has_tiktoken, _has_transformers, load_tokenizer
 
 
 @pytest.mark.skipif(not _has_tiktoken(), reason="tiktoken not installed")

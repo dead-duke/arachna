@@ -1,6 +1,6 @@
 """Tests for extract_signatures in splitter.py."""
 
-from arachna.domain.splitter import extract_signatures
+from arachna.domain.execution.splitter import extract_signatures
 
 
 def test_repo_map_python(tmp_path):

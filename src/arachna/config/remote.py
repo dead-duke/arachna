@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Remote repository collection.
 
 Clones a git repository via --depth 1, selects profile by explicit
@@ -10,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from ..domain.collector import collect as _domain_collect
+from ..domain.collection.collector import collect as _domain_collect
 from .config import get_profile, load_config
 from .presets import detect_presets
 from .profile_config import ProfileConfig

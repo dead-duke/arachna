@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """File header generation — deps and exports extraction for all languages."""
 
 import ast as _ast
@@ -63,7 +62,6 @@ _SCRIPT_EXPORT_PATTERNS = [
 
 
 def _parse_import_stmt(match):
-    """Parse a single import statement match, returning list of module names."""
     deps = []
     mod = match.group(1)
     if mod:
@@ -78,7 +76,6 @@ def _parse_import_stmt(match):
 
 
 def _parse_multiline_import(match):
-    """Parse a multiline import match, returning list of module names."""
     deps = []
     for part in match.group(1).split(","):
         part = part.strip()
@@ -135,7 +132,6 @@ def _parse_c_like(text: str) -> tuple[list[str], list[str]]:
 
 
 def _parse_script_deps(text):
-    """Extract dependencies from script source."""
     deps = []
     for pattern in _SCRIPT_IMPORT_PATTERNS:
         for m in pattern.finditer(text):
@@ -146,7 +142,6 @@ def _parse_script_deps(text):
 
 
 def _parse_script_exports(text):
-    """Extract exports from script source."""
     exports = []
     for pattern in _SCRIPT_EXPORT_PATTERNS:
         for m in pattern.finditer(text):
@@ -161,7 +156,7 @@ def _parse_script(text: str) -> tuple[list[str], list[str]]:
 
 
 def _generate_header(path: Path, text: str, lang: str) -> str:
-    from .language_dispatch import get_header_parser
+    from ..tokenization.language_dispatch import get_header_parser
 
     parser = get_header_parser(lang)
     if parser is None:

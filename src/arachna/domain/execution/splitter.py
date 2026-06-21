@@ -1,12 +1,11 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Split content into token-limited parts + signature extraction."""
 
 import ast as _ast
 import logging
 import re
 
-from .formatter import C_LIKE_LANGS, SCRIPT_LANGS
-from .tokenizer import count_tokens
+from ..formatting.formatter import C_LIKE_LANGS, SCRIPT_LANGS
+from ..tokenization.tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.splitter")
 _MAX_TRUNCATION_ITERATIONS = 100
@@ -156,7 +155,6 @@ def pack_into_parts(sections, max_tokens, separator="\n\n", tokenizer=None):
 
 
 def _handle_oversized_in_build(section, max_tokens, tk, current, parts):
-    """Handle oversized section: flush current, truncate/warn, append."""
     if current:
         parts.append(current.strip())
     truncated, _ = _handle_single(section, max_tokens, tokenizer=tk)
@@ -172,7 +170,6 @@ def _handle_oversized_in_build(section, max_tokens, tk, current, parts):
 def _append_or_start_new(
     current, current_tokens, section, section_tokens, max_tokens, separator, parts
 ):
-    """Decide whether to append to current or start a new part."""
     if current_tokens + section_tokens > max_tokens:
         parts.append(current.strip())
         return section, section_tokens
@@ -294,22 +291,10 @@ _RE_C_LIKE_SIG = re.compile(
     re.MULTILINE,
 )
 
-_RE_SIG_RUBY_DEF = re.compile(
-    r"^(\s*def\s+(?:self\.)?\w+[?!]?.*)",
-    re.MULTILINE,
-)
-_RE_SIG_ELIXIR_DEFMODULE = re.compile(
-    r"^(\s*defmodule\s+[\w.]+.*)",
-    re.MULTILINE,
-)
-_RE_SIG_ELIXIR_DEFP = re.compile(
-    r"^(\s*defp\s+\w+.*)",
-    re.MULTILINE,
-)
-_RE_SIG_LUA_FUNCTION = re.compile(
-    r"^(\s*function\s+\w+.*)",
-    re.MULTILINE,
-)
+_RE_SIG_RUBY_DEF = re.compile(r"^(\s*def\s+(?:self\.)?\w+[?!]?.*)", re.MULTILINE)
+_RE_SIG_ELIXIR_DEFMODULE = re.compile(r"^(\s*defmodule\s+[\w.]+.*)", re.MULTILINE)
+_RE_SIG_ELIXIR_DEFP = re.compile(r"^(\s*defp\s+\w+.*)", re.MULTILINE)
+_RE_SIG_LUA_FUNCTION = re.compile(r"^(\s*function\s+\w+.*)", re.MULTILINE)
 
 _SCRIPT_SIG_PATTERNS = [
     _RE_SIG_RUBY_DEF,

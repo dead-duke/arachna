@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from arachna.domain.runner import _validate_command, run_command
+from arachna.domain.execution.runner import _validate_command, run_command
 from tests.conftest import mock_popen
 
 

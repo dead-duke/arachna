@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Command execution.
 
 Handles pre_commands execution and command output gathering.
@@ -8,8 +7,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from .runner import run_command, run_pre_commands
-from .tokenizer import count_tokens
+from ..execution.runner import run_command, run_pre_commands
+from ..tokenization.tokenizer import count_tokens
 
 
 def _collect_pre_commands(

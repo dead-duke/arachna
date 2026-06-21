@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """File modification cache for incremental collection.
 
 Cache format v2:
@@ -18,7 +17,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from .path_utils import SafePath
+from ..path_utils import SafePath
 
 _CACHE_FILE = ".arachna_cache.json"
 _VERSION = 2

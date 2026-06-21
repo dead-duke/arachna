@@ -3,7 +3,7 @@
 BUG-001 fixed in v1.3.0 — pipe splitting now respects shell quoting.
 """
 
-from arachna.domain.runner import _validate_command
+from arachna.domain.execution.runner import _validate_command
 
 
 def test_pipe_inside_single_quotes_safe():

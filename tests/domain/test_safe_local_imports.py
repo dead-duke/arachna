@@ -1,6 +1,6 @@
 """Tests for _safe_local_imports in tokenizer.py (v2.5.0)."""
 
-from arachna.domain.tokenizer import _is_safe_tokenizer
+from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer
 
 
 def test_local_file_with_safe_imports(tmp_path):
