@@ -1,1 +1,200 @@
-"""Snapshot layer — snapshots, diff, store, benchmarks."""
+"""Snapshot layer — snapshots, diff, store, benchmarks.
+
+Subpackages:
+- store: content-addressable store for snapshots
+- diff: diff computation, structural diff, snapshot diff orchestration
+- rename: rename/move detection between snapshots
+"""
+
+from .benchmarks import (
+    benchmark_plugins,
+    benchmark_structural_diff,
+    benchmark_tiktoken,
+)
+from .diff import (
+    _build_current_files,
+    _build_current_pre_commands,
+    _build_deleted_added_dicts,
+    _build_pre_command_map,
+    _build_snapshot_files_dict,
+    _build_target_files_dict,
+    _collect_snapshot_command,
+    _collect_snapshot_files,
+    _collect_snapshot_pre_commands,
+    _content_hash,
+    _dict_to_profile_config,
+    _diff_cmd_added,
+    _diff_cmd_deleted,
+    _diff_cmd_modified,
+    _diff_command_section,
+    _diff_existing_pre_command,
+    _diff_file_sets,
+    _diff_files_sections,
+    _diff_new_pre_command,
+    _diff_pre_commands_line,
+    _diff_pre_commands_marker,
+    _diff_pre_commands_sections,
+    _diff_pre_commands_structural,
+    _format_repo_map_added,
+    _format_repo_map_diff,
+    _format_repo_map_entry,
+    _format_summary_header,
+    _get_content_from_manifest,
+    _get_current_cmd_output,
+    _get_profile_from_manifest,
+    _get_snapshot_files,
+    _group_diff_sections,
+    _is_binary_content,
+    _normalize_path,
+    _parse_blocks_for_lang,
+    _path_matches_profile,
+    _read_file_from_disk,
+    _read_file_from_store,
+    _read_profile_files,
+    _rel_path,
+    _repo_map_added_section,
+    _repo_map_deleted_section,
+    _repo_map_modified_section,
+    _snapshot_compute_diff,
+    apply_repo_map_to_sections,
+    collect_snapshot_content,
+    compute_diff,
+    create_snapshot,
+    structural_diff,
+    structural_diff_for_lang,
+    structural_diff_sections,
+    update_snapshot,
+)
+from .rename import (
+    _detect_renames_and_moves,
+    _match_exact_renames,
+    _match_similar_renames,
+)
+from .snapshots import (
+    apply_repo_map_to_sections as _snapshots_apply_repo_map,
+)
+from .snapshots import (
+    collect_snapshot_content as _snapshots_collect_snapshot_content,
+)
+from .snapshots import (
+    compute_diff as _snapshots_compute_diff,
+)
+from .snapshots import (
+    create_snapshot as _snapshots_create_snapshot,
+)
+from .snapshots import (
+    update_snapshot as _snapshots_update_snapshot,
+)
+from .store import (
+    _SHA256_PREFIX,
+    _VERSION,
+    CorruptedStoreError,
+    ObjectNotFoundError,
+    SnapshotExistsError,
+    StoreError,
+    _store_root,
+    delete_snapshot,
+    gc,
+    list_snapshots,
+    load_snapshot,
+    read_object,
+    rename_snapshot,
+    stats,
+    validate_snapshot_id,
+    write_object,
+)
+from .store import (
+    create_snapshot as _store_create_snapshot,
+)
+from .store import (
+    update_snapshot as _store_update_snapshot,
+)
+
+__all__ = [
+    # benchmarks
+    "benchmark_plugins",
+    "benchmark_structural_diff",
+    "benchmark_tiktoken",
+    # diff
+    "_build_current_files",
+    "_build_current_pre_commands",
+    "_build_deleted_added_dicts",
+    "_build_pre_command_map",
+    "_build_snapshot_files_dict",
+    "_build_target_files_dict",
+    "_collect_snapshot_command",
+    "_collect_snapshot_files",
+    "_collect_snapshot_pre_commands",
+    "_content_hash",
+    "_dict_to_profile_config",
+    "_diff_cmd_added",
+    "_diff_cmd_deleted",
+    "_diff_cmd_modified",
+    "_diff_command_section",
+    "_diff_existing_pre_command",
+    "_diff_file_sets",
+    "_diff_files_sections",
+    "_diff_new_pre_command",
+    "_diff_pre_commands_line",
+    "_diff_pre_commands_marker",
+    "_diff_pre_commands_sections",
+    "_diff_pre_commands_structural",
+    "_format_repo_map_added",
+    "_format_repo_map_diff",
+    "_format_repo_map_entry",
+    "_format_summary_header",
+    "_get_content_from_manifest",
+    "_get_current_cmd_output",
+    "_get_profile_from_manifest",
+    "_get_snapshot_files",
+    "_group_diff_sections",
+    "_is_binary_content",
+    "_normalize_path",
+    "_parse_blocks_for_lang",
+    "_path_matches_profile",
+    "_read_file_from_disk",
+    "_read_file_from_store",
+    "_read_profile_files",
+    "_rel_path",
+    "_repo_map_added_section",
+    "_repo_map_deleted_section",
+    "_repo_map_modified_section",
+    "_snapshot_compute_diff",
+    "apply_repo_map_to_sections",
+    "collect_snapshot_content",
+    "compute_diff",
+    "create_snapshot",
+    "structural_diff",
+    "structural_diff_for_lang",
+    "structural_diff_sections",
+    "update_snapshot",
+    # rename
+    "_detect_renames_and_moves",
+    "_match_exact_renames",
+    "_match_similar_renames",
+    # snapshots
+    "_snapshots_apply_repo_map",
+    "_snapshots_collect_snapshot_content",
+    "_snapshots_compute_diff",
+    "_snapshots_create_snapshot",
+    "_snapshots_update_snapshot",
+    # store
+    "_SHA256_PREFIX",
+    "_VERSION",
+    "_store_root",
+    "_store_create_snapshot",
+    "_store_update_snapshot",
+    "CorruptedStoreError",
+    "ObjectNotFoundError",
+    "SnapshotExistsError",
+    "StoreError",
+    "delete_snapshot",
+    "gc",
+    "list_snapshots",
+    "load_snapshot",
+    "read_object",
+    "rename_snapshot",
+    "stats",
+    "validate_snapshot_id",
+    "write_object",
+]

@@ -3,6 +3,7 @@
 import json
 import os as _os
 
+from ...config import OutputFormat
 from ..path_utils import SafePath
 from .format_binary import (
     _format_binary,
@@ -147,7 +148,7 @@ def _format_valid_file(
 
 def format_file_section(
     path,
-    fmt="markdown",
+    fmt: OutputFormat = "markdown",
     include_binary=False,
     binary_extensions=None,
     binary_max_mb=1.0,

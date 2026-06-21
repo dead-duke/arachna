@@ -4,9 +4,9 @@ import json
 import threading
 from pathlib import Path
 
-from ..domain.path_utils import SafePath
-from ..domain.tokenization.tokenizer import _is_safe_tokenizer as _tokenizer_is_safe
-from . import VALID_SPLIT_MODES
+from ...domain.path_utils import SafePath
+from ...domain.tokenization.tokenizer import _is_safe_tokenizer as _tokenizer_is_safe
+from .. import VALID_SPLIT_MODES
 
 _SEPARATOR = "-" * 50
 DEFAULT_PRESETS_PATH = "presets.json"
@@ -40,7 +40,7 @@ _VALID_PRESET_KEYS = {
 
 
 def _load_builtin_presets_raw() -> dict[str, dict]:
-    presets_root = Path(__file__).parent.parent
+    presets_root = Path(__file__).parent.parent.parent
     presets_dir = SafePath(presets_root / "presets", presets_root)
     if not presets_dir.is_dir():
         return {}
@@ -62,7 +62,7 @@ _builtin_cache_lock = threading.Lock()
 
 def _load_builtin_presets() -> dict[str, dict]:
     global _builtin_cache
-    presets_root = Path(__file__).parent.parent
+    presets_root = Path(__file__).parent.parent.parent
     presets_dir = SafePath(presets_root / "presets", presets_root)
     dir_mtime = presets_dir.stat().st_mtime if presets_dir.is_dir() else 0
     with _builtin_cache_lock:

@@ -4,6 +4,7 @@ Orchestrates file collection, command execution, and mode dispatch.
 Thin facade over gatherer_core, gatherer_query, and gatherer_strategies.
 """
 
+from ...config import CollectionMode
 from ..compressor import compress as _compress
 from ..execution.splitter import split
 from ..tokenization.tokenizer import count_tokens
@@ -43,7 +44,7 @@ def _assemble_file_content(
     cache=None,
     verbose=False,
     query=None,
-    mode="full",
+    mode: CollectionMode = "full",
 ):
     strategies = _get_mode_strategies()
     strategy = strategies.get(mode, strategies["full"])
@@ -59,7 +60,7 @@ def _assemble_content(
     cache=None,
     verbose=False,
     query=None,
-    mode="full",
+    mode: CollectionMode = "full",
 ):
     if profile.command:
         if profile.directories or profile.files:
@@ -80,7 +81,7 @@ def _assemble_content(
     )
 
 
-def dry_run(profile, root, tokenizer=None, query=None, mode="full"):
+def dry_run(profile, root, tokenizer=None, query=None, mode: CollectionMode = "full"):
     tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns(profile, root=root)
     max_tokens = profile.max_tokens

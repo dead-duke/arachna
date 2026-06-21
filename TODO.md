@@ -1,18 +1,18 @@
 # TODO
 
-## v5.2.0 — Code quality + architecture fixes (details: llm_docs/specs/spec-v5.2.0-code-quality-architecture.md)
-- [x] Break api/ ↔ config/ cycle — api accepts config as parameter, config/remote uses domain/ directly
-- [x] Move compute_diff_stats from snapshot/differ.py to domain/differ_stats.py
-- [x] SafeLogger: Centralize CRLF sanitization with _sanitize_log() helper
-- [x] Dataclass-based config: ProfileConfig + ArachnaConfig with __post_init__ validation
-- [ ] Enum/Literal for modes: CollectionMode, OutputFormat, SplitMode
-- [x] Replace time.sleep with os.utime in incremental cache tests
-- [x] Move mock_popen from tests/domain/conftest.py to tests/conftest.py
-- [x] Replace empty conftest.py files with __init__.py
-- [x] Reorganize domain/ into 5 subpackages: cache, collection, formatting, tokenization, execution
-- [ ] Reorganize snapshot/ into 3 subpackages: store, diff, rename
-- [ ] Reorganize config/ into 3 subpackages: core, presets, setup
-- [ ] Mirror restructure in tests/
+## v5.2.0 — Code quality + architecture fixes
+- [x] Break api/ ↔ config/ cycle
+- [x] Move compute_diff_stats to domain/differ_stats.py
+- [x] SafeLogger: _sanitize_log()
+- [x] Dataclass config: ProfileConfig + ArachnaConfig
+- [x] Enum/Literal: CollectionMode, OutputFormat, SplitMode
+- [x] time.sleep → os.utime in tests
+- [x] mock_popen → tests/conftest.py
+- [x] Empty conftest.py → __init__.py
+- [x] Reorganize domain/ into 5 subpackages
+- [x] Reorganize snapshot/ into 3 subpackages
+- [x] Reorganize config/ into 3 subpackages
+- [x] Mirror restructure in tests/
 
 ## Backlog
 - [ ] Integration examples: LangGraph, CrewAI, AutoGen

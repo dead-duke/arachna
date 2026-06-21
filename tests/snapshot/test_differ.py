@@ -4,7 +4,7 @@ import math
 
 from arachna.domain.api_types import DiffSection
 from arachna.domain.differ_stats import compute_diff_stats
-from arachna.snapshot.differ import compute_diff
+from arachna.snapshot.diff.differ import compute_diff
 
 
 def test_modified_file_markdown():

@@ -4,10 +4,14 @@ import hashlib
 import logging
 from pathlib import Path
 
-from ..config.profile_config import ProfileConfig
-from ..domain.api_types import DiffSection
-from ..domain.collection.gatherer_files import _get_exclude_patterns
-from ..domain.differ_stats import compute_diff_stats
+from ...config import OutputFormat
+from ...config.profile_config import ProfileConfig
+from ...domain.api_types import DiffSection
+from ...domain.collection.gatherer_files import _get_exclude_patterns
+from ...domain.differ_stats import compute_diff_stats
+from ..store.store import create_snapshot as store_create_snapshot
+from ..store.store import load_snapshot
+from ..store.store import update_snapshot as store_update_snapshot
 from .snapshot_diff_commands import (
     _collect_snapshot_command,
     _collect_snapshot_pre_commands,
@@ -18,9 +22,6 @@ from .snapshot_diff_files import (
     _collect_snapshot_files,
     _diff_files_sections,
 )
-from .store import create_snapshot as store_create_snapshot
-from .store import load_snapshot
-from .store import update_snapshot as store_update_snapshot
 
 logger = logging.getLogger("arachna.snapshot")
 
@@ -161,7 +162,7 @@ def compute_diff(
     snapshot_id,
     profile,
     root,
-    fmt="markdown",
+    fmt: OutputFormat = "markdown",
     to_snapshot_id=None,
     flat=False,
     line_numbers=False,

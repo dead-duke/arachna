@@ -1,6 +1,6 @@
 """Edge case tests for differ.py uncovered branches."""
 
-from arachna.snapshot.differ import _format_line_range, compute_diff
+from arachna.snapshot.diff.differ import _format_line_range, compute_diff
 
 
 def test_format_line_range_start_equals_end():

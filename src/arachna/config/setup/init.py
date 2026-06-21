@@ -1,12 +1,11 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Interactive .arachna.json bootstrap."""
 
 import json
 from pathlib import Path
 
-from ..domain.atomic_write import atomic_write_text
-from ..domain.path_utils import SafePath
-from .presets import _SEPARATOR, detect_presets, preset_to_profile
+from ...domain.atomic_write import atomic_write_text
+from ...domain.path_utils import SafePath
+from ..presets.presets import _SEPARATOR, detect_presets, preset_to_profile
 
 
 def _ask(prompt: str, default: str) -> str:
@@ -29,7 +28,6 @@ def _ask_yes(prompt: str, default: bool = True) -> bool:
 
 
 def _validate_output_dir(output_dir):
-    """Reject output_dir values containing path separators or traversal."""
     if not output_dir or ".." in output_dir or "/" in output_dir or "\\" in output_dir:
         raise ValueError(
             f"Invalid output_dir: '{output_dir}'. Must be a simple directory name without path separators."
@@ -78,7 +76,7 @@ def _collect_interactive_profiles(detected, max_tokens):
 def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path | None = None):
     if root is None:
         root = Path.cwd()
-    from .config import find_config
+    from ..core.config import find_config
 
     existing = find_config(root=root)
     if existing:

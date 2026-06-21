@@ -1,15 +1,11 @@
-"""Benchmark module — config layer.
-
-Measures collection performance across modes (full, compress, repo-map,
-headers, incremental, query). Plugin benchmarks (structural-diff, tiktoken)
-live in snapshot/benchmarks.py — they depend on snapshot/ internals.
-"""
+"""Benchmark module — config layer."""
 
 import json
 import time
 from pathlib import Path
 from typing import Any
 
+from ..config import CollectionMode
 from ..domain.collection.collector import clean_manifest, collect
 from ..domain.path_utils import SafePath
 from .profile_config import ProfileConfig
@@ -55,7 +51,7 @@ def _run_one(
     profile: ProfileConfig,
     output_dir: str,
     root: Path,
-    mode: str = "full",
+    mode: CollectionMode = "full",
     query: str | None = None,
     incremental: bool = False,
 ) -> dict[str, Any]:

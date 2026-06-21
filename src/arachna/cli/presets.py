@@ -1,15 +1,14 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna presets' command."""
 
 import json
 import sys
 from pathlib import Path
 
-from ..config.presets import (
+from ..config.presets.presets import (
     _load_builtin_presets,
     load_presets_from_file,
 )
-from ..config.presets_remote import fetch_presets, merge_presets
+from ..config.presets.presets_remote import fetch_presets, merge_presets
 from ..config.profile_config import ArachnaConfig
 from ..domain.atomic_write import atomic_write_text
 from ..domain.path_utils import SafePath

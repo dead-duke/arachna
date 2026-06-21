@@ -1,10 +1,9 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna profile' command."""
 
 import sys
 from pathlib import Path
 
-from ..config.config import get_profile
+from ..config.core.config import get_profile
 from ..config.profile_config import ArachnaConfig
 from ..config.profiler import print_benchmark_table, run_benchmark
 from ..snapshot.benchmarks import benchmark_plugins

@@ -3,6 +3,7 @@
 import contextlib
 from pathlib import Path
 
+from ...config import CollectionMode, OutputFormat
 from ...config.profile_config import ProfileConfig
 from ..cache.cache import get_changed_files, update_cache
 from ..compressor import compress as _compress
@@ -56,13 +57,13 @@ def _scan_directories(profile: ProfileConfig, exclude: list[str], root: Path) ->
 def _format_file_list(
     filepaths,
     tokenizer,
-    fmt="markdown",
+    fmt: OutputFormat = "markdown",
     include_binary=False,
     binary_extensions=None,
     binary_max_mb=1.0,
     verbose=False,
     include_header=False,
-    mode="full",
+    mode: CollectionMode = "full",
     line_numbers=False,
     root=None,
 ):
@@ -112,7 +113,7 @@ def _collect_directory_sections(
     cache=None,
     verbose=False,
     include_header=False,
-    mode="full",
+    mode: CollectionMode = "full",
 ):
     fmt = profile.section_format
     include_binary = profile.include_binary
@@ -153,7 +154,7 @@ def _collect_file_sections(
     root,
     verbose=False,
     include_header=False,
-    mode="full",
+    mode: CollectionMode = "full",
 ):
     fmt = profile.section_format
     include_binary = profile.include_binary
@@ -250,7 +251,7 @@ def _collect_named_sections(
     verbose=False,
     include_header=False,
     query=None,
-    mode="full",
+    mode: CollectionMode = "full",
     graph_cache=None,
 ):
     from .gatherer_commands import _collect_pre_commands

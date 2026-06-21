@@ -1,6 +1,6 @@
 """Tests for line_numbers feature in differ.py — v4.2.0."""
 
-from arachna.snapshot.differ import _format_added, _format_line_range, compute_diff
+from arachna.snapshot.diff.differ import _format_added, _format_line_range, compute_diff
 
 
 def test_format_line_range_with_line_numbers():

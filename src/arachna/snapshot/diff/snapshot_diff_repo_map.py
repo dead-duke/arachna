@@ -3,10 +3,10 @@
 import hashlib
 from pathlib import Path
 
-from ..domain.formatting.formatter import C_LIKE_LANGS, lang_for_path
-from ..domain.tokenization.language_dispatch import get_block_parser
+from ...domain.formatting.formatter import C_LIKE_LANGS, lang_for_path
+from ...domain.tokenization.language_dispatch import get_block_parser
+from ..store.store import load_snapshot
 from .snapshot_diff_files import _read_file_from_disk, _read_file_from_store
-from .store import load_snapshot
 
 
 def _get_snapshot_files(snapshot_id, to_snapshot_id, root):

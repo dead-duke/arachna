@@ -1,14 +1,13 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna snapshot' command."""
 
 import sys
 
-from ..config.config import get_profile
+from ..config.core.config import get_profile
 from ..config.profile_config import ArachnaConfig
-from ..snapshot.snapshot_diff import create_snapshot as snap_create_snapshot
-from ..snapshot.snapshot_diff import update_snapshot as snap_update_snapshot
-from ..snapshot.store import delete_snapshot, list_snapshots, validate_snapshot_id
-from ..snapshot.store_errors import SnapshotExistsError
+from ..snapshot.diff.snapshot_diff import create_snapshot as snap_create_snapshot
+from ..snapshot.diff.snapshot_diff import update_snapshot as snap_update_snapshot
+from ..snapshot.store.store import delete_snapshot, list_snapshots, validate_snapshot_id
+from ..snapshot.store.store_errors import SnapshotExistsError
 from . import register
 from ._helpers import format_profile_section, get_root
 
@@ -153,7 +152,7 @@ def _cmd_snapshot_info(args, config: ArachnaConfig | dict):
 
 @register("snapshot-rename")
 def _cmd_snapshot_rename(args, config: ArachnaConfig | dict):
-    from ..snapshot.store import rename_snapshot as store_rename_snapshot
+    from ..snapshot.store.store import rename_snapshot as store_rename_snapshot
 
     try:
         validate_snapshot_id(args.old)

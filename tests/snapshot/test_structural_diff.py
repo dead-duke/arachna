@@ -2,7 +2,7 @@
 
 from arachna.domain.api_types import DiffSection
 from arachna.domain.tokenization.language_dispatch import _parse_python_blocks
-from arachna.snapshot.differ_structural import (
+from arachna.snapshot.diff.differ_structural import (
     _extract_old_new_from_section,
     structural_diff,
     structural_diff_sections,

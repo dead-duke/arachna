@@ -1,9 +1,4 @@
-"""Collection strategies.
-
-Uses mode strategy pattern: different strategies for 'full', 'repo-map',
-and 'headers' collection modes. Each strategy encapsulates the logic
-for assembling content from files, pre_commands, and commands.
-"""
+"""Collection strategies."""
 
 import os as _os
 import sys
@@ -12,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ...config import CollectionMode
 from ..compressor import compress as _compress
 from ..execution.splitter import pack_into_parts, split_sections
 from .gatherer_files import (
@@ -197,8 +193,6 @@ class _FullModeStrategy:
 
 
 class _RepoMapModeStrategy:
-    """Strategy for 'repo-map' collection mode — signatures only."""
-
     def __init__(self):
         self._graph_cache = {}
 
@@ -207,8 +201,6 @@ class _RepoMapModeStrategy:
 
 
 class _HeadersModeStrategy:
-    """Strategy for 'headers' collection mode — deps and exports only."""
-
     def __init__(self):
         self._graph_cache = {}
 
@@ -252,7 +244,16 @@ def _build_in_memory_parts(named_sections, do_compress, max_tokens, tokenizer, v
 
 
 def _assemble_in_memory(
-    profile, exclude, tokenizer, root, incremental, cache, verbose, query, mode, graph_cache=None
+    profile,
+    exclude,
+    tokenizer,
+    root,
+    incremental,
+    cache,
+    verbose,
+    query,
+    mode: CollectionMode,
+    graph_cache=None,
 ):
     from .gatherer_files import _collect_named_sections
 

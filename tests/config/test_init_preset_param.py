@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch
 
-from arachna.config.init import run_defaults, run_interactive
+from arachna.config.setup.init import run_defaults, run_interactive
 
 
 def test_run_defaults_preset_filters_detection(tmp_path):
@@ -35,7 +35,7 @@ def test_run_interactive_with_preset_param(tmp_path):
     (tmp_path / ".git").mkdir()
 
     with (
-        patch("arachna.config.init.detect_presets") as mock_detect,
+        patch("arachna.config.setup.init.detect_presets") as mock_detect,
         patch("builtins.input", side_effect=["TestProject", "out", "16000", "y", "y"]),
     ):
         mock_detect.return_value = ["godot"]

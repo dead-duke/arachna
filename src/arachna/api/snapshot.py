@@ -1,14 +1,9 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
-"""Public Snapshot API.
-
-All functions require an explicit ArachnaConfig. The caller is responsible
-for loading the configuration and resolving profile names to ProfileConfig
-before calling this API. This keeps the API layer free of config/ dependencies.
-"""
+"""Public Snapshot API."""
 
 import logging
 from pathlib import Path
 
+from ..config import CollectionMode, OutputFormat
 from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..domain.api_types import (
     DiffResult,
@@ -19,18 +14,18 @@ from ..domain.api_types import (
     StoreStats,
 )
 from ..domain.differ_stats import compute_diff_stats
-from ..snapshot.differ_structural import structural_diff_sections
+from ..snapshot.diff.differ_structural import structural_diff_sections
 from ..snapshot.snapshots import apply_repo_map_to_sections, collect_snapshot_content
 from ..snapshot.snapshots import compute_diff as _snapshot_compute_diff
-from ..snapshot.store import create_snapshot as _store_create
-from ..snapshot.store import delete_snapshot as _store_delete
-from ..snapshot.store import gc as _store_gc
-from ..snapshot.store import list_snapshots as _store_list
-from ..snapshot.store import load_snapshot as _store_load
-from ..snapshot.store import stats as _store_stats
-from ..snapshot.store import update_snapshot as _store_update
-from ..snapshot.store_errors import ObjectNotFoundError as _ObjectNotFoundError
-from ..snapshot.store_errors import SnapshotExistsError as _StoreSnapshotExistsError
+from ..snapshot.store.store import create_snapshot as _store_create
+from ..snapshot.store.store import delete_snapshot as _store_delete
+from ..snapshot.store.store import gc as _store_gc
+from ..snapshot.store.store import list_snapshots as _store_list
+from ..snapshot.store.store import load_snapshot as _store_load
+from ..snapshot.store.store import stats as _store_stats
+from ..snapshot.store.store import update_snapshot as _store_update
+from ..snapshot.store.store_errors import ObjectNotFoundError as _ObjectNotFoundError
+from ..snapshot.store.store_errors import SnapshotExistsError as _StoreSnapshotExistsError
 from .api_errors import SnapshotExistsError, SnapshotNotFoundError
 
 logger = logging.getLogger("arachna.snapshot")
@@ -172,7 +167,7 @@ def _resolve_snapshot_id(snapshot_id, root):
         )
 
 
-def _build_diff_sections(sections, mode, snapshot_id, to_snapshot_id, root):
+def _build_diff_sections(sections, mode: CollectionMode, snapshot_id, to_snapshot_id, root):
     if mode == "structural" and sections:
         sections = structural_diff_sections(sections, "markdown")
     elif mode == "repo-map" and sections:
@@ -194,9 +189,9 @@ def compute_diff(
     profile: ProfileConfig,
     config: ArachnaConfig,
     snapshot_id: str | None = None,
-    fmt: str = "markdown",
+    fmt: OutputFormat = "markdown",
     to_snapshot_id: str | None = None,
-    mode: str = "full",
+    mode: CollectionMode = "full",
     flat: bool = False,
     line_numbers: bool = False,
 ) -> DiffResult:
@@ -221,7 +216,10 @@ def compute_diff(
         tokens=raw_stats["tokens"],
     )
     return DiffResult(
-        snapshot_id=snapshot_id, to_snapshot_id=to_snapshot_id, stats=stats, sections=api_sections
+        snapshot_id=snapshot_id,
+        to_snapshot_id=to_snapshot_id,
+        stats=stats,
+        sections=api_sections,
     )
 
 

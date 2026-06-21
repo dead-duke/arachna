@@ -9,6 +9,7 @@ import re
 import time
 from pathlib import Path
 
+from ...config import CollectionMode
 from ...config.profile_config import ProfileConfig
 from ..api_types import PipelineMetrics
 from ..atomic_write import atomic_write_text
@@ -315,7 +316,7 @@ def collect(
     incremental=False,
     merge=False,
     query=None,
-    mode="full",
+    mode: CollectionMode = "full",
     name_template=None,
     allow_pre_commands=True,
 ):

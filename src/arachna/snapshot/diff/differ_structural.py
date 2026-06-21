@@ -4,8 +4,9 @@ import logging
 import threading
 from pathlib import Path
 
-from ..domain.formatting.formatter import C_LIKE_LANGS, lang_for_path
-from ..domain.tokenization.language_dispatch import get_block_parser
+from ...config import OutputFormat
+from ...domain.formatting.formatter import C_LIKE_LANGS, lang_for_path
+from ...domain.tokenization.language_dispatch import get_block_parser
 
 logger = logging.getLogger("arachna.differ_structural")
 
@@ -56,7 +57,7 @@ def _has_tree_sitter_for(lang: str) -> bool:
     return False
 
 
-def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
+def structural_diff_sections(sections: list, fmt: OutputFormat = "markdown") -> list:
     result = []
     for s in sections:
         if s.type != "modified" or not s.path:
@@ -72,7 +73,7 @@ def structural_diff_sections(sections: list, fmt: str = "markdown") -> list:
     return result
 
 
-def structural_diff_for_lang(old_content, new_content, path, lang, fmt="markdown"):
+def structural_diff_for_lang(old_content, new_content, path, lang, fmt: OutputFormat = "markdown"):
     if _has_tree_sitter_for(lang):
         return _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt)
     if lang in C_LIKE_LANGS and not _has_tree_sitter_for(lang):
@@ -145,7 +146,7 @@ def _extract_ts_blocks(node, text, blocks, lang):
         _extract_ts_blocks(child, text, blocks, lang)
 
 
-def structural_diff(old_content, new_content, path, lang, fmt="markdown"):
+def structural_diff(old_content, new_content, path, lang, fmt: OutputFormat = "markdown"):
     return structural_diff_for_lang(old_content, new_content, path, lang, fmt)
 
 

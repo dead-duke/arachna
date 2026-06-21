@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from arachna.snapshot.snapshot_diff_commands import (
+from arachna.snapshot.diff.snapshot_diff_commands import (
     _collect_snapshot_command,
     _collect_snapshot_pre_commands,
 )
@@ -13,8 +13,8 @@ def test_pre_command_empty_output_sanitizes_newlines_in_log():
     profile = {"pre_commands": ["echo hello\nevil"]}
 
     with (
-        patch("arachna.snapshot.snapshot_diff_commands.run_command", return_value=""),
-        patch("arachna.snapshot.snapshot_diff_commands.logger.warning") as mock_log,
+        patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
+        patch("arachna.snapshot.diff.snapshot_diff_commands.logger.warning") as mock_log,
     ):
         _collect_snapshot_pre_commands(profile, root=None)
         logged_message = mock_log.call_args[0][1]
@@ -27,8 +27,8 @@ def test_pre_command_empty_output_sanitizes_carriage_return_in_log():
     profile = {"pre_commands": ["echo hello\revil"]}
 
     with (
-        patch("arachna.snapshot.snapshot_diff_commands.run_command", return_value=""),
-        patch("arachna.snapshot.snapshot_diff_commands.logger.warning") as mock_log,
+        patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
+        patch("arachna.snapshot.diff.snapshot_diff_commands.logger.warning") as mock_log,
     ):
         _collect_snapshot_pre_commands(profile, root=None)
         logged_message = mock_log.call_args[0][1]
@@ -41,8 +41,8 @@ def test_command_empty_output_sanitizes_newlines_in_log():
     profile = {"command": "echo hello\nevil"}
 
     with (
-        patch("arachna.snapshot.snapshot_diff_commands.run_command", return_value=""),
-        patch("arachna.snapshot.snapshot_diff_commands.logger.warning") as mock_log,
+        patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
+        patch("arachna.snapshot.diff.snapshot_diff_commands.logger.warning") as mock_log,
     ):
         _collect_snapshot_command(profile, root=None)
         logged_message = mock_log.call_args[0][1]
@@ -55,8 +55,8 @@ def test_command_empty_output_sanitizes_carriage_return_in_log():
     profile = {"command": "echo hello\revil"}
 
     with (
-        patch("arachna.snapshot.snapshot_diff_commands.run_command", return_value=""),
-        patch("arachna.snapshot.snapshot_diff_commands.logger.warning") as mock_log,
+        patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
+        patch("arachna.snapshot.diff.snapshot_diff_commands.logger.warning") as mock_log,
     ):
         _collect_snapshot_command(profile, root=None)
         logged_message = mock_log.call_args[0][1]
@@ -69,9 +69,9 @@ def test_pre_command_with_output_does_not_log_warning():
     profile = {"pre_commands": ["echo hello"]}
 
     with (
-        patch("arachna.snapshot.snapshot_diff_commands.run_command", return_value="hello"),
-        patch("arachna.snapshot.snapshot_diff_commands.write_object", return_value="abc123"),
-        patch("arachna.snapshot.snapshot_diff_commands.logger.warning") as mock_log,
+        patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value="hello"),
+        patch("arachna.snapshot.diff.snapshot_diff_commands.write_object", return_value="abc123"),
+        patch("arachna.snapshot.diff.snapshot_diff_commands.logger.warning") as mock_log,
     ):
         _collect_snapshot_pre_commands(profile, root=None)
         mock_log.assert_not_called()

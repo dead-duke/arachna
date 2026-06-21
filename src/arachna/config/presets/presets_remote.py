@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Remote presets fetching and merging."""
 
 import contextlib
@@ -33,7 +32,7 @@ def fetch_presets(url: str, timeout: int | None = None) -> dict[str, dict]:
         return {}
     try:
         with contextlib.closing(
-            urllib.request.urlopen(url, timeout=timeout)  # nosec B310 — URL scheme validated above
+            urllib.request.urlopen(url, timeout=timeout)  # nosec B310
         ) as response:
             data = json.loads(response.read().decode("utf-8"))
     except Exception as e:

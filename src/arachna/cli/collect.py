@@ -3,9 +3,9 @@
 import json
 import sys
 
-from ..config.config import get_profile
+from ..config.core.config import get_profile
+from ..config.core.validator import validate_profile
 from ..config.profile_config import ArachnaConfig, ProfileConfig
-from ..config.validator import validate_profile
 from ..domain.collection.collector import (
     _MANIFEST,
     clean_manifest,

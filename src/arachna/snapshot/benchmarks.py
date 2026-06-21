@@ -40,12 +40,12 @@ def benchmark_structural_diff(profile: dict, output_dir: str, root: Path) -> dic
     t0 = time.perf_counter()
     diffs = snapshots_diff(sid, profile, root=root, fmt="markdown")
     diff_time = time.perf_counter() - t0
-    from .differ_structural import structural_diff_sections
+    from .diff.differ_structural import structural_diff_sections
 
     t0 = time.perf_counter()
     struct_diffs = structural_diff_sections(diffs, "markdown")
     struct_time = time.perf_counter() - t0
-    from .store import delete_snapshot
+    from .store.store import delete_snapshot
 
     delete_snapshot(sid, root=root)
     return {

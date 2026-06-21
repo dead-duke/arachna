@@ -1,17 +1,15 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Config loader — reads .arachna.json from project root."""
 
 import json
 from pathlib import Path
 
-from .profile_config import DEFAULT_PROFILE_CONFIG, ArachnaConfig, ProfileConfig
+from ..profile_config import DEFAULT_PROFILE_CONFIG, ArachnaConfig, ProfileConfig
 
 _MAX_EXTENDS_DEPTH = 5
 _MERGE_APPEND = {"exclude_patterns", "patterns"}
 
 
 def find_config(root: Path) -> Path | None:
-    """Find .arachna.json by walking up from root."""
     for parent in [root, *root.parents]:
         cfg = parent / ".arachna.json"
         if cfg.exists():
@@ -20,7 +18,6 @@ def find_config(root: Path) -> Path | None:
 
 
 def load_config(root: Path) -> ArachnaConfig:
-    """Load config from .arachna.json found from root."""
     cfg_path = find_config(root)
     if not cfg_path:
         return ArachnaConfig()
@@ -40,12 +37,6 @@ def load_config(root: Path) -> ArachnaConfig:
 
 
 def _dict_to_profile(d: dict) -> ProfileConfig:
-    """Convert a raw dict from .arachna.json to ProfileConfig.
-
-    Tracks which keys were explicitly present in the source dict
-    via _explicit_keys — used by extends merging to distinguish
-    user-specified values from defaults.
-    """
     defaults = ProfileConfig()
     return ProfileConfig(
         name_template=d.get("name_template", defaults.name_template),
@@ -106,7 +97,6 @@ def _merge_profiles(base: ProfileConfig, child: ProfileConfig) -> ProfileConfig:
 
 
 def get_profile(name: str, root: Path, config: ArachnaConfig | None = None) -> ProfileConfig:
-    """Get profile by name from config. Falls back to load_config(root) if config is None."""
     if config is None:
         config = load_config(root)
     project_name = config.project_name

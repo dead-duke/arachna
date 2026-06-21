@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Content-addressable store for snapshots."""
 
 import contextlib
@@ -11,8 +10,8 @@ import zlib
 from datetime import datetime
 from pathlib import Path
 
-from ..domain.atomic_write import atomic_write_bytes, atomic_write_text
-from ..domain.path_utils import SafePath
+from ...domain.atomic_write import atomic_write_bytes, atomic_write_text
+from ...domain.path_utils import SafePath
 from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExistsError
 
 logger = logging.getLogger("arachna.store")
@@ -175,11 +174,6 @@ def load_snapshot(snapshot_id: str, root: Path) -> dict:
 
 
 def _migrate_manifest(manifest: dict, to_version: int) -> dict:
-    """Migrate manifest from older version to current version.
-
-    Placeholder for future migration logic. Currently no migrations needed
-    since v0→v1 transition adds _version field without structural changes.
-    """
     manifest["_version"] = to_version
     return manifest
 
@@ -213,7 +207,6 @@ def _load_all_manifests(store_dir: SafePath) -> list[dict]:
 
 
 def _collect_hashes_from_dict(d, referenced):
-    """Extract sha256: hashes from a dict of label -> hash_spec."""
     for hash_spec in d.values():
         if hash_spec.startswith(_SHA256_PREFIX):
             referenced.add(hash_spec[len(_SHA256_PREFIX) :])

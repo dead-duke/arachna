@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from arachna.api.collect_api import collect
-from arachna.config.config import load_config
+from arachna.config.core.config import load_config
 from arachna.config.profile_config import ProfileConfig
 
 

@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from ..domain.execution.gitignore import load_gitignore_patterns
-from .config import load_config
+from .core.config import load_config
+from .core.validator import validate_profile
 from .profile_config import ProfileConfig
-from .validator import validate_profile
 
 
 def run_doctor(project_root: Path | None = None, config: dict | None = None) -> dict:

@@ -4,11 +4,11 @@ import difflib
 import logging
 from pathlib import Path
 
-from ..domain.api_types import DiffSection
-from ..domain.execution.runner import _sanitize_log, run_command
+from ...domain.api_types import DiffSection
+from ...domain.execution.runner import _sanitize_log, run_command
+from ..store.store import _SHA256_PREFIX, load_snapshot, write_object
 from .differ import compute_diff as differ_compute_diff
 from .snapshot_diff_files import _get_content_from_manifest
-from .store import _SHA256_PREFIX, load_snapshot, write_object
 
 logger = logging.getLogger("arachna.snapshot")
 
@@ -69,7 +69,7 @@ def _diff_pre_commands_line(old_content, new_content, label):
 
 
 def _diff_pre_commands_marker(old_content, new_content, label, marker, fmt):
-    from ..domain.execution.splitter import _split_to_sections
+    from ...domain.execution.splitter import _split_to_sections
 
     old_sections = _split_to_sections(old_content, marker)
     new_sections = _split_to_sections(new_content, marker)

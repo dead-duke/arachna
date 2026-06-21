@@ -1,9 +1,8 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna store' command."""
 
 import sys
 
-from ..snapshot.store import gc, stats
+from ..snapshot.store.store import gc, stats
 from . import register
 from ._helpers import get_root
 
@@ -29,10 +28,7 @@ def _cmd_store_gc(args, config: dict):
         print(f"Removed {result['removed']} objects (freed {result['freed_bytes']} bytes).")
 
 
-_STORE_HANDLERS = {
-    "stats": _cmd_store_stats,
-    "gc": _cmd_store_gc,
-}
+_STORE_HANDLERS = {"stats": _cmd_store_stats, "gc": _cmd_store_gc}
 
 
 def _dispatch_store(args, config: dict, parser):

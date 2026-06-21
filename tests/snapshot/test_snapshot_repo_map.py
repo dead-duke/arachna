@@ -2,7 +2,7 @@ import pytest
 
 from arachna.api.api_errors import SnapshotNotFoundError
 from arachna.api.snapshot import compute_diff, create_snapshot
-from arachna.config.config import get_profile, load_config
+from arachna.config.core.config import get_profile, load_config
 from arachna.config.profile_config import ProfileConfig
 from arachna.domain.api_types import DiffSection
 from arachna.domain.tokenization.language_dispatch import get_block_parser

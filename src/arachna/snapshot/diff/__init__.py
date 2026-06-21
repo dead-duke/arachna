@@ -1,17 +1,28 @@
-"""Snapshot orchestration — create, update, compute_diff via store and differ."""
+"""Diff subpackage — diff computation, structural diff, snapshot diff orchestration."""
 
-from .diff.snapshot_diff import (
+from .differ import (
+    compute_diff,
+)
+from .differ_structural import (
+    structural_diff,
+    structural_diff_for_lang,
+    structural_diff_sections,
+)
+from .snapshot_diff import (
     _content_hash,
+    _dict_to_profile_config,
     _format_summary_header,
     _get_profile_from_manifest,
     _group_diff_sections,
     _is_binary_content,
     collect_snapshot_content,
-    compute_diff,
     create_snapshot,
     update_snapshot,
 )
-from .diff.snapshot_diff_commands import (
+from .snapshot_diff import (
+    compute_diff as _snapshot_compute_diff,
+)
+from .snapshot_diff_commands import (
     _build_current_pre_commands,
     _build_pre_command_map,
     _collect_snapshot_command,
@@ -28,7 +39,7 @@ from .diff.snapshot_diff_commands import (
     _diff_pre_commands_structural,
     _get_current_cmd_output,
 )
-from .diff.snapshot_diff_files import (
+from .snapshot_diff_files import (
     _build_current_files,
     _build_deleted_added_dicts,
     _build_snapshot_files_dict,
@@ -42,11 +53,11 @@ from .diff.snapshot_diff_files import (
     _read_file_from_store,
     _read_profile_files,
 )
-from .diff.snapshot_diff_helpers import (
+from .snapshot_diff_helpers import (
     _normalize_path,
     _rel_path,
 )
-from .diff.snapshot_diff_repo_map import (
+from .snapshot_diff_repo_map import (
     _format_repo_map_added,
     _format_repo_map_diff,
     _format_repo_map_entry,
@@ -57,18 +68,8 @@ from .diff.snapshot_diff_repo_map import (
     _repo_map_modified_section,
     apply_repo_map_to_sections,
 )
-from .rename.snapshot_rename import (
-    _detect_renames_and_moves,
-    _match_exact_renames,
-    _match_similar_renames,
-)
 
 __all__ = [
-    "apply_repo_map_to_sections",
-    "collect_snapshot_content",
-    "compute_diff",
-    "create_snapshot",
-    "update_snapshot",
     "_build_current_files",
     "_build_current_pre_commands",
     "_build_deleted_added_dicts",
@@ -79,7 +80,7 @@ __all__ = [
     "_collect_snapshot_files",
     "_collect_snapshot_pre_commands",
     "_content_hash",
-    "_detect_renames_and_moves",
+    "_dict_to_profile_config",
     "_diff_cmd_added",
     "_diff_cmd_deleted",
     "_diff_cmd_modified",
@@ -102,8 +103,6 @@ __all__ = [
     "_get_snapshot_files",
     "_group_diff_sections",
     "_is_binary_content",
-    "_match_exact_renames",
-    "_match_similar_renames",
     "_normalize_path",
     "_parse_blocks_for_lang",
     "_path_matches_profile",
@@ -114,4 +113,13 @@ __all__ = [
     "_repo_map_added_section",
     "_repo_map_deleted_section",
     "_repo_map_modified_section",
+    "_snapshot_compute_diff",
+    "apply_repo_map_to_sections",
+    "collect_snapshot_content",
+    "compute_diff",
+    "create_snapshot",
+    "structural_diff",
+    "structural_diff_for_lang",
+    "structural_diff_sections",
+    "update_snapshot",
 ]

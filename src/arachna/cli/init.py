@@ -1,16 +1,15 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI handlers for 'arachna init' command."""
 
 import sys
 
-from ..config.hook import install_hook
+from ..config.setup.hook import install_hook
 from . import register
 from ._helpers import get_root, parse_output_dir
 
 
 @register("init")
 def _cmd_init(args, config: dict):
-    from ..config.init import run_defaults, run_interactive
+    from ..config.setup.init import run_defaults, run_interactive
 
     root = get_root(config)
     output_dir = parse_output_dir(args, config)

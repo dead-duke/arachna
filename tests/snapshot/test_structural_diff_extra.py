@@ -5,7 +5,7 @@ from arachna.domain.tokenization.language_dispatch import (
     _parse_c_like_blocks,
     _parse_script_blocks,
 )
-from arachna.snapshot.differ_structural import (
+from arachna.snapshot.diff.differ_structural import (
     _build_block_label,
     _fallback_diff,
     _format_block_diff,

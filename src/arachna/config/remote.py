@@ -1,8 +1,4 @@
-"""Remote repository collection.
-
-Clones a git repository via --depth 1, selects profile by explicit
-name or remote:true marker, runs collection, and cleans up.
-"""
+"""Remote repository collection."""
 
 import shutil
 import subprocess
@@ -10,8 +6,8 @@ import tempfile
 from pathlib import Path
 
 from ..domain.collection.collector import collect as _domain_collect
-from .config import get_profile, load_config
-from .presets import detect_presets
+from .core.config import get_profile, load_config
+from .presets.presets import detect_presets
 from .profile_config import ProfileConfig
 
 
@@ -77,12 +73,12 @@ def _resolve_profile_dict(profile_name, config, repo_path) -> ProfileConfig:
 def _select_strict(requested, has_config, profiles):
     if not has_config:
         raise ValueError(
-            f"Profile '{requested}' not found. Remote repository has no .arachna.json. Omit --profile to auto-detect, or add .arachna.json with a '{requested}' profile."
+            f"Profile '{requested}' not found. Remote repository has no .arachna.json."
         )
     if requested not in profiles:
         available = list(profiles.keys())
         raise ValueError(
-            f"Profile '{requested}' not found in remote repository. Available profiles: {', '.join(sorted(available)) if available else 'none'}."
+            f"Profile '{requested}' not found. Available: {', '.join(sorted(available)) if available else 'none'}."
         )
     return requested
 
@@ -94,15 +90,13 @@ def _auto_select(has_config, profiles, repo_path):
             return next(iter(remote_profiles))
         if len(remote_profiles) > 1:
             raise ValueError(
-                f"Multiple profiles with remote:true found: {', '.join(sorted(remote_profiles))}. Use --profile to select one."
+                f"Multiple profiles with remote:true: {', '.join(sorted(remote_profiles))}."
             )
     detected = detect_presets(root=repo_path)
     return detected[0] if detected else "full"
 
 
-def _select_profile(
-    requested: str, profiles: dict[str, ProfileConfig], has_config: bool, repo_path: Path
-) -> str:
+def _select_profile(requested, profiles, has_config, repo_path):
     if requested != "full":
         return _select_strict(requested, has_config, profiles)
     return _auto_select(has_config, profiles, repo_path)

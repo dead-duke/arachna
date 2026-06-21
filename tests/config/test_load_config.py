@@ -1,6 +1,6 @@
 import json
 
-from arachna.config.config import load_config
+from arachna.config.core.config import load_config
 
 
 def test_no_file(tmp_path):

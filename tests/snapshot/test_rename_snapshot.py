@@ -7,7 +7,7 @@ from arachna.snapshot.store import (
     load_snapshot,
     rename_snapshot,
 )
-from arachna.snapshot.store_errors import ObjectNotFoundError, SnapshotExistsError
+from arachna.snapshot.store.store_errors import ObjectNotFoundError, SnapshotExistsError
 
 
 def test_rename_snapshot_happy_path(tmp_path):

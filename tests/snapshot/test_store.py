@@ -12,7 +12,7 @@ from arachna.snapshot.store import (
     stats,
     write_object,
 )
-from arachna.snapshot.store_errors import CorruptedStoreError, ObjectNotFoundError
+from arachna.snapshot.store.store_errors import CorruptedStoreError, ObjectNotFoundError
 
 
 def test_write_and_read_object_roundtrip(tmp_path):
@@ -35,7 +35,7 @@ def test_write_object_deduplication(tmp_path):
 def test_write_object_compresses_large_repeated(tmp_path):
     data = b"A" * 10000
     obj_hash = write_object(data, root=tmp_path)
-    from arachna.snapshot.store import _hash_path
+    from arachna.snapshot.store.store import _hash_path
 
     store_dir = tmp_path / ".arachna" / "store"
     obj_path = _hash_path(store_dir, obj_hash)
@@ -45,7 +45,7 @@ def test_write_object_compresses_large_repeated(tmp_path):
 def test_write_object_no_compress_small(tmp_path):
     data = b"hi"
     obj_hash = write_object(data, root=tmp_path)
-    from arachna.snapshot.store import _hash_path
+    from arachna.snapshot.store.store import _hash_path
 
     store_dir = tmp_path / ".arachna" / "store"
     obj_path = _hash_path(store_dir, obj_hash)
@@ -59,7 +59,7 @@ def test_read_object_not_found(tmp_path):
 
 def test_read_object_corrupted(tmp_path):
     obj_hash = write_object(b"original", root=tmp_path)
-    from arachna.snapshot.store import _hash_path
+    from arachna.snapshot.store.store import _hash_path
 
     store_dir = tmp_path / ".arachna" / "store"
     obj_path = _hash_path(store_dir, obj_hash)

@@ -5,7 +5,7 @@ import json
 import pytest
 
 from arachna.api.collect_api import collect
-from arachna.config.config import get_profile, load_config
+from arachna.config.core.config import get_profile, load_config
 from arachna.config.profile_config import ProfileConfig
 
 

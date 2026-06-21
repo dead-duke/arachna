@@ -1,4 +1,3 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """CLI entry point — argparse subparsers."""
 
 import argparse
@@ -7,7 +6,7 @@ from pathlib import Path
 
 from . import __version__
 from .cli import COMMAND_HANDLERS
-from .config.config import find_config, load_config
+from .config.core.config import find_config, load_config
 
 _OUTPUT_DIR_HELP = "Override output directory"
 

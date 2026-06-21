@@ -1,5 +1,5 @@
+from arachna.config.core.validator import validate_profile
 from arachna.config.profile_config import ProfileConfig
-from arachna.config.validator import validate_profile
 
 
 def test_valid():

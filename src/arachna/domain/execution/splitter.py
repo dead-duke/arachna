@@ -4,6 +4,7 @@ import ast as _ast
 import logging
 import re
 
+from ...config import SplitMode
 from ..formatting.formatter import C_LIKE_LANGS, SCRIPT_LANGS
 from ..tokenization.tokenizer import count_tokens
 
@@ -232,7 +233,14 @@ _SPLIT_MODE_DISPATCH = {
 }
 
 
-def split(raw_content, max_tokens, mode="by_file", marker="\n\n", separator="\n\n", tokenizer=None):
+def split(
+    raw_content,
+    max_tokens,
+    mode: SplitMode = "by_file",
+    marker="\n\n",
+    separator="\n\n",
+    tokenizer=None,
+):
     tk = tokenizer if tokenizer is not None else count_tokens
     if max_tokens == -1:
         return [raw_content.strip()] if raw_content.strip() else []

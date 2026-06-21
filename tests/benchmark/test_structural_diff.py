@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from arachna.snapshot.differ_structural import structural_diff_for_lang
+from arachna.snapshot.diff.differ_structural import structural_diff_for_lang
 
 from .test_performance import _default_content, _js_content, _profile, _run_with_memory
 

@@ -3,7 +3,7 @@
 import sys
 from pathlib import Path
 
-from ..config.config import get_profile
+from ..config.core.config import get_profile
 from ..config.profile_config import ArachnaConfig, ProfileConfig
 from ..domain.collection.collector import (
     _write_diff_parts,
@@ -16,7 +16,7 @@ from ..domain.differ_stats import compute_diff_stats
 from ..domain.path_utils import SafePath
 from ..domain.tokenization.tokenizer import count_tokens, load_tokenizer
 from ..snapshot.snapshots import compute_diff
-from ..snapshot.store import list_snapshots, load_snapshot
+from ..snapshot.store.store import list_snapshots, load_snapshot
 from . import register
 from ._helpers import get_root, parse_output_dir, print_collected
 
@@ -69,8 +69,6 @@ def _cmd_diff_all(args, config: ArachnaConfig | dict):
 def _validate_diff_args(args) -> None:
     if args.all and args.from_snapshot:
         print("Error: Cannot use --all and --from together.")
-        print("  arachna diff --all         full project as diff (no snapshot)")
-        print("  arachna diff --from <id>   diff from a specific snapshot")
         sys.exit(1)
 
 
@@ -90,9 +88,7 @@ def _resolve_snapshot_id(args, root: Path) -> str:
         sys.exit(1)
 
 
-def _resolve_diff_profile(
-    args, snapshot_id: str, root: Path, config: ArachnaConfig | dict
-) -> ProfileConfig:
+def _resolve_diff_profile(args, snapshot_id, root, config):
     if args.profile:
         try:
             return get_profile(
@@ -128,7 +124,7 @@ def _resolve_diff_profile(
 
 def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root):
     if args.mode == "structural":
-        from ..snapshot.differ_structural import structural_diff_sections
+        from ..snapshot.diff.differ_structural import structural_diff_sections
 
         return structural_diff_sections(sections, args.format or "markdown")
     elif args.mode == "repo-map":

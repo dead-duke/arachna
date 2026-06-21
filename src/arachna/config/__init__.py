@@ -1,4 +1,10 @@
-"""Config layer — configuration, presets, init, validation, doctor, hook, completion, profiling."""
+"""Config layer — configuration, presets, init, validation, doctor, hook, completion, profiling.
+
+Subpackages:
+- core: config loading, profile resolution, validation
+- presets: preset detection, validation, remote fetching
+- setup: init (interactive/defaults) and git hook installer
+"""
 
 from typing import Literal
 

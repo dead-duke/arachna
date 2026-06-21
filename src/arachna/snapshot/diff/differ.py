@@ -4,7 +4,8 @@ import difflib
 import logging
 from xml.sax.saxutils import escape as _xml_escape
 
-from ..domain.tokenization.tokenizer import count_tokens
+from ...config import OutputFormat
+from ...domain.tokenization.tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.differ")
 
@@ -29,7 +30,7 @@ def compute_diff(
     old_content: str,
     new_content: str,
     path: str,
-    fmt: str = "markdown",
+    fmt: OutputFormat = "markdown",
     max_tokens: int | None = None,
     tokenizer=None,
     line_numbers: bool = False,
@@ -117,7 +118,7 @@ def _truncate_if_needed(content: str, max_tokens: int, tk) -> str:
 def _format_added(
     path: str,
     content: str,
-    fmt: str,
+    fmt: OutputFormat,
     max_tokens: int | None = None,
     tokenizer=None,
     line_numbers: bool = False,
@@ -136,7 +137,7 @@ def _format_added(
     return f"### {path}\n\nADDED (new file):\n\n```\n{content}\n```\n"
 
 
-def _format_deleted(path: str, fmt: str) -> str:
+def _format_deleted(path: str, fmt: OutputFormat) -> str:
     if fmt == "xml":
         escaped_path = _xml_escape(path)
         return f'<file path="{escaped_path}">\n  <removed>\n    [DELETED]\n  </removed>\n</file>\n'

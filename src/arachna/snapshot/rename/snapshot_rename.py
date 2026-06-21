@@ -1,17 +1,16 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Rename/move detection between snapshots — exact hash and similarity matching."""
 
 import difflib
 from pathlib import Path
 
-from ..domain.api_types import DiffSection
-from .differ import compute_diff as differ_compute_diff
+from ...domain.api_types import DiffSection
+from ..diff.differ import compute_diff as differ_compute_diff
 
 _MAX_SIMILARITY_SIZE = 1_048_576
 
 
 def _build_hash_index(items):
-    from .snapshot_diff import _content_hash
+    from ..diff.snapshot_diff import _content_hash
 
     index = {}
     for path, content in items.items():
@@ -91,7 +90,7 @@ def _match_exact_renames(deleted, added):
 def _is_candidate_for_similarity(
     del_path, del_content, remaining_added, matched_added, newly_matched_added
 ):
-    from .snapshot_diff import _is_binary_content
+    from ..diff.snapshot_diff import _is_binary_content
 
     if _is_binary_content(del_content) or len(del_content.encode("utf-8")) > _MAX_SIMILARITY_SIZE:
         return {}
@@ -109,7 +108,7 @@ def _is_candidate_for_similarity(
 def _try_similar_match(
     del_path, del_content, candidates, newly_matched_added, remaining_added, fmt, line_numbers
 ):
-    from .snapshot_diff import _is_binary_content
+    from ..diff.snapshot_diff import _is_binary_content
 
     for add_path, add_content in candidates.items():
         if _is_binary_content(add_content):

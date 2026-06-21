@@ -7,7 +7,7 @@ from arachna.snapshot.store import (
     load_snapshot,
     update_snapshot,
 )
-from arachna.snapshot.store_errors import ObjectNotFoundError
+from arachna.snapshot.store.store_errors import ObjectNotFoundError
 
 
 def test_update_snapshot_updates_files(tmp_path):

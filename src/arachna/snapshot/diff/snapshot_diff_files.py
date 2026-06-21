@@ -4,15 +4,15 @@ import fnmatch
 import logging
 from pathlib import Path
 
-from ..config.profile_config import ProfileConfig
-from ..domain.api_types import DiffSection
-from ..domain.collection.gatherer_files import _get_exclude_patterns, _scan_directories
-from ..domain.path_utils import SafePath
+from ...config.profile_config import ProfileConfig
+from ...domain.api_types import DiffSection
+from ...domain.collection.gatherer_files import _get_exclude_patterns, _scan_directories
+from ...domain.path_utils import SafePath
+from ..rename.snapshot_rename import _detect_renames_and_moves
+from ..store.store import _SHA256_PREFIX, load_snapshot, read_object
+from ..store.store_errors import CorruptedStoreError, ObjectNotFoundError
 from .differ import compute_diff as differ_compute_diff
 from .snapshot_diff_helpers import _rel_path
-from .snapshot_rename import _detect_renames_and_moves
-from .store import _SHA256_PREFIX, load_snapshot, read_object
-from .store_errors import CorruptedStoreError, ObjectNotFoundError
 
 logger = logging.getLogger("arachna.snapshot")
 

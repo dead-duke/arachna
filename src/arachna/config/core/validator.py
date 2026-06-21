@@ -1,10 +1,9 @@
-# Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Config validator — checks profiles for errors and warnings."""
 
 from pathlib import Path
 
-from . import VALID_SPLIT_MODES
-from .profile_config import ProfileConfig
+from .. import VALID_SPLIT_MODES
+from ..profile_config import ProfileConfig
 
 _DEFAULTS = ProfileConfig()
 

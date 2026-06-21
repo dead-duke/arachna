@@ -10,7 +10,7 @@ from arachna.api.snapshot import (
     snapshot_info,
     update_snapshot,
 )
-from arachna.config.config import get_profile, load_config
+from arachna.config.core.config import get_profile, load_config
 from arachna.config.profile_config import ProfileConfig
 
 

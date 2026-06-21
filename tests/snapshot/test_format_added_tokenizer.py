@@ -1,6 +1,6 @@
 """Tests for _format_added with tokenizer parameter (v2.9.2)."""
 
-from arachna.snapshot.differ import compute_diff
+from arachna.snapshot.diff.differ import compute_diff
 
 
 def test_format_added_with_custom_tokenizer():

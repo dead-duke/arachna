@@ -1,6 +1,6 @@
 """Tests for XML format branches in differ.py."""
 
-from arachna.snapshot.differ import compute_diff
+from arachna.snapshot.diff.differ import compute_diff
 
 
 def test_added_file_xml():

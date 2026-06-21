@@ -2,8 +2,8 @@
 
 from unittest.mock import patch
 
-from arachna.snapshot import differ_structural as ds
-from arachna.snapshot.differ_structural import (
+from arachna.snapshot.diff import differ_structural as ds
+from arachna.snapshot.diff.differ_structural import (
     _check_plugins,
     _has_tree_sitter_for,
     structural_diff_for_lang,

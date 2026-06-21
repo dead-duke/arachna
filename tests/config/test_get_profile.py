@@ -1,6 +1,6 @@
 import json
 
-from arachna.config.config import get_profile, load_config
+from arachna.config.core.config import get_profile, load_config
 
 
 def test_fills_defaults(tmp_path):

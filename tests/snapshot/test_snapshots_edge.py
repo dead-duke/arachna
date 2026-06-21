@@ -117,14 +117,14 @@ def test_path_matches_profile_wrong_pattern(tmp_path, setup_config):
 def test_rel_path_outside_root(tmp_path):
     from pathlib import Path
 
-    from arachna.snapshot.snapshot_diff_helpers import _rel_path
+    from arachna.snapshot.diff.snapshot_diff_helpers import _rel_path
 
     result = _rel_path(Path("/etc/passwd"), tmp_path)
     assert result == "/etc/passwd"
 
 
 def test_rel_path_inside_root(tmp_path):
-    from arachna.snapshot.snapshot_diff_helpers import _rel_path
+    from arachna.snapshot.diff.snapshot_diff_helpers import _rel_path
 
     f = tmp_path / "src" / "main.py"
     f.parent.mkdir()
@@ -134,7 +134,7 @@ def test_rel_path_inside_root(tmp_path):
 
 
 def test_normalize_path_backslashes():
-    from arachna.snapshot.snapshot_diff_helpers import _normalize_path
+    from arachna.snapshot.diff.snapshot_diff_helpers import _normalize_path
 
     assert _normalize_path("src\\main.py") == "src/main.py"
     assert _normalize_path("src\\\\nested\\file.py") == "src/nested/file.py"

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from arachna.config.config import get_profile, load_config
+from arachna.config.core.config import get_profile, load_config
 
 
 def test_config_extends_scalar(tmp_path):

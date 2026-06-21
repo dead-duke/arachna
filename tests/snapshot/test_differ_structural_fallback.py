@@ -1,6 +1,6 @@
 """Edge case for _fallback_diff with empty old and new content."""
 
-from arachna.snapshot.differ_structural import _fallback_diff
+from arachna.snapshot.diff.differ_structural import _fallback_diff
 
 
 def test_fallback_diff_both_empty():
