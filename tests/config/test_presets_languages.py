@@ -1,4 +1,4 @@
-"""Tests for v2.2.0 new language presets — Go, Rust, Zig, Lua, Elixir, Haskell, Gleam."""
+"""Tests for new language presets — Go, Rust, Zig, Lua, Elixir, Haskell, Gleam."""
 
 from arachna.config.presets import detect_presets, preset_to_profile
 

@@ -1,4 +1,4 @@
-"""Tests for fetch_presets timeout parameter (v3.5.0)."""
+"""Tests for fetch_presets timeout parameter."""
 
 from unittest.mock import patch
 

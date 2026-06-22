@@ -1,3 +1,5 @@
+"""Tests for shebang language detection in format_file_section."""
+
 import tempfile
 from pathlib import Path
 
@@ -37,3 +39,19 @@ def test_extension_wins():
         f = Path(d) / "script.py"
         f.write_text("#!/bin/bash\necho hi")
         assert "```python" in format_file_section(f)
+
+
+def test_shebang_env_no_args():
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "script"
+        f.write_text("#!/usr/bin/env\nprint('hello')")
+        result = format_file_section(f)
+        assert "```" in result
+
+
+def test_shebang_unknown_binary():
+    with tempfile.TemporaryDirectory() as d:
+        f = Path(d) / "script"
+        f.write_text("#!/usr/bin/unknown_binary\nprint('hello')")
+        result = format_file_section(f)
+        assert "```" in result

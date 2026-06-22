@@ -1,4 +1,4 @@
-"""Tests for max_output_size in runner.py (v2.9.2)."""
+"""Tests for max_output_size in runner.py."""
 
 from unittest.mock import MagicMock, patch
 

@@ -1,4 +1,4 @@
-"""Integration tests for arachna collect --repo."""
+"""Integration tests for remote repo collection."""
 
 import json
 import subprocess

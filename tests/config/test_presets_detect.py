@@ -1,4 +1,4 @@
-"""Test for BUG-004: c_cpp preset falsely detected in Python-only projects."""
+"""Tests for c_cpp preset detection in Python-only projects."""
 
 from arachna.config.presets import detect_presets
 

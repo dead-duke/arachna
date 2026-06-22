@@ -1,4 +1,4 @@
-"""Tests for _format_added with tokenizer parameter (v2.9.2)."""
+"""Tests for _format_added with tokenizer parameter."""
 
 from arachna.snapshot.diff.differ import compute_diff
 

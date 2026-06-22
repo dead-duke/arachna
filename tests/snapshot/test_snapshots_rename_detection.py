@@ -1,4 +1,4 @@
-"""Tests for rename/move detection in snapshot layer (v1.7.0)."""
+"""Tests for rename/move detection in snapshot layer — exact hash, similar, edge cases."""
 
 import math
 
@@ -158,7 +158,6 @@ def test_diff_file_sets_handles_rename():
 
 
 def test_diff_file_sets_xml_format(tmp_path, setup_config, make_profile):
-    """--format xml produces <removed>/<added> tags inside diff sections."""
     root = setup_config()
     src = tmp_path / "src"
     src.mkdir()
@@ -172,3 +171,15 @@ def test_diff_file_sets_xml_format(tmp_path, setup_config, make_profile):
     assert '<file path="' in content_diffs[0].content
     assert "<removed>" in content_diffs[0].content
     assert "<added>" in content_diffs[0].content
+
+
+# From test_snapshots_isolated.py
+
+
+def test_detect_renames_and_moves_exact_hash():
+    deleted = {"old.py": "same"}
+    added = {"new.py": "same"}
+    sections, matched_del, matched_add = _detect_renames_and_moves(deleted, added, "markdown")
+    assert len(sections) == 1
+    assert sections[0].type == "renamed"
+    assert sections[0].similarity == 1.0

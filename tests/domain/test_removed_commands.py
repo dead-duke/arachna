@@ -1,4 +1,4 @@
-"""TC-178: find, env, hg, svn removed from _ALLOWED_COMMANDS."""
+"""Tests for find, env, hg, svn removed from _ALLOWED_COMMANDS."""
 
 from arachna.domain.execution.runner import _ALLOWED_COMMANDS, _validate_command
 

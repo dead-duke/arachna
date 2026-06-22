@@ -1,4 +1,4 @@
-"""Integration tests for snapshot CLI edge cases — uncovered branches."""
+"""Integration tests for snapshot CLI edge cases."""
 
 import json
 

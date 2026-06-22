@@ -1,7 +1,7 @@
 """Content gatherer facade.
 
 Orchestrates file collection, command execution, and mode dispatch.
-Thin facade over gatherer_core, gatherer_query, and gatherer_strategies.
+Thin facade over gatherer_files, gatherer_commands, and gatherer_strategies.
 """
 
 from ...config import CollectionMode
@@ -9,7 +9,8 @@ from ..compressor import compress as _compress
 from ..execution.splitter import split
 from ..interfaces import Tokenizer
 from ..tokenization.tokenizer import count_tokens
-from .gatherer_core import _get_exclude_patterns, _scan_directories, gather_command, gather_files
+from .gatherer_commands import gather_command, gather_files
+from .gatherer_files import _get_exclude_patterns, _scan_directories
 from .gatherer_strategies import get_mode_strategies
 
 __all__ = [

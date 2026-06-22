@@ -1,4 +1,4 @@
-"""TEST-01: shell=True verified in Popen calls (v2.9.2)."""
+"""Tests for shell=True in Popen calls."""
 
 from unittest.mock import MagicMock, patch
 

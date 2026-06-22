@@ -1,4 +1,4 @@
-"""Tests for collect_api.py (v2.0.0)."""
+"""Tests for collect_api.py."""
 
 import json
 

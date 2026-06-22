@@ -1,5 +1,13 @@
+"""Tests for diff of pre_commands — line diff, marker diff, structural diff, integration."""
+
 from arachna.config.profile_config import ProfileConfig
-from arachna.snapshot.diff.snapshot_diff import compute_diff, create_snapshot
+from arachna.domain.api_types import DiffSection
+from arachna.snapshot.diff.snapshot_diff import (
+    _format_summary_header,
+    _group_diff_sections,
+    compute_diff,
+    create_snapshot,
+)
 from arachna.snapshot.diff.snapshot_diff_commands import (
     _diff_pre_commands_line,
     _diff_pre_commands_marker,
@@ -135,12 +143,91 @@ def test_compute_diff_pre_commands_tree_changed(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("print('hello')")
-
     p1 = _profile(pre_commands=["echo 'file1.py'"])
     sid = create_snapshot(p1, name="tree-int-snap", root=tmp_path)
-
     p2 = _profile(pre_commands=["echo 'file1.py\nfile2.py'"])
     diffs = compute_diff(sid, p2, root=tmp_path)
-
     pre_diffs = [d for d in diffs if d.path and d.path.startswith("pre:")]
     assert len(pre_diffs) >= 1
+
+
+# From test_snapshots_isolated.py
+
+
+def test_format_summary_header_all_types():
+    stats = {"renamed": 2, "moved": 1, "modified": 5, "added": 3, "deleted": 1}
+    header = _format_summary_header(stats, "snap1", "snap2")
+    assert "Changes from snap1 to snap2" in header
+    assert "2 renamed" in header
+    assert "1 moved" in header
+    assert "5 modified" in header
+    assert "3 added" in header
+    assert "1 deleted" in header
+
+
+def test_format_summary_header_no_changes():
+    stats = {"renamed": 0, "moved": 0, "modified": 0, "added": 0, "deleted": 0}
+    header = _format_summary_header(stats, "snap1", None)
+    assert "No changes" in header
+
+
+def test_group_diff_sections_order():
+    sections = [
+        DiffSection(type="deleted", path="d.py", content="[DELETED]"),
+        DiffSection(type="modified", path="a.py", content="diff"),
+        DiffSection(type="added", path="c.py", content="new"),
+        DiffSection(type="modified", path="b.py", content="diff2"),
+    ]
+    grouped = _group_diff_sections(sections, "snap1", "current")
+    types = [s.type for s in grouped if s.type != "header"]
+    assert types[0] == "modified"
+    assert types[1] == "modified"
+    assert "added" in types
+    assert "deleted" in types
+
+
+def test_group_diff_sections_empty():
+    assert _group_diff_sections([], "snap1", None) == []
+
+
+def test_diff_pre_commands_line_added():
+    old = "src/main.py\n"
+    new = "src/main.py\nsrc/new.py\n"
+    result = _diff_pre_commands_line(old, new, "pre: tree src")
+    assert "+ src/new.py" in result
+
+
+def test_diff_pre_commands_line_deleted():
+    old = "src/main.py\nsrc/old.py\n"
+    new = "src/main.py\n"
+    result = _diff_pre_commands_line(old, new, "pre: tree src")
+    assert "- src/old.py" in result
+
+
+def test_diff_pre_commands_line_unchanged_isolated():
+    result = _diff_pre_commands_line("same\n", "same\n", "pre: test")
+    assert result == ""
+
+
+def test_diff_pre_commands_marker_modified_isolated():
+    marker = "\n=== COMMIT:"
+    old = "=== COMMIT: abc ===\nold\n"
+    new = "=== COMMIT: abc ===\nnew\n"
+    result = _diff_pre_commands_marker(old, new, "pre: git log", marker, "markdown")
+    assert "REMOVED" in result or "ADDED" in result
+
+
+def test_diff_pre_commands_marker_added_isolated():
+    marker = "\n=== COMMIT:"
+    old = "=== COMMIT: a ===\nmsg\n"
+    new = "=== COMMIT: a ===\nmsg\n\n=== COMMIT: b ===\nnew\n"
+    result = _diff_pre_commands_marker(old, new, "pre: git log", marker, "markdown")
+    assert "section 2" in result
+
+
+def test_diff_pre_commands_marker_deleted_isolated():
+    marker = "\n=== COMMIT:"
+    old = "=== COMMIT: a ===\n1\n\n=== COMMIT: b ===\n2\n"
+    new = "=== COMMIT: a ===\n1\n"
+    result = _diff_pre_commands_marker(old, new, "pre: git log", marker, "markdown")
+    assert "DELETED" in result

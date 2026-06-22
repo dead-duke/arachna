@@ -1,9 +1,10 @@
-"""Tests for runner.py audit log edge cases."""
+"""Tests for runner.py audit log — custom writer, error handling."""
 
 from unittest.mock import patch
 
 import arachna.domain.execution.runner as runner_mod
 from arachna.domain.execution.runner import _write_log, run_command
+from tests.conftest import make_popen_mock
 
 
 def test_get_audit_log_path_os_error(tmp_path):
@@ -51,9 +52,7 @@ def test_run_command_with_custom_log_writer(tmp_path):
         calls.append((str(path), entry))
 
     with patch("subprocess.Popen") as mp:
-        from tests.conftest import mock_popen
-
-        mp.return_value = mock_popen(stdout="hello\n")
+        mp.return_value = make_popen_mock(stdout="hello\n")
         run_command("echo hello", root=tmp_path, log_writer=custom_writer)
 
     assert len(calls) == 1

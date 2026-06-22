@@ -27,7 +27,7 @@ from .gatherer import (
 from .gatherer_commands import (
     _collect_pre_commands,
 )
-from .gatherer_core import (
+from .gatherer_files import (
     _collect_directory_sections,
     _collect_file_sections,
     _collect_named_sections,
@@ -36,13 +36,11 @@ from .gatherer_core import (
     _get_exclude_patterns,
     _get_profile_files,
     _print_compress_stats,
+    _scan_directory_pattern,
+    _scan_one_directory,
 )
 from .gatherer_files import (
     _scan_directories as _gatherer_scan_directories,
-)
-from .gatherer_files import (
-    _scan_directory_pattern,
-    _scan_one_directory,
 )
 from .gatherer_query import (
     _build_reverse_graph,

@@ -4,12 +4,15 @@ import time
 from pathlib import Path
 from typing import Any
 
+from ..config.profile_config import ProfileConfig
 from ..config.profiler import make_profile
 from ..domain.collection.collector import clean_manifest, collect
 from ..domain.path_utils import SafePath
 
 
-def benchmark_plugins(profile: dict, output_dir: str, root: Path) -> dict[str, dict[str, Any]]:
+def benchmark_plugins(
+    profile: ProfileConfig, output_dir: str, root: Path
+) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
     try:
         import tree_sitter  # noqa: F401
@@ -28,9 +31,11 @@ def benchmark_plugins(profile: dict, output_dir: str, root: Path) -> dict[str, d
     return results
 
 
-def benchmark_structural_diff(profile: dict, output_dir: str, root: Path) -> dict[str, Any]:
-    from .snapshots import compute_diff as snapshots_diff
-    from .snapshots import create_snapshot
+def benchmark_structural_diff(
+    profile: ProfileConfig, output_dir: str, root: Path
+) -> dict[str, Any]:
+    from .diff.snapshot_diff import compute_diff as snapshots_diff
+    from .diff.snapshot_diff import create_snapshot
 
     out = SafePath(root / output_dir, root)
     out.mkdir(parents=True, exist_ok=True)
@@ -61,7 +66,7 @@ def benchmark_structural_diff(profile: dict, output_dir: str, root: Path) -> dic
     }
 
 
-def benchmark_tiktoken(profile: dict, output_dir: str, root: Path) -> dict[str, Any]:
+def benchmark_tiktoken(profile: ProfileConfig, output_dir: str, root: Path) -> dict[str, Any]:
     out = SafePath(root / output_dir, root)
     out.mkdir(parents=True, exist_ok=True)
     default_p = make_profile(profile, name_template="bench-full")

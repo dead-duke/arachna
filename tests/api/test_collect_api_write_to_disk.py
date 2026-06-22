@@ -1,4 +1,4 @@
-"""Tests for write_to_disk param in collect_api (v2.9.2)."""
+"""Tests for write_to_disk param in collect_api."""
 
 import json
 from pathlib import Path

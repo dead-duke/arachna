@@ -1,4 +1,4 @@
-"""Tests for new extensions in _EXT_LANG (v2.8.2)."""
+"""Tests for new extensions in _EXT_LANG."""
 
 from pathlib import Path
 

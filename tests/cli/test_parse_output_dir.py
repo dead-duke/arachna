@@ -1,4 +1,4 @@
-"""TC-181: _parse_output_dir parses --output-dir and -o flags — updated for v3.4.0."""
+"""Tests for _parse_output_dir with --output-dir and -o flags."""
 
 from arachna.cli._helpers import parse_output_dir
 from arachna.config.profile_config import ArachnaConfig

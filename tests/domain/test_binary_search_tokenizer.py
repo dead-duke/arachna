@@ -1,4 +1,4 @@
-"""Tests for binary search with custom tokenizers (v2.9.2)."""
+"""Tests for binary search with custom tokenizers."""
 
 from arachna.domain.execution.splitter import _handle_single
 

@@ -1,4 +1,4 @@
-"""Direct tests for _validate_preset in presets.py (v3.5.0)."""
+"""Tests for _validate_preset in presets.py."""
 
 from arachna.config.presets import _validate_preset
 

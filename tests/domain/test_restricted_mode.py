@@ -1,14 +1,14 @@
-"""Tests for restricted mode in run_command (v2.9.0)."""
+"""Restricted mode in run_command — safe commands allowed, dangerous blocked."""
 
 from unittest.mock import patch
 
 from arachna.domain.execution.runner import _validate_command, run_command
-from tests.conftest import mock_popen
+from tests.conftest import make_popen_mock
 
 
 def test_restricted_mode_allows_safe_commands(tmp_path):
     with patch("subprocess.Popen") as mp:
-        mp.return_value = mock_popen(stdout="hello\n")
+        mp.return_value = make_popen_mock(stdout="hello\n")
         result = run_command("echo hello", root=tmp_path)
         assert result == "hello\n"
 
@@ -47,6 +47,6 @@ def test_run_command_restricted_blocks_cat(tmp_path):
 
 def test_run_command_pre_commands_allows_cat(tmp_path):
     with patch("subprocess.Popen") as mp:
-        mp.return_value = mock_popen(stdout="content\n")
+        mp.return_value = make_popen_mock(stdout="content\n")
         result = run_command("cat file.txt", root=tmp_path, allow_file_args=True)
         assert result == "content\n"

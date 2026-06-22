@@ -1,7 +1,4 @@
-"""Tests for BUG-001: _validate_command splits pipe without respect for quotes.
-
-BUG-001 fixed in v1.3.0 — pipe splitting now respects shell quoting.
-"""
+"""Tests for _validate_command pipe splitting with shell quoting."""
 
 from arachna.domain.execution.runner import _validate_command
 

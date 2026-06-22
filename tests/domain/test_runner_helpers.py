@@ -1,4 +1,4 @@
-"""Tests for decomposed runner.py pure helpers — v4.2.0."""
+"""Tests for decomposed runner.py pure helpers."""
 
 from arachna.domain.execution.runner import (
     _check_base_command,

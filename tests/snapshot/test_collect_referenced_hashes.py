@@ -1,4 +1,4 @@
-"""TC-182: _collect_referenced_hashes extracts all SHA256 hashes from manifests."""
+"""Tests for _collect_referenced_hashes in store.py."""
 
 from arachna.snapshot.store.store import _collect_referenced_hashes
 

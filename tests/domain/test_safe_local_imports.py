@@ -1,4 +1,4 @@
-"""Tests for _safe_local_imports in tokenizer.py (v2.5.0)."""
+"""Tests for _safe_local_imports in tokenizer.py."""
 
 from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer
 

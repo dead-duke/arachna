@@ -1,4 +1,4 @@
-"""Integration tests for init dispatch edge cases."""
+"""Integration tests for init dispatch."""
 
 import json
 

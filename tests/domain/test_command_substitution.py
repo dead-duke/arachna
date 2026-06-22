@@ -1,10 +1,10 @@
-"""Tests for shell command substitution blocking and CRLF sanitization in runner.py."""
+"""Tests for shell command substitution blocking and CRLF sanitization."""
 
 import json
 from unittest.mock import patch
 
 from arachna.domain.execution.runner import _check_shell_metachars, _validate_command, run_command
-from tests.conftest import mock_popen
+from tests.conftest import make_popen_mock
 
 # -- $() and backticks blocked --
 
@@ -91,7 +91,7 @@ def test_run_command_blocked_logs_sanitized_cmd(tmp_path):
     """Audit log for blocked command escapes newlines."""
     (tmp_path / ".arachna.json").write_text(json.dumps({"output_dir": "out"}))
     with patch("subprocess.Popen") as mp:
-        mp.return_value = mock_popen(stdout="output\n")
+        mp.return_value = make_popen_mock(stdout="output\n")
         run_command("echo hello\nevil", root=tmp_path)
 
     log_path = tmp_path / "out" / ".arachna_commands.log"

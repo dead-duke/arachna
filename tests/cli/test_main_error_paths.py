@@ -1,12 +1,19 @@
-"""Coverage for __main__.py — error paths, edge cases."""
+"""Tests for __main__.py error paths and CLI helpers."""
 
 import json
 from argparse import Namespace
+from io import StringIO
+from unittest.mock import patch
 
 import pytest
 
-from arachna.cli._helpers import print_collected, write_manifest
-from arachna.cli.collect import _cmd_collect_clean, _cmd_collect_profile, _cmd_collect_validate
+from arachna.cli._helpers import list_profiles, print_collected, write_manifest
+from arachna.cli.collect import (
+    _cmd_collect_clean,
+    _cmd_collect_list,
+    _cmd_collect_profile,
+    _cmd_collect_validate,
+)
 from arachna.cli.diff import _cmd_diff
 from arachna.cli.snapshot import (
     _cmd_snapshot_create,
@@ -15,6 +22,7 @@ from arachna.cli.snapshot import (
     _cmd_snapshot_rename,
     _cmd_snapshot_update,
 )
+from arachna.config.core.config import load_config
 from arachna.config.profile_config import ArachnaConfig
 from arachna.domain.path_utils import SafePath
 
@@ -26,6 +34,9 @@ def _config(tmp_path, profiles=None):
         _root=str(tmp_path),
         profiles=profiles or {},
     )
+
+
+# Snapshot error paths
 
 
 def test_snapshot_create_no_name(tmp_path, make_config):
@@ -96,6 +107,9 @@ def test_snapshot_update_profile_not_found(tmp_path, make_config):
     store_create({"a.py": "x"}, name="test-snap", root=tmp_path)
     with pytest.raises(SystemExit):
         _cmd_snapshot_update(Namespace(id="test-snap", profile="nonexistent"), config)
+
+
+# Diff error paths
 
 
 def test_diff_all_and_from_conflict(tmp_path, make_config):
@@ -185,6 +199,9 @@ def test_diff_all_profile_not_found(tmp_path, make_config):
         )
 
 
+# Collect error paths
+
+
 def test_collect_profile_not_found(tmp_path, make_config):
     config = make_config(tmp_path, profiles={"x": {"command": "echo hi", "max_tokens": 100}})
     with pytest.raises(SystemExit):
@@ -222,9 +239,11 @@ def test_collect_validate_multi_profile(tmp_path, make_config):
     assert exc_info.value.code == 1
 
 
+# Helper functions
+
+
 def test_print_collected_with_files(tmp_path):
     import sys
-    from io import StringIO
 
     f = tmp_path / "test.md"
     f.write_text("hello\nworld\n")
@@ -239,7 +258,6 @@ def test_print_collected_with_files(tmp_path):
 
 def test_print_collected_empty():
     import sys
-    from io import StringIO
 
     out = StringIO()
     old = sys.stdout
@@ -285,3 +303,104 @@ def test_clean_manifest_and_diff_files(tmp_path, make_config):
     assert not (tmp_path / "out" / "chat-c_1.md").exists()
     assert not (tmp_path / "out" / "chat-diff-snap_1.md").exists()
     assert not mf.exists()
+
+
+# Helpers from test_main_handlers.py
+
+
+def test_list_profiles_empty_config():
+    assert list_profiles(ArachnaConfig(profiles={})) == ["default"]
+
+
+def test_list_profiles_no_key():
+    assert list_profiles(ArachnaConfig()) == ["default"]
+
+
+def test_write_manifest(tmp_path):
+    out = tmp_path / "out"
+    out.mkdir()
+    f1 = str(out / "chat-c.md")
+    (out / "chat-c.md").write_text("content")
+    write_manifest(SafePath(out, tmp_path), [f1], {f1: 10}, ArachnaConfig(project_name="Test"))
+    mf = out / "chat-manifest.md"
+    assert mf.exists()
+    content = mf.read_text()
+    assert "Test" in content
+    assert "chat-c.md" in content
+
+
+def test_cmd_clean_corrupted_manifest(tmp_path):
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {"c": {"directories": ["src"], "max_tokens": 100}},
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / ".arachna_manifest.json").write_text("not json")
+    _cmd_collect_clean(Namespace(output_dir=None), config)
+
+
+def test_cmd_clean_manifest_os_error(tmp_path):
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {"c": {"directories": ["src"], "max_tokens": 100}},
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
+    (tmp_path / "out").mkdir()
+    (tmp_path / "out" / ".arachna_manifest.json").write_text('{"files": ["chat-c.md"]}')
+    with patch("pathlib.Path.read_text", side_effect=OSError("disk error")):
+        _cmd_collect_clean(Namespace(output_dir=None), config)
+
+
+def test_cmd_validate_multiple_profiles(tmp_path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {
+                    "good": {"directories": ["src"], "max_tokens": 100},
+                    "bad": {"max_tokens": 0},
+                },
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
+    with patch("sys.exit") as mock_exit:
+        _cmd_collect_validate(Namespace(), config)
+        mock_exit.assert_called_with(1)
+
+
+def test_cmd_list_keyerror(tmp_path):
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {"c": {"max_tokens": 100}},
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
+    import sys
+
+    out = StringIO()
+    old = sys.stdout
+    sys.stdout = out
+    _cmd_collect_list(Namespace(), config)
+    sys.stdout = old

@@ -1,4 +1,4 @@
-"""Tests for _validate_top_level_statements in tokenizer.py (v2.9.0)."""
+"""Tests for _validate_top_level_statements in tokenizer.py."""
 
 from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer, _validate_top_level_statements
 

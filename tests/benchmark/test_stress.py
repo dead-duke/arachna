@@ -2,7 +2,7 @@
 
 import pytest
 
-from .test_performance import _make_files, _profile, _run_with_memory
+from tests.benchmark.test_performance import _make_files, _profile, _run_with_memory
 
 
 @pytest.mark.slow

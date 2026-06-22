@@ -1,7 +1,7 @@
 import os
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.domain.collection.gatherer_core import _collect_named_sections
+from arachna.domain.collection.gatherer_files import _collect_named_sections
 from arachna.domain.tokenization.tokenizer import count_tokens
 
 

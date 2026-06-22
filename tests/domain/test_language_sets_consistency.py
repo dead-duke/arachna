@@ -1,4 +1,4 @@
-"""TC-179: C_LIKE_LANGS and SCRIPT_LANGS consistency across dispatch mappings.
+"""Tests for C_LIKE_LANGS and SCRIPT_LANGS consistency across dispatch mappings.
 
 After v4.0.1 refactoring, language sets are defined in formatter.py only.
 This test verifies that language_dispatch.py mappings cover all languages
@@ -12,7 +12,7 @@ from arachna.domain.tokenization.language_dispatch import BLOCK_PARSERS, HEADER_
 
 
 def test_c_like_langs_identical_in_splitter():
-    """Splitter imports C_LIKE_LANGS from formatter — must be identical."""
+    """Splitter imports C_LIKE_LANGS from formatter -- must be identical."""
     assert C_LIKE_LANGS == SP_C_LIKE, (
         f"formatter: {sorted(C_LIKE_LANGS - SP_C_LIKE)} extra, "
         f"splitter: {sorted(SP_C_LIKE - C_LIKE_LANGS)} extra"
@@ -20,7 +20,7 @@ def test_c_like_langs_identical_in_splitter():
 
 
 def test_script_langs_identical_in_splitter():
-    """Splitter imports SCRIPT_LANGS from formatter — must be identical."""
+    """Splitter imports SCRIPT_LANGS from formatter -- must be identical."""
     assert SCRIPT_LANGS == SP_SCRIPT, (
         f"formatter: {sorted(SCRIPT_LANGS - SP_SCRIPT)} extra, "
         f"splitter: {sorted(SP_SCRIPT - SCRIPT_LANGS)} extra"

@@ -1,4 +1,4 @@
-"""Tests for _write_diff_parts in collector.py (v1.7.1)."""
+"""Tests for _write_diff_parts in collector.py."""
 
 from pathlib import Path
 

@@ -1,7 +1,6 @@
 """Integration tests for remote profile selection in arachna collect --repo.
 
-Tests TC-191, TC-192, TC-193: strict --profile, remote:true auto-select,
-and git clone integration.
+Tests strict --profile, remote:true auto-select, and git clone integration.
 """
 
 import json
@@ -43,7 +42,6 @@ def _make_local_git_repo(tmp_path, name="testrepo", profiles=None):
     return repo
 
 
-# TC-191: Strict --profile flag
 def test_collect_repo_strict_profile_found(tmp_path):
     """--profile with exact match uses the specified profile."""
     repo = _make_local_git_repo(tmp_path, "strict-repo")
@@ -89,7 +87,6 @@ def test_collect_repo_strict_profile_not_found(tmp_path):
     assert "Error" in result.stdout
 
 
-# TC-192: Auto-select via remote:true
 def test_collect_repo_auto_select_remote_true(tmp_path):
     """Without --profile, remote:true profiles are auto-selected."""
     repo = _make_local_git_repo(
@@ -131,7 +128,6 @@ def test_collect_repo_auto_select_remote_true(tmp_path):
     assert "only http:// and https://" in result.stdout
 
 
-# TC-193: Clone integration with error handling
 def test_collect_repo_clone_error_handling(tmp_path):
     """--repo with invalid URL shows clear error message."""
     out_dir = tmp_path / "out"
@@ -140,12 +136,7 @@ def test_collect_repo_clone_error_handling(tmp_path):
         json.dumps({"project_name": "test", "output_dir": "out", "profiles": {}})
     )
 
-    result = _arachna(
-        "collect",
-        "--repo",
-        "ftp://evil.com/repo.git",
-        cwd=tmp_path,
-    )
+    result = _arachna("collect", "--repo", "ftp://evil.com/repo.git", cwd=tmp_path)
     assert result.returncode == 1
     assert "only http:// and https://" in result.stdout
 

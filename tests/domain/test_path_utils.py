@@ -1,4 +1,4 @@
-"""Tests for path_utils.py — v4.2.0 + SafePath v5.1.0."""
+"""Tests for path_utils.py — SafePath and validate_path."""
 
 from pathlib import Path
 

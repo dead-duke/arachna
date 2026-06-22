@@ -1,4 +1,4 @@
-"""Integration tests for diff --line-numbers flag — v4.2.0."""
+"""Integration tests for diff line numbers."""
 
 import json
 

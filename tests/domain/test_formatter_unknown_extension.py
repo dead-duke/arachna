@@ -1,4 +1,4 @@
-"""BUG-002 regression: unknown extensions checked for null bytes before skipping."""
+"""Unknown extensions checked for null bytes before skipping."""
 
 from arachna.domain.formatting.formatter import _should_skip_binary, format_file_section
 

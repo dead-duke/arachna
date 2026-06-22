@@ -1,4 +1,4 @@
-"""TEST-05: Slow network mock for fetch_presets (v2.9.2)."""
+"""Tests for slow network mock in fetch_presets."""
 
 import time
 from unittest.mock import patch

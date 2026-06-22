@@ -1,4 +1,4 @@
-"""Tests for update_snapshot in store.py (v1.6.4)."""
+"""Tests for update_snapshot in store.py."""
 
 import pytest
 

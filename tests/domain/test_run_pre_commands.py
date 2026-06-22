@@ -1,14 +1,14 @@
-"""Tests for run_pre_commands in runner.py."""
+"""Tests for run_pre_commands — single, multiple, delay, failure handling."""
 
 from unittest.mock import patch
 
 from arachna.domain.execution.runner import run_pre_commands
-from tests.conftest import mock_popen
+from tests.conftest import make_popen_mock
 
 
 def test_run_pre_commands_single(tmp_path):
     with patch("subprocess.Popen") as mp:
-        mp.return_value = mock_popen(stdout="output\n")
+        mp.return_value = make_popen_mock(stdout="output\n")
         results = run_pre_commands(["echo hello"], root=tmp_path)
     assert len(results) == 1
     assert results[0][0] == "echo hello"
@@ -18,8 +18,8 @@ def test_run_pre_commands_single(tmp_path):
 def test_run_pre_commands_multiple(tmp_path):
     with patch("subprocess.Popen") as mp:
         mp.side_effect = [
-            mock_popen(stdout="first\n"),
-            mock_popen(stdout="second\n"),
+            make_popen_mock(stdout="first\n"),
+            make_popen_mock(stdout="second\n"),
         ]
         results = run_pre_commands(["echo first", "echo second"], root=tmp_path)
     assert len(results) == 2
@@ -40,9 +40,9 @@ def test_run_pre_commands_with_delay(tmp_path):
         patch("arachna.domain.execution.runner.time.sleep") as mock_sleep,
     ):
         mp.side_effect = [
-            mock_popen(stdout="a\n"),
-            mock_popen(stdout="b\n"),
-            mock_popen(stdout="c\n"),
+            make_popen_mock(stdout="a\n"),
+            make_popen_mock(stdout="b\n"),
+            make_popen_mock(stdout="c\n"),
         ]
         results = run_pre_commands(
             ["echo a", "echo b", "echo c"], root=tmp_path, pre_command_delay=0.1
@@ -59,8 +59,8 @@ def test_run_pre_commands_no_delay_default(tmp_path):
         patch("arachna.domain.execution.runner.time.sleep") as mock_sleep,
     ):
         mp.side_effect = [
-            mock_popen(stdout="x\n"),
-            mock_popen(stdout="y\n"),
+            make_popen_mock(stdout="x\n"),
+            make_popen_mock(stdout="y\n"),
         ]
         run_pre_commands(["echo x", "echo y"], root=tmp_path)
 
@@ -79,9 +79,9 @@ def test_run_pre_commands_failure_continues(tmp_path):
 def test_run_pre_commands_partial_failure_middle(tmp_path):
     with patch("subprocess.Popen") as mp:
         mp.side_effect = [
-            mock_popen(stdout="first\n"),
+            make_popen_mock(stdout="first\n"),
             OSError("middle failed"),
-            mock_popen(stdout="third\n"),
+            make_popen_mock(stdout="third\n"),
         ]
         results = run_pre_commands(["echo first", "echo middle", "echo third"], root=tmp_path)
     assert len(results) == 3
