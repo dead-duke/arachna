@@ -13,19 +13,19 @@ def _make_args(url=None):
 
 def test_presets_update_rejects_file_url(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
-    with pytest.raises(ValueError, match="only http:// and https://"):
+    with pytest.raises(ValueError, match="Only https://"):
         _cmd_presets_update(_make_args(url="file:///etc/passwd"), config)
 
 
 def test_presets_update_rejects_ftp_url(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
-    with pytest.raises(ValueError, match="only http:// and https://"):
+    with pytest.raises(ValueError, match="Only https://"):
         _cmd_presets_update(_make_args(url="ftp://evil.com/presets.json"), config)
 
 
 def test_presets_update_rejects_non_local_http(tmp_path, make_config):
     config = make_config(tmp_path, profiles={})
-    with pytest.raises(ValueError, match="only https:// or local"):
+    with pytest.raises(ValueError, match="URL must use https://"):
         _cmd_presets_update(_make_args(url="http://example.com/presets.json"), config)
 
 

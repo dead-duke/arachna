@@ -30,7 +30,7 @@ def test_collect_repo_invalid_url(tmp_path):
     )
     result = _arachna("collect", "--repo", "ftp://evil.com/repo.git", cwd=tmp_path)
     assert result.returncode == 1
-    assert "only http:// and https://" in result.stdout
+    assert "Only https://" in result.stdout
 
 
 def test_collect_repo_file_url(tmp_path):
@@ -40,7 +40,7 @@ def test_collect_repo_file_url(tmp_path):
     )
     result = _arachna("collect", "--repo", "file:///etc/passwd", cwd=tmp_path)
     assert result.returncode == 1
-    assert "only http:// and https://" in result.stdout
+    assert "Only https://" in result.stdout
 
 
 def test_collect_repo_local_git(tmp_path):

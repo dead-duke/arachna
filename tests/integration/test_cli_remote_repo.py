@@ -39,7 +39,7 @@ def test_collect_repo_local_git(tmp_path):
     )
     # file:// URL should be rejected
     assert result.returncode == 1
-    assert "only http:// and https://" in result.stdout
+    assert "Only https://" in result.stdout
 
 
 def test_collect_repo_invalid_url(tmp_path):
@@ -57,7 +57,7 @@ def test_collect_repo_invalid_url(tmp_path):
         cwd=tmp_path,
     )
     assert result.returncode == 1
-    assert "only http:// and https://" in result.stdout
+    assert "Only https://" in result.stdout
 
 
 def test_collect_repo_git_not_found(tmp_path):

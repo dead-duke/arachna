@@ -62,7 +62,7 @@ def test_collect_repo_strict_profile_found(tmp_path):
         cwd=tmp_path,
     )
     assert result.returncode == 1
-    assert "only http:// and https://" in result.stdout
+    assert "Only https://" in result.stdout
 
 
 def test_collect_repo_strict_profile_not_found(tmp_path):
@@ -125,7 +125,7 @@ def test_collect_repo_auto_select_remote_true(tmp_path):
         cwd=tmp_path,
     )
     assert result.returncode == 1
-    assert "only http:// and https://" in result.stdout
+    assert "Only https://" in result.stdout
 
 
 def test_collect_repo_clone_error_handling(tmp_path):
@@ -138,7 +138,7 @@ def test_collect_repo_clone_error_handling(tmp_path):
 
     result = _arachna("collect", "--repo", "ftp://evil.com/repo.git", cwd=tmp_path)
     assert result.returncode == 1
-    assert "only http:// and https://" in result.stdout
+    assert "Only https://" in result.stdout
 
 
 def test_collect_repo_git_not_installed_message(tmp_path):

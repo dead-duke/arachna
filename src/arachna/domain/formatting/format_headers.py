@@ -4,12 +4,15 @@ import ast as _ast
 import re
 from pathlib import Path
 
-_RE_PY_IMPORT_SIMPLE = re.compile(r"^import\s+(\w+(?:\s*,\s*\w+)*)", re.MULTILINE)
 _RE_PY_IMPORT_FROM = re.compile(r"^from\s+([\w.]+)\s+import", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*([^)]*)\s*\)", re.MULTILINE)
 
-_RE_ES6_IMPORT_FROM_DESTRUCTURE = re.compile(
-    r"^\s*import\s+(?:type\s+)?\{[^}]+\}\s*from\s*['\"]([^'\"]+)['\"]",
+_RE_ES6_IMPORT_TYPE_DESTRUCTURE = re.compile(
+    r"^\s*import\s+type\s+\{[^}]+\}\s*from\s*['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_RE_ES6_IMPORT_DESTRUCTURE = re.compile(
+    r"^\s*import\s+\{[^}]+\}\s*from\s*['\"]([^'\"]+)['\"]",
     re.MULTILINE,
 )
 _RE_ES6_IMPORT_FROM_SIMPLE = re.compile(
@@ -33,7 +36,8 @@ _RE_CSHARP_USING = re.compile(r"^\s*using\s+([\w.]+)\s*;", re.MULTILINE)
 _RE_MODULE_USE = re.compile(r"^\s*use\s+([\w\\]+)\s*;", re.MULTILINE)
 
 _C_LIKE_IMPORT_PATTERNS = [
-    _RE_ES6_IMPORT_FROM_DESTRUCTURE,
+    _RE_ES6_IMPORT_TYPE_DESTRUCTURE,
+    _RE_ES6_IMPORT_DESTRUCTURE,
     _RE_ES6_IMPORT_FROM_SIMPLE,
     _RE_ES6_IMPORT_BARE,
     _RE_COMMONJS_REQUIRE_DESTRUCTURE,
@@ -72,6 +76,16 @@ _SCRIPT_EXPORT_PATTERNS = [
 ]
 
 
+def _parse_python_import(line: str) -> list[str]:
+    """Parse 'import a, b, c' line into list of module names. No regex."""
+    if not line.startswith("import "):
+        return []
+    modules = line[7:].strip()
+    if not modules:
+        return []
+    return [m.strip() for m in modules.split(",") if m.strip()]
+
+
 def _parse_import_stmt(match):
     deps = []
     mod = match.group(1)
@@ -97,12 +111,16 @@ def _parse_multiline_import(match):
 
 def _parse_python_imports_fallback(text):
     deps = []
-    for m in _RE_PY_IMPORT_SIMPLE.finditer(text):
-        deps.extend(m.group(1).replace(" ", "").split(","))
-    for m in _RE_PY_IMPORT_FROM.finditer(text):
-        mod = m.group(1)
-        if mod:
-            deps.append(mod)
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("import "):
+            deps.extend(_parse_python_import(stripped))
+        elif stripped.startswith("from "):
+            m = _RE_PY_IMPORT_FROM.match(stripped)
+            if m:
+                mod = m.group(1)
+                if mod:
+                    deps.append(mod)
     for m in _RE_PY_MULTILINE_IMPORT.finditer(text):
         deps.extend(_parse_multiline_import(m))
     return deps

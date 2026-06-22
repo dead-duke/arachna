@@ -35,14 +35,13 @@ def validate_remote_url(url: str) -> str:
 
     Raises ValueError for any other URL scheme or non-local http://.
     """
-    if url.startswith("https://"):
-        return url
-    if not url.startswith("http://"):
-        raise ValueError(f"only http:// and https:// URLs are allowed. Got: {url}")
     parsed = urlparse(url)
-    hostname = parsed.hostname
-    if hostname is None:
-        raise ValueError(f"Cannot parse hostname from URL: {url}")
-    if _is_local_host(hostname):
+    if parsed.scheme == "https":
         return url
-    raise ValueError(f"only https:// or local URLs are allowed. Got: {url}")
+    if parsed.scheme != "http":
+        raise ValueError(f"Only https:// URLs are allowed. Got: {url}")
+    if parsed.hostname is None:
+        raise ValueError(f"Cannot parse hostname from URL: {url}")
+    if _is_local_host(parsed.hostname):
+        return url
+    raise ValueError(f"URL must use https:// (or http:// for local hosts only). Got: {url}")

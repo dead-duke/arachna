@@ -54,7 +54,7 @@ from .execution import (
     split,
     split_sections,
 )
-from .formatting import (
+from .formatting.formatter import (
     C_LIKE_LANGS,
     SCRIPT_LANGS,
     format_file_section,
