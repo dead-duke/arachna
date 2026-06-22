@@ -4,6 +4,7 @@ import json
 from unittest.mock import patch
 
 from arachna.cli.presets import _cmd_presets_update
+from arachna.config.core.config import load_config
 
 
 def _make_args(url=None):
@@ -14,13 +15,17 @@ def _make_args(url=None):
 
 def test_presets_update_writes_to_root(tmp_path):
     """presets update writes presets.json to config _root, not cwd."""
-    config = {
-        "project_name": "test",
-        "output_dir": str(tmp_path / "out"),
-        "_root": str(tmp_path),
-        "profiles": {},
-    }
-    (tmp_path / ".arachna.json").write_text(json.dumps(config))
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {},
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
 
     mock_remote = {
         "go": {

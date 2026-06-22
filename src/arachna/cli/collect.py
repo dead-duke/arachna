@@ -28,31 +28,23 @@ from ._helpers import (
 from .renderer import render_dry_run
 
 
-def _cfg_project_name(config: ArachnaConfig | dict) -> str:
-    return (
-        config.project_name
-        if isinstance(config, ArachnaConfig)
-        else config.get("project_name", "Project")
-    )
+def _cfg_project_name(config: ArachnaConfig) -> str:
+    return config.project_name
 
 
-def _cfg_get_profile(name: str, root, config: ArachnaConfig | dict) -> ProfileConfig:
-    return get_profile(
-        name, root=root, config=config if isinstance(config, ArachnaConfig) else None
-    )
+def _cfg_get_profile(name: str, root, config: ArachnaConfig) -> ProfileConfig:
+    return get_profile(name, root=root, config=config)
 
 
-def _resolve_profiles(config, root):
-    profiles = config.profiles if isinstance(config, ArachnaConfig) else config.get("profiles", {})
+def _resolve_profiles(config: ArachnaConfig, root):
+    profiles = config.profiles
     if not profiles:
         return {"default": get_profile("default", root=root)}, 0
     valid_profiles = {}
     error_count = 0
     for name in profiles:
         try:
-            valid_profiles[name] = get_profile(
-                name, root=root, config=config if isinstance(config, ArachnaConfig) else None
-            )
+            valid_profiles[name] = get_profile(name, root=root, config=config)
         except KeyError as e:
             print(f"  Error: profile '{name}': {e}")
             error_count += 1
@@ -113,7 +105,7 @@ def _update_manifest(out_path, created, name_tmpl, merge):
 
 
 @register("collect-profile")
-def _cmd_collect_profile(args, config: ArachnaConfig | dict):
+def _cmd_collect_profile(args, config: ArachnaConfig):
     root = get_root(config)
     project_name = _cfg_project_name(config)
     out_path = SafePath(root / parse_output_dir(args, config), root)
@@ -139,7 +131,7 @@ def _cmd_collect_profile(args, config: ArachnaConfig | dict):
 
 
 @register("collect-all")
-def _cmd_collect_all(args, config: ArachnaConfig | dict):
+def _cmd_collect_all(args, config: ArachnaConfig):
     root = get_root(config)
     project_name = _cfg_project_name(config)
     out_path = SafePath(root / parse_output_dir(args, config), root)
@@ -176,7 +168,7 @@ def _cmd_collect_all(args, config: ArachnaConfig | dict):
 
 
 @register("collect-list")
-def _cmd_collect_list(args, config: ArachnaConfig | dict):
+def _cmd_collect_list(args, config: ArachnaConfig):
     root = get_root(config)
     for name in list_profiles(config):
         try:
@@ -213,7 +205,7 @@ def _validate_and_print(profiles):
 
 
 @register("collect-validate")
-def _cmd_collect_validate(args, config: ArachnaConfig | dict):
+def _cmd_collect_validate(args, config: ArachnaConfig):
     root = get_root(config)
     profiles, resolve_errors = _resolve_profiles(config, root)
     all_errors = _validate_and_print(profiles)[0] + resolve_errors
@@ -223,7 +215,7 @@ def _cmd_collect_validate(args, config: ArachnaConfig | dict):
 
 
 @register("collect-clean")
-def _cmd_collect_clean(args, config: ArachnaConfig | dict):
+def _cmd_collect_clean(args, config: ArachnaConfig):
     root = get_root(config)
     out_path = SafePath(root / parse_output_dir(args, config), root)
     cleaned = 0
@@ -250,7 +242,7 @@ def _cmd_collect_clean(args, config: ArachnaConfig | dict):
     print(f"Cleaned {cleaned} file(s).")
 
 
-def _cmd_collect_repo(args, config: ArachnaConfig | dict):
+def _cmd_collect_repo(args, config: ArachnaConfig):
     url = args.repo
     if not url.startswith(("http://", "https://")):
         print("Error: only http:// and https:// URLs are allowed.")

@@ -12,12 +12,9 @@ from ._helpers import parse_output_dir
 
 
 @register("profile")
-def _cmd_benchmark(args, config: ArachnaConfig | dict):
+def _cmd_benchmark(args, config: ArachnaConfig):
     profile_name = args.profile or "full"
-    if isinstance(config, ArachnaConfig):
-        root = Path(config._root or Path.cwd())
-    else:
-        root = Path(config.get("_root", Path.cwd()))
+    root = Path(config._root or Path.cwd())
     try:
         profile = get_profile(profile_name, root=root)
     except KeyError as e:

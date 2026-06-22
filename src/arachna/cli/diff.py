@@ -22,21 +22,15 @@ from ._helpers import get_root, parse_output_dir, print_collected
 
 
 @register("diff-all")
-def _cmd_diff_all(args, config: ArachnaConfig | dict):
+def _cmd_diff_all(args, config: ArachnaConfig):
     root = get_root(config)
-    project_name = (
-        config.project_name
-        if isinstance(config, ArachnaConfig)
-        else config.get("project_name", "Project")
-    )
+    project_name = config.project_name
     output_dir = parse_output_dir(args, config)
     out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     profile_name = args.profile or "full"
     try:
-        profile = get_profile(
-            profile_name, root=root, config=config if isinstance(config, ArachnaConfig) else None
-        )
+        profile = get_profile(profile_name, root=root, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -91,11 +85,7 @@ def _resolve_snapshot_id(args, root: Path) -> str:
 def _resolve_diff_profile(args, snapshot_id, root, config):
     if args.profile:
         try:
-            return get_profile(
-                args.profile,
-                root=root,
-                config=config if isinstance(config, ArachnaConfig) else None,
-            )
+            return get_profile(args.profile, root=root, config=config)
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
@@ -121,11 +111,7 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root):
 
 def _write_diff_output(sections, snapshot_id, to_snapshot_id, profile, config, args):
     output_dir = parse_output_dir(args, config)
-    project_name = (
-        config.project_name
-        if isinstance(config, ArachnaConfig)
-        else config.get("project_name", "Project")
-    )
+    project_name = config.project_name
     root = get_root(config)
     out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -173,7 +159,7 @@ def _output_diff_results(args, sections, snapshot_id, to_snapshot_id, profile, c
 
 
 @register("diff")
-def _cmd_diff(args, config: ArachnaConfig | dict):
+def _cmd_diff(args, config: ArachnaConfig):
     _validate_diff_args(args)
     if args.all:
         _cmd_diff_all(args, config)

@@ -61,10 +61,10 @@ def run_benchmark(profile: ProfileConfig, output_dir: str, root: Path) -> dict[s
 
 
 def _find_query_candidate(profile: ProfileConfig, root: Path) -> str | None:
-    from ..domain.collection.gatherer_files import _scan_directories
+    from ..domain import scan_directories
 
     exclude = profile.exclude_patterns
-    files = _scan_directories(profile, exclude, root=root)
+    files = scan_directories(profile, exclude, root=root)
     if not files:
         return None
     return files[0].stem

@@ -1,6 +1,7 @@
 """TC-181: _parse_output_dir parses --output-dir and -o flags — updated for v3.4.0."""
 
 from arachna.cli._helpers import parse_output_dir
+from arachna.config.profile_config import ArachnaConfig
 
 
 def _make_args(output_dir=None):
@@ -10,15 +11,17 @@ def _make_args(output_dir=None):
 
 
 def test_parse_output_dir_flag():
-    result = parse_output_dir(_make_args(output_dir="/custom/path"), {"output_dir": "default"})
+    result = parse_output_dir(
+        _make_args(output_dir="/custom/path"), ArachnaConfig(output_dir="default")
+    )
     assert result == "/custom/path"
 
 
 def test_parse_output_dir_fallback():
-    result = parse_output_dir(_make_args(), {"output_dir": "config_default"})
+    result = parse_output_dir(_make_args(), ArachnaConfig(output_dir="config_default"))
     assert result == "config_default"
 
 
 def test_parse_output_dir_no_config_key():
-    result = parse_output_dir(_make_args(), {})
-    assert result == "."
+    result = parse_output_dir(_make_args(), ArachnaConfig())
+    assert result == "arachna_context"

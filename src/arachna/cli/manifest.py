@@ -46,16 +46,12 @@ def _manifest_text(manifest_files, out_path, project_name):
 
 
 @register("manifest")
-def _cmd_manifest(args, config: ArachnaConfig | dict):
+def _cmd_manifest(args, config: ArachnaConfig):
     root = get_root(config)
     output_dir = parse_output_dir(args, config)
     out_path = SafePath(root / output_dir, root) if root else SafePath(Path(output_dir))
-    if isinstance(config, ArachnaConfig):
-        project_name = config.project_name
-        profiles = config.profiles
-    else:
-        project_name = config.get("project_name", "Project")
-        profiles = config.get("profiles", {})
+    project_name = config.project_name
+    profiles = config.profiles
 
     manifest_files = load_manifest(out_path)
 

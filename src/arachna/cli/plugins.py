@@ -3,12 +3,13 @@
 
 import sys
 
+from ..config.profile_config import ArachnaConfig
 from ..plugins.plugins import install_plugin, list_plugins, uninstall_plugin
 from . import register
 
 
 @register("plugins-list")
-def _cmd_plugins_list(args, config: dict):
+def _cmd_plugins_list(args, config: ArachnaConfig):
     plugins = list_plugins()
     if not plugins:
         print("No plugins available.")
@@ -22,13 +23,13 @@ def _cmd_plugins_list(args, config: dict):
 
 
 @register("plugins-install")
-def _cmd_plugins_install(args, config: dict):
+def _cmd_plugins_install(args, config: ArachnaConfig):
     result = install_plugin(args.language, execute=args.execute)
     print(result)
 
 
 @register("plugins-uninstall")
-def _cmd_plugins_uninstall(args, config: dict):
+def _cmd_plugins_uninstall(args, config: ArachnaConfig):
     result = uninstall_plugin(args.language)
     print(result)
 
@@ -40,7 +41,7 @@ _PLUGINS_HANDLERS = {
 }
 
 
-def _dispatch_plugins(args, config: dict, parser):
+def _dispatch_plugins(args, config: ArachnaConfig, parser):
     plugins_cmd = getattr(args, "plugins_command", None)
     handler = _PLUGINS_HANDLERS.get(plugins_cmd)
     if handler:

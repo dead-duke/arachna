@@ -14,8 +14,8 @@ def get_root(config: ArachnaConfig) -> Path:
     return Path(config._root) if config._root else Path.cwd()
 
 
-def list_profiles(config: ArachnaConfig | dict) -> list[str]:
-    profiles = config.profiles if isinstance(config, ArachnaConfig) else config.get("profiles", {})
+def list_profiles(config: ArachnaConfig) -> list[str]:
+    profiles = config.profiles
     if profiles:
         return list(profiles.keys())
     return ["default"]
@@ -30,12 +30,10 @@ def apply_args_to_profile(profile: ProfileConfig, args) -> ProfileConfig:
     return profile
 
 
-def parse_output_dir(args, config: ArachnaConfig | dict) -> str:
+def parse_output_dir(args, config: ArachnaConfig) -> str:
     if getattr(args, "output_dir", None):
         return args.output_dir
-    if isinstance(config, ArachnaConfig):
-        return config.output_dir
-    return config.get("output_dir", ".")
+    return config.output_dir
 
 
 def print_collected(created: list[str]):
@@ -54,13 +52,9 @@ def write_manifest(
     out_path: SafePath,
     all_files: list[str],
     tokens_by_file: dict[str, int],
-    config: ArachnaConfig | dict,
+    config: ArachnaConfig,
 ):
-    project_name = (
-        config.project_name
-        if isinstance(config, ArachnaConfig)
-        else config.get("project_name", "Project")
-    )
+    project_name = config.project_name
     lines = [
         f"# {project_name} — MANIFEST\n",
         "\nAll collected files:\n",

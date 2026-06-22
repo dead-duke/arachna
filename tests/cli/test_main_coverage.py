@@ -15,16 +15,17 @@ from arachna.cli.snapshot import (
     _cmd_snapshot_rename,
     _cmd_snapshot_update,
 )
+from arachna.config.profile_config import ArachnaConfig
 from arachna.domain.path_utils import SafePath
 
 
 def _config(tmp_path, profiles=None):
-    return {
-        "project_name": "test",
-        "output_dir": str(tmp_path / "out"),
-        "_root": str(tmp_path),
-        "profiles": profiles or {"c": {"directories": ["mysrc"], "max_tokens": 100}},
-    }
+    return ArachnaConfig(
+        project_name="test",
+        output_dir=str(tmp_path / "out"),
+        _root=str(tmp_path),
+        profiles=profiles or {},
+    )
 
 
 def test_snapshot_create_no_name(tmp_path, make_config):
@@ -253,7 +254,9 @@ def test_write_manifest_basic(tmp_path):
     out.mkdir()
     f = tmp_path / "out" / "chat-c.md"
     f.write_text("content")
-    write_manifest(SafePath(out, tmp_path), [str(f)], {str(f): 50}, {"project_name": "Test"})
+    write_manifest(
+        SafePath(out, tmp_path), [str(f)], {str(f): 50}, ArachnaConfig(project_name="Test")
+    )
     mf = out / "chat-manifest.md"
     assert mf.exists()
     content = mf.read_text()

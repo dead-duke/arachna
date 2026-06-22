@@ -13,7 +13,7 @@ from ._helpers import format_profile_section, get_root
 
 
 @register("snapshot-create")
-def _cmd_snapshot_create(args, config: ArachnaConfig | dict):
+def _cmd_snapshot_create(args, config: ArachnaConfig):
     if not args.name:
         print("Error: --name is required for 'create'.")
         sys.exit(1)
@@ -25,9 +25,7 @@ def _cmd_snapshot_create(args, config: ArachnaConfig | dict):
     root = get_root(config)
     profile_name = args.profile or "full"
     try:
-        profile = get_profile(
-            profile_name, root=root, config=config if isinstance(config, ArachnaConfig) else None
-        )
+        profile = get_profile(profile_name, root=root, config=config)
     except KeyError as e:
         print(f"Error: {e}")
         sys.exit(1)
@@ -40,7 +38,7 @@ def _cmd_snapshot_create(args, config: ArachnaConfig | dict):
 
 
 @register("snapshot-list")
-def _cmd_snapshot_list(args, config: ArachnaConfig | dict):
+def _cmd_snapshot_list(args, config: ArachnaConfig):
     root = get_root(config)
     snaps = list_snapshots(root=root)
     if not snaps:
@@ -52,7 +50,7 @@ def _cmd_snapshot_list(args, config: ArachnaConfig | dict):
 
 
 @register("snapshot-update")
-def _cmd_snapshot_update(args, config: ArachnaConfig | dict):
+def _cmd_snapshot_update(args, config: ArachnaConfig):
     sid = args.id
     try:
         validate_snapshot_id(sid)
@@ -63,11 +61,7 @@ def _cmd_snapshot_update(args, config: ArachnaConfig | dict):
     profile = None
     if args.profile:
         try:
-            profile = get_profile(
-                args.profile,
-                root=root,
-                config=config if isinstance(config, ArachnaConfig) else None,
-            )
+            profile = get_profile(args.profile, root=root, config=config)
         except KeyError as e:
             print(f"Error: {e}")
             sys.exit(1)
@@ -80,7 +74,7 @@ def _cmd_snapshot_update(args, config: ArachnaConfig | dict):
 
 
 @register("snapshot-delete")
-def _cmd_snapshot_delete(args, config: ArachnaConfig | dict):
+def _cmd_snapshot_delete(args, config: ArachnaConfig):
     sid = args.id
     try:
         validate_snapshot_id(sid)
@@ -126,7 +120,7 @@ def _print_snapshot_details(target, args):
 
 
 @register("snapshot-info")
-def _cmd_snapshot_info(args, config: ArachnaConfig | dict):
+def _cmd_snapshot_info(args, config: ArachnaConfig):
     sid = args.id
     try:
         validate_snapshot_id(sid)
@@ -151,7 +145,7 @@ def _cmd_snapshot_info(args, config: ArachnaConfig | dict):
 
 
 @register("snapshot-rename")
-def _cmd_snapshot_rename(args, config: ArachnaConfig | dict):
+def _cmd_snapshot_rename(args, config: ArachnaConfig):
     from ..snapshot.store.store import rename_snapshot as store_rename_snapshot
 
     try:
@@ -179,7 +173,7 @@ _SNAPSHOT_HANDLERS = {
 }
 
 
-def _dispatch_snapshot(args, config: ArachnaConfig | dict, parser):
+def _dispatch_snapshot(args, config: ArachnaConfig, parser):
     snap_cmd = getattr(args, "snap_command", None)
     handler = _SNAPSHOT_HANDLERS.get(snap_cmd)
     if handler:

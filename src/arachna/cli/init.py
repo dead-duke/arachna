@@ -2,13 +2,14 @@
 
 import sys
 
+from ..config.profile_config import ArachnaConfig
 from ..config.setup.hook import install_hook
 from . import register
 from ._helpers import get_root, parse_output_dir
 
 
 @register("init")
-def _cmd_init(args, config: dict):
+def _cmd_init(args, config: ArachnaConfig):
     from ..config.setup.init import run_defaults, run_interactive
 
     root = get_root(config)
@@ -19,7 +20,7 @@ def _cmd_init(args, config: dict):
         run_interactive(output_dir, preset=args.preset, root=root)
 
 
-def _dispatch_init(args, config: dict):
+def _dispatch_init(args, config: ArachnaConfig):
     root = get_root(config)
     if args.install_hook:
         success, msg = install_hook(force=args.force, root=root)
