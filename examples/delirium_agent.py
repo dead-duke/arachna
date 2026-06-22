@@ -16,7 +16,7 @@ from pathlib import Path
 
 from arachna import snapshot
 from arachna.collect_api import collect
-from arachna.config.config import get_profile, load_config
+from arachna.config.core.config import get_profile, load_config
 from arachna.config.profile_config import ProfileConfig
 
 
@@ -43,7 +43,6 @@ class DeliriumAgent:
         self.snapshot_id = snapshot.create_snapshot(
             root=self.root,
             profile=profile_dict,
-            config=self.config,
             name=f"task-{task_name}",
         )
         print(f"[{task_name}] Snapshot '{self.snapshot_id}' created")
@@ -68,7 +67,6 @@ class DeliriumAgent:
             root=self.root,
             snapshot_id=self.snapshot_id,
             profile=profile_dict,
-            config=self.config,
         )
 
         if diff.stats.tokens > 10000:
@@ -103,7 +101,7 @@ class DeliriumAgent:
         if self.snapshot_id:
             profile_dict = self._resolve_profile()
             snapshot.update_snapshot(
-                self.snapshot_id, root=self.root, config=self.config, profile=profile_dict
+                self.snapshot_id, root=self.root, profile=profile_dict
             )
             print(f"[{self.task_name}] Snapshot '{self.snapshot_id}' updated")
 

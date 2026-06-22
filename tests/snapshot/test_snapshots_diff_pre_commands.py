@@ -1,10 +1,9 @@
 from arachna.config.profile_config import ProfileConfig
-from arachna.snapshot.snapshots import (
+from arachna.snapshot.diff.snapshot_diff import compute_diff, create_snapshot
+from arachna.snapshot.diff.snapshot_diff_commands import (
     _diff_pre_commands_line,
     _diff_pre_commands_marker,
     _diff_pre_commands_structural,
-    compute_diff,
-    create_snapshot,
 )
 
 

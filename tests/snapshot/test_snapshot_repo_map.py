@@ -6,20 +6,19 @@ from arachna.config.core.config import get_profile, load_config
 from arachna.config.profile_config import ProfileConfig
 from arachna.domain.api_types import DiffSection
 from arachna.domain.tokenization.language_dispatch import get_block_parser
-from arachna.snapshot.snapshots import (
+from arachna.snapshot.diff.snapshot_diff_files import _read_file_from_disk, _read_file_from_store
+from arachna.snapshot.diff.snapshot_diff_repo_map import (
     _format_repo_map_added,
     _format_repo_map_diff,
-    _read_file_from_disk,
-    _read_file_from_store,
     apply_repo_map_to_sections,
 )
 
 
 def _resolve(tmp_path, profile):
     if isinstance(profile, ProfileConfig):
-        return profile, load_config(root=tmp_path)
+        return profile
     config = load_config(root=tmp_path)
-    return get_profile(profile, root=tmp_path, config=config), config
+    return get_profile(profile, root=tmp_path, config=config)
 
 
 def test_format_repo_map_diff_sig_changed():
@@ -96,8 +95,8 @@ def test_apply_repo_map_to_sections_modified(tmp_path, setup_config, make_profil
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
-    create_snapshot(root=root, profile=profile, config=config, name="rm-mod")
+    profile = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, name="rm-mod")
     (src / "main.py").write_text("def foo():\n    return 2\n")
     sections = [
         DiffSection(
@@ -116,8 +115,8 @@ def test_apply_repo_map_to_sections_added(tmp_path, setup_config, make_profile):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
-    create_snapshot(root=root, profile=profile, config=config, name="rm-add")
+    profile = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, name="rm-add")
     sections = [
         DiffSection(
             type="added",
@@ -135,8 +134,8 @@ def test_apply_repo_map_to_sections_header_passthrough(tmp_path, setup_config, m
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
-    create_snapshot(root=root, profile=profile, config=config, name="rm-header")
+    profile = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, name="rm-header")
     sections = [DiffSection(type="header", path="", content="## Changes\n")]
     result = apply_repo_map_to_sections(sections, "rm-header", None, root=root)
     assert result[0].type == "header"
@@ -148,8 +147,8 @@ def test_apply_repo_map_to_sections_deleted(tmp_path, setup_config, make_profile
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
-    create_snapshot(root=root, profile=profile, config=config, name="rm-del")
+    profile = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, name="rm-del")
     sections = [DiffSection(type="deleted", path="src/main.py", content="[DELETED]\n")]
     result = apply_repo_map_to_sections(sections, "rm-del", None, root=root)
     assert len(result) == 1
@@ -161,8 +160,8 @@ def test_apply_repo_map_to_sections_cannot_read(tmp_path, setup_config, make_pro
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("def foo():\n    return 1\n")
-    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
-    create_snapshot(root=root, profile=profile, config=config, name="rm-readfail")
+    profile = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    create_snapshot(root=root, profile=profile, name="rm-readfail")
     sections = [
         DiffSection(
             type="modified",
@@ -180,9 +179,9 @@ def test_compute_diff_snapshot_not_found(tmp_path, setup_config, make_profile):
     src = tmp_path / "src"
     src.mkdir()
     (src / "a.py").write_text("x")
-    profile, config = _resolve(tmp_path, make_profile("src", ["*.py"]))
+    profile = _resolve(tmp_path, make_profile("src", ["*.py"]))
     with pytest.raises(SnapshotNotFoundError):
-        compute_diff(root=root, profile=profile, config=config)
+        compute_diff(root=root, profile=profile)
 
 
 def test_read_file_from_store_not_found(tmp_path):

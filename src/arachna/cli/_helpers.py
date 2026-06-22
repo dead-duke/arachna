@@ -9,11 +9,9 @@ from ..domain.path_utils import SafePath
 from ..domain.tokenization.tokenizer import count_tokens
 
 
-def get_root(config: ArachnaConfig | dict) -> Path:
+def get_root(config: ArachnaConfig) -> Path:
     """Extract project root from config, falling back to current directory."""
-    if isinstance(config, ArachnaConfig):
-        return Path(config._root) if config._root else Path.cwd()
-    return Path(config.get("_root", Path.cwd()))
+    return Path(config._root) if config._root else Path.cwd()
 
 
 def list_profiles(config: ArachnaConfig | dict) -> list[str]:
@@ -72,7 +70,7 @@ def write_manifest(
         lines.append(f"  {f} (~{tokens} tokens)")
     lines.append(f"\nTotal: {len(all_files)} file(s)\n")
     mf = out_path / "chat-manifest.md"
-    atomic_write_text(mf.to_path(), "\n".join(lines))
+    atomic_write_text(mf, "\n".join(lines))
     print(f"  chat-manifest.md ({len(all_files)} files)")
 
 

@@ -6,6 +6,7 @@ import re
 
 from ...config import SplitMode
 from ..formatting.formatter import C_LIKE_LANGS, SCRIPT_LANGS
+from ..interfaces import Tokenizer
 from ..tokenization.tokenizer import count_tokens
 
 logger = logging.getLogger("arachna.splitter")
@@ -147,7 +148,7 @@ def _pack_section_into_parts(sections, max_tokens, separator, tk):
     return parts, indices
 
 
-def pack_into_parts(sections, max_tokens, separator="\n\n", tokenizer=None):
+def pack_into_parts(sections, max_tokens, separator="\n\n", tokenizer: Tokenizer | None = None):
     tk = tokenizer if tokenizer is not None else count_tokens
     if max_tokens == -1:
         all_content = separator.join(s.strip() for s in sections if s.strip())
@@ -239,7 +240,7 @@ def split(
     mode: SplitMode = "by_file",
     marker="\n\n",
     separator="\n\n",
-    tokenizer=None,
+    tokenizer: Tokenizer | None = None,
 ):
     tk = tokenizer if tokenizer is not None else count_tokens
     if max_tokens == -1:
@@ -248,7 +249,7 @@ def split(
     return handler(raw_content, max_tokens, marker, separator, tk)
 
 
-def split_sections(sections, max_tokens, separator="\n\n", tokenizer=None):
+def split_sections(sections, max_tokens, separator="\n\n", tokenizer: Tokenizer | None = None):
     return pack_into_parts(sections, max_tokens, separator=separator, tokenizer=tokenizer)
 
 
@@ -274,7 +275,7 @@ def _split_to_sections(text, marker):
     return result
 
 
-def _handle_single(text, max_tokens, tokenizer=None):
+def _handle_single(text, max_tokens, tokenizer: Tokenizer | None = None):
     tk = tokenizer if tokenizer is not None else count_tokens
     tokens = tk(text)
     if tokens <= max_tokens:

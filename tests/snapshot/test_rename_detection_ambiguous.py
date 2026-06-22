@@ -1,6 +1,6 @@
 """Test _detect_renames_and_moves with ambiguous hash cases."""
 
-from arachna.snapshot.snapshots import _detect_renames_and_moves
+from arachna.snapshot.rename.snapshot_rename import _detect_renames_and_moves
 
 
 def test_multiple_same_hash_deleted_single_added():

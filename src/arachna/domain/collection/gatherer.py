@@ -7,9 +7,10 @@ Thin facade over gatherer_core, gatherer_query, and gatherer_strategies.
 from ...config import CollectionMode
 from ..compressor import compress as _compress
 from ..execution.splitter import split
+from ..interfaces import Tokenizer
 from ..tokenization.tokenizer import count_tokens
 from .gatherer_core import _get_exclude_patterns, _scan_directories, gather_command, gather_files
-from .gatherer_strategies import _get_mode_strategies
+from .gatherer_strategies import get_mode_strategies
 
 __all__ = [
     "_assemble_content",
@@ -46,7 +47,7 @@ def _assemble_file_content(
     query=None,
     mode: CollectionMode = "full",
 ):
-    strategies = _get_mode_strategies()
+    strategies = get_mode_strategies()
     strategy = strategies.get(mode, strategies["full"])
     return strategy.assemble(profile, exclude, tokenizer, root, incremental, cache, verbose, query)
 
@@ -81,7 +82,9 @@ def _assemble_content(
     )
 
 
-def dry_run(profile, root, tokenizer=None, query=None, mode: CollectionMode = "full"):
+def dry_run(
+    profile, root, tokenizer: Tokenizer | None = None, query=None, mode: CollectionMode = "full"
+):
     tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns(profile, root=root)
     max_tokens = profile.max_tokens

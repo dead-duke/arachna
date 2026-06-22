@@ -1,7 +1,7 @@
 """Language and engine presets for arachna init."""
 
+import functools
 import json
-import threading
 from pathlib import Path
 
 from ...domain.path_utils import SafePath
@@ -56,21 +56,13 @@ def _load_builtin_presets_raw() -> dict[str, dict]:
     return result
 
 
-_builtin_cache: tuple[float, dict[str, dict]] | None = None
-_builtin_cache_lock = threading.Lock()
+@functools.lru_cache(maxsize=1)
+def _load_builtin_presets_cached() -> dict[str, dict]:
+    return _load_builtin_presets_raw()
 
 
 def _load_builtin_presets() -> dict[str, dict]:
-    global _builtin_cache
-    presets_root = Path(__file__).parent.parent.parent
-    presets_dir = SafePath(presets_root / "presets", presets_root)
-    dir_mtime = presets_dir.stat().st_mtime if presets_dir.is_dir() else 0
-    with _builtin_cache_lock:
-        if _builtin_cache is not None and _builtin_cache[0] == dir_mtime:
-            return _builtin_cache[1]
-        data = _load_builtin_presets_raw()
-        _builtin_cache = (dir_mtime, data)
-        return data
+    return _load_builtin_presets_cached()
 
 
 def _is_safe_tokenizer(spec: str) -> bool:

@@ -105,7 +105,7 @@ def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path
 def _write_config(root: Path, config: dict, output_dir: str):
     _validate_output_dir(output_dir)
     cfg_path = SafePath(root / ".arachna.json", root)
-    atomic_write_text(cfg_path.to_path(), json.dumps(config, indent=2) + "\n")
+    atomic_write_text(cfg_path, json.dumps(config, indent=2) + "\n")
     print(f"Created {cfg_path}")
     out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)

@@ -17,6 +17,7 @@ from ..cache.cache import load_cache, save_cache
 from ..differ_stats import compute_diff_stats
 from ..execution.runner import run_command
 from ..execution.splitter import split_sections
+from ..interfaces import Tokenizer
 from ..path_utils import SafePath
 from ..tokenization.tokenizer import load_tokenizer
 from .gatherer import _assemble_content
@@ -60,7 +61,14 @@ def _get_lock_functions():
 
     def lock_fn(f):
         lock_path = Path(str(f.name) + ".lock")
+        if lock_path.exists():
+            try:
+                old_pid = int(lock_path.read_text().strip())
+                os.kill(old_pid, 0)
+            except (ValueError, OSError):
+                lock_path.unlink()
         fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        os.write(fd, str(os.getpid()).encode())
         os.close(fd)
         f._arachna_lock_path = str(lock_path)
 
@@ -102,9 +110,7 @@ def load_manifest(out_dir: SafePath) -> list[str]:
 def save_manifest(out_dir: SafePath, files: list[str]):
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / _MANIFEST
-    atomic_write_text(
-        manifest_path.to_path(), json.dumps({"files": files, "time": time.time()}, indent=2)
-    )
+    atomic_write_text(manifest_path, json.dumps({"files": files, "time": time.time()}, indent=2))
 
 
 def _clean_numbered_files(out_dir: SafePath, name_tmpl: str):
@@ -176,7 +182,7 @@ def _write_parts(
     name_tmpl,
     title_tmpl,
     project_name,
-    tokenizer,
+    tokenizer: Tokenizer,
     merge=False,
 ):
     total_parts = len(parts)
@@ -192,7 +198,7 @@ def _write_parts(
         toc = _build_toc(
             named_sections, indices, i, start_num + total_parts - 1, all_indices=section_indices
         )
-        atomic_write_text(filepath.to_path(), title + toc + part_content)
+        atomic_write_text(filepath, title + toc + part_content)
         created.append(str(filepath))
         tokens_by_file[str(filepath)] = tokenizer(title + toc + part_content)
     return created, tokens_by_file
@@ -222,7 +228,7 @@ def _build_part_stats(diff_sections, section_indices):
 
 
 def _write_diff_parts(
-    diff_sections, out_path, name_tmpl, title_tmpl, project_name, max_tokens, tokenizer
+    diff_sections, out_path, name_tmpl, title_tmpl, project_name, max_tokens, tokenizer: Tokenizer
 ):
     contents = [s.content for s in diff_sections if s.content.strip()]
     if not contents:
@@ -243,7 +249,7 @@ def _write_diff_parts(
         indices = section_indices[i - 1] if (i - 1) < len(section_indices) else []
         toc = _build_toc(named_sections, indices, i, total_parts, all_indices=section_indices)
         header = _diff_part_header(part_stats[i - 1], i, total_parts)
-        atomic_write_text(filepath.to_path(), title + header + toc + part_content)
+        atomic_write_text(filepath, title + header + toc + part_content)
         created.append(str(filepath))
     return created
 
@@ -268,7 +274,7 @@ def _write_metrics(out_path: SafePath, metrics: PipelineMetrics):
         "tokens_compressed": metrics.tokens_compressed,
         "compression_ratio": metrics.compression_ratio,
     }
-    atomic_write_text(metrics_path.to_path(), json.dumps(payload, indent=2))
+    atomic_write_text(metrics_path, json.dumps(payload, indent=2))
 
 
 def _build_profile_for_collect(profile, name_template, allow_pre_commands):
@@ -280,7 +286,7 @@ def _build_profile_for_collect(profile, name_template, allow_pre_commands):
     return profile_dict, name_tmpl, profile_dict["title_template"]
 
 
-def _build_tokenizer(profile, root):
+def _build_tokenizer(profile, root) -> Tokenizer:
     if isinstance(profile, ProfileConfig):
         spec = profile.tokenizer
         chars = profile.chars_per_token

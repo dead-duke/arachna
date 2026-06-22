@@ -8,11 +8,12 @@ Safe tokenizers list configurable via ARACHNA_SAFE_TOKENIZERS env var.
 """
 
 import ast as _ast
+import functools
 import os as _os
 import sys
-import threading
-from collections.abc import Callable
 from pathlib import Path
+
+from ..interfaces import Tokenizer
 
 _INIT_FILE = "__init__.py"
 
@@ -180,22 +181,6 @@ def _safe_local_imports(filepath: Path) -> bool:
     return _validate_top_level_statements(filepath)
 
 
-_plugins_lock = threading.Lock()
-_plugins_checked = False
-_HAS_TIKTOKEN = False
-_HAS_TRANSFORMERS = False
-
-
-def _check_tokenizer_plugins():
-    global _plugins_checked, _HAS_TIKTOKEN, _HAS_TRANSFORMERS
-    with _plugins_lock:
-        if _plugins_checked:
-            return
-        _plugins_checked = True
-        _HAS_TIKTOKEN = _try_import_quiet("tiktoken")
-        _HAS_TRANSFORMERS = _try_import_quiet("transformers")
-
-
 def _try_import_quiet(name):
     try:
         __import__(name)
@@ -204,17 +189,21 @@ def _try_import_quiet(name):
         return False
 
 
+@functools.lru_cache(maxsize=1)
+def _check_tokenizer_plugins():
+    """Lazy-check which tokenizer plugins are installed. Cached after first call."""
+    return (_try_import_quiet("tiktoken"), _try_import_quiet("transformers"))
+
+
 def _has_tiktoken() -> bool:
-    _check_tokenizer_plugins()
-    return _HAS_TIKTOKEN
+    return _check_tokenizer_plugins()[0]
 
 
 def _has_transformers() -> bool:
-    _check_tokenizer_plugins()
-    return _HAS_TRANSFORMERS
+    return _check_tokenizer_plugins()[1]
 
 
-def _load_tiktoken(spec: str) -> Callable[[str], int]:
+def _load_tiktoken(spec: str) -> Tokenizer:
     import tiktoken
 
     encoding_name = spec.split(":", 1)[1] if ":" in spec else "cl100k_base"
@@ -222,7 +211,7 @@ def _load_tiktoken(spec: str) -> Callable[[str], int]:
     return lambda text: len(enc.encode(text))
 
 
-def _load_transformers(spec: str) -> Callable[[str], int]:
+def _load_transformers(spec: str) -> Tokenizer:
     from transformers import AutoTokenizer
 
     model_name = spec.split(":", 1)[1] if ":" in spec else "bert-base-uncased"
@@ -263,7 +252,7 @@ def count_tokens(text: str, chars_per_token: int | None = None) -> int:
 
 def load_tokenizer(
     spec: str, chars_per_token: int | None = None, root: Path | None = None
-) -> Callable[[str], int]:
+) -> Tokenizer:
     if not spec or spec == "default":
         cpt = chars_per_token if chars_per_token is not None else _get_default_chars_per_token()
         return lambda text: count_tokens(text, chars_per_token=cpt)

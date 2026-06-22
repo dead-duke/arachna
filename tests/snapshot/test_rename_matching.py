@@ -2,7 +2,7 @@
 
 import math
 
-from arachna.snapshot.snapshots import _match_exact_renames, _match_similar_renames
+from arachna.snapshot.rename.snapshot_rename import _match_exact_renames, _match_similar_renames
 
 
 def test_match_exact_renames_simple_rename():

@@ -5,18 +5,26 @@ import re
 from pathlib import Path
 
 _RE_PY_IMPORT = re.compile(r"^(?:import\s+([\w.,\s]+)|from\s+([\w.]+)\s+import)", re.MULTILINE)
-_RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*(.*?)\s*\)", re.MULTILINE | re.DOTALL)
+_RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*([^)]*)\s*\)", re.MULTILINE)
 
-_RE_ES6_IMPORT_FROM = re.compile(
-    r"^\s*import\s+[\w{},\s*]+\s*from\s*['\"]([^'\"]+)['\"]",
+_RE_ES6_IMPORT_FROM_DESTRUCTURE = re.compile(
+    r"^\s*import\s+(?:type\s+)?\{[^}]+\}\s*from\s*['\"]([^'\"]+)['\"]",
+    re.MULTILINE,
+)
+_RE_ES6_IMPORT_FROM_SIMPLE = re.compile(
+    r"^\s*import\s+(?:type\s+)?\w+\s+from\s*['\"]([^'\"]+)['\"]",
     re.MULTILINE,
 )
 _RE_ES6_IMPORT_BARE = re.compile(
     r"^\s*import\s+['\"]([^'\"]+)['\"]",
     re.MULTILINE,
 )
-_RE_COMMONJS_REQUIRE = re.compile(
-    r"^\s*(?:const|let|var)\s+[\w{},\s*]+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+_RE_COMMONJS_REQUIRE_DESTRUCTURE = re.compile(
+    r"^\s*(?:const|let|var)\s*\{[^}]+\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    re.MULTILINE,
+)
+_RE_COMMONJS_REQUIRE_SIMPLE = re.compile(
+    r"^\s*(?:const|let|var)\s+\w+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
     re.MULTILINE,
 )
 _RE_C_INCLUDE = re.compile(r"^\s*#include\s*[<\"]([^>\"]+)[>\"]", re.MULTILINE)
@@ -24,9 +32,11 @@ _RE_CSHARP_USING = re.compile(r"^\s*using\s+([\w.]+)\s*;", re.MULTILINE)
 _RE_MODULE_USE = re.compile(r"^\s*use\s+([\w\\]+)\s*;", re.MULTILINE)
 
 _C_LIKE_IMPORT_PATTERNS = [
-    _RE_ES6_IMPORT_FROM,
+    _RE_ES6_IMPORT_FROM_DESTRUCTURE,
+    _RE_ES6_IMPORT_FROM_SIMPLE,
     _RE_ES6_IMPORT_BARE,
-    _RE_COMMONJS_REQUIRE,
+    _RE_COMMONJS_REQUIRE_DESTRUCTURE,
+    _RE_COMMONJS_REQUIRE_SIMPLE,
     _RE_C_INCLUDE,
     _RE_CSHARP_USING,
     _RE_MODULE_USE,

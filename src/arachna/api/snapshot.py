@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from ..config import CollectionMode, OutputFormat
-from ..config.profile_config import ArachnaConfig, ProfileConfig
+from ..config.profile_config import ProfileConfig
 from ..domain.api_types import (
     DiffResult,
     DiffSection,
@@ -15,8 +15,9 @@ from ..domain.api_types import (
 )
 from ..domain.differ_stats import compute_diff_stats
 from ..snapshot.diff.differ_structural import structural_diff_sections
-from ..snapshot.snapshots import apply_repo_map_to_sections, collect_snapshot_content
-from ..snapshot.snapshots import compute_diff as _snapshot_compute_diff
+from ..snapshot.diff.snapshot_diff import collect_snapshot_content
+from ..snapshot.diff.snapshot_diff import compute_diff as _snapshot_compute_diff
+from ..snapshot.diff.snapshot_diff_repo_map import apply_repo_map_to_sections
 from ..snapshot.store.store import create_snapshot as _store_create
 from ..snapshot.store.store import delete_snapshot as _store_delete
 from ..snapshot.store.store import gc as _store_gc
@@ -31,9 +32,7 @@ from .api_errors import SnapshotExistsError, SnapshotNotFoundError
 logger = logging.getLogger("arachna.snapshot")
 
 
-def create_snapshot(
-    root: Path, profile: ProfileConfig, config: ArachnaConfig, name: str | None = None
-) -> str:
+def create_snapshot(root: Path, profile: ProfileConfig, name: str | None = None) -> str:
     if name is None:
         raise ValueError("name is required for create_snapshot()")
     files, pre_commands_data, command_data = collect_snapshot_content(profile, root)
@@ -71,7 +70,6 @@ def list_snapshots(root: Path) -> list[SnapshotInfo]:
 def update_snapshot(
     snapshot_id: str,
     root: Path,
-    config: ArachnaConfig,
     profile: ProfileConfig | None = None,
 ) -> str:
     profile_dict = profile
@@ -82,7 +80,7 @@ def update_snapshot(
     if profile_dict is None:
         stored = manifest.get("profile", {})
         if isinstance(stored, dict):
-            profile_dict = _dict_to_profile_config(stored)
+            profile_dict = ProfileConfig.from_dict(stored)
         else:
             raise ValueError(
                 f"Snapshot '{snapshot_id}' has legacy format. Provide profile explicitly."
@@ -99,35 +97,6 @@ def update_snapshot(
         )
     except _ObjectNotFoundError as e:
         raise SnapshotNotFoundError(str(e)) from e
-
-
-def _dict_to_profile_config(d: dict) -> ProfileConfig:
-    defaults = ProfileConfig()
-    return ProfileConfig(
-        name_template=d.get("name_template", defaults.name_template),
-        title_template=d.get("title_template", defaults.title_template),
-        max_tokens=d.get("max_tokens", defaults.max_tokens),
-        split_mode=d.get("split_mode", defaults.split_mode),
-        directories=d.get("directories", defaults.directories),
-        patterns=d.get("patterns", defaults.patterns),
-        files=d.get("files", defaults.files),
-        exclude_patterns=d.get("exclude_patterns", defaults.exclude_patterns),
-        pre_commands=d.get("pre_commands", defaults.pre_commands),
-        post_commands=d.get("post_commands", defaults.post_commands),
-        command=d.get("command"),
-        section_format=d.get("section_format", defaults.section_format),
-        compress=d.get("compress", defaults.compress),
-        include_binary=d.get("include_binary", defaults.include_binary),
-        binary_extensions=d.get("binary_extensions"),
-        binary_max_mb=d.get("binary_max_mb", defaults.binary_max_mb),
-        tokenizer=d.get("tokenizer", defaults.tokenizer),
-        chars_per_token=d.get("chars_per_token"),
-        line_numbers=d.get("line_numbers", defaults.line_numbers),
-        extends=d.get("extends"),
-        remote=d.get("remote", defaults.remote),
-        use_gitignore=d.get("use_gitignore", defaults.use_gitignore),
-        split_marker=d.get("split_marker", defaults.split_marker),
-    )
 
 
 def delete_snapshot(snapshot_id: str, root: Path) -> None:
@@ -187,7 +156,6 @@ def _build_diff_sections(sections, mode: CollectionMode, snapshot_id, to_snapsho
 def compute_diff(
     root: Path,
     profile: ProfileConfig,
-    config: ArachnaConfig,
     snapshot_id: str | None = None,
     fmt: OutputFormat = "markdown",
     to_snapshot_id: str | None = None,

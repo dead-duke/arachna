@@ -1,10 +1,12 @@
 """Coverage for __main__.py uncovered branches."""
 
+import json
 from io import StringIO
 from unittest.mock import patch
 
 from arachna.cli._helpers import list_profiles, print_collected, write_manifest
 from arachna.cli.collect import _cmd_collect_clean, _cmd_collect_list, _cmd_collect_validate
+from arachna.config.core.config import load_config
 from arachna.domain.path_utils import SafePath
 
 
@@ -54,12 +56,17 @@ def test_write_manifest(tmp_path):
 
 
 def test_cmd_clean_corrupted_manifest(tmp_path):
-    config = {
-        "project_name": "test",
-        "output_dir": str(tmp_path / "out"),
-        "_root": str(tmp_path),
-        "profiles": {"c": {"directories": ["src"], "max_tokens": 100}},
-    }
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {"c": {"directories": ["src"], "max_tokens": 100}},
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
     (tmp_path / "out").mkdir()
     (tmp_path / "out" / ".arachna_manifest.json").write_text("not json")
     from argparse import Namespace
@@ -68,12 +75,17 @@ def test_cmd_clean_corrupted_manifest(tmp_path):
 
 
 def test_cmd_clean_manifest_os_error(tmp_path):
-    config = {
-        "project_name": "test",
-        "output_dir": str(tmp_path / "out"),
-        "_root": str(tmp_path),
-        "profiles": {"c": {"directories": ["src"], "max_tokens": 100}},
-    }
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {"c": {"directories": ["src"], "max_tokens": 100}},
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
     (tmp_path / "out").mkdir()
     (tmp_path / "out" / ".arachna_manifest.json").write_text('{"files": ["chat-c.md"]}')
     from argparse import Namespace
@@ -84,12 +96,20 @@ def test_cmd_clean_manifest_os_error(tmp_path):
 
 def test_cmd_validate_multiple_profiles(tmp_path):
     (tmp_path / "src").mkdir()
-    config = {
-        "project_name": "test",
-        "output_dir": str(tmp_path / "out"),
-        "_root": str(tmp_path),
-        "profiles": {"good": {"directories": ["src"], "max_tokens": 100}, "bad": {"max_tokens": 0}},
-    }
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {
+                    "good": {"directories": ["src"], "max_tokens": 100},
+                    "bad": {"max_tokens": 0},
+                },
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
     from argparse import Namespace
 
     with patch("sys.exit") as mock_exit:
@@ -98,12 +118,17 @@ def test_cmd_validate_multiple_profiles(tmp_path):
 
 
 def test_cmd_list_keyerror(tmp_path):
-    config = {
-        "project_name": "test",
-        "output_dir": str(tmp_path / "out"),
-        "_root": str(tmp_path),
-        "profiles": {"c": {"max_tokens": 100}},
-    }
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "project_name": "test",
+                "output_dir": str(tmp_path / "out"),
+                "profiles": {"c": {"max_tokens": 100}},
+            }
+        )
+    )
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
     import sys
     from argparse import Namespace
 

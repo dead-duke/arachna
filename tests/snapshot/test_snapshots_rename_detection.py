@@ -2,13 +2,13 @@
 
 import math
 
-from arachna.snapshot.snapshots import (
-    _detect_renames_and_moves,
-    _diff_file_sets,
+from arachna.snapshot.diff.snapshot_diff import (
     _is_binary_content,
     compute_diff,
     create_snapshot,
 )
+from arachna.snapshot.diff.snapshot_diff_files import _diff_file_sets
+from arachna.snapshot.rename.snapshot_rename import _detect_renames_and_moves
 
 
 def test_rename_exact_same_content(tmp_path, setup_config, make_profile):

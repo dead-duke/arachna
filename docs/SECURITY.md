@@ -54,6 +54,24 @@ Used only for pre_commands, post_commands, and command from `.arachna.json`.
 Shell is enabled (required for `2>/dev/null` in legitimate tree/git commands).
 Pipes are allowed — each pipe part is validated against the allowlist individually.
 
+### Shell features in pre_commands mode
+
+Pre_commands support standard shell features via shell=True:
+
+**Allowed:**
+- Pipes: `cmd1 | cmd2`
+- Logic operators: `cmd1 && cmd2`, `cmd1 || cmd2`
+- Redirects: `cmd > file`, `cmd 2>/dev/null`
+- Globs: `tree src/*.py` (expanded by shell before command runs)
+- Quotes: single quotes, double quotes for escaping special characters
+- Escaped characters: `\|`, `\&`, `\\`
+
+**Blocked (rejected by validation before execution):**
+- Command substitution: `$(cmd)` and backticks `` `cmd` ``
+- Process substitution: `<(cmd)` and `>(cmd)`
+- Shell variables: `$HOME`, `${VAR}` (treated as literal `$` characters)
+- Here-documents: `<<EOF`
+
 **Command substitution is blocked in both modes.** `$()` and backticks are
 rejected regardless of `allow_file_args`. This prevents bypasses like
 `git $(rm -rf /)` where git is in the allowlist but the subshell executes

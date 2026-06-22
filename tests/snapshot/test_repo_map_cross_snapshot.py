@@ -1,7 +1,8 @@
 """Test _apply_repo_map_to_sections with to_snapshot_id (cross-snapshot)."""
 
 from arachna.domain.api_types import DiffSection
-from arachna.snapshot.snapshots import apply_repo_map_to_sections, create_snapshot
+from arachna.snapshot.diff.snapshot_diff import create_snapshot
+from arachna.snapshot.diff.snapshot_diff_repo_map import apply_repo_map_to_sections
 
 
 def test_apply_repo_map_cross_snapshot(tmp_path, setup_config, make_profile):

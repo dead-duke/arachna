@@ -1,6 +1,7 @@
 """CLI handlers for 'arachna collect' command."""
 
 import json
+import subprocess
 import sys
 
 from ..config.core.config import get_profile
@@ -269,9 +270,6 @@ def _cmd_collect_repo(args, config: ArachnaConfig | dict):
                 root=root,
             )
         )
-    except RuntimeError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-    except Exception as e:
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as e:
         print(f"Error: {e}")
         sys.exit(1)

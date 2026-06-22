@@ -54,7 +54,6 @@ from .collection import (
     _gatherer_scan_directories,
     _get_exclude_patterns,
     _get_lock_functions,
-    _get_mode_strategies,
     _get_profile_files,
     _HeadersModeStrategy,
     _merge_lock,
@@ -71,6 +70,7 @@ from .collection import (
     dry_run,
     gather_command,
     gather_files,
+    get_mode_strategies,
     load_manifest,
     save_manifest,
 )
@@ -147,11 +147,6 @@ from .formatting import (
     is_excluded,
     lang_for_path,
 )
-from .interfaces import (
-    ContentFormatter,
-    ObjectStore,
-    Tokenizer,
-)
 from .path_utils import (
     SafePath,
     validate_path,
@@ -225,7 +220,7 @@ __all__ = [
     "_gatherer_scan_directories",
     "_get_exclude_patterns",
     "_get_lock_functions",
-    "_get_mode_strategies",
+    "get_mode_strategies",
     "_get_profile_files",
     "_merge_lock",
     "_print_compress_stats",
@@ -311,10 +306,6 @@ __all__ = [
     "format_file_section",
     "is_excluded",
     "lang_for_path",
-    # interfaces
-    "ContentFormatter",
-    "ObjectStore",
-    "Tokenizer",
     # path_utils
     "SafePath",
     "validate_path",

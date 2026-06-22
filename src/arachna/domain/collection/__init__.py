@@ -55,9 +55,9 @@ from .gatherer_query import (
 from .gatherer_strategies import (
     _assemble_in_memory,
     _FullModeStrategy,
-    _get_mode_strategies,
     _HeadersModeStrategy,
     _RepoMapModeStrategy,
+    get_mode_strategies,
 )
 
 __all__ = [
@@ -87,7 +87,6 @@ __all__ = [
     "_gatherer_scan_directories",
     "_get_exclude_patterns",
     "_get_lock_functions",
-    "_get_mode_strategies",
     "_get_profile_files",
     "_merge_lock",
     "_print_compress_stats",
@@ -102,6 +101,7 @@ __all__ = [
     "dry_run",
     "gather_command",
     "gather_files",
+    "get_mode_strategies",
     "load_manifest",
     "save_manifest",
 ]

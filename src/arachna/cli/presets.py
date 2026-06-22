@@ -44,7 +44,7 @@ def _cmd_presets_update(args, config: ArachnaConfig | dict):
     merged = merge_presets(builtin, remote, local)
 
     out = json.dumps(merged, indent=2) + "\n"
-    atomic_write_text(presets_path.to_path(), out)
+    atomic_write_text(presets_path, out)
     new_count = len(remote)
     local_count = len(local)
     print(

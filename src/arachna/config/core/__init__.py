@@ -3,7 +3,6 @@
 from .config import (
     _MAX_EXTENDS_DEPTH,
     _MERGE_APPEND,
-    _dict_to_profile,
     _merge_profiles,
     _resolve_profile,
     find_config,
@@ -17,7 +16,6 @@ from .validator import (
 __all__ = [
     "_MAX_EXTENDS_DEPTH",
     "_MERGE_APPEND",
-    "_dict_to_profile",
     "_merge_profiles",
     "_resolve_profile",
     "find_config",

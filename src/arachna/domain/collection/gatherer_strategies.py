@@ -1,8 +1,8 @@
 """Collection strategies."""
 
+import functools
 import os as _os
 import sys
-import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -208,21 +208,14 @@ class _HeadersModeStrategy:
         return _assemble_in_memory(p, e, t, r, i, c, v, q, "headers", self._graph_cache)
 
 
-_MODE_STRATEGIES = None
-_mode_strategies_lock = threading.Lock()
-
-
-def _get_mode_strategies():
-    global _MODE_STRATEGIES
-    if _MODE_STRATEGIES is None:
-        with _mode_strategies_lock:
-            if _MODE_STRATEGIES is None:
-                _MODE_STRATEGIES = {
-                    "full": _FullModeStrategy(),
-                    "repo-map": _RepoMapModeStrategy(),
-                    "headers": _HeadersModeStrategy(),
-                }
-    return _MODE_STRATEGIES
+@functools.lru_cache(maxsize=1)
+def get_mode_strategies():
+    """Return cached mode strategies — single instance per process."""
+    return {
+        "full": _FullModeStrategy(),
+        "repo-map": _RepoMapModeStrategy(),
+        "headers": _HeadersModeStrategy(),
+    }
 
 
 def _build_in_memory_parts(named_sections, do_compress, max_tokens, tokenizer, verbose):

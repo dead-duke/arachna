@@ -7,7 +7,7 @@ from ..config.profile_config import ArachnaConfig
 from ..snapshot.diff.snapshot_diff import create_snapshot as snap_create_snapshot
 from ..snapshot.diff.snapshot_diff import update_snapshot as snap_update_snapshot
 from ..snapshot.store.store import delete_snapshot, list_snapshots, validate_snapshot_id
-from ..snapshot.store.store_errors import SnapshotExistsError
+from ..snapshot.store.store_errors import ObjectNotFoundError, SnapshotExistsError
 from . import register
 from ._helpers import format_profile_section, get_root
 
@@ -74,7 +74,7 @@ def _cmd_snapshot_update(args, config: ArachnaConfig | dict):
     try:
         snap_update_snapshot(sid, root=root, profile=profile)
         print(f"Snapshot '{sid}' updated.")
-    except Exception as e:
+    except (ObjectNotFoundError, SnapshotExistsError, ValueError) as e:
         print(f"Error: {e}")
         sys.exit(1)
 
@@ -91,7 +91,7 @@ def _cmd_snapshot_delete(args, config: ArachnaConfig | dict):
     try:
         delete_snapshot(sid, root=root)
         print(f"Snapshot '{sid}' deleted.")
-    except Exception as e:
+    except (ObjectNotFoundError, SnapshotExistsError) as e:
         print(f"Error: {e}")
         sys.exit(1)
 
@@ -144,7 +144,7 @@ def _cmd_snapshot_info(args, config: ArachnaConfig | dict):
         if target is None:
             print(f"Error: Snapshot '{sid}' not found.")
             sys.exit(1)
-    except Exception as e:
+    except (ObjectNotFoundError, ValueError, OSError) as e:
         print(f"Error: {e}")
         sys.exit(1)
     _print_snapshot_details(target, args)
@@ -164,7 +164,7 @@ def _cmd_snapshot_rename(args, config: ArachnaConfig | dict):
     try:
         store_rename_snapshot(args.old, args.new, root=root)
         print(f"Snapshot '{args.old}' renamed to '{args.new}'.")
-    except Exception as e:
+    except (ObjectNotFoundError, SnapshotExistsError, ValueError) as e:
         print(f"Error: {e}")
         sys.exit(1)
 

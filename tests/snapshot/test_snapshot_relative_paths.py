@@ -1,6 +1,6 @@
 """Tests for snapshot relative paths (v2.9.2)."""
 
-from arachna.snapshot.snapshots import create_snapshot
+from arachna.snapshot.diff.snapshot_diff import create_snapshot
 from arachna.snapshot.store import load_snapshot
 
 

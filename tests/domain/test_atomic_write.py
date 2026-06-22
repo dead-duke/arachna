@@ -1,14 +1,22 @@
 """Tests for atomic_write.py fallback paths."""
 
 import contextlib
+from pathlib import Path
 from unittest.mock import patch
 
 from arachna.domain.atomic_write import atomic_write_bytes, atomic_write_text
+from arachna.domain.path_utils import SafePath
+
+
+def _safe_path(path: Path, root: Path) -> SafePath:
+    """Create SafePath from a path within root."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return SafePath(path, root)
 
 
 def test_atomic_write_text_mkstemp_fallback(tmp_path):
     """When mkstemp fails with OSError, falls back to Path.write_text."""
-    f = tmp_path / "sub" / "test.txt"
+    f = _safe_path(tmp_path / "sub" / "test.txt", tmp_path)
 
     def failing_mkstemp(*args, **kwargs):
         raise OSError("No space left on device")
@@ -22,7 +30,7 @@ def test_atomic_write_text_mkstemp_fallback(tmp_path):
 
 def test_atomic_write_text_os_replace_fails_falls_back(tmp_path):
     """When os.replace fails with OSError, outer except catches it and falls back to write_text."""
-    f = tmp_path / "test.txt"
+    f = _safe_path(tmp_path / "test.txt", tmp_path)
 
     def failing_replace(src, dst):
         raise OSError("Cross-device link")
@@ -36,7 +44,7 @@ def test_atomic_write_text_os_replace_fails_falls_back(tmp_path):
 
 def test_atomic_write_text_inner_exception_cleanup(tmp_path):
     """When inner block fails with non-OSError, exception propagates. Cleanup of tmp file is best-effort."""
-    f = tmp_path / "test.txt"
+    f = _safe_path(tmp_path / "test.txt", tmp_path)
 
     def failing_fdopen(fd, mode, encoding=None):
         raise RuntimeError("Unexpected error")
@@ -47,15 +55,12 @@ def test_atomic_write_text_inner_exception_cleanup(tmp_path):
     ):
         with contextlib.suppress(RuntimeError):
             atomic_write_text(f, "content")
-        # RuntimeError is not caught by inner except Exception for cleanup,
-        # but re-raised. The test suppresses it. os.unlink should be called
-        # for cleanup (best-effort).
         mock_unlink.assert_called_once()
 
 
 def test_atomic_write_bytes_mkstemp_fallback(tmp_path):
     """When mkstemp fails with OSError, falls back to Path.write_bytes."""
-    f = tmp_path / "sub" / "test.bin"
+    f = _safe_path(tmp_path / "sub" / "test.bin", tmp_path)
 
     def failing_mkstemp(*args, **kwargs):
         raise OSError("No space left on device")
@@ -69,7 +74,7 @@ def test_atomic_write_bytes_mkstemp_fallback(tmp_path):
 
 def test_atomic_write_bytes_os_replace_fails_falls_back(tmp_path):
     """When os.replace fails with OSError, outer except catches it and falls back to write_bytes."""
-    f = tmp_path / "test.bin"
+    f = _safe_path(tmp_path / "test.bin", tmp_path)
 
     def failing_replace(src, dst):
         raise OSError("Cross-device link")
@@ -83,7 +88,7 @@ def test_atomic_write_bytes_os_replace_fails_falls_back(tmp_path):
 
 def test_atomic_write_bytes_inner_exception_cleanup(tmp_path):
     """When inner block fails with non-OSError, exception propagates. Cleanup of tmp file is best-effort."""
-    f = tmp_path / "test.bin"
+    f = _safe_path(tmp_path / "test.bin", tmp_path)
 
     def failing_fdopen(fd, mode):
         raise RuntimeError("Unexpected error")
@@ -94,7 +99,4 @@ def test_atomic_write_bytes_inner_exception_cleanup(tmp_path):
     ):
         with contextlib.suppress(RuntimeError):
             atomic_write_bytes(f, b"content")
-        # RuntimeError is not caught by inner except Exception for cleanup,
-        # but re-raised. The test suppresses it. os.unlink should be called
-        # for cleanup (best-effort).
         mock_unlink.assert_called_once()

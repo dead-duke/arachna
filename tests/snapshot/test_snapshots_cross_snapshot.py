@@ -1,9 +1,8 @@
-from arachna.snapshot.snapshots import (
+from arachna.snapshot.diff.snapshot_diff import compute_diff, create_snapshot
+from arachna.snapshot.diff.snapshot_diff_files import (
     _build_current_files,
     _diff_file_sets,
     _get_content_from_manifest,
-    compute_diff,
-    create_snapshot,
 )
 from arachna.snapshot.store import write_object
 

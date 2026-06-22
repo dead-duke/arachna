@@ -3,7 +3,11 @@ import json
 import pytest
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.snapshot.snapshots import collect_snapshot_content, create_snapshot, update_snapshot
+from arachna.snapshot.diff.snapshot_diff import (
+    collect_snapshot_content,
+    create_snapshot,
+    update_snapshot,
+)
 from arachna.snapshot.store import load_snapshot
 
 

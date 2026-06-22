@@ -1,6 +1,6 @@
 """Tests for compute_diff."""
 
-from arachna.snapshot.snapshots import compute_diff, create_snapshot
+from arachna.snapshot.diff.snapshot_diff import compute_diff, create_snapshot
 
 
 def test_diff_works(tmp_path, setup_config, make_profile):

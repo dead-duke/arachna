@@ -3,7 +3,8 @@ import sys
 import pytest
 
 from arachna.config.profile_config import ProfileConfig
-from arachna.snapshot.snapshots import _read_profile_files, compute_diff, create_snapshot
+from arachna.snapshot.diff.snapshot_diff import compute_diff, create_snapshot
+from arachna.snapshot.diff.snapshot_diff_files import _read_profile_files
 from arachna.snapshot.store import load_snapshot
 
 

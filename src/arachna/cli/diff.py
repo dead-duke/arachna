@@ -15,7 +15,7 @@ from ..domain.collection.collector import (
 from ..domain.differ_stats import compute_diff_stats
 from ..domain.path_utils import SafePath
 from ..domain.tokenization.tokenizer import count_tokens, load_tokenizer
-from ..snapshot.snapshots import compute_diff
+from ..snapshot.diff.snapshot_diff import compute_diff
 from ..snapshot.store.store import list_snapshots, load_snapshot
 from . import register
 from ._helpers import get_root, parse_output_dir, print_collected
@@ -102,22 +102,7 @@ def _resolve_diff_profile(args, snapshot_id, root, config):
     manifest = load_snapshot(snapshot_id, root=root)
     stored = manifest.get("profile", {})
     if isinstance(stored, dict):
-        defaults = ProfileConfig()
-        return ProfileConfig(
-            name_template=stored.get("name_template", defaults.name_template),
-            title_template=stored.get("title_template", defaults.title_template),
-            max_tokens=stored.get("max_tokens", defaults.max_tokens),
-            split_mode=stored.get("split_mode", defaults.split_mode),
-            directories=stored.get("directories", defaults.directories),
-            patterns=stored.get("patterns", defaults.patterns),
-            files=stored.get("files", defaults.files),
-            exclude_patterns=stored.get("exclude_patterns", defaults.exclude_patterns),
-            pre_commands=stored.get("pre_commands", defaults.pre_commands),
-            post_commands=stored.get("post_commands", defaults.post_commands),
-            command=stored.get("command"),
-            compress=stored.get("compress", defaults.compress),
-            use_gitignore=stored.get("use_gitignore", defaults.use_gitignore),
-        )
+        return ProfileConfig.from_dict(stored)
     print(f"Error: Snapshot '{snapshot_id}' has legacy format. Use --profile.")
     sys.exit(1)
 
@@ -128,7 +113,7 @@ def _apply_diff_mode(args, sections, snapshot_id, to_snapshot_id, root):
 
         return structural_diff_sections(sections, args.format or "markdown")
     elif args.mode == "repo-map":
-        from ..snapshot.snapshots import apply_repo_map_to_sections
+        from ..snapshot.diff.snapshot_diff_repo_map import apply_repo_map_to_sections
 
         return apply_repo_map_to_sections(sections, snapshot_id, to_snapshot_id, root=root)
     return sections

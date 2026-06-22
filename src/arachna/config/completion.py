@@ -1,8 +1,6 @@
 # Copyright (C) 2026 Artem Terenin / arachna — AGPLv3
 """Shell completion for bash and zsh — argparse subparsers."""
 
-import sys
-
 
 def generate_bash():
     """Generate bash completion script with subcommand support."""
@@ -275,19 +273,3 @@ _arachna() {
 _arachna
 """
     print(script.strip())
-
-
-def main():
-    shell = sys.argv[1] if len(sys.argv) > 1 else ""
-    if shell == "bash":
-        generate_bash()
-    elif shell == "zsh":
-        generate_zsh()
-    else:
-        print("Usage: arachna completion bash|zsh")
-        print("  source <(arachna completion bash)")
-        print("  source <(arachna completion zsh)")
-
-
-if __name__ == "__main__":
-    main()

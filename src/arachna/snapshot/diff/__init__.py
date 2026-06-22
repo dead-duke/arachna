@@ -10,7 +10,6 @@ from .differ_structural import (
 )
 from .snapshot_diff import (
     _content_hash,
-    _dict_to_profile_config,
     _format_summary_header,
     _get_profile_from_manifest,
     _group_diff_sections,
@@ -80,7 +79,6 @@ __all__ = [
     "_collect_snapshot_files",
     "_collect_snapshot_pre_commands",
     "_content_hash",
-    "_dict_to_profile_config",
     "_diff_cmd_added",
     "_diff_cmd_deleted",
     "_diff_cmd_modified",

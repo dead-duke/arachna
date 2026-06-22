@@ -22,7 +22,6 @@ from .diff import (
     _collect_snapshot_files,
     _collect_snapshot_pre_commands,
     _content_hash,
-    _dict_to_profile_config,
     _diff_cmd_added,
     _diff_cmd_deleted,
     _diff_cmd_modified,
@@ -70,21 +69,6 @@ from .rename import (
     _match_exact_renames,
     _match_similar_renames,
 )
-from .snapshots import (
-    apply_repo_map_to_sections as _snapshots_apply_repo_map,
-)
-from .snapshots import (
-    collect_snapshot_content as _snapshots_collect_snapshot_content,
-)
-from .snapshots import (
-    compute_diff as _snapshots_compute_diff,
-)
-from .snapshots import (
-    create_snapshot as _snapshots_create_snapshot,
-)
-from .snapshots import (
-    update_snapshot as _snapshots_update_snapshot,
-)
 from .store import (
     _SHA256_PREFIX,
     _VERSION,
@@ -126,7 +110,6 @@ __all__ = [
     "_collect_snapshot_files",
     "_collect_snapshot_pre_commands",
     "_content_hash",
-    "_dict_to_profile_config",
     "_diff_cmd_added",
     "_diff_cmd_deleted",
     "_diff_cmd_modified",
@@ -172,12 +155,6 @@ __all__ = [
     "_detect_renames_and_moves",
     "_match_exact_renames",
     "_match_similar_renames",
-    # snapshots
-    "_snapshots_apply_repo_map",
-    "_snapshots_collect_snapshot_content",
-    "_snapshots_compute_diff",
-    "_snapshots_create_snapshot",
-    "_snapshots_update_snapshot",
     # store
     "_SHA256_PREFIX",
     "_VERSION",

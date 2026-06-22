@@ -1,13 +1,12 @@
 """Isolated unit tests for snapshot helper functions (v2.9.2)."""
 
 from arachna.domain.api_types import DiffSection
-from arachna.snapshot.snapshots import (
-    _detect_renames_and_moves,
+from arachna.snapshot.diff.snapshot_diff import _format_summary_header, _group_diff_sections
+from arachna.snapshot.diff.snapshot_diff_commands import (
     _diff_pre_commands_line,
     _diff_pre_commands_marker,
-    _format_summary_header,
-    _group_diff_sections,
 )
+from arachna.snapshot.rename.snapshot_rename import _detect_renames_and_moves
 
 
 def test_format_summary_header_all_types():

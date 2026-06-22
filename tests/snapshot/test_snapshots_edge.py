@@ -9,7 +9,7 @@ def test_create_snapshot_skip_unreadable(tmp_path, setup_config, make_profile):
     if sys.platform == "win32":
         pytest.skip("chmod 0o000 does not prevent reads on Windows")
     root = setup_config()
-    from arachna.snapshot.snapshots import create_snapshot
+    from arachna.snapshot.diff.snapshot_diff import create_snapshot
 
     src = tmp_path / "src"
     src.mkdir()
@@ -34,7 +34,7 @@ def test_create_snapshot_skip_unreadable(tmp_path, setup_config, make_profile):
 
 def test_create_snapshot_skip_binary(tmp_path, setup_config, make_profile):
     root = setup_config()
-    from arachna.snapshot.snapshots import create_snapshot
+    from arachna.snapshot.diff.snapshot_diff import create_snapshot
 
     src = tmp_path / "src"
     src.mkdir()
@@ -52,7 +52,7 @@ def test_create_snapshot_skip_binary(tmp_path, setup_config, make_profile):
 
 def test_create_snapshot_empty_dir(tmp_path, setup_config, make_profile):
     root = setup_config()
-    from arachna.snapshot.snapshots import create_snapshot
+    from arachna.snapshot.diff.snapshot_diff import create_snapshot
 
     (tmp_path / "empty").mkdir()
     profile = make_profile("empty", ["*.py"])
@@ -65,7 +65,7 @@ def test_create_snapshot_empty_dir(tmp_path, setup_config, make_profile):
 
 def test_compute_diff_file_outside_root(tmp_path, setup_config):
     root = setup_config()
-    from arachna.snapshot.snapshots import _path_matches_profile
+    from arachna.snapshot.diff.snapshot_diff_files import _path_matches_profile
 
     p = ProfileConfig(
         name_template="c",
@@ -81,7 +81,7 @@ def test_compute_diff_file_outside_root(tmp_path, setup_config):
 
 def test_path_matches_profile_nested(tmp_path, setup_config):
     root = setup_config()
-    from arachna.snapshot.snapshots import _path_matches_profile
+    from arachna.snapshot.diff.snapshot_diff_files import _path_matches_profile
 
     p = ProfileConfig(
         name_template="c",
@@ -100,7 +100,7 @@ def test_path_matches_profile_nested(tmp_path, setup_config):
 
 def test_path_matches_profile_wrong_pattern(tmp_path, setup_config):
     root = setup_config()
-    from arachna.snapshot.snapshots import _path_matches_profile
+    from arachna.snapshot.diff.snapshot_diff_files import _path_matches_profile
 
     p = ProfileConfig(
         name_template="c",
