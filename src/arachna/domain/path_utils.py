@@ -67,19 +67,6 @@ class SafePath:
         else:
             self._root = self._path
 
-    def _resolve_and_validate(self) -> Path:
-        """Resolve and validate path is within root. Returns resolved Path."""
-        resolved = self._path.resolve()
-        resolved_root = self._root.resolve()
-        try:
-            resolved.relative_to(resolved_root)
-        except ValueError:
-            raise ValueError(
-                f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
-                f"which is outside root {resolved_root}"
-            ) from None
-        return resolved
-
     def to_path(self) -> Path:
         """Return the underlying pathlib.Path for use with functions that expect Path."""
         return self._path
@@ -139,19 +126,51 @@ class SafePath:
     # -- I/O delegates ----------------------------------------------
 
     def read_text(self, encoding: str = "utf-8") -> str:
-        resolved = self._resolve_and_validate()
+        resolved = self._path.resolve()
+        resolved_root = self._root.resolve()
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError:
+            raise ValueError(
+                f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
+                f"which is outside root {resolved_root}"
+            ) from None
         return resolved.read_text(encoding=encoding)
 
     def read_bytes(self) -> bytes:
-        resolved = self._resolve_and_validate()
+        resolved = self._path.resolve()
+        resolved_root = self._root.resolve()
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError:
+            raise ValueError(
+                f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
+                f"which is outside root {resolved_root}"
+            ) from None
         return resolved.read_bytes()
 
     def write_text(self, data: str, encoding: str = "utf-8") -> int:
-        resolved = self._resolve_and_validate()
+        resolved = self._path.resolve()
+        resolved_root = self._root.resolve()
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError:
+            raise ValueError(
+                f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
+                f"which is outside root {resolved_root}"
+            ) from None
         return resolved.write_text(data, encoding=encoding)
 
     def write_bytes(self, data: bytes) -> int:
-        resolved = self._resolve_and_validate()
+        resolved = self._path.resolve()
+        resolved_root = self._root.resolve()
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError:
+            raise ValueError(
+                f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
+                f"which is outside root {resolved_root}"
+            ) from None
         return resolved.write_bytes(data)
 
     def exists(self) -> bool:
@@ -184,7 +203,15 @@ class SafePath:
             yield SafePath(p, self._root)
 
     def open(self, *args, **kwargs):
-        resolved = self._resolve_and_validate()
+        resolved = self._path.resolve()
+        resolved_root = self._root.resolve()
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError:
+            raise ValueError(
+                f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
+                f"which is outside root {resolved_root}"
+            ) from None
         return resolved.open(*args, **kwargs)
 
     def resolve(self) -> "SafePath":
