@@ -9,13 +9,13 @@ from ..domain.collection.collector import collect as _domain_collect
 from .core.config import get_profile, load_config
 from .presets.presets import detect_presets
 from .profile_config import ProfileConfig
+from .urls import validate_remote_url
 
 
 def collect_remote(
     url: str, profile: str = "full", output_dir: str | None = None, root: Path | None = None
 ) -> str:
-    if not url.startswith(("http://", "https://")):
-        raise ValueError(f"Only http:// and https:// URLs are allowed. Got: {url}")
+    url = validate_remote_url(url)
     if shutil.which("git") is None:
         raise RuntimeError(
             "git is not installed. Install git to use --repo:\n  macOS: brew install git\n  Ubuntu/Debian: sudo apt install git\n  Windows: https://git-scm.com/download/win"

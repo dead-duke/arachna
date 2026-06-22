@@ -4,7 +4,7 @@ import ast as _ast
 import re
 from pathlib import Path
 
-_RE_PY_IMPORT_SIMPLE = re.compile(r"^import\s+([\w., ]+)", re.MULTILINE)
+_RE_PY_IMPORT_SIMPLE = re.compile(r"^import\s+(\w+(?:\s*,\s*\w+)*)", re.MULTILINE)
 _RE_PY_IMPORT_FROM = re.compile(r"^from\s+([\w.]+)\s+import", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*([^)]*)\s*\)", re.MULTILINE)
 
@@ -98,10 +98,7 @@ def _parse_multiline_import(match):
 def _parse_python_imports_fallback(text):
     deps = []
     for m in _RE_PY_IMPORT_SIMPLE.finditer(text):
-        for part in m.group(1).split(","):
-            part = part.strip()
-            if part:
-                deps.append(part)
+        deps.extend(m.group(1).replace(" ", "").split(","))
     for m in _RE_PY_IMPORT_FROM.finditer(text):
         mod = m.group(1)
         if mod:

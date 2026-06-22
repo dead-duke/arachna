@@ -16,18 +16,7 @@ explicit exclude_patterns in .arachna.json for edge cases.
 
 from pathlib import Path
 
-_COMMON_EXCLUDE_DIRS = frozenset(
-    {
-        ".git",
-        ".tox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "__pycache__",
-        "venv",
-        "node_modules",
-    }
-)
+from ...config.defaults import _COMMON_EXCLUDE_DIRS
 
 _MAX_GITIGNORE_SIZE = 100 * 1024
 

@@ -4,12 +4,14 @@ import json
 import sys
 from pathlib import Path
 
+from ..config.defaults import DEFAULT_PRESETS_URL
 from ..config.presets.presets import (
     _load_builtin_presets,
     load_presets_from_file,
 )
 from ..config.presets.presets_remote import fetch_presets, merge_presets
 from ..config.profile_config import ArachnaConfig
+from ..config.urls import validate_remote_url
 from ..domain.atomic_write import atomic_write_text
 from ..domain.path_utils import SafePath
 from . import register
@@ -17,11 +19,8 @@ from . import register
 
 @register("presets-update")
 def _cmd_presets_update(args, config: ArachnaConfig):
-    url = args.url or "https://raw.githubusercontent.com/dead-duke/arachna/main/presets.json"
-    if not url.startswith(("http://", "https://")):
-        print("Error: only http:// and https:// URLs are allowed for security reasons.")
-        print(f"  Got: {url}")
-        sys.exit(1)
+    url = args.url or DEFAULT_PRESETS_URL
+    url = validate_remote_url(url)
 
     root = Path(config._root or ".")
     presets_path = SafePath(root / "presets.json", root)

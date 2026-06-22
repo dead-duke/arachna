@@ -14,20 +14,20 @@ from arachna.config.remote import _select_profile, collect_remote
 
 def test_collect_remote_blocks_non_http_urls(tmp_path):
     """ftp:// and file:// URLs are rejected before any git call."""
-    with pytest.raises(ValueError, match="Only http:// and https://"):
+    with pytest.raises(ValueError, match="only http:// and https://"):
         collect_remote("ftp://evil.com/repo.git", root=tmp_path)
 
-    with pytest.raises(ValueError, match="Only http:// and https://"):
+    with pytest.raises(ValueError, match="only http:// and https://"):
         collect_remote("file:///etc/passwd", root=tmp_path)
 
 
-def test_collect_remote_allows_http_and_https(tmp_path):
+def test_collect_remote_allows_https(tmp_path):
     """http:// and https:// pass URL validation."""
     with (
         patch("shutil.which", return_value=None),
         pytest.raises(RuntimeError, match="git is not installed"),
     ):
-        collect_remote("http://example.com/repo.git", root=tmp_path)
+        collect_remote("https://example.com/repo.git", root=tmp_path)
 
     with (
         patch("shutil.which", return_value=None),

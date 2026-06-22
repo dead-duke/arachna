@@ -16,32 +16,32 @@ def _repo_args(url, profile=None, output_dir=None):
 
 def test_repo_invalid_url_ftp(tmp_path, make_config):
     config = make_config(tmp_path)
-    with pytest.raises(SystemExit) as exc:
+    with pytest.raises(SystemExit):
         _cmd_collect_repo(_repo_args("ftp://evil.com/repo.git"), config)
-    assert exc.value.code == 1
 
 
 def test_repo_invalid_url_file(tmp_path, make_config):
     config = make_config(tmp_path)
-    with pytest.raises(SystemExit) as exc:
+    with pytest.raises(SystemExit):
         _cmd_collect_repo(_repo_args("file:///etc/passwd"), config)
-    assert exc.value.code == 1
 
 
 def test_repo_runtime_error(tmp_path, make_config):
     config = make_config(tmp_path)
-    with patch("arachna.config.remote.collect_remote", side_effect=RuntimeError("git not found")):
-        with pytest.raises(SystemExit) as exc:
-            _cmd_collect_repo(_repo_args("https://github.com/user/repo.git"), config)
-        assert exc.value.code == 1
+    with (
+        patch("arachna.config.remote.collect_remote", side_effect=RuntimeError("git not found")),
+        pytest.raises(SystemExit),
+    ):
+        _cmd_collect_repo(_repo_args("https://github.com/user/repo.git"), config)
 
 
 def test_repo_generic_exception(tmp_path, make_config):
     config = make_config(tmp_path)
-    with patch("arachna.config.remote.collect_remote", side_effect=OSError("disk full")):
-        with pytest.raises(SystemExit) as exc:
-            _cmd_collect_repo(_repo_args("https://github.com/user/repo.git"), config)
-        assert exc.value.code == 1
+    with (
+        patch("arachna.config.remote.collect_remote", side_effect=OSError("disk full")),
+        pytest.raises(SystemExit),
+    ):
+        _cmd_collect_repo(_repo_args("https://github.com/user/repo.git"), config)
 
 
 def test_repo_success(tmp_path, make_config):

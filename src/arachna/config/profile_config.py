@@ -9,24 +9,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .defaults import DEFAULT_EXCLUDE
+
 DEFAULT_PATTERNS = ["*.py", "*.md", "*.yaml", "*.yml", "*.toml", "*.json", "*.cfg", "*.ini"]
-
-_COMMON_EXCLUDE_DIRS = frozenset(
-    {
-        ".git",
-        ".tox",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "__pycache__",
-        "venv",
-        "node_modules",
-    }
-)
-
-DEFAULT_EXCLUDE = ["*__pycache__*", "*.pyc", "*.egg-info*", ".DS_Store"]
-for _d in sorted(_COMMON_EXCLUDE_DIRS):
-    DEFAULT_EXCLUDE.extend([_d, f"{_d}/*"])
 
 
 @dataclass

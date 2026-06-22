@@ -7,6 +7,7 @@ import sys
 from ..config.core.config import get_profile
 from ..config.core.validator import validate_profile
 from ..config.profile_config import ArachnaConfig, ProfileConfig
+from ..config.urls import validate_remote_url
 from ..domain.collection.collector import (
     _MANIFEST,
     clean_manifest,
@@ -243,13 +244,12 @@ def _cmd_collect_clean(args, config: ArachnaConfig):
 
 
 def _cmd_collect_repo(args, config: ArachnaConfig):
-    url = args.repo
-    if not url.startswith(("http://", "https://")):
-        print("Error: only http:// and https:// URLs are allowed.")
-        print(f"  Got: {url}")
-        sys.exit(1)
-
     root = get_root(config)
+    try:
+        url = validate_remote_url(args.repo)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
     print(f"Cloning {url}...")
     try:
         from ..config.remote import collect_remote
