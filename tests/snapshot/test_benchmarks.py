@@ -2,7 +2,10 @@
 
 import json
 
+import pytest
+
 from arachna.config.profile_config import ProfileConfig
+from arachna.domain.tokenization.tokenizer import _has_tiktoken
 from arachna.snapshot.benchmarks import benchmark_structural_diff, benchmark_tiktoken
 
 
@@ -53,6 +56,7 @@ class TestBenchmarkStructuralDiff:
         assert result["tokens"] == 0
 
 
+@pytest.mark.skipif(not _has_tiktoken(), reason="tiktoken not installed")
 class TestBenchmarkTiktoken:
     """Tests for benchmark_tiktoken."""
 
