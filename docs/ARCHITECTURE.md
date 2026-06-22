@@ -4,17 +4,16 @@
 
 arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
-## Package structure (v5.2.0)
+## Package structure (v5.2.1)
 
 src/arachna/
   __init__.py           Version + public API re-exports
   __main__.py           CLI entry point: build_argparse() + main() dispatch
-  interfaces.py         Backward-compat re-export from domain/
 
   domain/               Pure data transformations, no I/O dependencies
     __init__.py         Re-exports all public names
     api_types.py        Public API dataclasses (DiffSection, DiffStats, etc.)
-    atomic_write.py     Atomic file writes (mkstemp + os.replace)
+    atomic_write.py     Atomic file writes (mkstemp + os.replace), SafePath-native
     compressor.py       Safe whitespace compression (str.rstrip, no regex)
     differ_stats.py     compute_diff_stats — pure function on DiffSection
     interfaces.py       Protocol definitions: Tokenizer, ObjectStore, ContentFormatter
@@ -60,26 +59,26 @@ src/arachna/
     doctor.py           Full diagnostic: run_doctor(project_root, config)
     profiler.py         Benchmark runner: measures token savings across modes
     remote.py           Remote repository collection (git clone + collect)
+    profile_config.py   ProfileConfig.from_dict() + ArachnaConfig dataclasses
 
     core/
       __init__.py
-      config.py         .arachna.json loader, profile resolution with extends, ProfileConfig/ArachnaConfig
+      config.py         .arachna.json loader, profile resolution with extends
       validator.py      Profile validation
 
     presets/
       __init__.py
-      presets.py        Language/engine presets, auto-detection, validation
+      presets.py        Language/engine presets, auto-detection, validation, @lru_cache
       presets_remote.py Remote presets: fetch_presets + merge_presets
 
     setup/
       __init__.py
-      init.py           Interactive .arachna.json bootstrap
+      init.py           Interactive .arachna.json bootstrap, SafePath-native
       hook.py           Git post-commit hook installer
 
   snapshot/             Snapshots, diff, store, benchmarks
-    __init__.py         Re-exports all public names
+    __init__.py         Re-exports public API only
     benchmarks.py       Plugin benchmarks (structural-diff, tiktoken)
-    snapshots.py        Re-exports from all snapshot_diff_* sub-modules
 
     store/
       __init__.py
@@ -138,32 +137,45 @@ No circular dependencies. No lazy imports between packages.
 
 ## Key architectural decisions
 
+### v5.2.1: SonarCloud + Audit resolution + test suite dedup
+- **SonarCloud: 0 findings.** S1172 x3 (dead config param), S2083 x4 (path validation), S8707 (SafePath passthrough), S5852 x3 (regex refactoring) — all fixed.
+- **Audit R1+R2: 25/25 findings closed.** 2 HIGH, 5 MEDIUM, 7 LOW, 5 LEGACY, 6 code quality improvements.
+- **ProfileConfig.from_dict():** 6 identical dict-to-dataclass copies deduplicated into one classmethod. Adding a field now requires one edit.
+- **SafePath-native atomic_write:** atomic_write_text/bytes accept SafePath directly. All 14 call sites updated — no more .to_path() workarounds.
+- **_check_toctou() returns resolved Path:** I/O methods use the resolved path for actual I/O, not self._path. Eliminates S2083 in path_utils.py.
+- **Regex refactoring:** _RE_ES6_IMPORT_FROM split into DESTRUCTURE + SIMPLE patterns. _RE_COMMONJS_REQUIRE split into DESTRUCTURE + SIMPLE patterns. _RE_PY_MULTILINE_IMPORT simplified. _C_LIKE_IMPORT_PATTERNS: 6 -> 8 patterns, all safe from polynomial backtracking.
+- **Backward-compat removed:** snapshot/snapshots.py (118 lines, 60+ re-exports) deleted. interfaces.py (6 lines, deprecated stub) deleted. All imports updated to direct subpackage paths.
+- **Dead code removed:** gatherer_core.py (deprecated re-export). Dead if __name__ block in config/completion.py. dict branch in get_root(). All bare except -> specific exceptions.
+- **Global state -> @lru_cache:** gatherer_strategies.get_mode_strategies(), tokenizer._check_tokenizer_plugins(), presets._load_builtin_presets_cached().
+- **Stale lock detection:** merge_lock fallback writes PID, checks process liveness before blocking.
+- **Test suite dedup:** 12 edge files merged into parents, 6 coverage files renamed, 8 duplicates removed, 4 empty __init__.py removed. test_runner_edge.py (35 tests) merged into test_run_command.py. conftest.py optimized. All docstrings cleaned of version tags and BUG/TC prefixes. 1644 tests, 96% coverage.
+
 ### v5.2.0: Package reorganization + type safety
 - **domain/ split into 5 subpackages:** cache/, collection/, formatting/, tokenization/, execution/ — 27 files organized by subsystem
 - **snapshot/ split into 3 subpackages:** store/, diff/, rename/ — 12 files organized by responsibility
 - **config/ split into 3 subpackages:** core/, presets/, setup/ — 10 files organized by domain
 - **Dataclass config:** ProfileConfig + ArachnaConfig replace ~200 dict.get() calls with typed field access
 - **Enum/Literal types:** CollectionMode, OutputFormat, SplitMode — linters catch typos at development time
-- **api/ ↔ config/ cycle broken:** api/ no longer imports get_profile/load_config from config/
+- **api/ <-> config/ cycle broken:** api/ no longer imports get_profile/load_config from config/
 - **compute_diff_stats moved** to domain/differ_stats.py — pure function, no snapshot/ dependency
 - **_sanitize_log centralized** in domain/runner.py — single CRLF sanitization for all logger calls
 
 ### v5.1.1: Security hardening + SonarCloud cleanup
-- **Command substitution blocked:** `$()` and backticks rejected in both restricted and pre_commands modes. Prevents allowlist bypass attacks like `git $(rm -rf /)`.
-- **CRLF sanitization:** All logger calls that include user-configured commands sanitize `\n` → `\\n`, `\r` → `\\r` before logging. Applied to `_handle_dangerous_override`, `_collect_snapshot_pre_commands`, `_collect_snapshot_command`.
-- **TOCTOU protection:** SafePath I/O methods (`read_text`, `write_text`, `read_bytes`, `write_bytes`) double-check path via `resolve()` + `is_relative_to()` at I/O time. Detects symlink swaps between construction and I/O.
-- **SafePath.to_path():** Clean SafePath→Path conversions without `Path(str(...))` workarounds. All callers updated.
-- **Manifest versioning:** `_version` field in snapshot manifests with migration placeholder. Future versions rejected with clear error.
-- **Atomic output:** `_write_parts` and `_write_diff_parts` use `atomic_write_text` for output files.
+- **Command substitution blocked:** $() and backticks rejected in both restricted and pre_commands modes. Prevents allowlist bypass attacks like `git $(rm -rf /)`.
+- **CRLF sanitization:** All logger calls that include user-configured commands sanitize \n -> \\n, \r -> \\r before logging. Applied to _handle_dangerous_override, _collect_snapshot_pre_commands, _collect_snapshot_command.
+- **TOCTOU protection:** SafePath I/O methods (read_text, write_text, read_bytes, write_bytes) double-check path via resolve() + is_relative_to() at I/O time. Detects symlink swaps between construction and I/O.
+- **SafePath.to_path():** Clean SafePath->Path conversions without Path(str(...)) workarounds. All callers updated.
+- **Manifest versioning:** _version field in snapshot manifests with migration placeholder. Future versions rejected with clear error.
+- **Atomic output:** _write_parts and _write_diff_parts use atomic_write_text for output files.
 - **SonarCloud:** S2737, S1481, S7504 fixed. 10 false positives accepted as secure-by-design. 1643 tests, 96% coverage.
 
 ### v5.1.0: SafePath + full audit resolution
 - **SafePath:** Path wrapper with mandatory root validation in domain/path_utils.py. All file I/O goes through SafePath — validation is structural, not comment-based. Eliminates all SonarCloud S2083/S8707 false positives.
 - **CRITICAL fix:** Removed importlib.import_module fallback in tokenizer.py. Unknown tokenizer packages now rejected with clear error.
 - **HIGH fix:** Made snapshot_diff functions public — apply_repo_map_to_sections, collect_snapshot_content.
-- **MEDIUM decomposition:** formatter.py (605 lines → 6 sub-modules), snapshot_diff.py (720 lines → 4 sub-modules + helpers).
-- **MEDIUM hardening:** Narrowed except Exception → specific types in 5 locations.
-- **LOW polish:** Atomic writes, KeyError as error, DANGEROUS log → error, _log_writer → parameter, threading.Lock, lru_cache.
+- **MEDIUM decomposition:** formatter.py (605 lines -> 6 sub-modules), snapshot_diff.py (720 lines -> 4 sub-modules + helpers).
+- **MEDIUM hardening:** Narrowed except Exception -> specific types in 5 locations.
+- **LOW polish:** Atomic writes, KeyError as error, DANGEROUS log -> error, _log_writer -> parameter, threading.Lock, lru_cache.
 
 ### v5.0.0: Architecture cleanup
 - Renamed watch/ package to snapshot/ (~60 files). Public API: `from arachna import snapshot`.
@@ -203,7 +215,7 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1641 tests, 96% coverage. Tests mirror src/arachna/ package structure.
+1644 tests, 96% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
   domain/       Tests for domain/ modules

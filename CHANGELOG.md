@@ -1,5 +1,35 @@
 # Changelog
 
+## v5.2.1 — SonarCloud + Audit fixes, test suite dedup, dead code removal
+- SonarCloud: 0 findings (S1172 x3, S2083 x4, S8707, S5852 x3 — all fixed)
+- Audit R1+R2: 25/25 findings fixed (2 HIGH, 5 MEDIUM, 7 LOW, 5 LEGACY, 6 code quality)
+- HIGH: Removed dead config param from api/snapshot.py (S1172 x3)
+- HIGH: Fixed broken import in examples/delirium_agent.py
+- MEDIUM: ProfileConfig.from_dict() — 6 copies deduplicated into one classmethod
+- MEDIUM: S5852 regex refactored: split 3 problematic patterns into 6 safe ones
+- MEDIUM: atomic_write.py accepts SafePath — all 14 call sites updated
+- MEDIUM: _check_toctou() returns resolved Path — eliminates S2083 in path_utils.py
+- MEDIUM: store.py split json.loads one-liner for S2083
+- MEDIUM: init.py _write_config passes SafePath directly — S8707 fixed
+- MEDIUM: Shell features documented in SECURITY.md + 3 adversarial pre_commands tests
+- MEDIUM: Deleted backward-compat re-exports: snapshot/snapshots.py, interfaces.py
+- MEDIUM: get_root() — ArachnaConfig only, dict branch removed
+- MEDIUM: Tokenizer Protocol type hints added across codebase
+- MEDIUM: Global state replaced with @lru_cache factories (gatherer_strategies, tokenizer, presets)
+- LOW: 6 bare except → specific exceptions
+- LOW: Dead if __name__ block removed from config/completion.py
+- LOW: merge_lock PID-based stale lock detection
+- LEGACY: ArachnaConfig | dict removed from all CLI signatures
+- LEGACY: Private symbols removed from config/core/ and snapshot/ __all__
+- LEGACY: domain/__init__.py __all__ narrowed to public API only
+- LEGACY: profiler.py fragile private import fixed
+- Tests: 12 edge files merged, 6 coverage files renamed, 8 duplicates removed
+- Tests: test_runner_edge.py (35 tests) merged into test_run_command.py
+- Tests: gatherer_core.py (deprecated re-export) deleted, direct imports
+- Tests: conftest.py optimized (make_popen_mock, tmp_workspace)
+- Tests: all docstrings cleaned of version tags and BUG/TC prefixes
+- Tests: 1644 passed, 3 skipped, 96% coverage
+
 ## v5.2.0 — Architecture: package reorganization + type safety
 - domain/ split into 5 subpackages: cache/, collection/, formatting/, tokenization/, execution/
 - snapshot/ split into 3 subpackages: store/, diff/, rename/

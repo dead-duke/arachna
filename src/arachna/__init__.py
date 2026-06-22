@@ -11,7 +11,7 @@ Semantic versioning applies to the public API. Internal modules
 (domain/, config/, cli/, plugins/) may change without notice.
 """
 
-__version__ = "5.2.0"
+__version__ = "5.2.1"
 
 # Public API — stable, backward-compatible
 __all__ = [

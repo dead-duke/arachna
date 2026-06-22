@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arachna"
-version = "5.2.0"
+version = "5.2.1"
 description = "arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever."
 readme = "README.md"
 license = "AGPL-3.0"
