@@ -4,35 +4,35 @@ import ast as _ast
 import re
 from pathlib import Path
 
-_RE_PY_IMPORT_FROM = re.compile(r"^from\s+([\w.]+)\s+import", re.MULTILINE)
-_RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*([^)]*)\s*\)", re.MULTILINE)
+_RE_PY_IMPORT_FROM = re.compile(r"^from\s+([\w\.]+)\s+import", re.MULTILINE)
+_RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*([^)]*?)\s*\)", re.MULTILINE)
 
 _RE_ES6_IMPORT_TYPE_DESTRUCTURE = re.compile(
-    r"^\s*import\s+type\s+\{[^}]{1,200}\}\s*from\s*['\"]([^'\"]+)['\"]",
+    r"^\s*import\s+type\s+\{([^}]*?)\}\s*from\s*['\"]([^'\"]+?)['\"]",
     re.MULTILINE,
 )
 _RE_ES6_IMPORT_DESTRUCTURE = re.compile(
-    r"^\s*import\s+\{[^}]{1,200}\}\s*from\s*['\"]([^'\"]+)['\"]",
+    r"^\s*import\s+\{([^}]*?)\}\s*from\s*['\"]([^'\"]+?)['\"]",
     re.MULTILINE,
 )
 _RE_ES6_IMPORT_FROM_SIMPLE = re.compile(
-    r"^\s*import\s+(?:type\s+)?\w+\s+from\s*['\"]([^'\"]+)['\"]",
+    r"^\s*import\s+(?:type\s+)?\w+\s+from\s*['\"]([^'\"]+?)['\"]",
     re.MULTILINE,
 )
 _RE_ES6_IMPORT_BARE = re.compile(
-    r"^\s*import\s+['\"]([^'\"]+)['\"]",
+    r"^\s*import\s+['\"]([^'\"]+?)['\"]",
     re.MULTILINE,
 )
 _RE_COMMONJS_REQUIRE_DESTRUCTURE = re.compile(
-    r"^\s*(?:const|let|var)\s*\{[^}]{1,200}\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    r"^\s*(?:const|let|var)\s*\{([^}]*?)\}\s*=\s*require\s*\(\s*['\"]([^'\"]+?)['\"]\s*\)",
     re.MULTILINE,
 )
 _RE_COMMONJS_REQUIRE_SIMPLE = re.compile(
-    r"^\s*(?:const|let|var)\s+\w+\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    r"^\s*(?:const|let|var)\s+\w+\s*=\s*require\s*\(\s*['\"]([^'\"]+?)['\"]\s*\)",
     re.MULTILINE,
 )
-_RE_C_INCLUDE = re.compile(r"^\s*#include\s*[<\"]([^>\"]+)[>\"]", re.MULTILINE)
-_RE_CSHARP_USING = re.compile(r"^\s*using\s+([\w.]+)\s*;", re.MULTILINE)
+_RE_C_INCLUDE = re.compile(r"^\s*#include\s*[<\"]([^>\"]+?)[>\"]", re.MULTILINE)
+_RE_CSHARP_USING = re.compile(r"^\s*using\s+([\w\.]+)\s*;", re.MULTILINE)
 _RE_MODULE_USE = re.compile(r"^\s*use\s+([\w\\]+)\s*;", re.MULTILINE)
 
 _C_LIKE_IMPORT_PATTERNS = [
@@ -53,9 +53,9 @@ _RE_C_LIKE_EXPORT = re.compile(
     re.MULTILINE,
 )
 
-_RE_RUBY_REQUIRE = re.compile(r"^\s*require\s+['\"]([^'\"]+)['\"]", re.MULTILINE)
-_RE_SCRIPT_IMPORT_QUOTED = re.compile(r"^\s*import\s+['\"]([^'\"]+)['\"]", re.MULTILINE)
-_RE_ELIXIR_USE = re.compile(r"^\s*use\s+([\w.]+)", re.MULTILINE)
+_RE_RUBY_REQUIRE = re.compile(r"^\s*require\s+['\"]([^'\"]+?)['\"]", re.MULTILINE)
+_RE_SCRIPT_IMPORT_QUOTED = re.compile(r"^\s*import\s+['\"]([^'\"]+?)['\"]", re.MULTILINE)
+_RE_ELIXIR_USE = re.compile(r"^\s*use\s+([\w\.]+)", re.MULTILINE)
 
 _SCRIPT_IMPORT_PATTERNS = [
     _RE_RUBY_REQUIRE,
@@ -64,7 +64,7 @@ _SCRIPT_IMPORT_PATTERNS = [
 ]
 
 _RE_RUBY_DEF = re.compile(r"^\s*def\s+(?:self\.)?(\w+[?!]?)", re.MULTILINE)
-_RE_ELIXIR_DEFMODULE = re.compile(r"^\s*defmodule\s+([\w.]+)", re.MULTILINE)
+_RE_ELIXIR_DEFMODULE = re.compile(r"^\s*defmodule\s+([\w\.]+)", re.MULTILINE)
 _RE_ELIXIR_DEFP = re.compile(r"^\s*defp\s+(\w+)", re.MULTILINE)
 _RE_LUA_FUNCTION = re.compile(r"^\s*function\s+(\w+)", re.MULTILINE)
 
