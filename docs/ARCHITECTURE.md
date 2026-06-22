@@ -4,19 +4,19 @@
 
 arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
-## Package structure (v5.2.1)
+## Package structure (v5.2.2)
 
 src/arachna/
   __init__.py           Version + public API re-exports
   __main__.py           CLI entry point: build_argparse() + main() dispatch
 
   domain/               Pure data transformations, no I/O dependencies
-    __init__.py         Re-exports all public names
+    __init__.py         Re-exports public API only
     api_types.py        Public API dataclasses (DiffSection, DiffStats, etc.)
     atomic_write.py     Atomic file writes (mkstemp + os.replace), SafePath-native
     compressor.py       Safe whitespace compression (str.rstrip, no regex)
     differ_stats.py     compute_diff_stats — pure function on DiffSection
-    interfaces.py       Protocol definitions: Tokenizer, ObjectStore, ContentFormatter
+    interfaces.py       Protocol definitions: Tokenizer
     path_utils.py       Path validation (validate_path) + SafePath class with TOCTOU protection
 
     cache/
@@ -128,7 +128,7 @@ src/arachna/
 ## Dependency flow
 
 CLI handlers import from domain/, snapshot/, plugins/, api/, config/.
-API layer imports from domain/ and snapshot/ — NO config/ imports.
+API layer imports from domain/ and snapshot/, plus types from config/ (ProfileConfig, CollectionMode, OutputFormat).
 Snapshot layer imports from domain/.
 Config layer imports from domain/.
 Domain layer imports only from stdlib and other domain/ modules.
@@ -136,6 +136,19 @@ Domain layer imports only from stdlib and other domain/ modules.
 No circular dependencies. No lazy imports between packages.
 
 ## Key architectural decisions
+
+### v5.2.2: SonarCloud + Audit fixes
+- **S2083 path_utils:** _check_toctou() returns SafePath, I/O methods use typed SafePath — closes S2083 in path_utils.py.
+- **S2083 atomic_write:** Fallback path.write_text()/write_bytes() on SafePath — closes S2083 in atomic_write.py.
+- **S2083 store.py:** Explicit SafePath type annotations on local variables in rename_snapshot — closes S2083 in store.py.
+- **S8707 init.py:** _validate_output_dir returns str, used inline in SafePath constructor — closes S8707 in init.py.
+- **S8707 atomic_write:** Fallback on SafePath instead of bare Path — closes S8707 in atomic_write.py.
+- **S5713 presets_remote:** Removed redundant urllib.error.URLError from except (caught by parent OSError).
+- **S5852 format_headers:** _RE_PY_IMPORT split into _RE_PY_IMPORT_SIMPLE + _RE_PY_IMPORT_FROM — closes S5852.
+- **Audit:** Removed unused ObjectStore and ContentFormatter Protocols from interfaces.py.
+- **Audit:** Narrowed domain/__init__.py __all__ to public API only.
+- **Audit:** Removed unused re-exports from domain/execution/__init__.py.
+- **Audit:** Fixed ARCHITECTURE.md claim about api/config imports.
 
 ### v5.2.1: SonarCloud + Audit resolution + test suite dedup
 - **SonarCloud: 0 findings.** S1172 x3 (dead config param), S2083 x4 (path validation), S8707 (SafePath passthrough), S5852 x3 (regex refactoring) — all fixed.

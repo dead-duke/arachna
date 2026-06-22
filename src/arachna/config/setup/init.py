@@ -27,11 +27,12 @@ def _ask_yes(prompt: str, default: bool = True) -> bool:
     return answer in ("y", "yes")
 
 
-def _validate_output_dir(output_dir):
+def _validate_output_dir(output_dir: str) -> str:
     if not output_dir or ".." in output_dir or "/" in output_dir or "\\" in output_dir:
         raise ValueError(
             f"Invalid output_dir: '{output_dir}'. Must be a simple directory name without path separators."
         )
+    return output_dir
 
 
 def run_defaults(output_dir: str = ".", preset: str | None = None, root: Path | None = None):
@@ -103,11 +104,11 @@ def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path
 
 
 def _write_config(root: Path, config: dict, output_dir: str):
-    _validate_output_dir(output_dir)
+    validated_dir = _validate_output_dir(output_dir)
     cfg_path = SafePath(root / ".arachna.json", root)
     atomic_write_text(cfg_path, json.dumps(config, indent=2) + "\n")
     print(f"Created {cfg_path}")
-    out_path = SafePath(root / output_dir, root)
+    out_path = SafePath(root / validated_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     print(f"Created {out_path}/")
     print("Done. Run 'arachna --all' to collect context.")

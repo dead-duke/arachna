@@ -36,7 +36,7 @@ def fetch_presets(url: str, timeout: int | None = None) -> dict[str, dict]:
             urllib.request.urlopen(url, timeout=timeout)  # nosec B310
         ) as response:
             data = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, json.JSONDecodeError, OSError) as e:
+    except (json.JSONDecodeError, OSError) as e:
         print(f"Warning: failed to fetch presets from {url}: {e}")
         return {}
     return _parse_fetched_presets(data, url)

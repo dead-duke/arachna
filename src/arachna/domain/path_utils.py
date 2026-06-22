@@ -68,12 +68,12 @@ class SafePath:
         else:
             self._root = self._path
 
-    def _check_toctou(self) -> Path:
+    def _check_toctou(self) -> "SafePath":
         """Double-check path is still within root (TOCTOU protection).
 
         Between SafePath construction and I/O, a symlink could be
         swapped. This resolves the path fresh, verifies it is
-        still a descendant of root, and returns the resolved path
+        still a descendant of root, and returns a new SafePath
         for I/O operations.
         """
         resolved = self._path.resolve()
@@ -85,7 +85,7 @@ class SafePath:
                 f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
                 f"which is outside root {resolved_root}"
             ) from None
-        return resolved
+        return SafePath(resolved, self._root)
 
     def to_path(self) -> Path:
         """Return the underlying pathlib.Path for use with functions that expect Path."""
@@ -146,20 +146,20 @@ class SafePath:
     # -- I/O delegates ----------------------------------------------
 
     def read_text(self, encoding: str = "utf-8") -> str:
-        resolved = self._check_toctou()
-        return resolved.read_text(encoding=encoding)
+        safe = self._check_toctou()
+        return safe._path.read_text(encoding=encoding)
 
     def read_bytes(self) -> bytes:
-        resolved = self._check_toctou()
-        return resolved.read_bytes()
+        safe = self._check_toctou()
+        return safe._path.read_bytes()
 
     def write_text(self, data: str, encoding: str = "utf-8") -> int:
-        resolved = self._check_toctou()
-        return resolved.write_text(data, encoding=encoding)
+        safe = self._check_toctou()
+        return safe._path.write_text(data, encoding=encoding)
 
     def write_bytes(self, data: bytes) -> int:
-        resolved = self._check_toctou()
-        return resolved.write_bytes(data)
+        safe = self._check_toctou()
+        return safe._path.write_bytes(data)
 
     def exists(self) -> bool:
         return self._path.exists()
@@ -191,8 +191,8 @@ class SafePath:
             yield SafePath(p, self._root)
 
     def open(self, *args, **kwargs):
-        resolved = self._check_toctou()
-        return resolved.open(*args, **kwargs)
+        safe = self._check_toctou()
+        return safe._path.open(*args, **kwargs)
 
     def resolve(self) -> "SafePath":
         return SafePath(self._path.resolve(), self._root)

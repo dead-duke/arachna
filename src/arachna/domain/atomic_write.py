@@ -16,7 +16,7 @@ def atomic_write_text(path: SafePath, text: str) -> None:
     """Write text to path atomically using mkstemp + os.replace.
 
     Creates parent directories if needed.
-    Falls back to Path.write_text on OSError.
+    Falls back to SafePath.write_text on OSError.
     """
     p = path.to_path()
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -31,14 +31,14 @@ def atomic_write_text(path: SafePath, text: str) -> None:
                 os.unlink(tmp_path)
             raise
     except OSError:
-        p.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8")
 
 
 def atomic_write_bytes(path: SafePath, data: bytes) -> None:
     """Write bytes to path atomically using mkstemp + os.replace.
 
     Creates parent directories if needed.
-    Falls back to Path.write_bytes on OSError.
+    Falls back to SafePath.write_bytes on OSError.
     """
     p = path.to_path()
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -53,4 +53,4 @@ def atomic_write_bytes(path: SafePath, data: bytes) -> None:
                 os.unlink(tmp_path)
             raise
     except OSError:
-        p.write_bytes(data)
+        path.write_bytes(data)

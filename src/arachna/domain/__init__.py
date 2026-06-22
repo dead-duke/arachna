@@ -61,6 +61,9 @@ from .formatting import (
     is_excluded,
     lang_for_path,
 )
+from .interfaces import (
+    Tokenizer,
+)
 from .path_utils import (
     SafePath,
     validate_path,
@@ -74,14 +77,19 @@ from .tokenization import (
 )
 
 __all__ = [
+    "C_LIKE_LANGS",
     "CollectResult",
     "DiffResult",
     "DiffSection",
     "DiffStats",
     "GCResult",
     "PipelineMetrics",
+    "RegexTimeoutError",
+    "SCRIPT_LANGS",
+    "SafePath",
     "SnapshotInfo",
     "StoreStats",
+    "Tokenizer",
     "atomic_write_bytes",
     "atomic_write_text",
     "clean_manifest",
@@ -89,7 +97,6 @@ __all__ = [
     "compress",
     "compute_diff_stats",
     "count_tokens",
-    "C_LIKE_LANGS",
     "dry_run",
     "estimate_savings",
     "extract_signatures",
@@ -106,14 +113,11 @@ __all__ = [
     "load_manifest",
     "load_tokenizer",
     "pack_into_parts",
-    "RegexTimeoutError",
     "run_command",
     "run_pre_commands",
-    "SafePath",
     "save_cache",
     "save_manifest",
     "scan_directories",
-    "SCRIPT_LANGS",
     "split",
     "split_sections",
     "update_cache",

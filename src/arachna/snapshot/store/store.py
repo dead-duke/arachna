@@ -240,10 +240,10 @@ def delete_snapshot(snapshot_id: str, root: Path) -> None:
 def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     validate_snapshot_id(old_id)
     validate_snapshot_id(new_id)
-    store_dir = _store_root(root)
-    snapshots_dir = store_dir / "snapshots"
-    old_path = snapshots_dir / f"{old_id}.json"
-    new_path = snapshots_dir / f"{new_id}.json"
+    store_dir: SafePath = _store_root(root)
+    snapshots_dir: SafePath = store_dir / "snapshots"
+    old_path: SafePath = snapshots_dir / f"{old_id}.json"
+    new_path: SafePath = snapshots_dir / f"{new_id}.json"
     if not old_path.exists():
         raise ObjectNotFoundError(f"Snapshot not found: {old_id}")
     if new_path.exists():
@@ -254,7 +254,7 @@ def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     manifest["name"] = new_id
     atomic_write_text(new_path, json.dumps(manifest, indent=2) + "\n")
     old_path.unlink()
-    head_path = store_dir / "HEAD"
+    head_path: SafePath = store_dir / "HEAD"
     if head_path.exists() and head_path.read_text().strip() == old_id:
         atomic_write_text(head_path, new_id + "\n")
     return new_id
