@@ -4,7 +4,7 @@ import ast as _ast
 import re
 from pathlib import Path
 
-_RE_PY_IMPORT_SIMPLE = re.compile(r"^import\s+([\w.,\s]+)", re.MULTILINE)
+_RE_PY_IMPORT_SIMPLE = re.compile(r"^import\s+([\w., ]+)", re.MULTILINE)
 _RE_PY_IMPORT_FROM = re.compile(r"^from\s+([\w.]+)\s+import", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*([^)]*)\s*\)", re.MULTILINE)
 

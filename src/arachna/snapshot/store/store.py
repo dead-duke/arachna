@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ...domain.atomic_write import atomic_write_bytes, atomic_write_text
-from ...domain.path_utils import SafePath
+from ...domain.path_utils import SafePath, validate_path
 from .store_errors import CorruptedStoreError, ObjectNotFoundError, SnapshotExistsError
 
 logger = logging.getLogger("arachna.store")
@@ -50,6 +50,13 @@ def _hash_path(store_dir: SafePath, object_hash: str, mkdir: bool = False) -> Sa
     if mkdir:
         obj_dir.mkdir(parents=True, exist_ok=True)
     return obj_dir / rest
+
+
+def _validated_safe_path(full_path: Path, root: Path) -> SafePath:
+    """Create SafePath with explicit validation for SonarCloud S2083."""
+    if not validate_path(full_path, root):
+        raise ValueError(f"Path traversal detected: {full_path}")
+    return SafePath(full_path, root)
 
 
 def write_object(data: bytes, root: Path) -> str:
@@ -96,7 +103,9 @@ def create_snapshot(
     snapshots_dir = store_dir / "snapshots"
     snapshots_dir.mkdir(parents=True, exist_ok=True)
     snapshot_id = name if name else datetime.now().strftime("%Y%m%dT%H%M%S")
-    manifest_path = snapshots_dir / f"{snapshot_id}.json"
+    manifest_path = _validated_safe_path(
+        store_dir.to_path() / "snapshots" / f"{snapshot_id}.json", root
+    )
     if name and manifest_path.exists():
         raise SnapshotExistsError(f"Snapshot '{name}' already exists.")
     file_hashes = {}
@@ -116,7 +125,7 @@ def create_snapshot(
     if command:
         manifest["command"] = command
     atomic_write_text(manifest_path, json.dumps(manifest, indent=2) + "\n")
-    head_path = store_dir / "HEAD"
+    head_path = _validated_safe_path(store_dir.to_path() / "HEAD", root)
     atomic_write_text(head_path, snapshot_id + "\n")
     return snapshot_id
 
@@ -148,9 +157,11 @@ def update_snapshot(
     elif "command" in manifest:
         del manifest["command"]
     store_dir = _store_root(root)
-    manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
+    manifest_path = _validated_safe_path(
+        store_dir.to_path() / "snapshots" / f"{snapshot_id}.json", root
+    )
     atomic_write_text(manifest_path, json.dumps(manifest, indent=2) + "\n")
-    head_path = store_dir / "HEAD"
+    head_path = _validated_safe_path(store_dir.to_path() / "HEAD", root)
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
         atomic_write_text(head_path, snapshot_id + "\n")
     return snapshot_id
@@ -159,7 +170,9 @@ def update_snapshot(
 def load_snapshot(snapshot_id: str, root: Path) -> dict:
     validate_snapshot_id(snapshot_id)
     store_dir = _store_root(root)
-    manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
+    manifest_path = _validated_safe_path(
+        store_dir.to_path() / "snapshots" / f"{snapshot_id}.json", root
+    )
     if not manifest_path.exists():
         raise ObjectNotFoundError(f"Snapshot not found: {snapshot_id}")
     manifest = json.loads(manifest_path.read_text())
@@ -224,11 +237,13 @@ def _collect_referenced_hashes(manifests: list[dict]) -> set[str]:
 def delete_snapshot(snapshot_id: str, root: Path) -> None:
     validate_snapshot_id(snapshot_id)
     store_dir = _store_root(root)
-    manifest_path = store_dir / "snapshots" / f"{snapshot_id}.json"
+    manifest_path = _validated_safe_path(
+        store_dir.to_path() / "snapshots" / f"{snapshot_id}.json", root
+    )
     if not manifest_path.exists():
         raise ObjectNotFoundError(f"Snapshot not found: {snapshot_id}")
     manifest_path.unlink()
-    head_path = store_dir / "HEAD"
+    head_path = _validated_safe_path(store_dir.to_path() / "HEAD", root)
     if head_path.exists() and head_path.read_text().strip() == snapshot_id:
         remaining = list_snapshots(root=root)
         if remaining:
@@ -240,10 +255,9 @@ def delete_snapshot(snapshot_id: str, root: Path) -> None:
 def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     validate_snapshot_id(old_id)
     validate_snapshot_id(new_id)
-    store_dir: SafePath = _store_root(root)
-    snapshots_dir: SafePath = store_dir / "snapshots"
-    old_path: SafePath = snapshots_dir / f"{old_id}.json"
-    new_path: SafePath = snapshots_dir / f"{new_id}.json"
+    store_dir = _store_root(root)
+    old_path = _validated_safe_path(store_dir.to_path() / "snapshots" / f"{old_id}.json", root)
+    new_path = _validated_safe_path(store_dir.to_path() / "snapshots" / f"{new_id}.json", root)
     if not old_path.exists():
         raise ObjectNotFoundError(f"Snapshot not found: {old_id}")
     if new_path.exists():
@@ -254,7 +268,7 @@ def rename_snapshot(old_id: str, new_id: str, root: Path) -> str:
     manifest["name"] = new_id
     atomic_write_text(new_path, json.dumps(manifest, indent=2) + "\n")
     old_path.unlink()
-    head_path: SafePath = store_dir / "HEAD"
+    head_path = _validated_safe_path(store_dir.to_path() / "HEAD", root)
     if head_path.exists() and head_path.read_text().strip() == old_id:
         atomic_write_text(head_path, new_id + "\n")
     return new_id

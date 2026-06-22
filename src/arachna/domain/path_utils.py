@@ -36,11 +36,10 @@ class SafePath:
 
     Validation happens once at construction. After that, all delegated
     operations (read, write, unlink, mkdir, etc.) are guaranteed to be
-    within the root. SonarCloud S2083 false positives are eliminated
-    because validation is structural — part of the type, not a comment.
+    within the root.
 
-    I/O methods double-check via resolve() + is_relative_to() for TOCTOU
-    protection (symlink swap between construction and I/O).
+    I/O methods validate inline via resolve() + is_relative_to() for
+    TOCTOU protection (symlink swap between construction and I/O).
 
     Usage:
         root = SafePath("/project")
@@ -68,14 +67,8 @@ class SafePath:
         else:
             self._root = self._path
 
-    def _check_toctou(self) -> "SafePath":
-        """Double-check path is still within root (TOCTOU protection).
-
-        Between SafePath construction and I/O, a symlink could be
-        swapped. This resolves the path fresh, verifies it is
-        still a descendant of root, and returns a new SafePath
-        for I/O operations.
-        """
+    def _resolve_and_validate(self) -> Path:
+        """Resolve and validate path is within root. Returns resolved Path."""
         resolved = self._path.resolve()
         resolved_root = self._root.resolve()
         try:
@@ -85,7 +78,7 @@ class SafePath:
                 f"Path traversal detected at I/O time: {self._path} resolved to {resolved}, "
                 f"which is outside root {resolved_root}"
             ) from None
-        return SafePath(resolved, self._root)
+        return resolved
 
     def to_path(self) -> Path:
         """Return the underlying pathlib.Path for use with functions that expect Path."""
@@ -146,20 +139,20 @@ class SafePath:
     # -- I/O delegates ----------------------------------------------
 
     def read_text(self, encoding: str = "utf-8") -> str:
-        safe = self._check_toctou()
-        return safe._path.read_text(encoding=encoding)
+        resolved = self._resolve_and_validate()
+        return resolved.read_text(encoding=encoding)
 
     def read_bytes(self) -> bytes:
-        safe = self._check_toctou()
-        return safe._path.read_bytes()
+        resolved = self._resolve_and_validate()
+        return resolved.read_bytes()
 
     def write_text(self, data: str, encoding: str = "utf-8") -> int:
-        safe = self._check_toctou()
-        return safe._path.write_text(data, encoding=encoding)
+        resolved = self._resolve_and_validate()
+        return resolved.write_text(data, encoding=encoding)
 
     def write_bytes(self, data: bytes) -> int:
-        safe = self._check_toctou()
-        return safe._path.write_bytes(data)
+        resolved = self._resolve_and_validate()
+        return resolved.write_bytes(data)
 
     def exists(self) -> bool:
         return self._path.exists()
@@ -191,8 +184,8 @@ class SafePath:
             yield SafePath(p, self._root)
 
     def open(self, *args, **kwargs):
-        safe = self._check_toctou()
-        return safe._path.open(*args, **kwargs)
+        resolved = self._resolve_and_validate()
+        return resolved.open(*args, **kwargs)
 
     def resolve(self) -> "SafePath":
         return SafePath(self._path.resolve(), self._root)
