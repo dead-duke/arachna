@@ -8,11 +8,11 @@ _RE_PY_IMPORT_FROM = re.compile(r"^from\s+([\w.]+)\s+import", re.MULTILINE)
 _RE_PY_MULTILINE_IMPORT = re.compile(r"^import\s*\(\s*([^)]*)\s*\)", re.MULTILINE)
 
 _RE_ES6_IMPORT_TYPE_DESTRUCTURE = re.compile(
-    r"^\s*import\s+type\s+\{[^}]+\}\s*from\s*['\"]([^'\"]+)['\"]",
+    r"^\s*import\s+type\s+\{[^}]{1,200}\}\s*from\s*['\"]([^'\"]+)['\"]",
     re.MULTILINE,
 )
 _RE_ES6_IMPORT_DESTRUCTURE = re.compile(
-    r"^\s*import\s+\{[^}]+\}\s*from\s*['\"]([^'\"]+)['\"]",
+    r"^\s*import\s+\{[^}]{1,200}\}\s*from\s*['\"]([^'\"]+)['\"]",
     re.MULTILINE,
 )
 _RE_ES6_IMPORT_FROM_SIMPLE = re.compile(
@@ -24,7 +24,7 @@ _RE_ES6_IMPORT_BARE = re.compile(
     re.MULTILINE,
 )
 _RE_COMMONJS_REQUIRE_DESTRUCTURE = re.compile(
-    r"^\s*(?:const|let|var)\s*\{[^}]+\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
+    r"^\s*(?:const|let|var)\s*\{[^}]{1,200}\}\s*=\s*require\s*\(\s*['\"]([^'\"]+)['\"]\s*\)",
     re.MULTILINE,
 )
 _RE_COMMONJS_REQUIRE_SIMPLE = re.compile(

@@ -15,7 +15,7 @@ from .urls import validate_remote_url
 def collect_remote(
     url: str, profile: str = "full", output_dir: str | None = None, root: Path | None = None
 ) -> str:
-    url = validate_remote_url(url)
+    validate_remote_url(url)
     if shutil.which("git") is None:
         raise RuntimeError(
             "git is not installed. Install git to use --repo:\n  macOS: brew install git\n  Ubuntu/Debian: sudo apt install git\n  Windows: https://git-scm.com/download/win"

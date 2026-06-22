@@ -28,7 +28,11 @@ def _parse_fetched_presets(data, url):
 
 
 def fetch_presets(url: str, timeout: int | None = None) -> dict[str, dict]:
-    url = validate_remote_url(url)
+    try:
+        validate_remote_url(url)
+    except ValueError as e:
+        print(f"Warning: {e}")
+        return {}
     if timeout is None:
         timeout = int(_os.environ.get("ARACHNA_PRESETS_TIMEOUT", "10"))
     try:

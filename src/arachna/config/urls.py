@@ -26,22 +26,19 @@ def _is_local_host(hostname: str) -> bool:
     return False
 
 
-def validate_remote_url(url: str) -> str:
-    """Validate URL for remote operations. Returns the URL if valid.
+def validate_remote_url(url: str) -> None:
+    """Validate URL for remote operations. Raises ValueError if invalid.
 
     Allows:
     - https:// URLs (always)
     - http:// URLs only for hosts resolving to private/loopback IPs
-
-    Raises ValueError for any other URL scheme or non-local http://.
     """
     parsed = urlparse(url)
     if parsed.scheme == "https":
-        return url
+        return
     if parsed.scheme != "http":
         raise ValueError(f"Only https:// URLs are allowed. Got: {url}")
     if parsed.hostname is None:
         raise ValueError(f"Cannot parse hostname from URL: {url}")
-    if _is_local_host(parsed.hostname):
-        return url
-    raise ValueError(f"URL must use https:// (or http:// for local hosts only). Got: {url}")
+    if not _is_local_host(parsed.hostname):
+        raise ValueError(f"URL must use https:// (or http:// for local hosts only). Got: {url}")

@@ -20,7 +20,7 @@ from . import register
 @register("presets-update")
 def _cmd_presets_update(args, config: ArachnaConfig):
     url = args.url or DEFAULT_PRESETS_URL
-    url = validate_remote_url(url)
+    validate_remote_url(url)
 
     root = Path(config._root or ".")
     presets_path = SafePath(root / "presets.json", root)

@@ -246,10 +246,11 @@ def _cmd_collect_clean(args, config: ArachnaConfig):
 def _cmd_collect_repo(args, config: ArachnaConfig):
     root = get_root(config)
     try:
-        url = validate_remote_url(args.repo)
+        validate_remote_url(args.repo)
     except ValueError as e:
         print(f"Error: {e}")
         sys.exit(1)
+    url = args.repo
     print(f"Cloning {url}...")
     try:
         from ..config.remote import collect_remote
