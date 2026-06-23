@@ -1,5 +1,20 @@
 # Changelog
 
+## v5.2.2 — SonarCloud Security + Code Quality: 0 findings
+- S2083/S8707: inline path validation in SafePath I/O methods + explicit validate_path before I/O
+- S5332: urlparse-based URL validation, http only for local/private hosts via DNS
+- S5852: all regex patterns refactored — greedy quantifiers with clear stop chars, no \s* inside groups
+- S3516: validate_remote_url returns None (void), callers use url directly
+- S5713: removed redundant urllib.error.URLError from except
+- config/defaults.py: DEFAULT_PRESETS_URL, _COMMON_EXCLUDE_DIRS, DEFAULT_EXCLUDE
+- config/urls.py: validate_remote_url with DNS-based local host check
+- Removed duplicated formatting/__init__.py (86% dup with formatter.py)
+- Removed unused ObjectStore/ContentFormatter Protocols from interfaces.py
+- Removed unused re-exports from domain/execution/__init__.py
+- Narrowed domain/__init__.py __all__ to public API only
+- Fixed ARCHITECTURE.md api/config imports claim
+- Quality Gate: 0 Security, 0 Reliability, 0 Maintainability issues
+
 ## v5.2.1 — SonarCloud + Audit fixes, test suite dedup, dead code removal
 - SonarCloud: 0 findings (S1172 x3, S2083 x4, S8707, S5852 x3 — all fixed)
 - Audit R1+R2: 25/25 findings fixed (2 HIGH, 5 MEDIUM, 7 LOW, 5 LEGACY, 6 code quality)
