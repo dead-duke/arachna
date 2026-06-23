@@ -4,7 +4,7 @@
 
 arachna is a context layer for AI workflows: snapshots, diffs, profiles. Collect once, diff forever.
 
-## Package structure (v5.2.2)
+## Package structure (v5.3.0)
 
 src/arachna/
   __init__.py           Version + public API re-exports
@@ -26,9 +26,10 @@ src/arachna/
     collection/
       __init__.py
       collector.py      Orchestrator: gather -> split -> write -> post_commands
-      gatherer.py       Facade over gatherer_files + gatherer_commands + gatherer_query + gatherer_strategies
+      gatherer.py       Facade over gatherer_files + gatherer_commands + gatherer_pre_commands + gatherer_query + gatherer_strategies
       gatherer_files.py Directory scanning, file formatting, exclude patterns
-      gatherer_commands.py  Command execution: pre_commands, gather_files, gather_command
+      gatherer_commands.py  Command execution: gather_files, gather_command
+      gatherer_pre_commands.py  Pre_commands execution (extracted to break cyclic import)
       gatherer_query.py Query pipeline: import graph, scoring, filtering
       gatherer_strategies.py  Strategy pattern: FullModeStrategy with _CollectParams dataclass
 
@@ -40,6 +41,7 @@ src/arachna/
       format_headers.py Deps/exports extraction for all languages (regex + AST)
       format_language.py Language detection, C_LIKE_LANGS, SCRIPT_LANGS, _EXT_LANG
       format_output.py  File section formatting (markdown/xml/json), SafePath integration
+      format_parsers.py Parser functions (extracted to break cyclic import)
       format_sigs.py    Signature formatting for repo-map mode
 
     tokenization/
@@ -60,6 +62,8 @@ src/arachna/
     profiler.py         Benchmark runner: measures token savings across modes
     remote.py           Remote repository collection (git clone + collect)
     profile_config.py   ProfileConfig.from_dict() + ArachnaConfig dataclasses
+    defaults.py         DEFAULT_PRESETS_URL, _COMMON_EXCLUDE_DIRS, DEFAULT_EXCLUDE
+    urls.py             URL validation with DNS-based local host check
 
     core/
       __init__.py
@@ -133,9 +137,25 @@ Snapshot layer imports from domain/.
 Config layer imports from domain/.
 Domain layer imports only from stdlib and other domain/ modules.
 
-No circular dependencies. No lazy imports between packages.
+No circular dependencies. Internal imports at module level. Only plugin lazy imports remain (tiktoken, transformers, tree-sitter).
 
 ## Key architectural decisions
+
+### v5.3.0: Audit resolution — 20 findings closed
+- **Exception narrowing:** atomic_write.py, differ_structural.py, language_dispatch.py — broad except Exception replaced with specific types.
+- **Splitter unification:** _handle_oversized_in_build removed. Command mode oversized sections split with CONTINUES/CONTINUED markers — same behaviour as file mode.
+- **ProfileConfig migration:** 7 functions migrated from dict to ProfileConfig. _collect_pre_commands extracted to gatherer_pre_commands.py to break cyclic import.
+- **Cyclic imports broken:** gatherer_pre_commands.py (gatherer_commands ↔ gatherer_files), format_parsers.py (format_headers ↔ language_dispatch). All internal imports lifted to module level.
+- **Collector dead code:** isinstance(profile, ProfileConfig) checks removed — all callers pass ProfileConfig.
+- **root: Path mandatory:** Every function that needs project root accepts explicit root parameter. Path.cwd() only in main() and _validate_preset_tokenizer.
+- **_read_file_from_disk:** bare Path fallback removed, SafePath only.
+- **__all__ cleanup:** domain/__init__.py, collection/__init__.py, snapshot/diff/__init__.py — private symbols removed.
+- **print() → logger:** gatherer_files.py, gatherer_strategies.py — warnings migrated to logger.warning()/logger.info().
+- **Compress stats:** _assemble_command_content now outputs compress statistics.
+- **differ_structural:** threading.Lock replaced with @lru_cache on _check_plugins().
+- **store.py:** explicit OSError warning on atomic_write_text fallback.
+- **SafePath in tokenizer.py:** I/O operations wrapped in SafePath.
+- 1660 tests, 96% coverage, 0 bugs.
 
 ### v5.2.2: SonarCloud + Audit fixes
 - **S2083 path_utils:** _check_toctou() returns SafePath, I/O methods use typed SafePath — closes S2083 in path_utils.py.
@@ -228,7 +248,7 @@ User installs: pip install arachna[javascript]
 
 ## Testing
 
-1644 tests, 96% coverage. Tests mirror src/arachna/ package structure.
+1660 tests, 96% coverage. Tests mirror src/arachna/ package structure.
 
 tests/
   domain/       Tests for domain/ modules

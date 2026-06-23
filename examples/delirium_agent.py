@@ -15,7 +15,7 @@ Run:
 from pathlib import Path
 
 from arachna import snapshot
-from arachna.collect_api import collect
+from arachna.api.collect_api import collect
 from arachna.config.core.config import get_profile, load_config
 from arachna.config.profile_config import ProfileConfig
 
@@ -24,8 +24,10 @@ class DeliriumAgent:
     """AI agent that uses arachna for efficient context management."""
 
     def __init__(self, profile: str = "full", root: Path | None = None):
+        if root is None:
+            raise ValueError("root is required. Pass Path.cwd() explicitly.")
         self.profile = profile
-        self.root = root or Path.cwd()
+        self.root = root
         self.config = load_config(root=self.root)
         self.snapshot_id = None
         self.task_name = None

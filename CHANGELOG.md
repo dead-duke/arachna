@@ -1,5 +1,20 @@
 # Changelog
 
+## v5.3.0 — Audit resolution: 20 findings closed
+- Exception narrowing: atomic_write.py, differ_structural.py, language_dispatch.py
+- Splitter unification: command mode oversized sections split with CONTINUES/CONTINUED markers
+- ProfileConfig migration: 7 functions migrated from dict to ProfileConfig, 10 .to_dict() call sites removed
+- Collector dead code: isinstance(profile, ProfileConfig) checks removed
+- Cyclic imports broken: gatherer_pre_commands.py, format_parsers.py extracted
+- root: Path made mandatory everywhere except _validate_preset_tokenizer + main()
+- _read_file_from_disk: bare Path fallback removed, SafePath only
+- __all__ cleanup: domain/__init__.py, collection/__init__.py, snapshot/diff/__init__.py
+- print() migrated to logger in gatherer_files + gatherer_strategies
+- Compress stats in _assemble_command_content
+- differ_structural: threading.Lock replaced with @lru_cache
+- store.py: explicit OSError warning on atomic_write_text fallback
+- 1660 tests, 96% coverage, 0 bugs
+
 ## v5.2.2 — SonarCloud Security + Code Quality: 0 findings
 - S2083/S8707: inline path validation in SafePath I/O methods + explicit validate_path before I/O
 - S5332: urlparse-based URL validation, http only for local/private hosts via DNS
