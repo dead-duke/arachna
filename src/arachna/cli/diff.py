@@ -117,7 +117,9 @@ def _write_diff_output(sections, snapshot_id, to_snapshot_id, profile, config, a
     out_path.mkdir(parents=True, exist_ok=True)
     max_tokens = profile.max_tokens
     tokenizer_spec = profile.tokenizer
-    tokenizer = load_tokenizer(tokenizer_spec) if tokenizer_spec != "default" else count_tokens
+    tokenizer = (
+        load_tokenizer(tokenizer_spec, root=root) if tokenizer_spec != "default" else count_tokens
+    )
     if to_snapshot_id:
         name_tmpl = f"chat-diff-{snapshot_id}-to-{to_snapshot_id}"
         title_tmpl = f"# {project_name} — DIFF from {snapshot_id} to {to_snapshot_id} (part {{part}} of {{total}})\n\n"

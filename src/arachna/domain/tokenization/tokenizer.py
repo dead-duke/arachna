@@ -144,7 +144,7 @@ _ALLOWED_TOP_LEVEL = (
 def _validate_top_level_statements(filepath: Path) -> bool:
     try:
         tree = _ast.parse(SafePath(filepath, filepath.parent).read_text(encoding="utf-8"))
-    except (SyntaxError, OSError, UnicodeDecodeError, ValueError):
+    except (SyntaxError, OSError, ValueError):
         return False
     for node in tree.body:
         if not isinstance(node, _ALLOWED_TOP_LEVEL):
@@ -168,7 +168,7 @@ def _has_call_in_assign(node):
 def _safe_local_imports(filepath: Path) -> bool:
     try:
         tree = _ast.parse(SafePath(filepath, filepath.parent).read_text(encoding="utf-8"))
-    except (SyntaxError, OSError, UnicodeDecodeError, ValueError):
+    except (SyntaxError, OSError, ValueError):
         return False
     for node in _ast.walk(tree):
         if isinstance(node, _ast.Import):
