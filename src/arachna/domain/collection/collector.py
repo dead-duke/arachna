@@ -10,7 +10,6 @@ import time
 from pathlib import Path
 
 from ...config import CollectionMode
-from ...config.profile_config import ProfileConfig
 from ..api_types import PipelineMetrics
 from ..atomic_write import atomic_write_text
 from ..cache.cache import load_cache, save_cache
@@ -278,7 +277,7 @@ def _write_metrics(out_path: SafePath, metrics: PipelineMetrics):
 
 
 def _build_profile_for_collect(profile, name_template, allow_pre_commands):
-    profile_dict = profile.to_dict() if isinstance(profile, ProfileConfig) else dict(profile)
+    profile_dict = profile.to_dict()
     if not allow_pre_commands:
         profile_dict["pre_commands"] = []
         profile_dict["post_commands"] = []
@@ -287,12 +286,8 @@ def _build_profile_for_collect(profile, name_template, allow_pre_commands):
 
 
 def _build_tokenizer(profile, root) -> Tokenizer:
-    if isinstance(profile, ProfileConfig):
-        spec = profile.tokenizer
-        chars = profile.chars_per_token
-    else:
-        spec = profile.get("tokenizer", "default")
-        chars = profile.get("chars_per_token")
+    spec = profile.tokenizer
+    chars = profile.chars_per_token
     return load_tokenizer(spec, chars_per_token=chars, root=root)
 
 

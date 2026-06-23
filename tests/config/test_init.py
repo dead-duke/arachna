@@ -14,7 +14,7 @@ def test_run_defaults_creates_config(tmp_path):
     with patch(
         "arachna.config.setup.init.detect_presets", return_value=["python", "docs", "config", "git"]
     ):
-        run_defaults(output_dir="out", root=tmp_path)
+        run_defaults(tmp_path, output_dir="out")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -28,7 +28,7 @@ def test_run_defaults_empty_project(tmp_path):
     (tmp_path / ".git").mkdir()
 
     with patch("arachna.config.setup.init.detect_presets", return_value=["git"]):
-        run_defaults(output_dir="out", root=tmp_path)
+        run_defaults(tmp_path, output_dir="out")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -40,7 +40,7 @@ def test_run_defaults_creates_output_dir(tmp_path):
     (tmp_path / ".git").mkdir()
 
     with patch("arachna.config.setup.init.detect_presets", return_value=["git"]):
-        run_defaults(output_dir="out", root=tmp_path)
+        run_defaults(tmp_path, output_dir="out")
 
     assert (tmp_path / "out").is_dir()
 
@@ -50,7 +50,7 @@ def test_run_defaults_detects_godot(tmp_path):
     (tmp_path / ".git").mkdir()
 
     with patch("arachna.config.setup.init.detect_presets", return_value=["godot", "git"]):
-        run_defaults(output_dir="out", root=tmp_path)
+        run_defaults(tmp_path, output_dir="out")
 
     data = json.loads((tmp_path / ".arachna.json").read_text())
     assert "godot" in data["profiles"]
@@ -61,7 +61,7 @@ def test_run_defaults_detects_docker(tmp_path):
     (tmp_path / ".git").mkdir()
 
     with patch("arachna.config.setup.init.detect_presets", return_value=["docker", "git"]):
-        run_defaults(output_dir="out", root=tmp_path)
+        run_defaults(tmp_path, output_dir="out")
 
     data = json.loads((tmp_path / ".arachna.json").read_text())
     assert "docker" in data["profiles"]
@@ -78,7 +78,7 @@ def test_run_interactive_basic(tmp_path):
         patch("arachna.config.setup.init.detect_presets", return_value=["python", "docs", "git"]),
         patch("builtins.input", side_effect=["TestProject", "out", "16000", "y", "y", "y", "y"]),
     ):
-        run_interactive(output_dir=".", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -95,7 +95,7 @@ def test_run_interactive_defaults_on_enter(tmp_path):
         patch("arachna.config.setup.init.detect_presets", return_value=["docs", "git"]),
         patch("builtins.input", side_effect=["", "", "", "y", "y", "y"]),
     ):
-        run_interactive(output_dir=".", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -109,7 +109,7 @@ def test_run_interactive_decline_profile(tmp_path):
         patch("arachna.config.setup.init.detect_presets", return_value=["docker", "git"]),
         patch("builtins.input", side_effect=["TestProject", "out", "16000", "n", "y", "y"]),
     ):
-        run_interactive(output_dir=".", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -126,7 +126,7 @@ def test_run_interactive_existing_config_overwrite(tmp_path):
         patch("arachna.config.setup.init.detect_presets", return_value=["git"]),
         patch("builtins.input", side_effect=["y", "NewProject", "out", "16000", "y", "y"]),
     ):
-        run_interactive(output_dir=".", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -141,7 +141,7 @@ def test_run_interactive_existing_config_abort(tmp_path):
         patch("arachna.config.setup.init.detect_presets", return_value=["git"]),
         patch("builtins.input", side_effect=["n"]),
     ):
-        run_interactive(output_dir=".", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()

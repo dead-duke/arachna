@@ -8,10 +8,7 @@ from .core.validator import validate_profile
 from .profile_config import ProfileConfig
 
 
-def run_doctor(project_root: Path | None = None, config: dict | None = None) -> dict:
-    if project_root is None:
-        project_root = Path.cwd()
-
+def run_doctor(project_root: Path, config: dict | None = None) -> dict:
     result = {
         "profiles": {},
         "gitignore": [],

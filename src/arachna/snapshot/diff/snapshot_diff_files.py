@@ -176,16 +176,8 @@ def _read_file_from_store(path, files, root):
     return None
 
 
-def _read_file_from_disk(path, root=None):
-    fp = Path(str(path))
-    if root is not None:
-        sfp = SafePath(fp, root)
-        if not sfp.is_file():
-            return None
-        try:
-            return sfp.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            return None
+def _read_file_from_disk(path, root):
+    fp = SafePath(Path(str(path)), root)
     if not fp.is_file():
         return None
     try:

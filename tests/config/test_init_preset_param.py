@@ -10,7 +10,7 @@ def test_run_defaults_preset_filters_detection(tmp_path):
     (tmp_path / "src" / "main.py").write_text("x")
     (tmp_path / ".git").mkdir()
 
-    run_defaults(output_dir="out", preset="godot", root=tmp_path)
+    run_defaults(tmp_path, output_dir="out", preset="godot")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -22,7 +22,7 @@ def test_run_defaults_preset_filters_detection(tmp_path):
 def test_run_defaults_preset_unknown(tmp_path):
     (tmp_path / ".git").mkdir()
 
-    run_defaults(output_dir="out", preset="nonexistent_preset", root=tmp_path)
+    run_defaults(tmp_path, output_dir="out", preset="nonexistent_preset")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -39,9 +39,9 @@ def test_run_interactive_with_preset_param(tmp_path):
         patch("builtins.input", side_effect=["TestProject", "out", "16000", "y", "y"]),
     ):
         mock_detect.return_value = ["godot"]
-        run_interactive(output_dir=".", preset="godot", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".", preset="godot")
 
-    mock_detect.assert_called_once_with(preset_name="godot", root=tmp_path)
+    mock_detect.assert_called_once_with(root=tmp_path, preset_name="godot")
 
 
 def test_run_interactive_preset_filters_autodetection(tmp_path):
@@ -52,7 +52,7 @@ def test_run_interactive_preset_filters_autodetection(tmp_path):
     (tmp_path / ".git").mkdir()
 
     with patch("builtins.input", side_effect=["TestProject", "out", "16000", "y", "y"]):
-        run_interactive(output_dir=".", preset="godot", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".", preset="godot")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()
@@ -69,7 +69,7 @@ def test_run_interactive_no_preset_full_autodetect(tmp_path):
     (tmp_path / ".git").mkdir()
 
     with patch("builtins.input", side_effect=["TestProject", "out", "16000", "y", "y", "y", "y"]):
-        run_interactive(output_dir=".", root=tmp_path)
+        run_interactive(tmp_path, output_dir=".")
 
     cfg = tmp_path / ".arachna.json"
     assert cfg.exists()

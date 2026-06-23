@@ -258,9 +258,9 @@ def _cmd_collect_repo(args, config: ArachnaConfig):
         print(
             collect_remote(
                 url=url,
+                root=root,
                 profile=args.profile or "full",
                 output_dir=parse_output_dir(args, config),
-                root=root,
             )
         )
     except (OSError, RuntimeError, subprocess.CalledProcessError) as e:

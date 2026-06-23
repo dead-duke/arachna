@@ -35,18 +35,16 @@ def _validate_output_dir(output_dir: str) -> str:
     return output_dir
 
 
-def run_defaults(output_dir: str = ".", preset: str | None = None, root: Path | None = None):
-    if root is None:
-        root = Path.cwd()
+def run_defaults(root: Path, output_dir: str = ".", preset: str | None = None):
     project_name = root.resolve().name
     config = {"project_name": project_name, "output_dir": output_dir, "profiles": {}}
-    detected = detect_presets(preset_name=preset, root=root)
+    detected = detect_presets(root=root, preset_name=preset)
     if not detected:
         print("Warning: no presets detected for this project.")
         print("  You can create a custom preset in presets.json.")
         print("  Run 'arachna --init' for interactive setup.")
     for name in detected:
-        profile = preset_to_profile(name)
+        profile = preset_to_profile(name, root=root)
         if profile:
             config["profiles"][name] = profile
     _write_config(root, config, output_dir)
@@ -54,10 +52,10 @@ def run_defaults(output_dir: str = ".", preset: str | None = None, root: Path | 
         print(f"Profiles: {', '.join(config['profiles'].keys())}")
 
 
-def _collect_interactive_profiles(detected, max_tokens):
+def _collect_interactive_profiles(detected, max_tokens, root):
     profiles = {}
     for name in detected:
-        profile = preset_to_profile(name)
+        profile = preset_to_profile(name, root=root)
         if profile is None:
             continue
         profile["max_tokens"] = max_tokens
@@ -74,9 +72,7 @@ def _collect_interactive_profiles(detected, max_tokens):
     return profiles
 
 
-def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path | None = None):
-    if root is None:
-        root = Path.cwd()
+def run_interactive(root: Path, output_dir: str = ".", preset: str | None = None):
     from ..core.config import find_config
 
     existing = find_config(root=root)
@@ -92,8 +88,8 @@ def run_interactive(output_dir: str = ".", preset: str | None = None, root: Path
     print(_SEPARATOR)
     print("Detected:")
     print(_SEPARATOR)
-    detected = detect_presets(preset_name=preset, root=root)
-    profiles = _collect_interactive_profiles(detected, max_tokens)
+    detected = detect_presets(root=root, preset_name=preset)
+    profiles = _collect_interactive_profiles(detected, max_tokens, root)
     config = {"project_name": project_name, "output_dir": output_dir, "profiles": profiles}
     print()
     print(_SEPARATOR)

@@ -50,27 +50,27 @@ def test_detect_dir_found(tmp_path):
     d = tmp_path / "src"
     d.mkdir()
     (d / "main.py").write_text("x")
-    assert _detect_dir(str(d))
+    assert _detect_dir(str(d), root=tmp_path)
 
 
 def test_detect_dir_empty(tmp_path):
     d = tmp_path / "empty"
     d.mkdir()
-    assert not _detect_dir(str(d))
+    assert not _detect_dir(str(d), root=tmp_path)
 
 
 def test_detect_dir_not_found(tmp_path):
-    assert not _detect_dir(str(tmp_path / "nope"))
+    assert not _detect_dir(str(tmp_path / "nope"), root=tmp_path)
 
 
 def test_detect_file_found(tmp_path):
     f = tmp_path / "README.md"
     f.write_text("x")
-    assert _detect_file(str(f))
+    assert _detect_file(str(f), root=tmp_path)
 
 
 def test_detect_file_not_found(tmp_path):
-    assert not _detect_file(str(tmp_path / "nope.txt"))
+    assert not _detect_file(str(tmp_path / "nope.txt"), root=tmp_path)
 
 
 def test_detect_any_dir(tmp_path):
@@ -209,28 +209,28 @@ def test_detect_multiple(tmp_path):
 
 def test_detect_presets_explicit_valid(tmp_path):
     (tmp_path / "project.godot").write_text("x")
-    detected = detect_presets(preset_name="godot", root=tmp_path)
+    detected = detect_presets(tmp_path, preset_name="godot")
     assert detected == ["godot"]
 
 
 def test_detect_presets_explicit_no_match(tmp_path):
-    detected = detect_presets(preset_name="godot", root=tmp_path)
+    detected = detect_presets(tmp_path, preset_name="godot")
     assert detected == []
 
 
 def test_detect_presets_explicit_unknown(tmp_path):
-    detected = detect_presets(preset_name="nonexistent", root=tmp_path)
+    detected = detect_presets(tmp_path, preset_name="nonexistent")
     assert detected == []
 
 
 def test_detect_presets_explicit_service_no_match(tmp_path):
-    detected = detect_presets(preset_name="git", root=tmp_path)
+    detected = detect_presets(tmp_path, preset_name="git")
     assert detected == []
 
 
 def test_detect_presets_explicit_service_with_match(tmp_path):
     (tmp_path / ".git").mkdir()
-    detected = detect_presets(preset_name="git", root=tmp_path)
+    detected = detect_presets(tmp_path, preset_name="git")
     assert detected == ["git"]
 
 
@@ -239,12 +239,12 @@ def test_detect_presets_explicit_override(tmp_path):
     (tmp_path / "src" / "main.py").write_text("x")
     (tmp_path / "Dockerfile").write_text("FROM python")
     (tmp_path / ".git").mkdir()
-    detected = detect_presets(preset_name="docker", root=tmp_path)
+    detected = detect_presets(tmp_path, preset_name="docker")
     assert detected == ["docker"]
 
 
 def test_detect_presets_explicit_config_no_detect_paths(tmp_path):
-    detected = detect_presets(preset_name="config", root=tmp_path)
+    detected = detect_presets(tmp_path, preset_name="config")
     assert detected == ["config"]
 
 
@@ -267,8 +267,8 @@ def test_preset_to_profile_git(tmp_path):
     assert "directories" not in profile
 
 
-def test_preset_to_profile_unknown():
-    assert preset_to_profile("nonexistent") is None
+def test_preset_to_profile_unknown(tmp_path):
+    assert preset_to_profile("nonexistent", root=tmp_path) is None
 
 
 def test_preset_to_profile_docker(tmp_path):
@@ -610,7 +610,7 @@ def test_detect_presets_explicit_external_with_name(tmp_path):
             }
         )
     )
-    detected = detect_presets(preset_name="my_game", root=tmp_path, external_path=f)
+    detected = detect_presets(tmp_path, preset_name="my_game", external_path=f)
     assert detected == ["my_game"]
 
 
@@ -629,7 +629,7 @@ def test_detect_presets_explicit_external_no_match(tmp_path):
             }
         )
     )
-    detected = detect_presets(preset_name="my_game", root=tmp_path, external_path=f)
+    detected = detect_presets(tmp_path, preset_name="my_game", external_path=f)
     assert detected == []
 
 
@@ -671,7 +671,7 @@ def test_detect_presets_explicit_external_service_always_allowed(tmp_path):
             }
         )
     )
-    detected = detect_presets(preset_name="my_tool", root=tmp_path, external_path=f)
+    detected = detect_presets(tmp_path, preset_name="my_tool", external_path=f)
     assert detected == ["my_tool"]
 
 
@@ -690,5 +690,5 @@ def test_detect_presets_explicit_external_unknown_name(tmp_path):
             }
         )
     )
-    detected = detect_presets(preset_name="nonexistent", root=tmp_path, external_path=f)
+    detected = detect_presets(tmp_path, preset_name="nonexistent", external_path=f)
     assert detected == []

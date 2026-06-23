@@ -9,13 +9,10 @@ _HOOK_SCRIPT_TEMPLATE = "#!/bin/sh\n{command}\n"
 
 
 def install_hook(
+    root: Path,
     command: str | None = None,
     force: bool = False,
-    root: Path | None = None,
 ) -> tuple[bool, str]:
-    if root is None:
-        root = Path.cwd()
-
     git_dir = root / ".git"
     if not git_dir.is_dir():
         return False, "Not a git repository (.git directory not found)"

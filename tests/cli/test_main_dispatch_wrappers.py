@@ -1,4 +1,4 @@
-"""Tests for dispatch wrappers in __main__.py — _dispatch_snapshot_wrapper, _dispatch_store_wrapper, etc."""
+"""Tests for dispatch wrappers in __main__.py — _dispatch_init_wrapper, etc."""
 
 import json
 from argparse import Namespace
@@ -6,12 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from arachna.__main__ import (
-    _dispatch_init_wrapper,
-    _dispatch_plugins_wrapper,
-    _dispatch_snapshot_wrapper,
-    _dispatch_store_wrapper,
-)
+from arachna.__main__ import _dispatch_init_wrapper
+from arachna.cli.plugins import _dispatch_plugins
+from arachna.cli.snapshot import _dispatch_snapshot
+from arachna.cli.store import _dispatch_store
 
 
 def test_dispatch_init_wrapper_install_hook(tmp_path):
@@ -43,37 +41,37 @@ def test_dispatch_init_wrapper_defaults(tmp_path):
 
 
 def test_dispatch_snapshot_wrapper_list(tmp_path):
-    """_dispatch_snapshot_wrapper with snap_command='list' lists snapshots."""
+    """_dispatch_snapshot with snap_command='list' lists snapshots."""
     from arachna.config.profile_config import ArachnaConfig
 
     config = ArachnaConfig(project_name="test", output_dir="out", _root=str(tmp_path), profiles={})
     parser = Namespace()
     args = Namespace(snap_command="list")
-    _dispatch_snapshot_wrapper(args, config, parser)
+    _dispatch_snapshot(args, config, parser)
 
 
 def test_dispatch_store_wrapper_stats(tmp_path):
-    """_dispatch_store_wrapper with store_command='stats' shows stats."""
+    """_dispatch_store with store_command='stats' shows stats."""
     from arachna.config.profile_config import ArachnaConfig
 
     config = ArachnaConfig(project_name="test", output_dir="out", _root=str(tmp_path), profiles={})
     parser = Namespace()
     args = Namespace(store_command="stats")
-    _dispatch_store_wrapper(args, config, parser)
+    _dispatch_store(args, config, parser)
 
 
 def test_dispatch_plugins_wrapper_list(tmp_path):
-    """_dispatch_plugins_wrapper with plugins_command='list' lists plugins."""
+    """_dispatch_plugins with plugins_command='list' lists plugins."""
     from arachna.config.profile_config import ArachnaConfig
 
     config = ArachnaConfig(project_name="test", output_dir="out", _root=str(tmp_path), profiles={})
     parser = Namespace()
     args = Namespace(plugins_command="list")
-    _dispatch_plugins_wrapper(args, config, parser)
+    _dispatch_plugins(args, config, parser)
 
 
 def test_dispatch_plugins_wrapper_unknown(tmp_path):
-    """_dispatch_plugins_wrapper with unknown command exits 1."""
+    """_dispatch_plugins with unknown command exits 1."""
     from arachna.config.profile_config import ArachnaConfig
 
     config = ArachnaConfig(project_name="test", output_dir="out", _root=str(tmp_path), profiles={})
@@ -86,4 +84,4 @@ def test_dispatch_plugins_wrapper_unknown(tmp_path):
     plugins_subs.add_parser("list")
     args = Namespace(plugins_command="unknown_cmd")
     with pytest.raises(SystemExit):
-        _dispatch_plugins_wrapper(args, config, parser)
+        _dispatch_plugins(args, config, parser)

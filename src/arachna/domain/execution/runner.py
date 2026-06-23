@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger("arachna.runner")
@@ -279,8 +280,6 @@ def _log_command(cmd, success, root, log_writer=None):
     log_path = _get_audit_log_path(root)
     if log_path is None:
         return
-    from datetime import datetime
-
     status = "OK" if success else "FAIL"
     sanitized_cmd = _sanitize_log(cmd)
     _write_log(

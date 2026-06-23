@@ -4,14 +4,18 @@ Orchestrates file collection, command execution, and mode dispatch.
 Thin facade over gatherer_files, gatherer_commands, and gatherer_strategies.
 """
 
+import logging
+
 from ...config import CollectionMode
 from ..compressor import compress as _compress
 from ..execution.splitter import split
 from ..interfaces import Tokenizer
 from ..tokenization.tokenizer import count_tokens
 from .gatherer_commands import gather_command, gather_files
-from .gatherer_files import _get_exclude_patterns, _scan_directories
+from .gatherer_files import _get_exclude_patterns, _print_compress_stats, _scan_directories
 from .gatherer_strategies import get_mode_strategies
+
+logger = logging.getLogger("arachna.gatherer")
 
 __all__ = [
     "_assemble_content",
@@ -29,9 +33,13 @@ def _assemble_command_content(profile, tokenizer, root):
     split_marker = profile.split_marker
     max_tokens = profile.max_tokens
     raw_content = gather_command(command, root=root)
+    raw_tokens = tokenizer(raw_content)
     if do_compress and raw_content.strip():
         raw_content = _compress(raw_content)
-    named_sections = [("command output", raw_content, tokenizer(raw_content))]
+    comp_tokens = tokenizer(raw_content)
+    if do_compress and raw_tokens > 0:
+        _print_compress_stats(raw_tokens, comp_tokens)
+    named_sections = [("command output", raw_content, comp_tokens)]
     parts = split(raw_content, max_tokens, split_mode, split_marker, tokenizer=tokenizer)
     indices = [[0] for _ in parts]
     return named_sections, parts, indices, {}
@@ -66,8 +74,8 @@ def _assemble_content(
 ):
     if profile.command:
         if profile.directories or profile.files:
-            print(
-                "  Warning: profile has both 'command' and 'directories'/'files'. Using 'command', ignoring directories and files."
+            logger.warning(
+                "profile has both 'command' and 'directories'/'files'. Using 'command', ignoring directories and files."
             )
         return _assemble_command_content(profile, tokenizer, root)
     return _assemble_file_content(

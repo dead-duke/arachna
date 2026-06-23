@@ -1,12 +1,13 @@
 """Coverage for load_tokenizer import paths."""
 
 import sys
+from pathlib import Path
 
 from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer, load_tokenizer
 
 
 def test_load_tokenizer_custom_chars_per_token():
-    tok = load_tokenizer("default", chars_per_token=2)
+    tok = load_tokenizer("default", root=Path.cwd(), chars_per_token=2)
     assert tok("abcdefgh") == 4
 
 
@@ -14,7 +15,7 @@ def test_load_tokenizer_local_file_no_colon(tmp_path):
     (tmp_path / "simple_tok.py").write_text("def count_tokens(t): return 42\n")
     sys.path.insert(0, str(tmp_path))
     try:
-        tok = load_tokenizer("simple_tok")
+        tok = load_tokenizer("simple_tok", root=tmp_path)
         assert tok("anything") == 42
     finally:
         sys.path.pop(0)

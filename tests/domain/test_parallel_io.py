@@ -1,5 +1,6 @@
 """Tests for parallel I/O — workers, fallback, order preservation, edge cases."""
 
+import logging
 import os
 from unittest.mock import patch
 
@@ -232,22 +233,22 @@ def test_assemble_in_memory_unlimited_tokens(tmp_path):
     assert len(parts) == 1
 
 
-def test_assemble_in_memory_verbose_compress_stats(tmp_path, capsys):
+def test_assemble_in_memory_verbose_compress_stats(tmp_path, caplog):
     src = tmp_path / "src"
     src.mkdir()
     (src / "main.py").write_text("a\n\n\n\nb\n")
     profile = _profile(compress=True, max_tokens=10)
-    named, parts, indices, cache = _assemble_in_memory(
-        profile,
-        [],
-        count_tokens,
-        root=tmp_path,
-        incremental=False,
-        cache=None,
-        verbose=True,
-        query=None,
-        mode="repo-map",
-        graph_cache={},
-    )
-    captured = capsys.readouterr()
-    assert "Compressed:" in captured.out
+    with caplog.at_level(logging.INFO, logger="arachna.gatherer_files"):
+        _assemble_in_memory(
+            profile,
+            [],
+            count_tokens,
+            root=tmp_path,
+            incremental=False,
+            cache=None,
+            verbose=True,
+            query=None,
+            mode="repo-map",
+            graph_cache={},
+        )
+    assert "Compressed:" in caplog.text

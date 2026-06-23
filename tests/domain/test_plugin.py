@@ -7,12 +7,12 @@ from arachna.domain.tokenization.tokenizer import load_tokenizer
 
 
 def test_load_default():
-    tokenize = load_tokenizer("default")
+    tokenize = load_tokenizer("default", root=Path.cwd())
     assert tokenize("hello world") == 2
 
 
 def test_load_empty():
-    tokenize = load_tokenizer("")
+    tokenize = load_tokenizer("", root=Path.cwd())
     assert tokenize("hello world") == 2
 
 
@@ -22,7 +22,7 @@ def test_load_custom_module():
         f.write_text("def count_tokens(text: str) -> int:\n    return 999\n")
         sys.path.insert(0, d)
         try:
-            tokenize = load_tokenizer("my_tok")
+            tokenize = load_tokenizer("my_tok", root=Path(d))
             assert tokenize("anything") == 999
         finally:
             sys.path.pop(0)
@@ -38,7 +38,7 @@ def test_load_custom_module_with_function():
         f.write_text("def my_counter(text: str) -> int:\n    return len(text)\n")
         sys.path.insert(0, d)
         try:
-            tokenize = load_tokenizer("my_tok2:my_counter")
+            tokenize = load_tokenizer("my_tok2:my_counter", root=Path(d))
             assert tokenize("hello") == 5
         finally:
             sys.path.pop(0)

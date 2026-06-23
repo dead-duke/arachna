@@ -31,7 +31,8 @@ def test_by_paragraph():
 
 def test_by_paragraph_small_limit():
     parts = split("a" * 200 + "\n\n" + "b" * 200, max_tokens=10, mode="by_paragraph")
-    assert len(parts) == 2
+    # Both paragraphs are oversized and get split into multiple parts with CONTINUES/CONTINUED markers
+    assert len(parts) > 2
 
 
 def test_by_marker():
@@ -47,7 +48,8 @@ def test_by_marker():
 def test_by_marker_multiple():
     content = "\n\n=== A ===\n" + "x" * 500 + "\n\n=== B ===\n" + "y" * 500
     parts = split(content, max_tokens=10, mode="by_marker", marker="\n\n=== ")
-    assert len(parts) == 2
+    # Both sections are oversized and get split into multiple parts with CONTINUES/CONTINUED markers
+    assert len(parts) > 2
 
 
 def test_single_mode():

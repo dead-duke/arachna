@@ -9,11 +9,13 @@ Safe tokenizers list configurable via ARACHNA_SAFE_TOKENIZERS env var.
 
 import ast as _ast
 import functools
+import importlib.util
 import os as _os
 import sys
 from pathlib import Path
 
 from ..interfaces import Tokenizer
+from ..path_utils import SafePath
 
 _INIT_FILE = "__init__.py"
 
@@ -101,22 +103,23 @@ def _find_local_module_path(module_name: str, root: Path) -> Path | None:
     paths_to_check = [root] + [Path(p) for p in sys.path if p]
     try:
         for base in paths_to_check:
-            candidate = base / f"{module_name}.py"
+            candidate = SafePath(base / f"{module_name}.py", base)
             if candidate.is_file():
-                return candidate
-            candidate_pkg = base / module_name
-            if candidate_pkg.is_dir() and (candidate_pkg / _INIT_FILE).is_file():
-                return candidate_pkg / _INIT_FILE
-    except OSError:
+                return candidate.to_path()
+            candidate_pkg = SafePath(base / module_name, base)
+            if (
+                candidate_pkg.is_dir()
+                and SafePath(candidate_pkg.to_path() / _INIT_FILE, base).is_file()
+            ):
+                return SafePath(candidate_pkg.to_path() / _INIT_FILE, base).to_path()
+    except (OSError, ValueError):
         pass
     return None
 
 
-def _is_safe_tokenizer(spec: str, root: Path | None = None) -> bool:
+def _is_safe_tokenizer(spec: str, root: Path) -> bool:
     if not spec or spec == "default":
         return True
-    if root is None:
-        root = Path.cwd()
     module_name = spec.split(":", 1)[0]
     safe_tokenizers = _get_safe_tokenizers()
     result = _is_safe_by_name(module_name, safe_tokenizers)
@@ -140,8 +143,8 @@ _ALLOWED_TOP_LEVEL = (
 
 def _validate_top_level_statements(filepath: Path) -> bool:
     try:
-        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
-    except (SyntaxError, OSError, UnicodeDecodeError):
+        tree = _ast.parse(SafePath(filepath, filepath.parent).read_text(encoding="utf-8"))
+    except (SyntaxError, OSError, UnicodeDecodeError, ValueError):
         return False
     for node in tree.body:
         if not isinstance(node, _ALLOWED_TOP_LEVEL):
@@ -164,8 +167,8 @@ def _has_call_in_assign(node):
 
 def _safe_local_imports(filepath: Path) -> bool:
     try:
-        tree = _ast.parse(filepath.read_text(encoding="utf-8"))
-    except (SyntaxError, OSError, UnicodeDecodeError):
+        tree = _ast.parse(SafePath(filepath, filepath.parent).read_text(encoding="utf-8"))
+    except (SyntaxError, OSError, UnicodeDecodeError, ValueError):
         return False
     for node in _ast.walk(tree):
         if isinstance(node, _ast.Import):
@@ -219,23 +222,22 @@ def _load_transformers(spec: str) -> Tokenizer:
     return lambda text: len(tok.encode(text))
 
 
-def _find_module_path(module_name: str, root: Path | None = None) -> Path | None:
-    if root is None:
-        root = Path.cwd()
+def _find_module_path(module_name: str, root: Path) -> Path | None:
     paths_to_check = [root] + [Path(p) for p in sys.path if p]
     for base in paths_to_check:
-        candidate = base / f"{module_name}.py"
+        candidate = SafePath(base / f"{module_name}.py", base)
         if candidate.is_file():
-            return candidate
-        candidate_pkg = base / module_name
-        if candidate_pkg.is_dir() and (candidate_pkg / _INIT_FILE).is_file():
-            return candidate_pkg / _INIT_FILE
+            return candidate.to_path()
+        candidate_pkg = SafePath(base / module_name, base)
+        if (
+            candidate_pkg.is_dir()
+            and SafePath(candidate_pkg.to_path() / _INIT_FILE, base).is_file()
+        ):
+            return SafePath(candidate_pkg.to_path() / _INIT_FILE, base).to_path()
     return None
 
 
 def _import_local_module(module_name: str, filepath: Path) -> object:
-    import importlib.util
-
     spec = importlib.util.spec_from_file_location(module_name, str(filepath))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -250,9 +252,7 @@ def count_tokens(text: str, chars_per_token: int | None = None) -> int:
     return max(1, len(text) // chars_per_token)
 
 
-def load_tokenizer(
-    spec: str, chars_per_token: int | None = None, root: Path | None = None
-) -> Tokenizer:
+def load_tokenizer(spec: str, root: Path, chars_per_token: int | None = None) -> Tokenizer:
     if not spec or spec == "default":
         cpt = chars_per_token if chars_per_token is not None else _get_default_chars_per_token()
         return lambda text: count_tokens(text, chars_per_token=cpt)

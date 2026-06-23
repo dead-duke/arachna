@@ -5,7 +5,7 @@ import logging
 import re
 
 from ...config import SplitMode
-from ..formatting.formatter import C_LIKE_LANGS, SCRIPT_LANGS
+from ..formatting.format_language import C_LIKE_LANGS, SCRIPT_LANGS
 from ..interfaces import Tokenizer
 from ..tokenization.tokenizer import count_tokens
 
@@ -156,71 +156,27 @@ def pack_into_parts(sections, max_tokens, separator="\n\n", tokenizer: Tokenizer
     return _pack_section_into_parts(sections, max_tokens, separator, tk)
 
 
-def _handle_oversized_in_build(section, max_tokens, tk, current, parts):
-    if current:
-        parts.append(current.strip())
-    truncated, _ = _handle_single(section, max_tokens, tokenizer=tk)
-    logger.warning(
-        "Section too large: %s tokens exceeds limit of %s tokens, truncated",
-        tk(section),
-        max_tokens,
-    )
-    parts.extend(truncated)
-    return ""
+def _split_by_file(raw_content, max_tokens, marker, separator, tokenizer):
+    sections = _split_to_sections(raw_content, "\n\n### ")
+    return pack_into_parts(sections, max_tokens, separator, tokenizer)
 
 
-def _append_or_start_new(
-    current, current_tokens, section, section_tokens, max_tokens, separator, parts
-):
-    if current_tokens + section_tokens > max_tokens:
-        parts.append(current.strip())
-        return section, section_tokens
-    new_current = current + separator + section if current else section
-    return new_current, current_tokens + section_tokens
+def _split_by_paragraph(raw_content, max_tokens, marker, separator, tokenizer):
+    sections = _split_to_sections(raw_content, "\n\n")
+    return pack_into_parts(sections, max_tokens, separator, tokenizer)
 
 
-def _build_parts_for_sections(sections, max_tokens, separator, tk):
-    if max_tokens == -1:
-        content = separator.join(s.strip() for s in sections if s.strip())
-        return [content] if content else []
-    parts = []
-    current = ""
-    current_tokens = 0
-    for section in sections:
-        section = section.strip()
-        if not section:
-            continue
-        section_tokens = tk(section)
-        if section_tokens > max_tokens:
-            current = _handle_oversized_in_build(section, max_tokens, tk, current, parts)
-            current_tokens = 0
-            continue
-        current, current_tokens = _append_or_start_new(
-            current, current_tokens, section, section_tokens, max_tokens, separator, parts
-        )
-    if current.strip():
-        parts.append(current.strip())
-    return parts
+def _split_by_marker(raw_content, max_tokens, marker, separator, tokenizer):
+    sections = _split_to_sections(raw_content, marker)
+    return pack_into_parts(sections, max_tokens, separator, tokenizer)
 
 
-def _split_by_file(r, m, mrk, sep, tk):
-    return _build_parts_for_sections(_split_to_sections(r, "\n\n### "), m, sep, tk)
-
-
-def _split_by_paragraph(r, m, mrk, sep, tk):
-    return _build_parts_for_sections(_split_to_sections(r, "\n\n"), m, sep, tk)
-
-
-def _split_by_marker(r, m, mrk, sep, tk):
-    return _build_parts_for_sections(_split_to_sections(r, mrk), m, sep, tk)
-
-
-def _split_single(raw_content, max_tokens, marker, separator, tk):
-    parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tk)
+def _split_single(raw_content, max_tokens, marker, separator, tokenizer):
+    parts, was_truncated = _handle_single(raw_content, max_tokens, tokenizer=tokenizer)
     if was_truncated:
         logger.warning(
             "Content truncated: %s tokens exceeds limit of %s tokens",
-            tk(raw_content),
+            tokenizer(raw_content),
             max_tokens,
         )
     return parts
@@ -246,7 +202,10 @@ def split(
     if max_tokens == -1:
         return [raw_content.strip()] if raw_content.strip() else []
     handler = _SPLIT_MODE_DISPATCH.get(mode, _split_by_file)
-    return handler(raw_content, max_tokens, marker, separator, tk)
+    if mode == "single":
+        return handler(raw_content, max_tokens, marker, separator, tk)
+    parts, _indices = handler(raw_content, max_tokens, marker, separator, tk)
+    return parts
 
 
 def split_sections(sections, max_tokens, separator="\n\n", tokenizer: Tokenizer | None = None):

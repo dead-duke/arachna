@@ -1,7 +1,7 @@
 """Structural diff — understands code blocks, not just text lines."""
 
+import functools
 import logging
-import threading
 from pathlib import Path
 
 from ...config import OutputFormat
@@ -9,31 +9,6 @@ from ...domain.formatting.formatter import C_LIKE_LANGS, lang_for_path
 from ...domain.tokenization.language_dispatch import get_block_parser
 
 logger = logging.getLogger("arachna.differ_structural")
-
-_HAS_TS = False
-_HAS_TS_JS = False
-_HAS_TS_TS = False
-_HAS_TS_GO = False
-_check_plugins_lock = threading.Lock()
-_plugins_checked = False
-
-
-def _check_plugins():
-    global _HAS_TS, _HAS_TS_JS, _HAS_TS_TS, _HAS_TS_GO, _plugins_checked
-    with _check_plugins_lock:
-        if _plugins_checked:
-            return
-        _plugins_checked = True
-        try:
-            import tree_sitter  # noqa: F401
-
-            _HAS_TS = True
-        except ImportError:
-            _HAS_TS = _HAS_TS_JS = _HAS_TS_TS = _HAS_TS_GO = False
-            return
-        _HAS_TS_JS = _try_import("tree_sitter_javascript")
-        _HAS_TS_TS = _try_import("tree_sitter_typescript")
-        _HAS_TS_GO = _try_import("tree_sitter_go")
 
 
 def _try_import(name):
@@ -44,16 +19,30 @@ def _try_import(name):
         return False
 
 
-_check_plugins()
+@functools.lru_cache(maxsize=1)
+def _check_plugins():
+    """Lazy-check which tree-sitter plugins are installed. Cached after first call."""
+    result = {"has_ts": False, "js": False, "ts": False, "go": False}
+    try:
+        import tree_sitter  # noqa: F401
+
+        result["has_ts"] = True
+    except ImportError:
+        return result
+    result["js"] = _try_import("tree_sitter_javascript")
+    result["ts"] = _try_import("tree_sitter_typescript")
+    result["go"] = _try_import("tree_sitter_go")
+    return result
 
 
 def _has_tree_sitter_for(lang: str) -> bool:
+    plugins = _check_plugins()
     if lang == "javascript":
-        return _HAS_TS_JS
+        return plugins["js"]
     elif lang in ("typescript", "tsx"):
-        return _HAS_TS_TS
+        return plugins["ts"]
     elif lang == "go":
-        return _HAS_TS_GO
+        return plugins["go"]
     return False
 
 
@@ -119,7 +108,7 @@ def _structural_diff_tree_sitter(old_content, new_content, path, lang, fmt):
         return _format_block_diff(old_blocks, new_blocks, path, fmt)
     except ImportError:
         return _fallback_diff(old_content, new_content, path, fmt)
-    except Exception as e:
+    except (SyntaxError, OSError, RuntimeError, ValueError) as e:
         logger.warning("Tree-sitter diff failed for %s: %s. Falling back to text diff.", path, e)
         return _fallback_diff(old_content, new_content, path, fmt)
 

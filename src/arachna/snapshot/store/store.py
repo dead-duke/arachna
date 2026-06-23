@@ -36,6 +36,7 @@ def _store_root(root: Path) -> SafePath:
         try:
             atomic_write_text(gitignore, "*\n")
         except OSError:
+            logger.warning("Failed atomic write for .gitignore, falling back to direct write")
             gitignore.write_text("*\n")
     store_dir = arachna_dir / "store"
     store_dir.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,6 @@
 """Tokenization subpackage — token counting, language dispatch for parsing."""
 
+from ..formatting.format_parsers import get_header_parser
 from .language_dispatch import (
     _BLOCK_PATTERNS,
     BLOCK_PARSERS,
@@ -15,7 +16,6 @@ from .language_dispatch import (
     _run_with_timeout,
     _strip_strings_and_comments,
     get_block_parser,
-    get_header_parser,
 )
 from .tokenizer import (
     _is_safe_tokenizer,

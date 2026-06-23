@@ -1,13 +1,16 @@
 """Collection strategies."""
 
 import functools
+import logging
 import os as _os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from ...config import CollectionMode
+from ..cache.cache import get_changed_files, update_cache
 from ..compressor import compress as _compress
 from ..execution.splitter import pack_into_parts, split_sections
 from .gatherer_files import (
@@ -16,7 +19,10 @@ from .gatherer_files import (
     _print_compress_stats,
     _scan_directories,
 )
+from .gatherer_pre_commands import _collect_pre_commands
 from .gatherer_query import _filter_by_query, _filter_filenames_by_query
+
+logger = logging.getLogger("arachna.gatherer_strategies")
 
 
 @dataclass
@@ -45,8 +51,6 @@ class _FullModeStrategy:
         self._graph_cache: dict = {}
 
     def _resolve_target_files(self, profile, exclude, root, incremental, cache, query):
-        from ..cache.cache import get_changed_files, update_cache
-
         filepaths = _scan_directories(profile, exclude, root)
         for fp in _get_profile_files(profile, exclude, root):
             if fp not in filepaths:
@@ -57,7 +61,7 @@ class _FullModeStrategy:
             for del_path in deleted:
                 cache.pop(str(del_path), None)
             if deleted:
-                print(f"  Deleted: {len(deleted)} file(s)")
+                logger.info("Deleted: %d file(s)", len(deleted))
         else:
             target_files = filepaths
         if query and query.strip():
@@ -98,14 +102,12 @@ class _FullModeStrategy:
         return parts, indices
 
     def assemble(self, profile, exclude, tokenizer, root, incremental, cache, verbose, query):
-        from .gatherer_commands import _collect_pre_commands
-
         max_tokens = profile.max_tokens
         do_compress = profile.compress
         target_files, new_cache = self._resolve_target_files(
             profile, exclude, root, incremental, cache, query
         )
-        pre_sections = _collect_pre_commands(profile.to_dict(), tokenizer, root)
+        pre_sections = _collect_pre_commands(profile, tokenizer, root)
         params = self._build_collect_params(
             target_files, profile, pre_sections, tokenizer, root, query
         )
@@ -131,8 +133,6 @@ class _FullModeStrategy:
 
     def _collect_parallel(self, params):
         try:
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-
             with ThreadPoolExecutor(max_workers=params.max_workers) as executor:
                 futures = {
                     executor.submit(

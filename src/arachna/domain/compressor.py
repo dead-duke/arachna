@@ -1,5 +1,7 @@
 """Whitespace compression for token savings."""
 
+from .tokenization.tokenizer import count_tokens
+
 
 def compress(text: str) -> str:
     """Compress whitespace to save tokens.
@@ -28,8 +30,6 @@ def compress(text: str) -> str:
 
 def estimate_savings(original: str, compressed: str) -> tuple[int, int, float]:
     """Return (original_tokens, compressed_tokens, savings_percent)."""
-    from .tokenization.tokenizer import count_tokens
-
     orig = count_tokens(original)
     comp = count_tokens(compressed)
     pct = ((orig - comp) / orig * 100) if orig > 0 else 0

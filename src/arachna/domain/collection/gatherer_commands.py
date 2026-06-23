@@ -5,58 +5,23 @@ Handles pre_commands execution and command output gathering.
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
-from ..execution.runner import run_command, run_pre_commands
+from ...config.profile_config import ProfileConfig
+from ..execution.runner import run_command
 from ..tokenization.tokenizer import count_tokens
+from .gatherer_files import _collect_named_sections, _get_exclude_patterns
+from .gatherer_pre_commands import _collect_pre_commands
 
-
-def _collect_pre_commands(
-    profile: dict[str, Any],
-    tokenizer: Callable[[str], int],
-    root: Path,
-) -> list[tuple[str, str, int]]:
-    """Run pre_commands from profile and return labeled output sections.
-
-    Args:
-        profile: Profile dict with optional 'pre_commands' list.
-        tokenizer: Token counting function.
-        root: Project root directory.
-
-    Returns:
-        List of (label, output, token_count) tuples.
-    """
-    results = []
-    commands = profile.get("pre_commands", [])
-    if not commands:
-        return results
-    for cmd, output in run_pre_commands(commands, root=root):
-        if output.strip():
-            tokens = tokenizer(output)
-            label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
-            results.append((f"pre: {label}", output, tokens))
-    return results
+__all__ = ["_collect_pre_commands", "gather_command", "gather_files"]
 
 
 def gather_files(
-    profile: dict[str, Any],
+    profile: ProfileConfig,
     root: Path,
     verbose: bool = False,
     tokenizer: Callable[[str], int] | None = None,
 ) -> list[str]:
-    """Gather files by profile, return list of formatted content strings.
-
-    Args:
-        profile: Profile dict.
-        root: Project root directory.
-        verbose: Whether to print progress.
-        tokenizer: Token counting function (default: count_tokens).
-
-    Returns:
-        List of formatted file content strings.
-    """
-    from .gatherer_files import _collect_named_sections
-
+    """Gather files by profile, return list of formatted content strings."""
     tk = tokenizer if tokenizer is not None else count_tokens
     exclude = _get_exclude_patterns_for_gather(profile, root=root)
     sections, _ = _collect_named_sections(
@@ -65,21 +30,11 @@ def gather_files(
     return [content for _, content, _ in sections]
 
 
-def _get_exclude_patterns_for_gather(profile: dict[str, Any], root: Path) -> list[str]:
+def _get_exclude_patterns_for_gather(profile: ProfileConfig, root: Path) -> list[str]:
     """Get exclude patterns for gather_files (thin wrapper)."""
-    from .gatherer_files import _get_exclude_patterns
-
     return _get_exclude_patterns(profile, root)
 
 
 def gather_command(cmd: str, root: Path) -> str:
-    """Execute a shell command and return its output.
-
-    Args:
-        cmd: Shell command to execute.
-        root: Project root directory.
-
-    Returns:
-        Command stdout as string.
-    """
+    """Execute a shell command and return its output."""
     return run_command(cmd, root=root, allow_file_args=True)

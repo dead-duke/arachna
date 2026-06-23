@@ -5,10 +5,10 @@ import logging
 import re
 import threading
 
-from ..formatting.formatter import C_LIKE_LANGS, SCRIPT_LANGS
-from ..formatting.formatter import _parse_c_like as _header_parse_c_like
-from ..formatting.formatter import _parse_python as _header_parse_python
-from ..formatting.formatter import _parse_script as _header_parse_script
+from ..formatting.format_language import C_LIKE_LANGS, SCRIPT_LANGS
+from ..formatting.format_parsers import _parse_c_like as _header_parse_c_like
+from ..formatting.format_parsers import _parse_python as _header_parse_python
+from ..formatting.format_parsers import _parse_script as _header_parse_script
 
 logger = logging.getLogger("arachna.language_dispatch")
 
@@ -27,7 +27,7 @@ def _run_with_timeout(func, timeout=_REGEX_TIMEOUT):
     def target():
         try:
             result[0] = func()
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
             error[0] = e
         finally:
             done.set()
@@ -189,10 +189,6 @@ def _build_block_parsers() -> dict:
 
 HEADER_PARSERS: dict = _build_header_parsers()
 BLOCK_PARSERS: dict = _build_block_parsers()
-
-
-def get_header_parser(lang: str):
-    return HEADER_PARSERS.get(lang)
 
 
 def get_block_parser(lang: str):

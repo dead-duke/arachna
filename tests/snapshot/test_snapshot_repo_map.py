@@ -195,12 +195,12 @@ def test_read_file_from_store_invalid_hash(tmp_path):
 
 
 def test_read_file_from_disk_not_found(tmp_path):
-    result = _read_file_from_disk(str(tmp_path / "ghost.py"))
+    result = _read_file_from_disk(str(tmp_path / "ghost.py"), root=tmp_path)
     assert result is None
 
 
 def test_read_file_from_disk_not_a_file(tmp_path):
-    result = _read_file_from_disk(str(tmp_path))
+    result = _read_file_from_disk(str(tmp_path), root=tmp_path)
     assert result is None
 
 
@@ -213,7 +213,7 @@ def test_read_file_from_disk_unreadable(tmp_path):
     f.write_text("secret")
     f.chmod(0o000)
     try:
-        result = _read_file_from_disk(str(f))
+        result = _read_file_from_disk(str(f), root=tmp_path)
         assert result is None
     finally:
         f.chmod(0o644)

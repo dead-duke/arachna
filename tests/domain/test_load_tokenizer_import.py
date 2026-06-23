@@ -1,6 +1,7 @@
 """Tests for load_tokenizer import paths."""
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -8,9 +9,9 @@ from arachna.domain.tokenization.tokenizer import _is_safe_tokenizer, load_token
 
 
 def test_load_tokenizer_unsafe_module_raises_value_error():
-    assert not _is_safe_tokenizer("nonexistent_module_xyz")
+    assert not _is_safe_tokenizer("nonexistent_module_xyz", root=Path.cwd())
     with pytest.raises(ValueError, match="Unsafe tokenizer"):
-        load_tokenizer("nonexistent_module_xyz:count_tokens")
+        load_tokenizer("nonexistent_module_xyz:count_tokens", root=Path.cwd())
 
 
 def test_load_tokenizer_local_file_not_in_sys_path(tmp_path):
@@ -25,7 +26,7 @@ def test_load_tokenizer_attribute_error(tmp_path):
     sys.path.insert(0, str(tmp_path))
     try:
         with pytest.raises(AttributeError):
-            load_tokenizer("my_tok3:nonexistent_function")
+            load_tokenizer("my_tok3:nonexistent_function", root=tmp_path)
     finally:
         sys.path.pop(0)
         import importlib

@@ -32,15 +32,12 @@ from .collection import (
     clean_manifest,
     collect,
     dry_run,
-    gather_command,
-    gather_files,
     load_manifest,
     save_manifest,
 )
 from .collection.gatherer_files import _scan_directories as scan_directories
 from .compressor import (
     compress,
-    estimate_savings,
 )
 from .differ_stats import (
     compute_diff_stats,
@@ -98,11 +95,8 @@ __all__ = [
     "compute_diff_stats",
     "count_tokens",
     "dry_run",
-    "estimate_savings",
     "extract_signatures",
     "format_file_section",
-    "gather_command",
-    "gather_files",
     "get_block_parser",
     "get_changed_files",
     "get_header_parser",

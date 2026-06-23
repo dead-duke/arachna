@@ -1,6 +1,7 @@
 """File collection."""
 
 import contextlib
+import logging
 from pathlib import Path
 
 from ...config import CollectionMode, OutputFormat
@@ -15,18 +16,21 @@ from ..formatting.formatter import (
     is_excluded,
     lang_for_path,
 )
+from .gatherer_pre_commands import _collect_pre_commands
+
+logger = logging.getLogger("arachna.gatherer_files")
 
 
 def _scan_directory_pattern(dir_path, pattern, exclude):
     seen = []
     if ".." in pattern:
-        print(f"  Warning: skipping pattern with '..': {pattern}")
+        logger.warning("skipping pattern with '..': %s", pattern)
         return seen
     for filepath in sorted(dir_path.rglob(pattern)):
         if not filepath.is_file():
             continue
         if filepath.is_symlink():
-            print(f"  Warning: skipping symlink: {filepath}")
+            logger.warning("skipping symlink: %s", filepath)
             continue
         if is_excluded(filepath, exclude):
             continue
@@ -40,7 +44,7 @@ def _scan_one_directory(directory, patterns, exclude, root):
     if not dir_path.is_dir():
         return seen
     if dir_path.is_symlink():
-        print(f"  Warning: skipping symlink directory: {dir_path}")
+        logger.warning("skipping symlink directory: %s", dir_path)
         return seen
     for pattern in patterns:
         seen.extend(_scan_directory_pattern(dir_path, pattern, exclude))
@@ -127,7 +131,7 @@ def _collect_directory_sections(
         for del_path in deleted:
             cache.pop(str(del_path), None)
         if deleted:
-            print(f"  Deleted: {len(deleted)} file(s)")
+            logger.info("Deleted: %d file(s)", len(deleted))
     else:
         target_files = seen_files
     sections = _format_file_list(
@@ -166,7 +170,7 @@ def _collect_file_sections(
         filepath = root / filepath_str
         if not filepath.exists():
             if verbose:
-                print(f"  Not found: {filepath}")
+                logger.warning("Not found: %s", filepath)
             continue
         if is_excluded(filepath, exclude):
             continue
@@ -208,7 +212,7 @@ def _get_exclude_patterns(profile: ProfileConfig, root):
 def _print_compress_stats(raw_tokens, comp_tokens):
     if raw_tokens > 0:
         pct = (raw_tokens - comp_tokens) / raw_tokens * 100
-        print(f"  Compressed: ~{raw_tokens} -> ~{comp_tokens} tokens (-{pct:.0f}%)")
+        logger.info("Compressed: ~%d -> ~%d tokens (-%d%%)", raw_tokens, comp_tokens, int(pct))
 
 
 def _format_one_file(
@@ -254,13 +258,12 @@ def _collect_named_sections(
     mode: CollectionMode = "full",
     graph_cache=None,
 ):
-    from .gatherer_commands import _collect_pre_commands
     from .gatherer_query import _filter_by_query
 
     if graph_cache is None:
         graph_cache = {}
     named_sections = []
-    named_sections.extend(_collect_pre_commands(profile.to_dict(), tokenizer, root))
+    named_sections.extend(_collect_pre_commands(profile, tokenizer, root))
     dir_sections, new_cache = _collect_directory_sections(
         profile,
         exclude,

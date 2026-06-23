@@ -1,5 +1,7 @@
 """Tests for plugin detection — works with or without real tiktoken/transformers."""
 
+from pathlib import Path
+
 import pytest
 
 from arachna.domain.tokenization.tokenizer import _has_tiktoken, _has_transformers, load_tokenizer
@@ -19,19 +21,19 @@ def test_load_tokenizer_tiktoken_fallback():
     if _HAS_TIKTOKEN:
         pytest.skip("tiktoken is installed — fallback not testable")
     with pytest.raises(ValueError, match="tiktoken is not installed"):
-        load_tokenizer("tiktoken:cl100k_base")
+        load_tokenizer("tiktoken:cl100k_base", root=Path.cwd())
 
 
 def test_load_tokenizer_transformers_fallback():
     if _HAS_TRANSFORMERS:
         pytest.skip("transformers is installed — fallback not testable")
     with pytest.raises(ValueError, match="transformers is not installed"):
-        load_tokenizer("transformers:gpt2")
+        load_tokenizer("transformers:gpt2", root=Path.cwd())
 
 
 @pytest.mark.skipif(not _HAS_TIKTOKEN, reason="tiktoken not installed")
 def test_load_tokenizer_tiktoken_real():
-    tok = load_tokenizer("tiktoken")
+    tok = load_tokenizer("tiktoken", root=Path.cwd())
     result = tok("hello world")
     assert isinstance(result, int)
     assert result > 0
@@ -39,7 +41,7 @@ def test_load_tokenizer_tiktoken_real():
 
 @pytest.mark.skipif(not _HAS_TIKTOKEN, reason="tiktoken not installed")
 def test_load_tokenizer_tiktoken_custom_encoding():
-    tok = load_tokenizer("tiktoken:cl100k_base")
+    tok = load_tokenizer("tiktoken:cl100k_base", root=Path.cwd())
     result = tok("hello world")
     assert isinstance(result, int)
     assert result > 0
@@ -47,7 +49,7 @@ def test_load_tokenizer_tiktoken_custom_encoding():
 
 @pytest.mark.skipif(not _HAS_TRANSFORMERS, reason="transformers not installed")
 def test_load_tokenizer_transformers_real():
-    tok = load_tokenizer("transformers")
+    tok = load_tokenizer("transformers", root=Path.cwd())
     result = tok("hello world")
     assert isinstance(result, int)
     assert result > 0

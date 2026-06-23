@@ -127,14 +127,6 @@ def test_print_doctor_with_errors():
 
 def test_cmd_doctor_valid(tmp_path):
     (tmp_path / "src").mkdir()
-    config_dict = {
-        "project_name": "test",
-        "output_dir": "out",
-        "_root": str(tmp_path),
-        "profiles": {
-            "code": ProfileConfig(directories=["src"], max_tokens=16000, split_mode="by_file"),
-        },
-    }
     (tmp_path / ".arachna.json").write_text(
         json.dumps(
             {
@@ -144,20 +136,29 @@ def test_cmd_doctor_valid(tmp_path):
             }
         )
     )
+    from arachna.config.core.config import load_config
+
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
     with patch("sys.exit") as mock_exit:
-        _cmd_doctor(Namespace(), config_dict)
+        _cmd_doctor(Namespace(), config)
         mock_exit.assert_called_with(0)
 
 
 def test_cmd_doctor_invalid(tmp_path):
-    config_dict = {
-        "project_name": "test",
-        "output_dir": "out",
-        "_root": str(tmp_path),
-        "profiles": {
-            "bad": ProfileConfig(max_tokens=-2, command="echo hi"),
-        },
-    }
+    (tmp_path / ".arachna.json").write_text(
+        json.dumps(
+            {
+                "profiles": {
+                    "bad": {"max_tokens": -2, "command": "echo hi"},
+                }
+            }
+        )
+    )
+    from arachna.config.core.config import load_config
+
+    config = load_config(root=tmp_path)
+    config._root = str(tmp_path)
     with patch("sys.exit") as mock_exit:
-        _cmd_doctor(Namespace(), config_dict)
+        _cmd_doctor(Namespace(), config)
         mock_exit.assert_called_with(1)

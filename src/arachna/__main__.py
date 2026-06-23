@@ -6,6 +6,11 @@ from pathlib import Path
 
 from . import __version__
 from .cli import COMMAND_HANDLERS
+from .cli.collect import _cmd_collect_repo
+from .cli.init import _dispatch_init
+from .cli.plugins import _dispatch_plugins
+from .cli.snapshot import _dispatch_snapshot
+from .cli.store import _dispatch_store
 from .config.core.config import find_config, load_config
 
 _OUTPUT_DIR_HELP = "Override output directory"
@@ -118,8 +123,6 @@ def build_argparse() -> argparse.ArgumentParser:
 
 def _dispatch_collect(args, config):
     if args.repo:
-        from .cli.collect import _cmd_collect_repo
-
         return _cmd_collect_repo(args, config)
     if args.list:
         return COMMAND_HANDLERS["collect-list"](args, config)
@@ -144,43 +147,23 @@ def _load_root_config():
     return root, cfg_path, config
 
 
+def _dispatch_init_wrapper(args, config):
+    return _dispatch_init(args, config)
+
+
 _COMMAND_DISPATCH = {
     "collect": lambda args, config, parser: _dispatch_collect(args, config),
     "manifest": lambda args, config, parser: COMMAND_HANDLERS["manifest"](args, config),
-    "snapshot": lambda args, config, parser: _dispatch_snapshot_wrapper(args, config, parser),
+    "snapshot": lambda args, config, parser: _dispatch_snapshot(args, config, parser),
     "diff": lambda args, config, parser: COMMAND_HANDLERS["diff"](args, config),
-    "store": lambda args, config, parser: _dispatch_store_wrapper(args, config, parser),
-    "plugins": lambda args, config, parser: _dispatch_plugins_wrapper(args, config, parser),
+    "store": lambda args, config, parser: _dispatch_store(args, config, parser),
+    "plugins": lambda args, config, parser: _dispatch_plugins(args, config, parser),
     "presets": lambda args, config, parser: COMMAND_HANDLERS["presets-update"](args, config),
     "profile": lambda args, config, parser: COMMAND_HANDLERS["profile"](args, config),
     "doctor": lambda args, config, parser: COMMAND_HANDLERS["doctor"](args, config),
-    "init": lambda args, config, parser: _dispatch_init_wrapper(args, config),
+    "init": lambda args, config, parser: _dispatch_init(args, config),
     "completion": lambda args, config, parser: COMMAND_HANDLERS["completion"](args, config),
 }
-
-
-def _dispatch_snapshot_wrapper(args, config, parser):
-    from .cli.snapshot import _dispatch_snapshot
-
-    _dispatch_snapshot(args, config, parser)
-
-
-def _dispatch_store_wrapper(args, config, parser):
-    from .cli.store import _dispatch_store
-
-    _dispatch_store(args, config, parser)
-
-
-def _dispatch_plugins_wrapper(args, config, parser):
-    from .cli.plugins import _dispatch_plugins
-
-    _dispatch_plugins(args, config, parser)
-
-
-def _dispatch_init_wrapper(args, config):
-    from .cli.init import _dispatch_init
-
-    _dispatch_init(args, config)
 
 
 def main():

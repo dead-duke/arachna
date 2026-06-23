@@ -26,7 +26,7 @@ def atomic_write_text(path: SafePath, text: str) -> None:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(text)
             os.replace(tmp_path, p)
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
             raise
@@ -48,7 +48,7 @@ def atomic_write_bytes(path: SafePath, data: bytes) -> None:
             with os.fdopen(fd, "wb") as f:
                 f.write(data)
             os.replace(tmp_path, p)
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             with contextlib.suppress(OSError):
                 os.unlink(tmp_path)
             raise

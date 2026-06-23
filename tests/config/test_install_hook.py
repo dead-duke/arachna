@@ -45,7 +45,7 @@ def test_install_hook_explicit_command(tmp_path):
         json.dumps({"project_name": "test", "hook": {"post-commit": "arachna collect --all"}})
     )
 
-    success, msg = install_hook(command="arachna collect --profile code", root=tmp_path)
+    success, msg = install_hook(tmp_path, command="arachna collect --profile code")
     assert success
     content = (git_dir / "hooks" / "post-commit").read_text()
     assert "arachna collect --profile code" in content
@@ -92,7 +92,7 @@ def test_install_hook_existing_force_overwrites(tmp_path):
     hook = git_dir / "hooks" / "post-commit"
     hook.write_text("#!/bin/sh\necho old")
 
-    success, msg = install_hook(force=True, root=tmp_path)
+    success, msg = install_hook(tmp_path, force=True)
     assert success
     content = hook.read_text()
     assert "arachna collect --all" in content

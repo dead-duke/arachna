@@ -12,16 +12,12 @@ _SEPARATOR = "-" * 50
 DEFAULT_PRESETS_PATH = "presets.json"
 
 
-def _detect_dir(path: str, root: Path | None = None) -> bool:
-    if root is None:
-        root = Path.cwd()
+def _detect_dir(path: str, root: Path) -> bool:
     p = root / path
     return p.is_dir() and any(p.rglob("*.*"))
 
 
-def _detect_file(path: str, root: Path | None = None) -> bool:
-    if root is None:
-        root = Path.cwd()
+def _detect_file(path: str, root: Path) -> bool:
     return (root / path).exists()
 
 
@@ -65,8 +61,8 @@ def _load_builtin_presets() -> dict[str, dict]:
     return _load_builtin_presets_cached()
 
 
-def _is_safe_tokenizer(spec: str) -> bool:
-    return _tokenizer_is_safe(spec)
+def _is_safe_tokenizer(spec: str, root: Path) -> bool:
+    return _tokenizer_is_safe(spec, root=root)
 
 
 def _validate_preset_split_mode(preset, name):
@@ -91,7 +87,7 @@ def _validate_preset_max_tokens(preset, name):
 
 def _validate_preset_tokenizer(preset):
     tokenizer = preset.get("tokenizer", "default")
-    if not _is_safe_tokenizer(tokenizer):
+    if not _is_safe_tokenizer(tokenizer, root=Path.cwd()):
         print(f"Warning: preset has unsafe tokenizer '{tokenizer}', using 'default' instead.")
         preset = dict(preset)
         preset["tokenizer"] = "default"
@@ -157,9 +153,7 @@ def get_all_presets(external_path: str | Path | None = None) -> dict[str, dict]:
     return merged
 
 
-def detect_presets(preset_name=None, external_path=None, root=None) -> list[str]:
-    if root is None:
-        root = Path.cwd()
+def detect_presets(root: Path, preset_name=None, external_path=None) -> list[str]:
     all_presets = get_all_presets(external_path)
     if preset_name:
         return _detect_by_name(preset_name, all_presets, root)
@@ -190,9 +184,7 @@ def _detect_all(all_presets, root):
     return detected
 
 
-def _detect_any(paths: list[str], root: Path | None = None) -> bool:
-    if root is None:
-        root = Path.cwd()
+def _detect_any(paths: list[str], root: Path) -> bool:
     for p in paths:
         if "*" in p or "?" in p:
             if list(root.glob(p)):
@@ -234,7 +226,7 @@ def _build_profile_base(preset, root):
         "max_tokens": preset.get("max_tokens", 16000),
     }
     tokenizer = preset.get("tokenizer", "default")
-    if tokenizer != "default" and _is_safe_tokenizer(tokenizer):
+    if tokenizer != "default" and _is_safe_tokenizer(tokenizer, root=root):
         profile["tokenizer"] = tokenizer
     _add_profile_dirs(profile, preset, root)
     _add_profile_files(profile, preset, root)
@@ -242,9 +234,7 @@ def _build_profile_base(preset, root):
     return profile
 
 
-def preset_to_profile(name, external_path=None, root=None):
-    if root is None:
-        root = Path.cwd()
+def preset_to_profile(name: str, root: Path, external_path=None) -> dict | None:
     all_presets = get_all_presets(external_path)
     preset = all_presets.get(name)
     if preset is None:
@@ -258,9 +248,7 @@ def preset_to_profile(name, external_path=None, root=None):
     return profile
 
 
-def get_detected_summary(external_path=None, root=None):
-    if root is None:
-        root = Path.cwd()
+def get_detected_summary(root: Path, external_path=None):
     all_presets = get_all_presets(external_path)
-    detected_names = detect_presets(external_path=external_path, root=root)
+    detected_names = detect_presets(root=root, external_path=external_path)
     return {name: all_presets[name] for name in detected_names if name in all_presets}

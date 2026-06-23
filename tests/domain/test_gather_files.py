@@ -6,13 +6,13 @@ from unittest.mock import patch
 
 from arachna.config.profile_config import ProfileConfig
 from arachna.domain.collection.gatherer import gather_files
-from arachna.domain.collection.gatherer_commands import _collect_pre_commands
 from arachna.domain.collection.gatherer_files import (
     _collect_file_sections,
     _collect_named_sections,
     _format_one_file,
     _get_profile_files,
 )
+from arachna.domain.collection.gatherer_pre_commands import _collect_pre_commands
 from arachna.domain.tokenization.tokenizer import count_tokens
 
 
@@ -100,9 +100,6 @@ def test_subdirectory():
         assert len(sections) == 1
 
 
-# Edge cases
-
-
 def test_collect_file_sections_not_found(tmp_path):
     p = _profile(files=["nonexistent.py"])
     sections = _collect_file_sections(p, [], count_tokens, root=tmp_path, verbose=False)
@@ -157,7 +154,7 @@ def test_collect_named_sections_with_query(tmp_path):
 
 def test_pre_command_long_label_is_truncated(tmp_path):
     long_cmd = "echo " + "x" * 60
-    with patch("arachna.domain.collection.gatherer_commands.run_pre_commands") as mock_run:
+    with patch("arachna.domain.collection.gatherer_pre_commands.run_pre_commands") as mock_run:
         mock_run.return_value = [(long_cmd, "output")]
         p = ProfileConfig(
             name_template="c",
@@ -169,6 +166,6 @@ def test_pre_command_long_label_is_truncated(tmp_path):
             use_gitignore=False,
             pre_commands=[long_cmd],
         )
-        result = _collect_pre_commands(p.to_dict(), count_tokens, root=tmp_path)
+        result = _collect_pre_commands(p, count_tokens, root=tmp_path)
     assert len(result) == 1
     assert result[0][0].endswith("...")

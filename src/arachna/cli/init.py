@@ -15,15 +15,15 @@ def _cmd_init(args, config: ArachnaConfig):
     root = get_root(config)
     output_dir = parse_output_dir(args, config)
     if args.defaults:
-        run_defaults(output_dir, preset=args.preset, root=root)
+        run_defaults(root, output_dir, preset=args.preset)
     else:
-        run_interactive(output_dir, preset=args.preset, root=root)
+        run_interactive(root, output_dir, preset=args.preset)
 
 
 def _dispatch_init(args, config: ArachnaConfig):
     root = get_root(config)
     if args.install_hook:
-        success, msg = install_hook(force=args.force, root=root)
+        success, msg = install_hook(root, force=args.force)
         print(msg)
         sys.exit(0 if success else 1)
     else:

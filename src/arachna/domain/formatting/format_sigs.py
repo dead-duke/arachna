@@ -2,6 +2,7 @@
 
 import json
 
+from ..execution.splitter import extract_signatures
 from .format_headers import _generate_header
 
 
@@ -29,8 +30,6 @@ _SIGS_FORMATTERS = {
 
 
 def _apply_repo_map_to_section(filepath, section, raw_text, lang, fmt, include_header, header=""):
-    from ..execution.splitter import extract_signatures
-
     if raw_text is None:
         return section
     sigs = extract_signatures(raw_text, lang)

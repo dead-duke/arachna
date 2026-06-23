@@ -16,7 +16,7 @@ def test_local_py_file_in_sys_path(tmp_path):
     (lib / "my_tok.py").write_text("def count_tokens(t): return 1")
     sys.path.insert(0, str(lib))
     try:
-        assert _is_safe_tokenizer("my_tok")
+        assert _is_safe_tokenizer("my_tok", root=tmp_path)
     finally:
         sys.path.pop(0)
 
@@ -32,11 +32,11 @@ def test_nonexistent_module_denied(tmp_path):
     assert not _is_safe_tokenizer("nonexistent_tokenizer_xyz", root=tmp_path)
 
 
-def test_stdlib_module_denied():
-    assert not _is_safe_tokenizer("json")
-    assert not _is_safe_tokenizer("pathlib")
+def test_stdlib_module_denied(tmp_path):
+    assert not _is_safe_tokenizer("json", root=tmp_path)
+    assert not _is_safe_tokenizer("pathlib", root=tmp_path)
 
 
-def test_suspicious_module_denied():
-    assert not _is_safe_tokenizer("os")
-    assert not _is_safe_tokenizer("subprocess")
+def test_suspicious_module_denied(tmp_path):
+    assert not _is_safe_tokenizer("os", root=tmp_path)
+    assert not _is_safe_tokenizer("subprocess", root=tmp_path)
