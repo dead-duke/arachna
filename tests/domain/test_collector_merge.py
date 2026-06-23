@@ -9,13 +9,7 @@ from arachna.domain.collection.collector import (
     clean_manifest,
     save_manifest,
 )
-from arachna.domain.path_utils import SafePath
-
-
-def _safe_out(tmp_path, name="out"):
-    out = tmp_path / name
-    out.mkdir(exist_ok=True)
-    return SafePath(out, tmp_path)
+from tests.domain.conftest import safe_out
 
 
 def test_merge_lock_no_fcntl_no_msvcrt(tmp_path):
@@ -27,7 +21,7 @@ def test_merge_lock_no_fcntl_no_msvcrt(tmp_path):
         try:
             from arachna.domain.collection.collector import _merge_lock
 
-            out = _safe_out(tmp_path)
+            out = safe_out(tmp_path)
             with _merge_lock(out):
                 (Path(str(out)) / "test.txt").write_text("locked")
 
@@ -38,7 +32,7 @@ def test_merge_lock_no_fcntl_no_msvcrt(tmp_path):
 
 def test_clean_manifest_empty_name_tmpl(tmp_path):
     """clean_manifest with empty name_tmpl removes all tracked files."""
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     (Path(str(out)) / "chat-c_1.md").write_text("x")
     (Path(str(out)) / "chat-d.md").write_text("y")
     save_manifest(out, ["chat-c_1.md", "chat-d.md"])
@@ -51,7 +45,7 @@ def test_clean_manifest_empty_name_tmpl(tmp_path):
 
 def test_clean_manifest_plain_file(tmp_path):
     """clean_manifest removes plain (non-numbered) file."""
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     (Path(str(out)) / "chat-c.md").write_text("x")
     (Path(str(out)) / "chat-c_1.md").write_text("y")
     save_manifest(out, ["chat-c.md", "chat-c_1.md"])
@@ -64,7 +58,7 @@ def test_clean_manifest_plain_file(tmp_path):
 
 def test_clean_manifest_nonexistent_files(tmp_path):
     """clean_manifest handles non-existent files gracefully."""
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     save_manifest(out, ["chat-gone.md"])
 
     clean_manifest(out, "chat")

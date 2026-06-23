@@ -2,15 +2,30 @@
 
 from unittest.mock import patch
 
+from arachna.config.profile_config import ProfileConfig
 from arachna.snapshot.diff.snapshot_diff_commands import (
     _collect_snapshot_command,
     _collect_snapshot_pre_commands,
 )
 
 
+def _make_profile(**kwargs):
+    """Create ProfileConfig for testing."""
+    return ProfileConfig(
+        name_template="c",
+        title_template="# T\n\n",
+        max_tokens=16000,
+        split_mode="by_file",
+        directories=["src"],
+        patterns=["*.py"],
+        use_gitignore=False,
+        **kwargs,
+    )
+
+
 def test_pre_command_empty_output_sanitizes_newlines_in_log():
     """Newlines in pre_command are escaped before logger.warning."""
-    profile = {"pre_commands": ["echo hello\nevil"]}
+    profile = _make_profile(pre_commands=["echo hello\nevil"])
 
     with (
         patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
@@ -24,7 +39,7 @@ def test_pre_command_empty_output_sanitizes_newlines_in_log():
 
 def test_pre_command_empty_output_sanitizes_carriage_return_in_log():
     """Carriage returns in pre_command are escaped before logger.warning."""
-    profile = {"pre_commands": ["echo hello\revil"]}
+    profile = _make_profile(pre_commands=["echo hello\revil"])
 
     with (
         patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
@@ -38,7 +53,7 @@ def test_pre_command_empty_output_sanitizes_carriage_return_in_log():
 
 def test_command_empty_output_sanitizes_newlines_in_log():
     """Newlines in command are escaped before logger.warning."""
-    profile = {"command": "echo hello\nevil"}
+    profile = _make_profile(command="echo hello\nevil")
 
     with (
         patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
@@ -52,7 +67,7 @@ def test_command_empty_output_sanitizes_newlines_in_log():
 
 def test_command_empty_output_sanitizes_carriage_return_in_log():
     """Carriage returns in command are escaped before logger.warning."""
-    profile = {"command": "echo hello\revil"}
+    profile = _make_profile(command="echo hello\revil")
 
     with (
         patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value=""),
@@ -66,7 +81,7 @@ def test_command_empty_output_sanitizes_carriage_return_in_log():
 
 def test_pre_command_with_output_does_not_log_warning():
     """When pre_command produces output, no warning is logged."""
-    profile = {"pre_commands": ["echo hello"]}
+    profile = _make_profile(pre_commands=["echo hello"])
 
     with (
         patch("arachna.snapshot.diff.snapshot_diff_commands.run_command", return_value="hello"),

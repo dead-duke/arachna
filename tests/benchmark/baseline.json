@@ -2,37 +2,37 @@
   "full_1000": {
     "files": 3,
     "parts": 3,
-    "tokens": 73400,
-    "time": 0.134,
-    "rss_mb": 98.6,
-    "throughput_files": 22.0,
-    "throughput_tokens": 549192
+    "tokens": 101343,
+    "time": 0.227,
+    "rss_mb": 142.7,
+    "throughput_files": 13,
+    "throughput_tokens": 445458
   },
   "repo_map_1000": {
-    "files": 1,
-    "parts": 1,
-    "tokens": 33374,
-    "time": 0.157,
-    "rss_mb": 84.4,
-    "throughput_files": 6.4,
-    "throughput_tokens": 212573
+    "files": 2,
+    "parts": 2,
+    "tokens": 55861,
+    "time": 0.276,
+    "rss_mb": 142.7,
+    "throughput_files": 7,
+    "throughput_tokens": 202395
   },
   "headers_1000": {
-    "files": 3,
-    "parts": 3,
-    "tokens": 89260,
-    "time": 0.109,
-    "rss_mb": 85.3,
-    "throughput_files": 27.5,
-    "throughput_tokens": 818899
+    "files": 5,
+    "parts": 5,
+    "tokens": 128216,
+    "time": 0.260,
+    "rss_mb": 132.8,
+    "throughput_files": 19,
+    "throughput_tokens": 493138
   },
   "full_5000": {
-    "files": 11,
-    "parts": 11,
-    "tokens": 374320,
-    "time": 0.74,
-    "rss_mb": 108.0,
-    "throughput_files": 15.0,
-    "throughput_tokens": 506226
+    "files": 15,
+    "parts": 15,
+    "tokens": 513331,
+    "time": 1.283,
+    "rss_mb": 132.9,
+    "throughput_files": 12,
+    "throughput_tokens": 399981
   }
 }

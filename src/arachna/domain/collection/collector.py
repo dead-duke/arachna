@@ -257,7 +257,7 @@ def _run_post_commands(commands: list[str], root: Path, verbose: bool = False):
     for cmd in commands:
         output = run_command(cmd, root=root, allow_file_args=True)
         if verbose and output.strip():
-            print(f"  post: {output.strip()}")
+            logger.info("post: %s", output.strip())
 
 
 def _write_metrics(out_path: SafePath, metrics: PipelineMetrics):
@@ -274,15 +274,6 @@ def _write_metrics(out_path: SafePath, metrics: PipelineMetrics):
         "compression_ratio": metrics.compression_ratio,
     }
     atomic_write_text(metrics_path, json.dumps(payload, indent=2))
-
-
-def _build_profile_for_collect(profile, name_template, allow_pre_commands):
-    profile_dict = profile.to_dict()
-    if not allow_pre_commands:
-        profile_dict["pre_commands"] = []
-        profile_dict["post_commands"] = []
-    name_tmpl = name_template if name_template is not None else profile_dict["name_template"]
-    return profile_dict, name_tmpl, profile_dict["title_template"]
 
 
 def _build_tokenizer(profile, root) -> Tokenizer:
@@ -321,9 +312,11 @@ def collect(
     name_template=None,
     allow_pre_commands=True,
 ):
-    profile_dict, name_tmpl, title_tmpl = _build_profile_for_collect(
-        profile, name_template, allow_pre_commands
-    )
+    name_tmpl = name_template if name_template is not None else profile.name_template
+    title_tmpl = profile.title_template
+    if not allow_pre_commands:
+        profile.pre_commands = []
+        profile.post_commands = []
     out_path = SafePath(root / output_dir, root)
     out_path.mkdir(parents=True, exist_ok=True)
     tokenizer = _build_tokenizer(profile, root)
@@ -359,7 +352,7 @@ def collect(
         tokenizer,
         merge=merge,
     )
-    _run_post_commands(profile_dict.get("post_commands", []), root=root, verbose=verbose)
+    _run_post_commands(profile.post_commands, root=root, verbose=verbose)
     metrics = _build_metrics(extract_time_ms, named_sections, tokens_by_file)
     _write_metrics(out_path, metrics)
     return created, tokens_by_file, parts, metrics

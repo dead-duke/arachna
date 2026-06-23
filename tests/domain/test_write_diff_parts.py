@@ -4,18 +4,12 @@ from pathlib import Path
 
 from arachna.domain.api_types import DiffSection
 from arachna.domain.collection.collector import _write_diff_parts
-from arachna.domain.path_utils import SafePath
 from arachna.domain.tokenization.tokenizer import count_tokens
-
-
-def _safe_out(tmp_path, name="out"):
-    out = tmp_path / name
-    out.mkdir(exist_ok=True)
-    return SafePath(out, tmp_path)
+from tests.domain.conftest import safe_out
 
 
 def test_write_diff_parts_single_file(tmp_path):
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     sections = [
         DiffSection(
             type="modified",
@@ -37,7 +31,7 @@ def test_write_diff_parts_single_file(tmp_path):
 
 
 def test_write_diff_parts_multiple_files(tmp_path):
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     big = "x" * 2000
     sections = [
         DiffSection(
@@ -60,7 +54,7 @@ def test_write_diff_parts_multiple_files(tmp_path):
 
 
 def test_write_diff_parts_empty_sections(tmp_path):
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     created = _write_diff_parts(
         [],
         out,
@@ -74,7 +68,7 @@ def test_write_diff_parts_empty_sections(tmp_path):
 
 
 def test_write_diff_parts_empty_content(tmp_path):
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     sections = [
         DiffSection(type="modified", path="empty.py", content=""),
         DiffSection(
@@ -95,7 +89,7 @@ def test_write_diff_parts_empty_content(tmp_path):
 
 
 def test_write_diff_parts_with_toc(tmp_path):
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     sections = [
         DiffSection(
             type="modified",
@@ -124,7 +118,7 @@ def test_write_diff_parts_with_toc(tmp_path):
 
 
 def test_write_diff_parts_toc_built_from_names(tmp_path):
-    out = _safe_out(tmp_path)
+    out = safe_out(tmp_path)
     sections = [
         DiffSection(
             type="added",

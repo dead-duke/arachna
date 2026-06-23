@@ -4,6 +4,7 @@ import difflib
 import logging
 from pathlib import Path
 
+from ...config.profile_config import ProfileConfig
 from ...domain.api_types import DiffSection
 from ...domain.execution.runner import _sanitize_log, run_command
 from ..store.store import _SHA256_PREFIX, load_snapshot, write_object
@@ -16,9 +17,9 @@ _COMMAND_OUTPUT_LABEL = "command output"
 _PRE_LABEL_PREFIX = "pre: "
 
 
-def _collect_snapshot_pre_commands(profile: dict, root: Path) -> dict[str, str]:
+def _collect_snapshot_pre_commands(profile: ProfileConfig, root: Path) -> dict[str, str]:
     pre_commands_data = {}
-    for cmd in profile.get("pre_commands", []):
+    for cmd in profile.pre_commands:
         output = run_command(cmd, root=root, allow_file_args=True)
         if output.strip():
             label = cmd if len(cmd) <= 50 else cmd[:47] + "..."
@@ -30,9 +31,9 @@ def _collect_snapshot_pre_commands(profile: dict, root: Path) -> dict[str, str]:
     return pre_commands_data
 
 
-def _collect_snapshot_command(profile: dict, root: Path) -> dict[str, str]:
+def _collect_snapshot_command(profile: ProfileConfig, root: Path) -> dict[str, str]:
     command_data = {}
-    cmd = profile.get("command")
+    cmd = profile.command
     if cmd:
         output = run_command(cmd, root=root, allow_file_args=True)
         if output.strip():
@@ -102,17 +103,17 @@ def _diff_pre_commands_structural(old_content, new_content, label, cmd, fmt):
     return differ_compute_diff(old_content, new_content, label, fmt=fmt)
 
 
-def _build_pre_command_map(profile: dict) -> dict[str, str]:
+def _build_pre_command_map(profile: ProfileConfig) -> dict[str, str]:
     cmd_map = {}
-    for cmd in profile.get("pre_commands", []):
+    for cmd in profile.pre_commands:
         label = f"{_PRE_LABEL_PREFIX}{cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
         cmd_map[label] = cmd
     return cmd_map
 
 
-def _build_current_pre_commands(profile: dict, root: Path) -> dict[str, str]:
+def _build_current_pre_commands(profile: ProfileConfig, root: Path) -> dict[str, str]:
     current_pre = {}
-    for cmd in profile.get("pre_commands", []):
+    for cmd in profile.pre_commands:
         output = run_command(cmd, root=root, allow_file_args=True)
         if output.strip():
             label = f"{_PRE_LABEL_PREFIX}{cmd if len(cmd) <= 50 else cmd[:47] + '...'}"
@@ -150,7 +151,7 @@ def _diff_new_pre_command(label, cmd_map, fmt):
     return DiffSection(type="added", path=label, content=diff_output)
 
 
-def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root):
+def _diff_pre_commands_sections(snapshot_id, profile: ProfileConfig, to_snapshot_id, fmt, root):
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_pre = manifest.get("pre_commands", {})
     current_pre = {}
@@ -174,14 +175,14 @@ def _diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root)
     return sections
 
 
-def _get_current_cmd_output(to_snapshot_id, profile, root):
+def _get_current_cmd_output(to_snapshot_id, profile: ProfileConfig, root):
     if to_snapshot_id is not None:
         to_manifest = load_snapshot(to_snapshot_id, root=root)
         snapshot_to_cmd = to_manifest.get("command", {})
         for _label, hash_spec in snapshot_to_cmd.items():
             return _get_content_from_manifest(hash_spec, root=root)
         return ""
-    cmd = profile.get("command")
+    cmd = profile.command
     if cmd:
         output = run_command(cmd, root=root, allow_file_args=True)
         if output.strip():
@@ -219,7 +220,7 @@ def _diff_cmd_added(current_cmd_output, fmt):
     return [DiffSection(type="added", path=_COMMAND_OUTPUT_LABEL, content=diff_output)]
 
 
-def _diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root):
+def _diff_command_section(snapshot_id, profile: ProfileConfig, to_snapshot_id, fmt, root):
     manifest = load_snapshot(snapshot_id, root=root)
     snapshot_cmd = manifest.get("command", {})
     current_cmd_output = _get_current_cmd_output(to_snapshot_id, profile, root)

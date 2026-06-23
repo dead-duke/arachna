@@ -38,8 +38,8 @@ def _is_binary_content(content: str) -> bool:
 
 def collect_snapshot_content(profile: ProfileConfig, root: Path) -> tuple[dict, dict, dict]:
     files = _collect_snapshot_files(profile, root)
-    pre_commands_data = _collect_snapshot_pre_commands(profile.to_dict(), root)
-    command_data = _collect_snapshot_command(profile.to_dict(), root)
+    pre_commands_data = _collect_snapshot_pre_commands(profile, root)
+    command_data = _collect_snapshot_command(profile, root)
     return files, pre_commands_data, command_data
 
 
@@ -147,12 +147,8 @@ def compute_diff(
     sections = _diff_files_sections(
         snapshot_id, profile, exclude, to_snapshot_id, fmt, root, line_numbers=line_numbers
     )
-    sections.extend(
-        _diff_pre_commands_sections(snapshot_id, profile.to_dict(), to_snapshot_id, fmt, root)
-    )
-    sections.extend(
-        _diff_command_section(snapshot_id, profile.to_dict(), to_snapshot_id, fmt, root)
-    )
+    sections.extend(_diff_pre_commands_sections(snapshot_id, profile, to_snapshot_id, fmt, root))
+    sections.extend(_diff_command_section(snapshot_id, profile, to_snapshot_id, fmt, root))
     if not flat and sections:
         sections = _group_diff_sections(sections, snapshot_id, to_snapshot_id)
     return sections
